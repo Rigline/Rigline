@@ -1,0 +1,343 @@
+/**
+ * The installer: injects the loader into one extension directory's webview bundle, keeps its
+ * identifier tables and plugin registry current, applies declared host patches, and restores an
+ * extension to the bytes it shipped with.
+ *
+ * Every read and write of a bundle here is over Buffers, never through a string encoding: this
+ * repo's fixtures deliberately carry CRLF line endings and non-ASCII bytes to keep that honest,
+ * because a round trip through `"utf8"` or `"latin1"` text would rewrite line endings on Windows
+ * and turn a two-line patch into a diff nobody could audit (D37).
+ */
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { join, relative } from "node:path";
+import { sharedFields } from "@prototype/plugin-api";
+import { generate } from "../codegen/generate.ts";
+import { UserError } from "../errors.ts";
+import {
+  HOST_BACKUP,
+  HOST_BUNDLE,
+  hostBackupIsCurrent,
+  isExtensionDir,
+  readBundles,
+  WEBVIEW_BACKUP,
+  WEBVIEW_BUNDLE,
+} from "../extension/bundles.ts";
+import { harvestAll } from "../layers/index.ts";
+import {
+  bakeRegistry,
+  capabilityUseNotes,
+  declaredPatches,
+  discoverPlugins,
+  enabledPlugins,
+  isPluginOutput,
+  readConfig,
+} from "../plugins/discover.ts";
+import { applyPatches, type PatchOutcome } from "./hostpatch.ts";
+
+const DIRNAME = "prototype";
+
+/** The comment that marks the static import. Never trusted on its own (D38) — see `verdict`. */
+const MARKER = "/*PROTOTYPE-PRE*/";
+
+/** Evaluates before the bundle body, so it can wrap `acquireVsCodeApi` before the app's one call to it. */
+const PRE_LINE = `import"./${DIRNAME}/pre.js";${MARKER}\n`;
+/** Runs after `createRoot().render()`; its own `catch` is what stops a post-hook failure reaching the app. */
+const POST_LINE = `\n/*PROTOTYPE-POST*/import("./${DIRNAME}/post.js").catch((e)=>console.error("[prototype] post-hook",e));\n`;
+
+const PRE_BYTES = Buffer.from(PRE_LINE, "utf8");
+const POST_BYTES = Buffer.from(POST_LINE, "utf8");
+
+/** The exact number of bytes one injection adds. Quoted in docs; changing either line changes it. */
+export const PATCH_BYTES = PRE_BYTES.byteLength + POST_BYTES.byteLength;
+
+const PAYLOAD_FILES = ["pre.js", "post.js"];
+
+/** Everything on disk for one installed extension directory, read once and reused. */
+export interface Injection {
+  readonly ext: string;
+  readonly bundle: string;
+  readonly backup: string;
+  readonly host: string;
+  readonly hostBackup: string;
+  readonly payloadDir: string;
+  readonly markerPresent: boolean;
+  readonly backupExists: boolean;
+  readonly hostBackupExists: boolean;
+}
+
+/** Reads current on-disk state without changing anything. Throws `UserError` outside an extension. */
+export function inspect(ext: string): Injection {
+  if (!isExtensionDir(ext)) {
+    throw new UserError(`${ext} is not a Claude Code extension directory`);
+  }
+  const bundle = join(ext, WEBVIEW_BUNDLE);
+  const backup = join(ext, WEBVIEW_BACKUP);
+  const host = join(ext, HOST_BUNDLE);
+  const hostBackup = join(ext, HOST_BACKUP);
+  const payloadDir = join(ext, "webview", DIRNAME);
+  return {
+    ext,
+    bundle,
+    backup,
+    host,
+    hostBackup,
+    payloadDir,
+    markerPresent: readFileSync(bundle).includes(MARKER),
+    backupExists: existsSync(backup),
+    hostBackupExists: existsSync(hostBackup),
+  };
+}
+
+export type Verdict = "vanilla" | "patched" | "unknown";
+
+/**
+ * The live webview bundle against its backup — never the marker, which is a comment inside bytes
+ * a plugin's own host patch or a foreign tool could equally well have left alone or disturbed.
+ * `"unknown"` only when there is no backup to compare against at all.
+ */
+export function verdict(state: Injection): Verdict {
+  if (!state.backupExists) return "unknown";
+  const live = readFileSync(state.bundle);
+  const backup = readFileSync(state.backup);
+  return live.equals(backup) ? "vanilla" : "patched";
+}
+
+/**
+ * The live host bundle against its backup. No backup here means `"vanilla"`, a stronger answer
+ * than webview's `"unknown"`: a host backup is written only the moment a patch first applies, so
+ * its absence already says nothing has touched `extension.js`.
+ */
+export function hostVerdict(state: Injection): Verdict {
+  if (!state.hostBackupExists) return "vanilla";
+  const live = readFileSync(state.host);
+  const backup = readFileSync(state.hostBackup);
+  return live.equals(backup) ? "vanilla" : "patched";
+}
+
+/**
+ * Settles the webview backup before anything else reads it, because `generated.js` is harvested
+ * from the pristine bundle. In order: no backup yet, so the live bytes become one; backup and live
+ * already agree, so there is nothing to do; the live bytes are already this exact loader's patch
+ * over the backup, so again nothing to do (the shape a repeated install finds every time); the
+ * backup appears inside the live bytes with some other head or tail around it — an older marker
+ * text, or a patch this installer did not write — so it is rolled back, leaving whatever used that
+ * payload directory unreferenced rather than deleted on the strength of bytes nobody here wrote;
+ * otherwise the two share no relation at all, meaning the extension was replaced in place, and the
+ * live bytes become the new pristine baseline.
+ */
+function settleWebviewBackup(state: Injection, log: (line: string) => void): void {
+  const live = readFileSync(state.bundle);
+  if (!state.backupExists) {
+    writeFileSync(state.backup, live);
+    return;
+  }
+  const backup = readFileSync(state.backup);
+  if (live.equals(backup)) {
+    return;
+  }
+  if (live.equals(Buffer.concat([PRE_BYTES, backup, POST_BYTES]))) {
+    return;
+  }
+  if (live.includes(backup)) {
+    writeFileSync(state.bundle, backup);
+    log(
+      `${state.bundle} carried an unrecognised patch; rolled it back from ${state.backup} ` +
+        "(any payload directory it used is left in webview/, unreferenced)",
+    );
+    return;
+  }
+  writeFileSync(state.backup, live);
+}
+
+function copyPluginDir(src: string, dest: string): void {
+  cpSync(src, dest, {
+    recursive: true,
+    filter: (source) => isPluginOutput(relative(src, source)),
+  });
+}
+
+export interface InstallOptions {
+  readonly payloadDir: string;
+  readonly plugins?: {
+    readonly roots: readonly string[];
+    readonly last?: readonly string[];
+    readonly configPath: string;
+  };
+  readonly log?: (line: string) => void;
+}
+
+export interface InstallReport {
+  readonly ext: string;
+  readonly version: string;
+  readonly action: "injected" | "refreshed";
+  readonly hostChanged: boolean;
+  readonly patchOutcomes: readonly PatchOutcome[];
+  readonly enabled: readonly string[];
+  readonly disabled: readonly string[];
+  readonly notes: readonly string[];
+}
+
+/**
+ * Installs or refreshes the loader in one extension directory. See the module comment and
+ * docs/host.md for the full step order; in brief: settle the webview backup, copy the payload and
+ * write this directory's identifier tables, apply and bake any declared host patches, and only
+ * then decide whether the two-line patch itself needs writing at all.
+ */
+export function install(ext: string, options: InstallOptions): InstallReport {
+  const log = options.log ?? (() => {});
+
+  for (const file of PAYLOAD_FILES) {
+    if (!existsSync(join(options.payloadDir, file))) {
+      throw new UserError(`payload is missing ${file}: ${options.payloadDir}`);
+    }
+  }
+
+  const state = inspect(ext);
+
+  // The identifiers a plugin declares against are harvested from the pristine bundle, so the
+  // backup must be trustworthy before anything reads it.
+  settleWebviewBackup(state, log);
+
+  mkdirSync(state.payloadDir, { recursive: true });
+  // The payload lands before the bundle is ever patched: a static import pointing at a file that
+  // is not there yet blanks the panel on the very next reload.
+  for (const file of PAYLOAD_FILES) {
+    cpSync(join(options.payloadDir, file), join(state.payloadDir, file));
+  }
+  const generated = generate(harvestAll(readBundles(ext)));
+  writeFileSync(join(state.payloadDir, "generated.js"), generated.runtime);
+  log(`${ext}: ${generated.counts}`);
+
+  let hostChanged = false;
+  let patchOutcomes: readonly PatchOutcome[] = [];
+  let enabledNames: readonly string[] = [];
+  let disabledNames: readonly string[] = [];
+  const notes: string[] = [];
+
+  if (options.plugins) {
+    const { roots, last, configPath } = options.plugins;
+    const discovered = discoverPlugins(roots, { last });
+    const config = readConfig(configPath);
+    const enabled = enabledPlugins(discovered, config, log);
+    enabledNames = enabled.map((p) => p.name);
+    const enabledSet = new Set(enabledNames);
+    disabledNames = discovered.filter((p) => !enabledSet.has(p.name)).map((p) => p.name);
+
+    const declared = declaredPatches(enabled);
+    const hostLive = readFileSync(state.host);
+    const hostBackupCurrent =
+      state.hostBackupExists && hostBackupIsCurrent(state.hostBackup, state.host);
+    const hostPristine = hostBackupCurrent ? readFileSync(state.hostBackup) : hostLive;
+
+    const { bytes: hostBytes, outcomes } = applyPatches(hostPristine, declared);
+    patchOutcomes = outcomes;
+
+    if (!hostBackupCurrent && outcomes.some((o) => o.applied)) {
+      // A patch is about to land and the backup does not already hold this build's pristine
+      // bytes — either there was none, or it belonged to a build extension.js has since replaced.
+      writeFileSync(state.hostBackup, hostPristine);
+    }
+    if (!hostBytes.equals(hostLive)) {
+      writeFileSync(state.host, hostBytes);
+      hostChanged = true;
+      log(
+        'extension.js changed: run "Developer: Reload Window" (this ends the window\'s sessions)',
+      );
+    }
+    for (const outcome of outcomes) {
+      log(
+        outcome.applied
+          ? `patched extension.js — ${outcome.why}`
+          : `patch NOT applied (${outcome.reason}) — ${outcome.why}`,
+      );
+    }
+
+    const pluginsOut = join(state.payloadDir, "plugins");
+    rmSync(pluginsOut, { recursive: true, force: true });
+    mkdirSync(pluginsOut, { recursive: true });
+    for (const p of enabled) {
+      copyPluginDir(p.dir, join(pluginsOut, p.name));
+    }
+    writeFileSync(join(state.payloadDir, "registry.js"), bakeRegistry(enabled, outcomes));
+
+    notes.push(...capabilityUseNotes(enabled));
+    for (const shared of sharedFields(
+      enabled.map((p) => ({ name: p.name, rewrites: p.manifest.uses.rewrites })),
+    )) {
+      notes.push(
+        `${shared.type}.${shared.field} is rewritten by ${shared.plugins.join(", then ")}`,
+      );
+    }
+    for (const note of notes) log(`capability declaration: ${note}`);
+  }
+
+  // Only now decide whether the bundle itself needs the two-line patch. `settleWebviewBackup`
+  // leaves the live bytes in exactly one of two shapes: equal to the backup (nothing installed
+  // yet), or equal to this loader's own patch over the backup (already installed). Rebuilding the
+  // payload and reloading the webview is the whole development loop, so the second case rewrites
+  // nothing.
+  const backup = readFileSync(state.backup);
+  const live = readFileSync(state.bundle);
+  const alreadyPatched = live.equals(Buffer.concat([PRE_BYTES, backup, POST_BYTES]));
+  if (!alreadyPatched) {
+    writeFileSync(state.bundle, Buffer.concat([PRE_BYTES, backup, POST_BYTES]));
+    log(`${ext}: injected (${PATCH_BYTES} bytes added) — reload with Developer: Reload Webviews`);
+  }
+
+  return {
+    ext,
+    version: generated.tables.version,
+    action: alreadyPatched ? "refreshed" : "injected",
+    hostChanged,
+    patchOutcomes,
+    enabled: enabledNames,
+    disabled: disabledNames,
+    notes,
+  };
+}
+
+export interface RestoreResult {
+  readonly ext: string;
+  readonly restored: boolean;
+  readonly reason?: string;
+}
+
+/** Copies `backupPath` over `target` and re-reads it to confirm the bytes actually match. */
+function revert(
+  target: string,
+  backupPath: string,
+): { readonly ok: boolean; readonly reason?: string } {
+  if (!existsSync(backupPath)) {
+    return { ok: false, reason: `no backup at ${backupPath}` };
+  }
+  const backup = readFileSync(backupPath);
+  writeFileSync(target, backup);
+  const after = readFileSync(target);
+  if (!after.equals(backup)) {
+    return { ok: false, reason: `${target} did not match ${backupPath} after restoring` };
+  }
+  return { ok: true };
+}
+
+/**
+ * Restores one extension directory to the bytes it shipped with. The webview and host bundles are
+ * recovered independently — a missing webview backup must not strand a host bundle that still has
+ * one, and vice versa — and `restored` reports the webview side, since that is the one whose
+ * absence blanks the panel.
+ */
+export function restore(ext: string): RestoreResult {
+  const state = inspect(ext);
+  const webview = revert(state.bundle, state.backup);
+  revert(state.host, state.hostBackup);
+  rmSync(state.payloadDir, { recursive: true, force: true });
+  return webview.ok ? { ext, restored: true } : { ext, restored: false, reason: webview.reason };
+}
+
+/**
+ * Restores every extension directory given, never stopping at the first failure: discovery orders
+ * these oldest first, and the version most likely still open in a window is usually the one that
+ * lost its backup, so aborting early would strand exactly the one most worth recovering.
+ */
+export function restoreAll(exts: readonly string[]): RestoreResult[] {
+  return exts.map((ext) => restore(ext));
+}

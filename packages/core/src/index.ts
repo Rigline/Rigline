@@ -34,6 +34,38 @@ export {
   installedExtensions,
   supersededExtensions,
 } from "./extension/locate.ts";
+export type {
+  DeclaredPatch,
+  PatchOutcome,
+} from "./inject/hostpatch.ts";
+export { applyPatches, patchRefusal } from "./inject/hostpatch.ts";
+export type {
+  Injection,
+  InstallOptions,
+  InstallReport,
+  RestoreResult,
+  Verdict,
+} from "./inject/inject.ts";
+export {
+  hostVerdict,
+  inspect,
+  install,
+  PATCH_BYTES,
+  restore,
+  restoreAll,
+  verdict,
+} from "./inject/inject.ts";
 export type { Harvest } from "./layers/index.ts";
 export * from "./layers/index.ts";
 export { harvestAll, LAYERS, scanOf } from "./layers/index.ts";
+export type { DiscoveredPlugin, PluginsConfig } from "./plugins/discover.ts";
+export {
+  bakeRegistry,
+  capabilityUseNotes,
+  declaredPatches,
+  discoverPlugins,
+  enabledPlugins,
+  isPluginOutput,
+  readConfig,
+  readManifest,
+} from "./plugins/discover.ts";
