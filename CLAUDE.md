@@ -38,6 +38,17 @@ from. Update the plan before writing code; log status there, not here.
 
 ## Working on the live extension
 
+    pnpm build                                    # host, core, cli, and the first-party plugins
+    node packages/cli/dist/index.js install       # inject every installed version; bake plugins
+    node packages/cli/dist/index.js status        # per version: vanilla or patched, by backup
+    node packages/cli/dist/index.js restore       # every version back to the extension's bytes
+    node packages/cli/dist/index.js codegen       # regenerate plugin-api's generated.ts
+    node packages/cli/dist/index.js diff A B      # identifier drift between two extension dirs
+
+Rebuilding the payload or a plugin and running `install` again refreshes the files in place
+without rewriting the bundle. `restore` is the undo and the recovery from a blank panel; it needs
+only Node and this checkout.
+
 An update installs a new versioned directory and deletes the old one, so it silently reverts the
 injection. A window that was open keeps running the old directory until *Developer: Reload Window*.
 A payload change needs *Developer: Reload Webviews* (current window only, and it ends the in-flight
