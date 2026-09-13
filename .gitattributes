@@ -1,0 +1,10 @@
+# LF in the repo and in the working tree, whatever the local core.autocrlf says. This repo asserts
+# byte-exact things: the patch the injector applies is measured in bytes, and harvested class maps
+# are compared snapshot to snapshot across extension versions. A checkout that rewrote line endings
+# would make both depend on whose machine they ran on.
+* text=auto eol=lf
+
+# Harvested from the extension bundle, not written by hand. Marked generated so review tools
+# collapse them by default, but NOT -diff: these exist to be diffed across extension versions, and
+# -diff makes git treat them as binary, which is the one thing they must not be.
+packages/plugin-api/src/generated.ts linguist-generated

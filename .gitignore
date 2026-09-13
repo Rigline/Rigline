@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.tsbuildinfo
+*.vsix
+
+# Scratch files the agent workflow writes; never content.
+.commitmsg.tmp
+.local/
+
+# Worktrees Claude Code creates for this repo, which are checkouts of it.
+.claude/worktrees/

@@ -1,0 +1,21 @@
+{
+  "name": "@prototype/plugin-api",
+  "version": "1.0.0-alpha.0",
+  "description": "The context, manifest and identifier types a Prototype plugin is written against",
+  "type": "module",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "schema"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}

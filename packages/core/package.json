@@ -1,0 +1,23 @@
+{
+  "name": "@prototype/core",
+  "version": "1.0.0-alpha.0",
+  "description": "Harvest, codegen, injection and the update flow for Prototype, as a Node library",
+  "type": "module",
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@prototype/plugin-api": "workspace:*"
+  }
+}

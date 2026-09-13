@@ -1,0 +1,14 @@
+{
+  "name": "@prototype/host",
+  "version": "1.0.0-alpha.0",
+  "description": "The injected loader: pre.js wraps the message bus before boot, post.js loads plugins after it",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "rolldown -c rolldown.config.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@prototype/plugin-api": "workspace:*"
+  }
+}
