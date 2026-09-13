@@ -37,3 +37,5 @@ export {
 export type { Harvest } from "./layers/index.ts";
 export * from "./layers/index.ts";
 export { harvestAll, LAYERS, scanOf } from "./layers/index.ts";
+export type { PrototypePaths } from "./paths.ts";
+export { PROTOTYPE_HOME_VARIABLE, prototypeHome, prototypePaths } from "./paths.ts";
