@@ -122,8 +122,12 @@ Plus one push, not a reply — sent unprompted after `launch_claude`, on the cha
                "message": { "role": "assistant", "content": [{ "type": "text", "text": "hello back" }] } } }
 ```
 
-Two traps worth naming explicitly, since they are the two places the empty-object default
-(`{}`) is *not* good enough:
+Three traps worth naming explicitly, since they are the places the empty-object default
+(`{}`) is *not* good enough or where two things that look interchangeable are not:
+
+- The app holds two config-like values fed by different requests: `get_claude_state`'s response
+  feeds one, and `init`'s `state` feeds the `config` that gates such as `openNewInTab` read. A
+  flag that "does not work" is usually being set on the wrong one.
 
 - `authStatus` must be **non-null**, but its shape doesn't matter (`BX0` in the bundle checks
   only `!== null`). `undefined` fails the same as `null` would, because the app's own fallback

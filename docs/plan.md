@@ -216,6 +216,11 @@ done.
   tests gain a real-DOM tier. Record the outcome either way.
 - Acceptance: injected on this machine; Leo reloads webviews and the probe reports every check
   green on the full editor, the sidebar and the session list; `restore` round-trips.
+- Status 2026-09-13: everything above is built and merged; the spike succeeded and the harness
+  is committed as `packages/harness` with six tests that drive the real 2.1.270 bundle (boot,
+  mount ordering, error isolation, refusal by name without import, transcript timing, rewrite).
+  `prototype install` has injected 2.1.268, 2.1.269 and 2.1.270 on this machine with the probe
+  enabled. Awaiting the live reload and the badge on all three surfaces.
 
 ### Phase 3: plugins, build preset, update flow, CLI
 

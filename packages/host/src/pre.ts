@@ -583,8 +583,8 @@ try {
 
           // A fresh requestId, never the original: the app's own outstanding-request map has long
           // since resolved and deleted that one, and reusing it would be claiming to be a reply to
-          // something. Unmatched ids are simply ignored by the app — its response handler does
-          // nothing at all when the id is unknown — so this reaches the host and disturbs nothing.
+          // something. The app answers an unknown id with a console warning that no handler
+          // matched, and drops it, so this reaches the host and disturbs nothing.
           const envelope = last.wrapped
             ? {
                 type: "request",

@@ -158,6 +158,14 @@ the same mutation observer as mount re-placement.
 `style(css)`: a host-managed `<style>` element, removed on teardown, its text checked by the
 install-time scan for a raw six-character hash outside a resolved class (advisory).
 
+`rewrite` and `resend` together, for anything the app sends at boot: `rename_tab` fires from a
+reactive effect at session creation, before any dynamically imported plugin can have registered a
+rewriter, so a rewrite of an early message type always misses the first sends (`missed` in the
+rewrite log says how many). `resend(type)` is therefore the normal pattern for such a type, not a
+fallback: register the rewrite, and once the app has sent the type, resend it. The app answers a
+resent request's fresh id with a console warning that no handler matched, and drops it; nothing
+else happens.
+
 ## The manifest, `prototype.json`
 
 ```json
