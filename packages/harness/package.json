@@ -1,0 +1,14 @@
+{
+  "name": "@prototype/harness",
+  "version": "1.0.0-alpha.0",
+  "description": "Playwright-driven DOM tests against the real webview bundle, headless, no VS Code",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@prototype/core": "workspace:*",
+    "playwright": "^1.63.0"
+  }
+}
