@@ -84,7 +84,11 @@ interface PrototypeBridge {
     tapCloneMaxType: string | null;
     /** Messages a plugin asked to be sent again — the only traffic here the app did not cause. */
     resent: number;
-    readonly plugins: { name: string; status: "loaded" | "refused" | "error"; reason?: string }[];
+    readonly plugins: {
+      name: string;
+      status: "loaded" | "refused" | "error" | "inactive";
+      reason?: string;
+    }[];
     /**
      * Which plugin rewrites which field, in the order the chain applies them, and how it has fared.
      *
@@ -103,7 +107,7 @@ interface PrototypeBridge {
       missed: number;
     }[];
     /**
-     * What became of each declared host-bundle patch, as tools/inject.ts recorded it.
+     * What became of each declared host-bundle patch, as the injector recorded it.
      *
      * Carried rather than derived: nothing in a webview can read extension.js, so this is the one
      * diagnostic that reports what some other process did rather than what this one saw. It is
