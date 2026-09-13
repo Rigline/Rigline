@@ -148,6 +148,15 @@ importers:
 
   packages/plugin-api: {}
 
+  plugins/probe:
+    devDependencies:
+      '@prototype/plugin-api':
+        specifier: workspace:*
+        version: link:../../packages/plugin-api
+      prototype:
+        specifier: workspace:*
+        version: link:../../packages/cli
+
 packages:
 
   '@biomejs/biome@2.5.13':
