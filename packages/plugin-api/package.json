@@ -4,6 +4,7 @@
   "description": "The context, manifest and identifier types a Prototype plugin is written against",
   "type": "module",
   "license": "MIT",
+  "sideEffects": false,
   "files": [
     "dist",
     "schema"
