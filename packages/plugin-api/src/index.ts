@@ -12,6 +12,25 @@ export const API_VERSION = 1 as const;
 
 export type { AnchorName, AnchorSpec, Surface } from "./anchors.ts";
 export { ANCHOR_NAMES, ANCHORS } from "./anchors.ts";
+export type { CapabilityContract, Uses, UsesKey } from "./capabilities/index.ts";
+export {
+  CONTRACTS,
+  capabilityDrift,
+  capabilityUse,
+  capabilityViolation,
+  patchViolation,
+  permissionSummary,
+  sharedFields,
+} from "./capabilities/index.ts";
+export type {
+  PrototypePlugin,
+  Payload,
+  PluginContext,
+  RewritableType,
+  RewritePatch,
+  Teardown,
+} from "./context.ts";
+export { definePlugin } from "./context.ts";
 export type {
   InboundPush,
   InboundRequest,
@@ -29,6 +48,14 @@ export {
   TABLES,
   UNREACHABLE_CSS_MODULES,
 } from "./generated.ts";
+export type { HostPatch, Manifest, ValidManifest } from "./manifest.ts";
+export {
+  byteLength,
+  EMPTY_USES,
+  patchShapeProblem,
+  SURFACES,
+  validateManifest,
+} from "./manifest.ts";
 export { nextSessionId } from "./session.ts";
 export type { ToolUse } from "./stream.ts";
 export { toolUses } from "./stream.ts";
