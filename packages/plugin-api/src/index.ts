@@ -12,3 +12,8 @@ export const API_VERSION = 1 as const;
 
 export type { AnchorName, AnchorSpec, Surface } from "./anchors.ts";
 export { ANCHOR_NAMES, ANCHORS } from "./anchors.ts";
+export { nextSessionId } from "./session.ts";
+export type { ToolUse } from "./stream.ts";
+export { toolUses } from "./stream.ts";
+export type { FiberLike, MessageTime, TranscriptEntry } from "./transcript.ts";
+export { entriesDiffer, messageTimes, rowIdentity } from "./transcript.ts";
