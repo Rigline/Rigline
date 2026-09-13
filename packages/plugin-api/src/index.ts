@@ -12,8 +12,26 @@ export const API_VERSION = 1 as const;
 
 export type { AnchorName, AnchorSpec, Surface } from "./anchors.ts";
 export { ANCHOR_NAMES, ANCHORS } from "./anchors.ts";
+export type {
+  InboundPush,
+  InboundRequest,
+  InboundResponse,
+  MessageType,
+  ModuleClasses,
+  ModuleId,
+  OutboundFields,
+  OutboundNotification,
+  OutboundRequest,
+} from "./generated.ts";
+export {
+  EXTENSION_VERSION,
+  PARTIAL_FIELD_TYPES,
+  TABLES,
+  UNREACHABLE_CSS_MODULES,
+} from "./generated.ts";
 export { nextSessionId } from "./session.ts";
 export type { ToolUse } from "./stream.ts";
 export { toolUses } from "./stream.ts";
+export type { IdentifierTables } from "./tables.ts";
 export type { FiberLike, MessageTime, TranscriptEntry } from "./transcript.ts";
 export { entriesDiffer, messageTimes, rowIdentity } from "./transcript.ts";

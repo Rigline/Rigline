@@ -184,19 +184,22 @@ done.
 - Acceptance: `pnpm install`, `pnpm build`, `pnpm test`, `pnpm lint` succeed on the empty
   workspace; first commit on `main`.
 
-### Phase 1: core harvest and codegen
+### Phase 1: core harvest and codegen (done 2026-09-13)
 
 - The identifier-layer registry and its five initial layers, every regex derived against the
-  2.1.270 bundle and pinned by synthetic fixtures plus the corpus (skip when missing).
-- Codegen: `generated.ts` (types plus a runtime mirror) and the per-directory runtime tables.
+  2.1.270 bundle and pinned by synthetic fixtures plus the corpus (skip when missing). Done.
+- Codegen: `generated.ts` (types plus the tables as data) and the runtime rendering the injector
+  will write per extension directory. Done; `prototype codegen --check` is byte-stable.
 - The extension locator (version-sorted, oldest first), the pristine-bundle rules, the stability
-  diff.
-- The anchor table seeded with every class the first-party plugins and the probe use, plus the
-  transcript row class.
-- Drift 2.1.268 to 2.1.270 measured and recorded.
-- Optional: `prototype corpus fetch <version>` to pull a Marketplace VSIX, so long-range drift can be
-  re-established.
-- Acceptance: `generated.ts` for 2.1.270 committed; every codegen anchor asserted; `pnpm test`
+  diff. Done.
+- The anchor table, seeded with twenty-six names covering every class the first-party plugins and
+  the probe use, every one verified against 2.1.270. Done.
+- Drift 2.1.268 to 2.1.270 measured; see the status log. Done.
+- Not done, deferred: `prototype corpus fetch <version>` for Marketplace VSIXs; and the compile-time
+  proof (a test that drives `tsc` over a fixture plugin to show a wrong module/class pair and an
+  unknown message type fail to compile) waits for `PluginContext` in phase 2, since that is the
+  type it exercises.
+- Acceptance met: `generated.ts` for 2.1.270 committed; every codegen anchor asserted; 174 tests
   green.
 
 ### Phase 2: injector, host kernel, probe
@@ -262,5 +265,14 @@ registries; refusal fixtures kept out of the live install; Vitest and Biome; use
 ## Status log
 
 - 2026-09-13: Archive assembled and inventoried. Anchors validated on 2.1.270. Corpus snapshotted.
-  Three design forks settled with Leo. Plan and decisions written. Next: the workspace scaffold,
-  then phase 1.
+  Three design forks settled with Leo. Plan and decisions written. Workspace scaffolded; phase 0
+  done.
+- 2026-09-13: Phase 1 done. Five layers, the registry, the diff, the anchor table, codegen and the
+  first two `prototype` commands (`codegen`, `diff`). Harvest of 2.1.270: 104 modules, 1009 classes,
+  108 outbound requests, 9 notifications, 9 inbound pushes, 22 inbound requests, 105 replies, 151
+  payload fields; three requests have no reply by convention (`authenticate_mcp_server`,
+  `clear_mcp_server_auth`, `submit_mcp_oauth_callback_url`); two stylesheet modules are unreachable
+  (`oblbPg`, `OxFNMA`). Drift 2.1.268 to 2.1.270: modules 99.0% kept (one retired, `ukWSlw`, a
+  confirm dialog; seven added), classes 98.2%, local names 99.6%, message types 99.3% (one retired,
+  `exec`, with its two fields and its reply; eight added), React anchors 100%. Next: phase 2, the
+  injector, the host kernel and the probe.
