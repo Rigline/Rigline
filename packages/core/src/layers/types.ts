@@ -32,13 +32,13 @@ export interface Bundles {
  * moved something this depends on, and the right response is to stop and say which.
  */
 export class HarvestError extends Error {
-  constructor(
-    /** The layer that failed. */
-    readonly layer: string,
-    message: string,
-  ) {
+  /** The layer that failed. */
+  readonly layer: string;
+
+  constructor(layer: string, message: string) {
     super(`${layer}: ${message}`);
     this.name = "HarvestError";
+    this.layer = layer;
   }
 }
 
