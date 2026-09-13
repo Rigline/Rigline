@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["esnext", "dom"],
+    "types": [],
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "paths": {
+      "@prototype/plugin-api": ["../../packages/plugin-api/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts"]
+}
