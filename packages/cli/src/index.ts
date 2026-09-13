@@ -20,6 +20,7 @@ import {
   scanOf,
   UserError,
 } from "@prototype/core";
+import { buildPlugin } from "./build.ts";
 
 const USAGE = `prototype ${CORE_VERSION}
 
@@ -29,6 +30,9 @@ const USAGE = `prototype ${CORE_VERSION}
 
   prototype diff DIR_A DIR_B
       Compare the identifier layers of two extension directories.
+
+  prototype build [DIR] [--source FILE]
+      Bundle a plugin's src/index.ts (or --source) into the entry its prototype.json names.
 `;
 
 /** The repo's committed baseline, resolved from this file's location so the command works from any cwd. */
@@ -77,13 +81,27 @@ function diff(args: string[]): number {
   return 0;
 }
 
-function main(argv: string[]): number {
+async function build(args: string[]): Promise<number> {
+  const { values, positionals } = parseArgs({
+    args,
+    options: { source: { type: "string" } },
+    allowPositionals: true,
+  });
+  if (positionals.length > 1) throw new UserError(`expected at most one directory: ${positionals}`);
+  const built = await buildPlugin({ dir: positionals[0], source: values.source });
+  console.log(`built ${built.input} -> ${built.output}`);
+  return 0;
+}
+
+async function main(argv: string[]): Promise<number> {
   const [command, ...rest] = argv;
   switch (command) {
     case "codegen":
       return codegen(rest);
     case "diff":
       return diff(rest);
+    case "build":
+      return build(rest);
     case undefined:
     case "--help":
     case "-h":
@@ -94,13 +112,16 @@ function main(argv: string[]): number {
   }
 }
 
-try {
-  process.exitCode = main(process.argv.slice(2));
-} catch (error) {
-  if (error instanceof UserError) {
-    console.error(`prototype: ${error.message}`);
-    process.exitCode = 1;
-  } else {
+main(process.argv.slice(2)).then(
+  (code) => {
+    process.exitCode = code;
+  },
+  (error: unknown) => {
+    if (error instanceof UserError) {
+      console.error(`prototype: ${error.message}`);
+      process.exitCode = 1;
+      return;
+    }
     throw error;
-  }
-}
+  },
+);
