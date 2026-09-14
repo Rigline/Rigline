@@ -1,3 +1,25 @@
 packages:
   - packages/*
   - plugins/*
+
+# Supply-chain settings, written down rather than inherited (decisions.md, D46 to D48).
+#
+# Three of these are pnpm 12's own defaults today. They are stated anyway, because this repository
+# asks every plugin author to accept the same rules and a default is not a position: a fresh clone
+# on a different pnpm, or a default that moves, would quietly change what we are willing to install
+# without anyone deciding to. The template ships the same block for the same reason.
+#
+# minimumReleaseAge is the rule D48 applies to plugins, applied here to our own dependencies. 1440
+# minutes is pnpm's default since v11 and is the number D48 settled on precisely so that the two
+# agree; the urgent-repair path is the anchor override (D44), not a fast republish.
+minimumReleaseAge: 1440
+
+# Only a direct dependency may come from a git repository or a tarball URL. Nothing here needs one,
+# and a transitive dependency that resolves outside the registry is the shape of a supply-chain
+# problem rather than of an ordinary package.
+blockExoticSubdeps: true
+
+# No dependency may run an install script. Empty because nothing in this workspace needs one, which
+# was checked rather than assumed; pnpm reports an ignored build loudly, so the day something does
+# need one is the day a person decides about it by name, here.
+allowBuilds: {}
