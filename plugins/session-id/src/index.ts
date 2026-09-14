@@ -1,8 +1,16 @@
 /**
- * The session's inter-agent messaging address beside the model pill.
+ * The session's short id beside the model pill, and every identifier it has in a pop-up behind it.
  *
  * Every fact below traces back to docs/archive/0.x/messaging-identity.md, which is the authority
  * on where the address comes from; this file only summarises the parts that shape a decision here.
+ *
+ * **The pill shows the session id, never the messaging address.** The address is unbounded: the CLI
+ * names a session after its directory, so a worktree called `abcd-1234-ticket-work-46` produces an
+ * address that wide, and a Remote Control session takes its title, which can be a whole sentence.
+ * A badge in the composer footer has room for a token. Eight characters of a session id identify a
+ * session as well as anything does and are always eight characters, so the pill shows the thing it
+ * can rely on; the address lives one click away, in the pop-up, which is where you go when you
+ * actually want to copy it.
  *
  * The address (`prototype-ae [61b4a3]`-shaped: a name plus a hex ref) is what `ListAgents` prints and
  * what `SendMessage`'s `to` takes. It never reaches the webview as a declared field: the CLI writes
@@ -10,8 +18,7 @@
  * anything downstream sees it, and `ctx.rewrite`/`ctx.resend` can only shape what the app already
  * sends, never originate a request that might answer for it. The one place it survives to the
  * webview is inside the plain text of a `ListAgents`/`SendMessage` tool result, which the host
- * relays verbatim — so that is where this plugin reads it from, as a bonus on top of a badge that
- * already works without it (falling back to the session id, and before that to a placeholder).
+ * relays verbatim — so that is where this plugin reads it from, for the pop-up.
  *
  * Because the address is scraped rather than declared, `messagingIdentity` and the regex it runs
  * are this plugin's one piece of "derived from a bundle" risk, and are pinned by src/index.test.ts
@@ -24,7 +31,7 @@ import {
   type Teardown,
 } from "@rigline/plugin-api";
 
-/** How much of the raw session id to show before an address has been observed. */
+/** How much of the raw session id the pill shows, and the pop-up offers as a short form. */
 const SHORT_LENGTH = 8;
 
 /** Shown while the panel has no session id at all — a brand-new session has none until Claude
@@ -154,17 +161,19 @@ export function currentAddress(
 }
 
 /**
- * What the badge shows: the address if one applies to this session, else as much of the raw session
- * id as fits, else the placeholder for a session that has not been assigned an id yet.
+ * What the badge shows: the short session id, or a placeholder until one exists.
+ *
+ * Always the session id, never the messaging address, even when an address is known — which is the
+ * opposite of what this did first. The address is unbounded in practice: the CLI names a session
+ * after its directory, so a worktree called `abcd-1234-ticket-work-46` produces an address of that
+ * whole width, and a Remote Control session takes its *title*, which can be a sentence. The badge
+ * sits in the composer footer beside the model pill and has room for a token, not a phrase. A
+ * session id is fixed-width and its first eight characters identify a session as well as anything
+ * does, so the pill shows the thing it can rely on and the pop-up carries the address, which is
+ * where you go when you actually want to copy it.
  */
-export function headlineText(address: Identity | null, sessionId: string | null): string {
-  if (address !== null) {
-    return formatAddress(address);
-  }
-  if (sessionId !== null) {
-    return sessionId.slice(0, SHORT_LENGTH);
-  }
-  return PLACEHOLDER;
+export function headlineText(sessionId: string | null): string {
+  return sessionId === null ? PLACEHOLDER : sessionId.slice(0, SHORT_LENGTH);
 }
 
 /**
@@ -198,30 +207,31 @@ export function buildEntries(address: Identity | null, sessionId: string | null)
 }
 
 /**
- * Whether the badge has anything real to show yet, which is what its dimming means: full-ish while
- * it is labelling something, fainter while it is only holding its place.
+ * Whether the badge is labelling something yet, which is what its dimming means: full-ish once it
+ * names a session, fainter while it is only holding its place. The address does not enter into it,
+ * because the address is not what it shows.
  */
-export function known(address: Identity | null, sessionId: string | null): boolean {
-  return address !== null || sessionId !== null;
+export function known(sessionId: string | null): boolean {
+  return sessionId !== null;
 }
 
-/** The hint appended to the badge's tooltip once there is something to alt-click for. */
-export function copyHint(address: Identity | null, sessionId: string | null): string | null {
-  if (address !== null) return "Click for all - Alt-click to copy the address";
-  if (sessionId !== null) return "Click for all - Alt-click to copy the session id";
-  return null;
+/**
+ * The hint appended to the badge's tooltip once there is something to alt-click for.
+ *
+ * Alt-click copies the session id in full, not the eight characters on screen: the short form is
+ * for recognising a session at a glance and the full one is what anything else will ask for, and a
+ * copy that silently hands over a truncated identifier is the kind of thing found out later.
+ */
+export function copyHint(sessionId: string | null): string | null {
+  return sessionId === null ? null : "Click for all - Alt-click to copy the session id";
 }
 
 /** The badge's tooltip: one line per entry, plus the alt-click hint once something is known. */
-export function buildTooltip(
-  entries: readonly Entry[],
-  address: Identity | null,
-  sessionId: string | null,
-): string {
+export function buildTooltip(entries: readonly Entry[], sessionId: string | null): string {
   const lines = entries.map((entry) =>
     entry.kind === "copyable" ? `${entry.label}: ${entry.value}` : entry.message,
   );
-  const hint = copyHint(address, sessionId);
+  const hint = copyHint(sessionId);
   if (hint !== null) lines.push(hint);
   return lines.join("\n");
 }
@@ -312,13 +322,13 @@ export default definePlugin({
     function paint(): void {
       if (!badge || !label) return;
       const address = currentIdentity();
-      label.textContent = headlineText(address, sessionId);
+      label.textContent = headlineText(sessionId);
       // On the label, never on the badge. `opacity` applies to a whole subtree, and the pop-up is
       // mounted as the badge's other child, so dimming the badge dims the pop-up with it and the
       // transcript shows through the text. Holding the headline in its own element is the entire
       // reason that element exists; setting this one property on the wrong one of the two undoes it.
-      label.style.opacity = known(address, sessionId) ? "0.65" : "0.35";
-      badge.title = buildTooltip(buildEntries(address, sessionId), address, sessionId);
+      label.style.opacity = known(sessionId) ? "0.65" : "0.35";
+      badge.title = buildTooltip(buildEntries(address, sessionId), sessionId);
       if (popupBody) renderRows(popupBody, address, sessionId);
     }
 
@@ -458,7 +468,11 @@ export default definePlugin({
       // odd one out among its neighbours.
       if (e.altKey || e.shiftKey) {
         e.preventDefault();
-        const ok = copyToClipboard(headlineText(currentIdentity(), sessionId));
+        // The full session id, not the eight characters on screen: the short form is for
+        // recognising a session, and anything that asks for an id wants all of it. Copying what is
+        // literally displayed would hand over a truncated identifier that fails somewhere later.
+        if (sessionId === null) return;
+        const ok = copyToClipboard(sessionId);
         flashBadge(ok ? "copied" : "copy failed");
         return;
       }

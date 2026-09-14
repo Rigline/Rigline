@@ -2,7 +2,7 @@
   "$schema": "node_modules/@rigline/plugin-api/schema/manifest.json",
   "api": 1,
   "name": "session-id",
-  "description": "The session's inter-agent messaging address beside the model pill, falling back to the session id until one has been observed on the bus. Click for a pop-up of every known identifier; a row's click copies it, and alt-click or shift-click on the badge itself copies the headline value directly.",
+  "description": "The session's short id beside the model pill. Click for a pop-up of every identifier it has, the inter-agent messaging address included; a row's click copies it, and alt-click or shift-click on the badge copies the session id in full.",
   "entry": "dist/index.js",
   "uses": {
     "anchors": ["modelPill"],

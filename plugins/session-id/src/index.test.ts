@@ -210,18 +210,21 @@ describe("currentAddress", () => {
 });
 
 describe("headlineText", () => {
-  it("prefers the formatted address when one applies", () => {
-    expect(headlineText({ name: "prototype-ae", ref: "61b4a3" }, "session-1")).toBe(
-      "prototype-ae [61b4a3]",
-    );
+  it("shows the first 8 characters of the session id", () => {
+    expect(headlineText("abcdefgh12345")).toBe("abcdefgh");
   });
 
-  it("falls back to the first 8 characters of the session id", () => {
-    expect(headlineText(null, "abcdefgh12345")).toBe("abcdefgh");
+  it("shows the placeholder before a session id exists", () => {
+    expect(headlineText(null)).toBe("...");
   });
 
-  it("falls back to the placeholder before a session id exists", () => {
-    expect(headlineText(null, null)).toBe("...");
+  it("never widens with the session, however long its name gets", () => {
+    // The reason the pill shows an id rather than the address: a worktree session is named after
+    // its directory and a Remote Control session after its title, so an address is as wide as
+    // somebody's branch name or sentence. Eight characters is eight characters.
+    for (const id of ["a", "abcdefgh12345", "x".repeat(200)]) {
+      expect(headlineText(id).length).toBeLessThanOrEqual(8);
+    }
   });
 });
 
@@ -255,20 +258,18 @@ describe("buildEntries", () => {
 });
 
 describe("copyHint and buildTooltip", () => {
-  it("has no hint when nothing is known yet", () => {
-    expect(copyHint(null, null)).toBeNull();
-    expect(buildTooltip(buildEntries(null, null), null, null)).not.toMatch(/Alt-click/);
+  it("has no hint before there is a session id to copy", () => {
+    expect(copyHint(null)).toBeNull();
+    expect(buildTooltip(buildEntries(null, null), null)).not.toMatch(/Alt-click/);
   });
 
-  it("mentions the address once one is known", () => {
+  it("offers the session id, not the address, because that is what the pill shows", () => {
     const address: Identity = { name: "prototype-ae", ref: "61b4a3" };
-    expect(copyHint(address, "session-1")).toMatch(/copy the address/);
-    expect(buildTooltip(buildEntries(address, "session-1"), address, "session-1")).toMatch(
+    expect(copyHint("session-1")).toMatch(/copy the session id/);
+    expect(copyHint("session-1")).not.toMatch(/address/);
+    // The address is still in the tooltip, and still first: it left the pill, not the pop-up.
+    expect(buildTooltip(buildEntries(address, "session-1"), "session-1")).toMatch(
       /Messaging address: prototype-ae \[61b4a3\]/,
     );
-  });
-
-  it("mentions the session id once that is the only thing known", () => {
-    expect(copyHint(null, "session-1")).toMatch(/copy the session id/);
   });
 });

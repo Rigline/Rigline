@@ -116,6 +116,69 @@ describe.skipIf(skip !== null)(
       }
     }, 20000);
 
+    it("keeps the session id in the pill and the address in the pop-up, once one is observed", async () => {
+      // The behaviour this plugin was changed to have, pinned against the real bundle. A messaging
+      // address is as wide as somebody's worktree directory or Remote Control session title, and
+      // the pill has room for a token, so an observed address must reach the pop-up and leave the
+      // pill alone. It used to take the pill, which is how a 24-character name ended up in the
+      // composer footer.
+      const booted = await boot({ plugins: [sessionIdPlugin as FixturePlugin] });
+      try {
+        await booted.page.waitForSelector("#rigline-session-id", { state: "attached" });
+        await booted.page.waitForFunction(() => {
+          const el = document.getElementById("rigline-session-id");
+          return el !== null && (el.textContent?.length ?? 0) > 0;
+        });
+        const before = await booted.page.evaluate(
+          () => document.getElementById("rigline-session-id")?.textContent ?? null,
+        );
+
+        // A ListAgents result carrying this session's own address, in the CLI's exact wording.
+        await booted.page.evaluate(() => {
+          const push = (window as unknown as { __harness?: { push: (m: unknown) => void } })
+            .__harness?.push;
+          if (!push) throw new Error("harness push missing");
+          push({
+            type: "io_message",
+            channelId: "harness-address-channel",
+            message: {
+              type: "user",
+              uuid: "addr-1",
+              timestamp: new Date().toISOString(),
+              message: {
+                role: "user",
+                content: [
+                  {
+                    type: "tool_result",
+                    tool_use_id: "addr-call",
+                    content:
+                      "This session is abcd-1234-ticket-work-46 [fa26a5] - the name others use.",
+                  },
+                ],
+              },
+            },
+          });
+        });
+
+        const after = await booted.page.evaluate(() => {
+          const badge = document.getElementById("rigline-session-id");
+          return { text: badge?.textContent ?? null, title: badge?.title ?? null };
+        });
+        // Unchanged, and specifically not the address that just crossed the bus.
+        expect(after.text).toBe(before);
+        expect(after.text).not.toContain("abcd-1234-ticket-work-46");
+        expect(after.text).not.toContain("fa26a5");
+        // The address did land, though — the tooltip and the pop-up are where it belongs.
+        expect(after.title).toContain("abcd-1234-ticket-work-46 [fa26a5]");
+
+        const d = await booted.diagnostics();
+        expect(d.errors).toEqual([]);
+        expect(booted.consoleErrors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
     it("opens a pop-up on click, borrowing the footer's own menu styling", async () => {
       const booted = await boot({ plugins: [sessionIdPlugin as FixturePlugin] });
       try {

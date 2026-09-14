@@ -1,21 +1,30 @@
 # session-id
 
-A small badge immediately after the model pill in the composer footer, showing the session's
-inter-agent messaging address once one has been observed, and something useful before that.
+A small badge immediately after the model pill in the composer footer, showing which session this
+panel is hosting, with every identifier it has one click behind it.
 
 ## What it shows
 
-- **The messaging address** (`name [ref]`, e.g. `prototype-ae [61b4a3]`) once this session has run
-  `ListAgents` or `SendMessage` and the badge has scraped it out of the tool result. This is the
-  token other sessions use to message this one.
-- **The first 8 characters of the session id**, before an address has been observed.
+- **The first 8 characters of the session id.** Always — this is the pill's whole job.
 - **A dimmed placeholder**, before the panel even has a session id — a brand-new session has none
   until Claude assigns one, and the placeholder is what tells "mounted, waiting" apart from "not
   mounted at all".
 
-Click the badge for a pop-up listing every known identifier; clicking a row copies that value.
-Alt-click or shift-click the badge itself, without opening anything, to copy the headline value
-directly, with a brief "copied"/"copy failed" flash in place of the badge's normal text.
+Click the badge for a pop-up listing every known identifier — the messaging address, the full
+session id and its short form — and click any row to copy that value. Alt-click or shift-click the
+badge itself, without opening anything, to copy the session id **in full**, with a brief
+"copied"/"copy failed" flash in place of the badge's normal text. In full rather than the eight
+characters on screen: the short form is for recognising a session, and anything that asks for an id
+wants all of it.
+
+### Why the pill is not the messaging address
+
+It was, and it was wrong. The address is unbounded: the CLI names a session after its directory, so
+a worktree called `abcd-1234-ticket-work-46` has an address that wide, and a Remote Control session
+takes its *title*, which can be a whole sentence. A badge wedged into the composer footer has room
+for a token, not a phrase. A session id is fixed-width and its first eight characters identify a
+session as well as anything does, so the pill shows the thing it can rely on and the address lives
+in the pop-up, which is where you go when you actually want to copy it.
 
 ## What it depends on
 
