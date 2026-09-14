@@ -391,15 +391,21 @@ done.
   listeners, two plugins failing differently at one seam, which is a hazard in the capability
   rather than two bugs in the plugins.
 
-- The mount service moves off its document-wide mutation observer and onto the React commit signal
-  the pre hook already provides (D52), with re-placement counted rather than assumed. The observer
-  stays only as the no-React fallback. `place()` indexes its peers by anchor instead of filtering
-  every active mount per node, which is what made the old callback O(N²) at one mount per transcript
-  row. Acceptance: the probe reports a re-placement count, and the panel stays correct across a
-  session switch, a pane close and a webview reload with the count visible.
-- The probe panel gets a copy button, as the 0.x prototype had: the report text is built from the
-  check map rather than read back out of the DOM, so what is copied is current whatever the panel
-  happens to be showing.
+- The mount service runs off the React commit signal the pre hook already provides, not a
+  document-wide mutation observer (D52); the observer remains only as the fallback for a webview no
+  renderer injected into. `place()` indexes its peers by anchor rather than filtering every active
+  mount per node, which is what made a rebuild O(N²) at one mount per transcript row. Re-placement
+  is counted rather than assumed — `mounts.replaced`, `mounts.lost` and the driver in use — and the
+  probe reports all three on its own line. Pinned at the DOM tier against the real bundle, which
+  also needed the harness to be able to force a genuine re-render: a bare `node.remove()` stopped
+  standing in for one the moment the host stopped watching every mutation in the document. **Left:
+  reading `replaced` off the live panel over a few days.** If it stays at zero, `replaceLost` and
+  the peer scan it needs both go; if it does not, the case for keeping it is finally on the record
+  rather than inherited from a measurement taken against an older bundle.
+- The probe panel has the copy button the 0.x prototype had. The report text is built from the check
+  map for both the panel and the clipboard, so what is copied is current whatever the panel happens
+  to be showing — the panel is written only while open and only on a change, which makes the DOM the
+  wrong place to read a report back out of.
 
 ### Phase 4: the community layer
 
@@ -525,7 +531,11 @@ the extension to be working.
    reason is concrete rather than theoretical: `applyPatches` takes every enabled plugin's declared
    patch and writes it into `extension.js` with nothing asked and nothing shown, which is correct for
    a first-party plugin in this repo and exactly what D26 refuses for anybody else's.
-2. **Small items still carried.** `ctx.watch` on the session list has no model pill, so a plugin
+2. **Read the mount re-placement count off the live panel** (D52). The probe's last line carries
+   `replaced`, `lost` and the driver. Zero `replaced` after a few days of real use retires
+   `replaceLost`; any `lost` at all is a node nobody can see being retried every frame, and is a bug
+   to chase rather than a number to note.
+3. **Small items still carried.** `ctx.watch` on the session list has no model pill, so a plugin
    wanting a badge there mounts on `document.body` — a sentence in the authoring guide, not an API
    change. The harness's `page.ts` could generate its reply table from the same anchors codegen
    reads, which was noted, not tried, and is now more attractive: a wrong reply type sat in that
@@ -638,3 +648,14 @@ the extension to be working.
   against the table, and exits 1. All four plugins are installed on 2.1.268, 2.1.269 and 2.1.270
   with every declaration holding. The live half is left for Leo, and needs a *window* reload
   because `extension.js` is now patched for the first time.
+- 2026-09-14: The mount service moved off its document-wide mutation observer and onto the React
+  commit signal (D52), after a VS Code lockup sent us looking. The lockup itself was not Rigline —
+  the workbench renderer saturated while the payload runs in a separate webview process, and the
+  unresponsive samples carry no webview frame — but reading the observer to rule it out turned up
+  that its callback ignored every record it was handed and then mutated the DOM from inside itself,
+  which is a microtask that re-queues on its own insertions. The 0.x archive settled the rest: it
+  measured a node appended to a React-owned container surviving zero removals on all three surfaces
+  and kept its re-mount anyway because it was nearly free, which at one observer per anchor it was
+  and at one document-wide observer with 319 mounts it is not. Re-placement is now counted and on
+  the probe's panel, so the question closes on Rigline's own numbers. The probe also has its copy
+  button back.
