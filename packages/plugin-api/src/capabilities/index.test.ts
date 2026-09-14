@@ -29,6 +29,14 @@ const tables: IdentifierTables = {
   outboundFields: { rename_tab: ["title", "hasPendingPermissions"], visibility_changed: [] },
   partialFieldTypes: [],
   anchors: { modelPill: "modelPill_gGYT1w", transcriptRow: "message_07S1Yg", worktreePill: null },
+  anchorSelectors: {
+    modelPill: '.modelPill_gGYT1w[role="combobox"]',
+    transcriptRow: ".message_07S1Yg[data-transcript-message]",
+    worktreePill: null,
+  },
+  unresolvedAnchors: {
+    worktreePill: 'anchor "worktreePill" (OOQiHg.worktreePill) is not in this extension',
+  },
   react: { hook: "__REACT_DEVTOOLS_GLOBAL_HOOK__", version: "18.3.1" },
 };
 

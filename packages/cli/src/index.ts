@@ -253,7 +253,28 @@ function codegen(args: string[]): number {
   for (const module of generated.unreachableModules) {
     console.log(`  unreachable stylesheet module: ${module}`);
   }
+  for (const name of generated.anchors.unverified) {
+    console.log(`  unverified anchor: ${name} (its module's class map was never counted)`);
+  }
   console.log(`wrote: ${label}`);
+
+  // The one thing codegen fails over that is not a broken harvest, and it fails here rather than
+  // at install for a reason (D7): an ambiguous singleton means this repo's anchor table is wrong,
+  // the repair is a refinement somebody can write today, and a maintainer is standing here reading
+  // this. On a user's machine the same verdict is an attention line and a refusal of the plugins
+  // that declared the anchor, because an upstream release that starts reusing a class is not a
+  // reason to leave every other plugin uninjected.
+  if (generated.anchors.ambiguous.length > 0) {
+    for (const { name, sites } of generated.anchors.ambiguous) {
+      console.error(
+        `  ambiguous anchor: ${name} names one element, and ${generated.tables.version} applies its class at ${sites} places`,
+      );
+    }
+    console.error(
+      "Refine each in packages/plugin-api/src/anchors.ts, or change its kind to collection if it was never one element.",
+    );
+    return 1;
+  }
   return 0;
 }
 

@@ -7,7 +7,7 @@
  * `Layer` plus an entry here and a field on `Harvest`.
  */
 
-import { type ClassMap, classesLayer } from "./classes.ts";
+import { type Classes, classesLayer } from "./classes.ts";
 import type { Scan } from "./diff.ts";
 import { fieldsLayer, type OutboundPayloads } from "./fields.ts";
 import { type Protocol, protocolLayer } from "./protocol.ts";
@@ -20,7 +20,7 @@ export const LAYERS = [classesLayer, protocolLayer, fieldsLayer, repliesLayer, r
 /** Every layer's harvest of one extension version, typed per layer. */
 export interface Harvest {
   readonly version: string;
-  readonly classes: ClassMap;
+  readonly classes: Classes;
   readonly protocol: Protocol;
   readonly fields: OutboundPayloads;
   readonly replies: Responses;
@@ -62,13 +62,16 @@ export function scanOf(harvest: Harvest): Scan {
   return { version: harvest.version, views };
 }
 
-export type { ClassMap } from "./classes.ts";
+export type { Classes, ClassMap, SiteCounts } from "./classes.ts";
 export {
   classCount,
   collidingLocalNames,
   cssClasses,
+  harvestClasses,
   harvestClassMap,
+  harvestClassSites,
   serialiseClassMap,
+  siteCount,
   unreachableCssClasses,
 } from "./classes.ts";
 export type { Scan, ScanJson, ViewDiff } from "./diff.ts";

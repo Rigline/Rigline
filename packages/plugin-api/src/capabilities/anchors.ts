@@ -21,7 +21,12 @@ export const anchorsContract: CapabilityContract<"anchors"> = {
       if ((tables.anchors[name] ?? null) === null) {
         const spec = ANCHORS[name as keyof typeof ANCHORS];
         const pair = spec ? ` (${spec.module}.${spec.local})` : "";
-        gaps.push(`anchor "${name}"${pair} is not in this extension`);
+        // Resolution already wrote down why, and it is not always absence: an anchor naming one
+        // element whose class this version applies to several is refused too, and telling an
+        // author it "is not in this extension" would send them looking for the wrong thing.
+        gaps.push(
+          tables.unresolvedAnchors?.[name] ?? `anchor "${name}"${pair} is not in this extension`,
+        );
       }
     }
     return gaps;

@@ -23,8 +23,8 @@
  * diff as one added line rather than a reflowed block.
  */
 import type { IdentifierTables } from "@rigline/plugin-api";
-import { resolveAnchors } from "../anchors/resolve.ts";
-import { collidingLocalNames, unreachableCssClasses } from "../layers/classes.ts";
+import { type ResolvedAnchors, resolveAnchors } from "../anchors/resolve.ts";
+import { type ClassMap, collidingLocalNames, unreachableCssClasses } from "../layers/classes.ts";
 import { type Scan, scanToJson } from "../layers/diff.ts";
 import { type Harvest, scanOf } from "../layers/index.ts";
 import { allMessageTypes } from "../layers/protocol.ts";
@@ -37,6 +37,8 @@ export interface Generated {
   readonly scan: Scan;
   /** Whole stylesheet modules the class map cannot reach, by module hash. */
   readonly unreachableModules: readonly string[];
+  /** How this version answers the anchor table: what is missing, ambiguous, and uncheckable. */
+  readonly anchors: ResolvedAnchors;
   /** The contents of `generated.ts`. */
   readonly source: string;
   /** The contents of `generated.js`. */
@@ -47,7 +49,7 @@ export interface Generated {
 
 /** Build the tables and both renderings from a harvest. */
 export function generate(harvest: Harvest): Generated {
-  const gaps = unreachableCssClasses(harvest.classes, harvest.css);
+  const gaps = unreachableCssClasses(harvest.classes.map, harvest.css);
   const partial = gaps.filter((gap) => gap.partial);
   if (partial.length > 0) {
     // A whole module the stylesheet defines and the map lacks is markup this build does not
@@ -61,7 +63,7 @@ export function generate(harvest: Harvest): Generated {
   const anchors = resolveAnchors(harvest.classes);
   const tables: IdentifierTables = {
     version: harvest.version,
-    moduleClasses: sortedClassMap(harvest.classes),
+    moduleClasses: sortedClassMap(harvest.classes.map),
     messageTypes: [
       ...new Set([...allMessageTypes(harvest.protocol), ...harvest.replies.responses]),
     ].sort(),
@@ -69,6 +71,8 @@ export function generate(harvest: Harvest): Generated {
     outboundFields: sortedRecord(harvest.fields.fields),
     partialFieldTypes: [...harvest.fields.partial].sort(),
     anchors: anchors.classes,
+    anchorSelectors: anchors.selectors,
+    unresolvedAnchors: anchors.reasons,
     react: { hook: harvest.react.hook, version: harvest.react.version },
   };
 
@@ -82,20 +86,34 @@ export function generate(harvest: Harvest): Generated {
     `${harvest.protocol.outboundRequests.length}+${harvest.protocol.outboundNotifications.length} outbound / ` +
     `${harvest.protocol.inboundPushes.length}+${harvest.protocol.inboundRequests.length} inbound messages, ` +
     `${tables.inboundResponses.length} replies, ${fieldCount} payload fields, ` +
-    `${anchors.missing.length === 0 ? "every anchor resolved" : `${anchors.missing.length} anchors missing`}`;
+    `${anchorSummary(anchors)}`;
 
   const scan = scanOf(harvest);
   return {
     tables,
     scan,
     unreachableModules,
-    source: renderSource(harvest, tables, scan, unreachableModules, anchors.missing),
+    anchors,
+    source: renderSource(harvest, tables, scan, unreachableModules, anchors),
     runtime: renderRuntime(tables),
     counts,
   };
 }
 
-function sortedClassMap(map: Harvest["classes"]): IdentifierTables["moduleClasses"] {
+/**
+ * The anchor half of the counts line. Ambiguity is named apart from absence because they are
+ * repaired differently: a missing anchor waits for the extension or for a new pair, an ambiguous
+ * one waits for a refinement somebody in this repo can write today.
+ */
+function anchorSummary(anchors: ResolvedAnchors): string {
+  const parts: string[] = [];
+  if (anchors.missing.length > 0) parts.push(`${anchors.missing.length} anchors missing`);
+  if (anchors.ambiguous.length > 0) parts.push(`${anchors.ambiguous.length} anchors ambiguous`);
+  if (anchors.unverified.length > 0) parts.push(`${anchors.unverified.length} anchors unverified`);
+  return parts.length === 0 ? "every anchor resolved" : parts.join(", ");
+}
+
+function sortedClassMap(map: ClassMap): IdentifierTables["moduleClasses"] {
   const out: Record<string, Record<string, string>> = {};
   for (const module of Object.keys(map).sort()) {
     const locals = map[module] ?? {};
@@ -129,10 +147,10 @@ function renderSource(
   tables: IdentifierTables,
   scan: Scan,
   unreachableModules: readonly string[],
-  missingAnchors: readonly string[],
+  anchors: ResolvedAnchors,
 ): string {
   const modules = Object.keys(tables.moduleClasses);
-  const colliding = collidingLocalNames(harvest.classes);
+  const colliding = collidingLocalNames(harvest.classes.map);
   const classesMember = modules
     .map(
       (m) =>
@@ -158,9 +176,15 @@ function renderSource(
           ...tables.partialFieldTypes.map((t) => `//   ${t}`),
         ].join("\n");
   const missing =
-    missingAnchors.length === 0
+    anchors.missing.length === 0
       ? "Every curated anchor resolves in this version."
-      : `Anchors that do not resolve in this version: ${missingAnchors.join(", ")}.`;
+      : `Anchors that do not resolve in this version: ${anchors.missing.join(", ")}.`;
+  const ambiguous =
+    anchors.ambiguous.length === 0
+      ? "Every anchor naming one element resolves to a class this build applies in one place."
+      : `Anchors naming one element whose class this build applies in several places, with no refinement to tell them apart: ${anchors.ambiguous
+          .map((a) => `${a.name} (${a.sites} sites)`)
+          .join(", ")}.`;
   const unreachable =
     unreachableModules.length === 0
       ? "Every stylesheet module is reachable from this build's markup."
@@ -175,6 +199,7 @@ function renderSource(
 // compiles, with every identifier widened back to \`string\`.
 //
 // ${missing}
+// ${ambiguous}
 // ${unreachable}
 // ${colliding.length} local class names exist in more than one module, which is why classes are
 // module-scoped here rather than flat: a flat map would resolve the wrong one silently.

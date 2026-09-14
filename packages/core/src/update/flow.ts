@@ -42,6 +42,14 @@ export interface VersionReport {
   readonly verdicts: readonly PluginVerdict[];
   /** Curated anchor names this version does not resolve: the repair path's own gaps (D44). */
   readonly anchorsMissing: readonly string[];
+  /**
+   * Anchors naming one element whose class this version applies in several places, with the count,
+   * and anchors whose module was never counted. Reported apart from `anchorsMissing` because they
+   * are repaired differently: a refinement in the table, written today, against a wait for the
+   * extension or a new pair (D7).
+   */
+  readonly anchorsAmbiguous: readonly { readonly name: string; readonly sites: number }[];
+  readonly anchorsUnverified: readonly string[];
   /** What the install did here, or null from `check`, which installs nothing. */
   readonly action: "injected" | "refreshed" | null;
   /** Whether `extension.js` changed, which needs a window reload rather than a webview reload. */
@@ -92,20 +100,23 @@ interface Harvested {
   readonly ext: string;
   readonly version: string;
   readonly generated: Generated;
-  readonly anchorsMissing: readonly string[];
 }
 
 function harvestOne(ext: string): Harvested {
   const generated = generate(harvestAll(readBundles(ext)));
+  return { ext, version: generated.tables.version, generated };
+}
+
+/** How one version answered the anchor table, as a `VersionReport` carries it. */
+function anchorReport(
+  generated: Generated,
+): Pick<VersionReport, "anchorsMissing" | "anchorsAmbiguous" | "anchorsUnverified"> {
+  // Read off what `generate` already resolved rather than asked again: asking twice invites two
+  // answers, and this is the table the loader will be given.
   return {
-    ext,
-    version: generated.tables.version,
-    generated,
-    // The anchors the table promises and this version does not honour. Read off the resolved table
-    // rather than recomputed: `generate` has already asked, and asking twice invites two answers.
-    anchorsMissing: Object.entries(generated.tables.anchors)
-      .filter(([, resolved]) => resolved === null)
-      .map(([name]) => name),
+    anchorsMissing: generated.anchors.missing,
+    anchorsAmbiguous: generated.anchors.ambiguous,
+    anchorsUnverified: generated.anchors.unverified,
   };
 }
 
@@ -131,7 +142,7 @@ export function check(options: FlowOptions = {}): FlowReport {
     ext: h.ext,
     version: h.version,
     verdicts: pluginVerdicts(plugins, h.generated.tables),
-    anchorsMissing: h.anchorsMissing,
+    ...anchorReport(h.generated),
     action: null,
     hostChanged: false,
     log: [],
@@ -169,7 +180,7 @@ export function update(options: UpdateOptions): FlowReport {
       ext,
       version: extensionVersion(ext),
       verdicts: report.verdicts,
-      anchorsMissing: h.anchorsMissing,
+      ...anchorReport(h.generated),
       action: report.action,
       hostChanged: report.hostChanged,
       log,
@@ -225,6 +236,22 @@ function settle(
       // author has not touched it.
       attention.push(
         `${version.version}: the anchor table does not resolve ${version.anchorsMissing.join(", ")}`,
+      );
+    }
+    if (version.anchorsAmbiguous.length > 0) {
+      // The repair is a refinement in the anchor table — `[role="combobox"]` and the like — not a
+      // new pair, so the line says which anchor and how many places its class is applied, which is
+      // where somebody has to go and look (D7).
+      const named = version.anchorsAmbiguous
+        .map((a) => `${a.name} (${a.sites} application sites)`)
+        .join(", ");
+      attention.push(
+        `${version.version}: ${named} name one element each, and this version applies their classes in more than one place; the anchor table needs a refinement for each`,
+      );
+    }
+    if (version.anchorsUnverified.length > 0) {
+      attention.push(
+        `${version.version}: the application-site count could not be taken for ${version.anchorsUnverified.join(", ")}, so nothing checked that each names one element`,
       );
     }
     if (version.hostChanged) {
@@ -290,7 +317,10 @@ export function formatFlow(report: FlowReport): string {
         (refused === 0 ? ", every declaration holds" : `, ${refused} refused`) +
         (version.anchorsMissing.length === 0
           ? ""
-          : `; ${count(version.anchorsMissing.length, "curated anchor", "curated anchors")} unresolved`),
+          : `; ${count(version.anchorsMissing.length, "curated anchor", "curated anchors")} unresolved`) +
+        (version.anchorsAmbiguous.length === 0
+          ? ""
+          : `; ${count(version.anchorsAmbiguous.length, "curated anchor", "curated anchors")} ambiguous`),
     );
   }
 

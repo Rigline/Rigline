@@ -569,11 +569,23 @@ Measured on 2.1.270, five of fifteen identity anchors are already ambiguous:
 Every `kind: "style"` entry that shares a class is doing so correctly and is out of scope.
 
 **How the count is taken**, since re-deriving it wasted an afternoon once: each CSS module's class
-map is a `var NAME={local:"local_hash",...}` object literal in the webview bundle, so the module
-hash gives the minified variable that holds it, and applications are occurrences of `NAME.local`.
-The class harvest already parses those literals; counting the applications is the same pass over the
+map is a `NAME={local:"local_hash",...}` object literal in the webview bundle, so the module hash
+gives the minified variable that holds it, and applications are occurrences of `NAME.local`. The
+class harvest already parses those literals; counting the applications is the same pass over the
 same bytes. Two of the five were found by eye first and three only by the count, which is the
 argument for making it a harvested fact rather than a review habit.
+
+The declaration is `NAME={` and not `var NAME={`: four modules of 104 are lazily initialised
+(`var qS;var yf1=L(()=>{qS={copyButton:"copyButton_CEmTFw",…}})`) and a keyword-anchored pattern
+silently leaves them uncounted. With the bare assignment every module in the map has a variable, on
+all three corpus versions.
+
+The count is an upper bound in one direction and a lower bound in the other, and both are named in
+the harvest rather than smoothed over. It counts every `NAME.local`, so a class passed somewhere as
+a value rather than applied is counted — one of `modelPill`'s three is a `MutationObserver` helper
+argument — and a minified name shadowed in an inner scope would over-count. It cannot see a
+destructured read (none in the corpus). Over-counting is the safe direction: it names an anchor for
+a refinement it may not need, loudly.
 
 The work, in order, and the first three belong together:
 
@@ -584,6 +596,27 @@ The work, in order, and the first three belong together:
 2. **Harvest application-site counts** as part of the classes layer, and make a `singleton` with more
    than one site and no refinement fail codegen by name. Carry the count into the diff so an update
    that *starts* reusing a class is reported.
+
+   Two details that are not free choices. The diff view is `classes.reused` — the classes applied at
+   more than one site, not a count per class — because a view is a set of identifiers and encoding
+   the count into the member would make every class whose count moved at all a gone/added pair, which
+   over a thousand classes is noise rather than signal. A class crossing from one site to two is
+   exactly the event the view has to report, and it appears as one added member. Measured 2.1.268 to
+   2.1.270 the view moves by +36/-11, nearly all of it modules arriving and leaving.
+
+   And an ambiguous singleton **must not block the install**, which is the same rule that governs
+   every other identifier that stops holding: what blocks is a collapsed harvest or a failure in
+   Rigline's own build, and an upstream release that starts reusing a class is neither. So the
+   verdict is data — the anchor resolves to null, with its reason carried beside it — and the two
+   consumers read it differently. `rigline codegen` exits non-zero and names the anchor, because in
+   this repo an ambiguous singleton is the table being wrong and a maintainer is standing there.
+   `check` and `update` report it for attention and let the existing per-plugin refusal do the rest,
+   so a plugin that never declared the anchor is untouched. Nulling the anchor rather than handing
+   over a class that names two controls is P8: absent beats wrong.
+
+   A module whose variable the harvest cannot find is *uncounted*, which is not zero. The anchors in
+   it keep resolving and are reported as unverified; an unknown that reads as "exactly one site" is
+   the silent pass this whole layer exists to stop.
 3. **Resolve to a selector and query with `querySelector`**, rather than resolving to a class and
    reaching for `getElementsByClassName(...)[0]`. This is the part to get right first, because the
    class-shaped API is what makes a refinement look like an invented feature: against a selector it
@@ -594,6 +627,26 @@ The work, in order, and the first three belong together:
    queried and a plugin passes it to `classList.add`; the resolved selector is an additive field on
    the generated tables, consumed only by the host. Then give `modelPill` its `[role="combobox"]`
    and fix the other four.
+
+   Two spec fields, because the five cases need two shapes. `refine` is appended to the class and is
+   the common one; `within` names another anchor and prefixes its selector plus a descendant
+   combinator, which is what `sessionListItemName` wants and what a module-and-local pair can never
+   express. An ancestor that does not itself resolve leaves the descendant unresolved, with that as
+   its reason, rather than quietly falling back to the bare class.
+
+   The refinements, read off the application sites in 2.1.270 and present unchanged in 2.1.268:
+
+   | anchor | kind | refinement | what it excludes |
+   | --- | --- | --- | --- |
+   | `modelPill` | singleton | `[role="combobox"]` | the agent-map button, which is a pill and not a picker |
+   | `transcriptRow` | collection | `[data-transcript-message]` | the focus view's todo item |
+   | `assistantRow` | collection | `[data-testid="assistant-message"]` | five focus-view fold and subagent rows, and the user row that borrows `timelineMessage` when it carries diagnostics |
+   | `userRow` | collection | `[data-transcript-message]` | the two per-block containers nested inside the row |
+   | `sessionListItemName` | collection | within `sessionListItem` | nothing today: its two sites are the view and edit renderings of the same element |
+
+   `data-transcript-message` is the app's own row marker — it queries `[data-transcript-message]`
+   itself to find the last row — which is what makes it a contract rather than a coincidence, the
+   same argument P1 makes for `role="combobox"`.
 
    One thing to measure rather than assume: `getElementsByClassName` returns a live, cached
    collection and `querySelectorAll` allocates a static one per call, and the transcript sweep runs

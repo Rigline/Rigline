@@ -45,17 +45,27 @@ export const mountModule: CapabilityModule<"mount"> = {
             `watch("${name}") needs the anchor under uses.anchors in this plugin's rigline.json`,
           );
         }
-        const className = kernel.tables.anchors[name];
-        if (!className) {
+        // The selector, not the class. An anchor's class may be on several controls and the
+        // selector is where the table says which one it means (D7); a style anchor has no selector
+        // because it is borrowed rather than queried, and watching one is a plugin's mistake
+        // rather than a version's, so it says so in those words.
+        const selector = kernel.tables.anchorSelectors?.[name] ?? null;
+        if (!selector) {
           // Required and absent cannot reach here: the declaration check refused the plugin before
           // its module was imported. Optional and absent is the case this exists for — watching
           // nothing, which is what every other optional dependency does when it is not there (D41).
+          if (kernel.tables.anchors[name]) {
+            throw new Error(`anchor "${name}" is a borrowed style, which has no element to watch`);
+          }
           if (declaredAnchors.has(name)) {
-            throw new Error(`anchor "${name}" is not in this extension`);
+            throw new Error(
+              kernel.tables.unresolvedAnchors?.[name] ??
+                `anchor "${name}" is not in this extension`,
+            );
           }
           return () => {};
         }
-        return own(kernel.mounts.watch(className, (el) => onFound(el) ?? undefined, disable));
+        return own(kernel.mounts.watch(selector, (el) => onFound(el) ?? undefined, disable));
       },
     };
   },

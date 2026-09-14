@@ -6,8 +6,11 @@ import {
   classesLayer,
   collidingLocalNames,
   cssClasses,
+  harvestClasses,
   harvestClassMap,
+  harvestClassSites,
   serialiseClassMap,
+  siteCount,
   unreachableCssClasses,
 } from "./classes.ts";
 import { HarvestError } from "./types.ts";
@@ -30,6 +33,28 @@ function fillerBundle(moduleCount: number, localsPerModule: number): string {
     modules.push(`{${entries.join(",")}}`);
   }
   return modules.join(";");
+}
+
+/**
+ * The same bulk, bound to variables and applied through them, for tests that clear the site
+ * harvest's reference floor as well as the class floor. `fillerBundle` stays as it is because
+ * clearing one floor and not the other is itself worth being able to build.
+ */
+function appliedFillerBundle(moduleCount: number, localsPerModule: number): string {
+  const modules: string[] = [];
+  const uses: string[] = [];
+  for (let m = 0; m < moduleCount; m++) {
+    const hash = `f${m.toString().padStart(5, "0")}`;
+    const name = `mod${m}`;
+    const entries: string[] = [];
+    for (let l = 0; l < localsPerModule; l++) {
+      const local = `local${l}`;
+      entries.push(`${local}:"${local}_${hash}"`);
+      uses.push(`${name}.${local}`);
+    }
+    modules.push(`var ${name}={${entries.join(",")}}`);
+  }
+  return `${modules.join(";")};var applied=[${uses.join(",")}]`;
 }
 
 describe("harvestClassMap", () => {
@@ -158,20 +183,92 @@ describe("classCount", () => {
   });
 });
 
+describe("harvestClassSites", () => {
+  it("counts a class once per property access on its module's variable", () => {
+    const bundle = [
+      appliedFillerBundle(32, 10),
+      `var A={tab:"tab_aaaaaa",row:"row_aaaaaa"}`,
+      `x(A.tab);y(A.tab);z(A.row)`,
+    ].join(";");
+    const classes = harvestClasses(bundle);
+    expect(siteCount(classes, "aaaaaa", "tab")).toBe(2);
+    expect(siteCount(classes, "aaaaaa", "row")).toBe(1);
+  });
+
+  it("counts a class the bundle defines and never applies as zero, not as absent", () => {
+    const bundle = [
+      appliedFillerBundle(32, 10),
+      `var A={tab:"tab_aaaaaa",dead:"dead_aaaaaa"}`,
+      `x(A.tab)`,
+    ].join(";");
+    const classes = harvestClasses(bundle);
+    expect(classes.map.aaaaaa?.dead).toBe("dead_aaaaaa");
+    expect(siteCount(classes, "aaaaaa", "dead")).toBe(0);
+  });
+
+  it("finds the variable of a lazily initialised module, which carries no declaration keyword", () => {
+    const bundle = [
+      appliedFillerBundle(32, 10),
+      `var qS;var init=(()=>{qS={copyButton:"copyButton_aaaaaa"}})`,
+      `F("button",{className:qS.copyButton})`,
+    ].join(";");
+    expect(siteCount(harvestClasses(bundle), "aaaaaa", "copyButton")).toBe(1);
+  });
+
+  it("does not count a longer identifier that starts with a module variable's name", () => {
+    const bundle = [
+      appliedFillerBundle(32, 10),
+      `var A={tab:"tab_aaaaaa"}`,
+      `var A1={other:1}`,
+      `x(A.tab);y(A1.tab)`,
+    ].join(";");
+    expect(siteCount(harvestClasses(bundle), "aaaaaa", "tab")).toBe(1);
+  });
+
+  it("does not count a property access on something that merely ends in a module variable's name", () => {
+    const bundle = [appliedFillerBundle(32, 10), `var A={tab:"tab_aaaaaa"}`, `x(q.A.tab)`].join(
+      ";",
+    );
+    expect(siteCount(harvestClasses(bundle), "aaaaaa", "tab")).toBe(0);
+  });
+
+  it("reports a module whose variable it cannot find as uncounted rather than as zeroes", () => {
+    // A map literal passed straight into a call is bound to no name, so nothing can refer to it.
+    const bundle = [appliedFillerBundle(32, 10), `use({tab:"tab_aaaaaa"})`].join(";");
+    const classes = harvestClasses(bundle);
+    expect(classes.map.aaaaaa?.tab).toBe("tab_aaaaaa");
+    expect(classes.uncounted).toContain("aaaaaa");
+    expect(siteCount(classes, "aaaaaa", "tab")).toBeNull();
+  });
+
+  it("throws below the reference floor, because that is the access pattern having drifted", () => {
+    const map = harvestClassMap(fillerBundle(32, 10));
+    expect(() => harvestClassSites(fillerBundle(32, 10), map)).toThrow(HarvestError);
+  });
+});
+
 describe("classesLayer", () => {
-  it("harvests from bundles.webview and projects the three views", () => {
-    const bundle = [fillerBundle(32, 10), `{tab:"tab_aaaaaa"}`, `{tab:"tab_bbbbbb"}`].join(";");
-    const map = classesLayer.harvest({
+  it("harvests from bundles.webview and projects every view", () => {
+    const bundle = [
+      appliedFillerBundle(32, 10),
+      `var A={tab:"tab_aaaaaa"}`,
+      `var B={tab:"tab_bbbbbb"}`,
+      `x(A.tab);y(A.tab);z(B.tab)`,
+    ].join(";");
+    const classes = classesLayer.harvest({
       version: "0.0.0",
       webview: bundle,
       host: "",
       css: "",
     });
-    expect(map.aaaaaa?.tab).toBe("tab_aaaaaa");
+    expect(classes.map.aaaaaa?.tab).toBe("tab_aaaaaa");
 
-    expect(classesLayer.views.classes?.(map).has("tab_aaaaaa")).toBe(true);
-    expect(classesLayer.views.modules?.(map).has("aaaaaa")).toBe(true);
-    expect(classesLayer.views.locals?.(map).has("tab")).toBe(true);
+    expect(classesLayer.views.classes?.(classes).has("tab_aaaaaa")).toBe(true);
+    expect(classesLayer.views.modules?.(classes).has("aaaaaa")).toBe(true);
+    expect(classesLayer.views.locals?.(classes).has("tab")).toBe(true);
+    // Two sites for one, one for the other: `reused` is the whole ambiguity signal (D7).
+    expect(classesLayer.views.reused?.(classes).has("tab_aaaaaa")).toBe(true);
+    expect(classesLayer.views.reused?.(classes).has("tab_bbbbbb")).toBe(false);
   });
 });
 

@@ -89,7 +89,9 @@ describe.skipIf(skipReason !== null)(
         await booted.page.waitForSelector(".harness-badge");
         const info = await booted.page.evaluate(() => {
           const badge = document.getElementsByClassName("harness-badge")[0] ?? null;
-          const pill = document.getElementsByClassName("modelPill_gGYT1w")[0] ?? null;
+          // The picker, by the same selector the anchor resolves to: asking for the first element
+          // with the class would agree with a wrongly-anchored mount as readily as a right one.
+          const pill = document.querySelector('.modelPill_gGYT1w[role="combobox"]');
           return {
             mountAttr: badge?.getAttribute("data-rigline-mount") ?? null,
             isNextSibling: pill !== null && pill.nextElementSibling === badge,
@@ -391,6 +393,61 @@ export default { setup() {} };`,
         // numbers answer different questions (D52).
         expect(d.mounts.moved).toBeGreaterThan(0);
         expect(d.mounts.lost).toBe(0);
+        expect(booted.consoleErrors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
+    it("stays on the model picker when a second control wears the pill's class", async () => {
+      // The symptom this whole layer exists for (D7). `modelPill_gGYT1w` is on the model picker
+      // *and* on the agent-map button, because both are pills; a watch that resolved the class and
+      // took the first match gave three first-party decorations to whichever came first in the
+      // document, passing every check while pointing at the wrong control. The decoy below is that
+      // button in miniature: same class, first in the footer, and not a combobox.
+      const booted = await boot({ plugins: [mounterPlugin] });
+      try {
+        await booted.page.waitForSelector(".harness-badge");
+        await booted.page.evaluate(() => {
+          const pill = document.querySelector('.modelPill_gGYT1w[role="combobox"]');
+          const decoy = document.createElement("button");
+          decoy.className = pill?.className ?? "modelPill_gGYT1w";
+          decoy.id = "harness-decoy";
+          decoy.textContent = "Agents";
+          // Ahead of #root rather than inside the footer, for one reason only: React reconciles
+          // away a foreign child of a container it owns, and the decoy has to survive the commits
+          // below to be a decoy at all. What matters is that it carries the class and comes first
+          // in document order, which is precisely what the old class lookup went by.
+          document.body.insertBefore(decoy, document.body.firstChild);
+          (window as unknown as { __harness?: { rerender: () => void } }).__harness?.rerender();
+        });
+        // Several commits, so a watch that was going to re-anchor has had every chance to.
+        await booted.page.evaluate(() => {
+          const w = window as unknown as { __harness?: { rerender: () => void } };
+          for (let i = 0; i < 3; i++) w.__harness?.rerender();
+        });
+        await booted.page.waitForTimeout(300);
+
+        const info = await booted.page.evaluate(() => {
+          const badge = document.getElementsByClassName("harness-badge")[0] ?? null;
+          const picker = document.querySelector('.modelPill_gGYT1w[role="combobox"]');
+          const byClass = document.getElementsByClassName("modelPill_gGYT1w")[0] ?? null;
+          return {
+            pills: document.getElementsByClassName("modelPill_gGYT1w").length,
+            classFirstIsDecoy: byClass?.id === "harness-decoy",
+            onPicker: picker !== null && picker.nextElementSibling === badge,
+            badgeInDecoy: document.getElementById("harness-decoy")?.contains(badge) ?? false,
+            badges: document.getElementsByClassName("harness-badge").length,
+          };
+        });
+        // The decoy is in the document, shares the class, and is what the class lookup this
+        // replaced would have handed over — so the assertion below is about which of the two the
+        // anchor resolved to, not about there being only one to resolve to.
+        expect(info.pills).toBeGreaterThan(1);
+        expect(info.classFirstIsDecoy).toBe(true);
+        expect(info.onPicker).toBe(true);
+        expect(info.badgeInDecoy).toBe(false);
+        expect(info.badges).toBe(1);
         expect(booted.consoleErrors).toEqual([]);
       } finally {
         await booted.close();

@@ -13,11 +13,32 @@
  * module), so the map this layer produces is grouped by the six-character hash suffix, which is
  * the module's identity and is stable across builds. Flattening the map would let one module's
  * `tab` silently shadow another's.
+ *
+ * The layer also counts, from the same bytes, how many places the bundle applies each class
+ * (decisions.md, D7). A class names a look, not a thing, so knowing that a class exists says
+ * nothing about whether it names one control or three; the count is what turns that from a review
+ * habit into a build-time verdict, and into a diff signal the week an update starts reusing a
+ * class.
  */
 import { type Bundles, defineLayer, HarvestError } from "./types.ts";
 
 /** Module hash -> local class name -> full hashed class, e.g. `gGYT1w.modelPill -> "modelPill_gGYT1w"`. */
 export type ClassMap = Record<string, Record<string, string>>;
+
+/** Module hash -> local class name -> how many places the bundle applies it. */
+export type SiteCounts = Record<string, Record<string, number>>;
+
+/** What this layer harvests: the map, the application-site counts, and what it could not count. */
+export interface Classes {
+  readonly map: ClassMap;
+  readonly sites: SiteCounts;
+  /**
+   * Module hashes whose class-map variable the harvest could not find. Their counts are *unknown*,
+   * which is not the same as zero and must never be read as one: an anchor in an uncounted module
+   * is reported as unverified rather than silently passing the uniqueness check.
+   */
+  readonly uncounted: readonly string[];
+}
 
 /**
  * A minified bundle can hold a JS-safe key as a bare identifier (`modelPill:"…"`) or, when the
@@ -84,6 +105,120 @@ export function harvestClassMap(js: string): ClassMap {
   }
 
   return map;
+}
+
+/**
+ * A module's class map as the bundle declares it: `X7={inputFooter:"inputFooter_gGYT1w",…}`, whose
+ * variable name is how every application site refers to a class (`X7.modelPill`).
+ *
+ * The assignment is matched bare rather than as `var X7={…}` because four modules of 104 are
+ * initialised lazily — `var qS;var yf1=L(()=>{qS={copyButton:"copyButton_CEmTFw",…}})` — and a
+ * keyword-anchored pattern leaves those uncounted without saying so. The lookbehind keeps the
+ * capture off a property assignment (`a.b={…}`), where the captured name would be `b` and every
+ * count taken against it wrong.
+ *
+ * Only the first entry is matched, and re-checked with the same `local + "_"` rule
+ * `CLASS_MAP_ENTRY` uses: that is what separates a class map from any other object literal whose
+ * first value happens to end in an underscore and six characters.
+ */
+const CLASS_MAP_DECL =
+  /(?<![\w$.])([A-Za-z_$][\w$]*)\s*=\s*\{(?:"([A-Za-z_$][\w$-]*)"|([A-Za-z_$][\w$]*))\s*:\s*"([A-Za-z_$][\w$-]*_([-_A-Za-z0-9]{6}))"/g;
+
+/**
+ * Below this the access pattern has stopped matching; a real bundle holds 1300 to 1600 references.
+ * Like the other floors, a smoke alarm for the regex rather than a judgement about the extension.
+ */
+const MIN_REFERENCES = 300;
+
+/** `$` is the one regex metacharacter a minified identifier may contain. `$&` is the match itself. */
+function escapeName(name: string): string {
+  return name.replace(/\$/g, "\\$&");
+}
+
+/**
+ * Count how many places the bundle applies each class (decisions.md, D7).
+ *
+ * Two passes over the same bytes: find the variable each module's class map is bound to, then
+ * count property accesses on those variables in one alternation. Per-class `indexOf` scans were
+ * the obvious alternative and are a thousand scans of five megabytes; this is one.
+ *
+ * **The count is approximate in both directions, and both are load-bearing.** It counts every
+ * `NAME.local`, so a class handed somewhere as a value rather than applied to an element counts —
+ * one of `modelPill`'s three sites is an argument to a `MutationObserver` helper — and a minified
+ * name shadowed in an inner scope would count against the wrong module. It cannot see a
+ * destructured read, though the corpus has none. Over-counting is the safe direction: it asks for
+ * a refinement that may not be needed, by name, where under-counting would pass an ambiguous
+ * anchor silently.
+ *
+ * A module whose variable is not found is returned in `uncounted` rather than as a module of
+ * zeroes, because "no sites" and "not counted" lead to opposite verdicts.
+ */
+export function harvestClassSites(js: string, map: ClassMap): Omit<Classes, "map"> {
+  const moduleByVar = new Map<string, string>();
+  for (const match of js.matchAll(CLASS_MAP_DECL)) {
+    const name = match[1];
+    const local = match[2] ?? match[3];
+    const value = match[4];
+    const hash = match[5];
+    if (name === undefined || local === undefined || value === undefined || hash === undefined) {
+      continue;
+    }
+    if (!value.startsWith(`${local}_`)) {
+      continue;
+    }
+    // A module emitted twice binds two variables and both are counted; a variable bound to two
+    // modules is the minifier reusing a name across scopes, and the first binding wins rather than
+    // the last, so the count stays with the module whose map the name was introduced for.
+    if (!moduleByVar.has(name)) {
+      moduleByVar.set(name, hash);
+    }
+  }
+
+  const sites: SiteCounts = {};
+  let references = 0;
+  const names = [...moduleByVar.keys()];
+  if (names.length > 0) {
+    const access = new RegExp(
+      `(?<![\\w$.])(${names.map(escapeName).join("|")})\\.([A-Za-z_$][\\w$]*)(?![\\w$])`,
+      "g",
+    );
+    for (const match of js.matchAll(access)) {
+      const name = match[1];
+      const local = match[2];
+      if (name === undefined || local === undefined) {
+        continue;
+      }
+      const hash = moduleByVar.get(name);
+      if (hash === undefined) {
+        continue;
+      }
+      references += 1;
+      const module = sites[hash] ?? {};
+      sites[hash] = module;
+      module[local] = (module[local] ?? 0) + 1;
+    }
+  }
+
+  if (references < MIN_REFERENCES) {
+    throw new HarvestError(
+      "classes",
+      `found ${references} class references across ${names.length} module variables, below the floor of ${MIN_REFERENCES}`,
+    );
+  }
+
+  const counted = new Set(moduleByVar.values());
+  const uncounted = Object.keys(map)
+    .filter((hash) => !counted.has(hash))
+    .sort();
+  return { sites, uncounted };
+}
+
+/** How many places the bundle applies one class, or null when its module was never counted. */
+export function siteCount(classes: Classes, module: string, local: string): number | null {
+  if (classes.uncounted.includes(module)) {
+    return null;
+  }
+  return classes.sites[module]?.[local] ?? 0;
 }
 
 /**
@@ -190,19 +325,50 @@ export function classCount(map: ClassMap): number {
   return count;
 }
 
+/** Harvest the map and the application-site counts together: one layer, one pass's worth of facts. */
+export function harvestClasses(js: string): Classes {
+  const map = harvestClassMap(js);
+  return { map, ...harvestClassSites(js, map) };
+}
+
+/**
+ * Every class the bundle applies at more than one site, as full hashed names.
+ *
+ * The shape of the view is forced by what a view is. A view is a set of identifiers, so the count
+ * itself cannot be carried without encoding it into the member, and then every class whose count
+ * moved at all would diff as a gone/added pair — over a thousand classes, noise that would bury
+ * the one event worth reporting. That event is a class crossing from one site to two, and it
+ * appears here as a single added member. `modelPill_gGYT1w` did exactly that in 2.1.269, which is
+ * the release the agent-map button arrived in.
+ */
+function reusedClasses(classes: Classes): Set<string> {
+  const reused = new Set<string>();
+  for (const [hash, locals] of Object.entries(classes.sites)) {
+    for (const [local, count] of Object.entries(locals)) {
+      const full = classes.map[hash]?.[local];
+      if (full !== undefined && count > 1) {
+        reused.add(full);
+      }
+    }
+  }
+  return reused;
+}
+
 /**
  * The registry entry (decisions.md, D5). `classes` is the one view a plugin manifest can name
  * directly (`uses.classes`); `modules` and `locals` exist so the stability diff can say "a module
  * was retired" and "a local name changed" as different news rather than folding both into one
- * count of moved strings.
+ * count of moved strings; `reused` is the ambiguity signal (D7), and is the only view whose
+ * members can move without any identifier having changed.
  */
 export const classesLayer = defineLayer({
   id: "classes",
-  describe: "The webview's CSS-module class map, grouped by module hash.",
-  harvest: (bundles: Bundles) => harvestClassMap(bundles.webview),
+  describe: "The webview's CSS-module class map, grouped by module hash, with application counts.",
+  harvest: (bundles: Bundles) => harvestClasses(bundles.webview),
   views: {
-    classes: (map) => new Set(Object.values(map).flatMap((module) => Object.values(module))),
-    modules: (map) => new Set(Object.keys(map)),
-    locals: (map) => new Set(Object.values(map).flatMap((module) => Object.keys(module))),
+    classes: ({ map }) => new Set(Object.values(map).flatMap((module) => Object.values(module))),
+    modules: ({ map }) => new Set(Object.keys(map)),
+    locals: ({ map }) => new Set(Object.values(map).flatMap((module) => Object.keys(module))),
+    reused: reusedClasses,
   },
 });

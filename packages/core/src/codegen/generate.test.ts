@@ -6,9 +6,17 @@ import { generate } from "./generate.ts";
 const harvest = (overrides: Partial<Harvest> = {}): Harvest => ({
   version: "9.9.9",
   classes: {
-    gGYT1w: { modelPill: "modelPill_gGYT1w", modelPillRow: "modelPillRow_gGYT1w" },
-    OOQiHg: { tab: "tab_OOQiHg", sessionItem: "sessionItem_OOQiHg" },
-    yumWmQ: { tab: "tab_yumWmQ" },
+    map: {
+      gGYT1w: { modelPill: "modelPill_gGYT1w", modelPillRow: "modelPillRow_gGYT1w" },
+      OOQiHg: { tab: "tab_OOQiHg", sessionItem: "sessionItem_OOQiHg" },
+      yumWmQ: { tab: "tab_yumWmQ" },
+    },
+    sites: {
+      gGYT1w: { modelPill: 3, modelPillRow: 1 },
+      OOQiHg: { tab: 2, sessionItem: 1 },
+      yumWmQ: { tab: 1 },
+    },
+    uncounted: [],
   },
   protocol: {
     outboundRequests: ["rename_tab", "get_asset_uris"],

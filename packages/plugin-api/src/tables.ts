@@ -22,6 +22,19 @@ export interface IdentifierTables {
   readonly partialFieldTypes: readonly string[];
   /** Curated anchor name -> the full class it resolves to in this version, or null when it does not. */
   readonly anchors: Readonly<Record<string, string | null>>;
+  /**
+   * The same names resolved to a CSS selector, which is what the host queries with (D7): the class
+   * plus the spec's refinement, under the ancestor its `within` names. Null for a style anchor,
+   * which is borrowed rather than queried, and for an anchor that does not resolve at all. No
+   * plugin sees this; `ctx.anchor()` still hands over the bare class.
+   */
+  readonly anchorSelectors: Readonly<Record<string, string | null>>;
+  /**
+   * Why each unresolved anchor is unresolved, by name, so a refusal says which of the two it is:
+   * the class has gone, or the class names more than one control and the table cannot say which.
+   * Present for exactly the anchors whose entry in `anchors` is null.
+   */
+  readonly unresolvedAnchors: Readonly<Record<string, string>>;
   /** The react-dom integration points the transcript capability rests on. */
   readonly react: { readonly hook: string; readonly version: string };
 }

@@ -179,7 +179,7 @@ async function main(): Promise<void> {
       react,
       mounts,
       diagnostics.transcript,
-      tables.anchors.transcriptRow ?? null,
+      tables.anchorSelectors?.transcriptRow ?? null,
       message,
       meter,
     ),

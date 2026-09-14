@@ -6,8 +6,14 @@
 import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { generate, harvestAll } from "@rigline/core";
-import { EMPTY_USES, SURFACES, type Surface, type Uses } from "@rigline/plugin-api";
+import { generate, harvestAll, missingAnchorReason } from "@rigline/core";
+import {
+  type AnchorName,
+  EMPTY_USES,
+  SURFACES,
+  type Surface,
+  type Uses,
+} from "@rigline/plugin-api";
 import { corpusBundles } from "../../core/test/corpus.ts";
 
 /** packages/host/dist, resolved from this file rather than assumed relative to the cwd. */
@@ -80,10 +86,18 @@ function withoutIdentifiers(runtime: string, remove?: RemovedIdentifiers): strin
   const prefix = runtime.slice(0, runtime.indexOf("{"));
   const tables = JSON.parse(runtime.slice(runtime.indexOf("{"), runtime.lastIndexOf("}") + 1)) as {
     anchors: Record<string, string | null>;
+    anchorSelectors: Record<string, string | null>;
+    unresolvedAnchors: Record<string, string>;
     moduleClasses: Record<string, unknown>;
     messageTypes: string[];
   };
-  for (const anchor of remove.anchors ?? []) tables.anchors[anchor] = null;
+  for (const anchor of remove.anchors ?? []) {
+    // All three, because an anchor that resolved to a class and still to a selector is a state no
+    // harvest produces: `watch` would go on finding the element the test says has gone.
+    tables.anchors[anchor] = null;
+    tables.anchorSelectors[anchor] = null;
+    tables.unresolvedAnchors[anchor] = missingAnchorReason(anchor as AnchorName);
+  }
   for (const module of remove.modules ?? []) delete tables.moduleClasses[module];
   const gone = new Set(remove.messages ?? []);
   tables.messageTypes = tables.messageTypes.filter((type) => !gone.has(type));

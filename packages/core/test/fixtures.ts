@@ -36,21 +36,31 @@ const HOST_REQUEST_COUNT = 12;
  * inbound-push `for await` switch and a `processRequestInner` switch carry ${PUSH_COUNT} and
  * ${HOST_REQUEST_COUNT} cases; `REACT_BODY` carries the react anchors. The stylesheet lists exactly
  * the classes the map defines, so no module reads as partially harvested.
+ *
+ * Each module's map is bound to a variable and every class is applied through it, because that is
+ * what the bundle does and because the site count is harvested from exactly those accesses: a
+ * fixture of bare object literals would clear the class floor and fall through the reference floor.
+ * `local0` of the first module is applied three times, so that the `reused` view and the ambiguity
+ * check have something to be true about.
  */
 export function harvestableWebview(): HarvestableWebview {
   const modules: string[] = [];
+  const uses: string[] = [];
   const cssRules: string[] = [];
   for (let m = 0; m < MODULE_COUNT; m++) {
     const hash = `f${m.toString().padStart(5, "0")}`;
+    const name = `mod${m}`;
     const entries: string[] = [];
     for (let l = 0; l < LOCALS_PER_MODULE; l++) {
       const local = `local${l}`;
       const value = `${local}_${hash}`;
       entries.push(`${local}:"${value}"`);
+      uses.push(`${name}.${local}`);
       cssRules.push(`.${value}{}`);
     }
-    modules.push(`{${entries.join(",")}}`);
+    modules.push(`var ${name}={${entries.join(",")}}`);
   }
+  uses.push("mod0.local0", "mod0.local0");
 
   const requests = Array.from(
     { length: REQUEST_COUNT },
@@ -68,6 +78,7 @@ export function harvestableWebview(): HarvestableWebview {
 
   const js = [
     modules.join(";"),
+    `var applied=[${uses.join(",")}]`,
     requests.join(";"),
     notifications.join(";"),
     `for await(x of this.fromHost)switch(x.type){${pushCases}}`,

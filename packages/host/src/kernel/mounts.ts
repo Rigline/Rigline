@@ -11,8 +11,8 @@
  *
  * What that replaced was a `MutationObserver` over `document.body` with `subtree: true`. It cost a
  * discarded record for every childList change in the document, scanned every active mount and ran a
- * `getElementsByClassName` per watch on every mutation batch — with one mount per transcript row and
- * sessions measured 319 rows deep — and, worst, it mutated the DOM from inside its own callback. A
+ * query per watch on every mutation batch — with one mount per transcript row and sessions
+ * measured 319 rows deep — and, worst, it mutated the DOM from inside its own callback. A
  * MutationObserver callback is a microtask, so insertions that never stick re-queue it without the
  * event loop ever getting a turn. An observer survives only as the fallback below, for a webview
  * where no React renderer ever injected, and it schedules the same per-frame pass rather than
@@ -42,7 +42,8 @@ interface ActiveMount {
 }
 
 interface Watch {
-  readonly className: string;
+  /** A resolved anchor selector, not a class: which element the anchor means is the table's answer. */
+  readonly selector: string;
   readonly onFound: (element: Element) => Teardown | undefined;
   readonly onError: (reason: string) => void;
   current: Element | null;
@@ -60,9 +61,9 @@ export interface MountService {
     onError: (reason: string) => void,
     called: string,
   ): Teardown | null;
-  /** Hand `onFound` the first element with `className` now and whenever it is replaced. */
+  /** Hand `onFound` the first element matching `selector` now and whenever it is replaced. */
   watch(
-    className: string,
+    selector: string,
     onFound: (element: Element) => Teardown | undefined,
     onError: (reason: string) => void,
   ): Teardown;
@@ -195,7 +196,11 @@ export function createMountService(
   }
 
   function runWatch(w: Watch): void {
-    const found = document.getElementsByClassName(w.className)[0] ?? null;
+    // `querySelector`, and the selector comes from the anchor table, because a class is a look and
+    // not an identity (D7): `modelPill_gGYT1w` is on the model picker and on the agent-map button
+    // alike, and `getElementsByClassName(...)[0]` handed three first-party decorations to whichever
+    // of them React happened to render first.
+    const found = document.querySelector(w.selector);
     if (found === w.current && (found === null || found.isConnected)) return;
     if (w.teardown) {
       const off = w.teardown;
@@ -281,8 +286,8 @@ export function createMountService(
         entry.node.remove();
       };
     },
-    watch(className, onFound, onError) {
-      const w: Watch = { className, onFound, onError, current: null, teardown: null };
+    watch(selector, onFound, onError) {
+      const w: Watch = { selector, onFound, onError, current: null, teardown: null };
       watches.push(w);
       runWatch(w);
       return () => {

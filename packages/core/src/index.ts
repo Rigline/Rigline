@@ -8,7 +8,12 @@
  */
 
 export type { ResolvedAnchors } from "./anchors/resolve.ts";
-export { anchorViolation, resolveAnchors } from "./anchors/resolve.ts";
+export {
+  anchorViolation,
+  missingAnchorReason,
+  resolveAnchors,
+  uncountedClasses,
+} from "./anchors/resolve.ts";
 export type { Generated } from "./codegen/generate.ts";
 export { generate } from "./codegen/generate.ts";
 export type {

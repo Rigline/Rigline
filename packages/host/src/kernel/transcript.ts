@@ -64,7 +64,7 @@ export function createTranscriptService(
   react: ReactBridge,
   mounts: MountService,
   diagnostics: Diagnostics["transcript"],
-  rowClass: string | null,
+  rowSelector: string | null,
   message: (e: unknown) => string,
   meter: (name: string) => void,
 ): TranscriptService {
@@ -94,10 +94,14 @@ export function createTranscriptService(
   }
 
   function sweep(): void {
-    if (!rowClass || decorators.length === 0) return;
+    if (!rowSelector || decorators.length === 0) return;
     const found: TranscriptEntry[] = [];
     const rows: Element[] = [];
-    for (const row of document.getElementsByClassName(rowClass)) {
+    // The anchor's resolved selector, so the candidates are rows rather than everything wearing the
+    // row's class (D7). The fiber check below would have dropped a stray anyway — a class proposes
+    // and the fiber disposes — but paying for a wrong candidate on every sweep, several hundred
+    // rows deep, is a cost with nothing on the other side of it.
+    for (const row of document.querySelectorAll(rowSelector)) {
       const identity = rowIdentity(react.fiberFor(row) as FiberLike | null);
       if (!identity) continue;
       found.push({ ...identity, at: times.get(identity.id) ?? null, index: found.length });
@@ -170,7 +174,7 @@ export function createTranscriptService(
   }
 
   return {
-    available: () => react.rendererVersion() !== null && rowClass !== null,
+    available: () => react.rendererVersion() !== null && rowSelector !== null,
     decorate(plugin, order, build, onError) {
       const decorator: Decorator = { plugin, order, build, onError, mounts: [] };
       decorators.push(decorator);
