@@ -44,6 +44,10 @@ from. Update the plan before writing code; log status there, not here.
 - **Keep `index.js.orig` and `extension.js.orig` intact.** They are the only recovery from a blank
   panel or a broken extension host.
 - **Never point a test at the live extension directory.** Copies only.
+- **Rebuild the host before running the harness tests.** They drive the *real* bundle in a browser
+  and `preparePayload` copies `packages/host/dist/{pre,post}.js`, so vitest alone exercises whatever
+  was last built, not your source. A change to the host with no `pnpm build` gives you a green run
+  against the previous payload, or a failure you then debug in code that is not running.
 - **A plugin's problem never blocks the install.** Report it by name, inject around it, refuse it
   at load. Only a collapsed harvest or Rigline's own build failure blocks.
 
