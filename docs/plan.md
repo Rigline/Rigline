@@ -197,14 +197,16 @@ Leo's step.
 authenticates to npm over OIDC — no token in the repository — and runs `npm stage publish`, which
 needs no 2FA and does not make the version installable. The owner reviews the queue (`npm stage
 list`, `npm stage view <id>`, `npm stage download <id>` for the tarball itself) and promotes with
-`npm stage approve <id>`, which does prompt for 2FA. The published tarball carries a provenance
-attestation binding it to the commit and workflow that built it. Rigline's own three packages
+`npm stage approve <id>`, which does prompt for 2FA. These are two separate mechanisms doing two
+separate jobs — OIDC decides how CI authenticates, staging decides whether a version goes live — and
+the trusted publisher is configured with stage-only permissions so that CI is *permitted* to stage
+and refused `npm publish`, rather than merely choosing to behave. Rigline's own three packages
 publish through this pipeline, and `create-rigline-plugin` ships the same workflow, so an author
 gets it by generating a repository rather than by reading a guide. The one-time steps that cannot be
-automated are Leo's: the npm organisation, 2FA on the account that approves, a first publish of each
-package under a temporary token (a trusted publisher and a stage both need the package to exist),
-then the trusted-publisher entry naming the repo, workflow file and environment. Provenance needs
-the source repo public.
+automated are Leo's: the npm organisation, 2FA on the account that approves, a bootstrap publish of
+each package under a temporary token (npm states a brand-new package cannot be staged), then the
+trusted-publisher entry naming the repo, workflow file and environment, set to stage-only.
+Provenance comes from the OIDC half and needs the source repo public.
 
 **What `add` does on the way in** (D47, D48, D49). It resolves the version against the registry,
 refuses anything younger than the minimum release age unless `--now` is passed, fetches and
@@ -404,6 +406,10 @@ contract is the output, and a plugin built with any other toolchain is treated i
   evidence an entry needs, and how a local `anchors.json` override is promoted into the shipped
   table once it is confirmed.
 - Whether `ctx.style` refuses a selector naming a class the plugin did not declare, or only lints.
+- Whether a provenance attestation survives a staged approval. npm documents provenance for trusted
+  publishing and documents staging, but nowhere documents the two together; `npm stage publish`
+  accepts `--provenance`, which is suggestive and not proof. Settle it by looking at our own first
+  approved release, and keep the claim out of the authoring guide until then.
 - How a maintainer learns a stage is waiting. npm documents discovery by `npm stage list` and the
   Staged Packages tab on npmjs.com; no email or push notification is documented, and none was found.
   Our workflow therefore prints the stage id and the approve command into the Actions run summary,
