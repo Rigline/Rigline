@@ -70,6 +70,20 @@ export interface CapabilityModule<K extends UsesKey = UsesKey> {
   grantOptional?(grant: Grant): Partial<OptionalContext>;
 }
 
+/**
+ * Whether a plugin declared a boolean switch at all, on either side of `uses` (D41).
+ *
+ * Declaring one under `uses.optional` says "do not refuse me when the thing this rests on is gone",
+ * never "do not grant it to me". The grant is the same grant; what optional changes is only the
+ * verdict when an identifier is missing, and for a switch that verdict is a handler that never
+ * fires — which is what absence already does. Reading only the required half would make a plugin
+ * that declared `tools` optionally throw on its first `onToolUse` and disable itself, which is the
+ * opposite of what optional is for.
+ */
+export function declaredSwitch(plugin: PluginRecord, key: UsesKey): boolean {
+  return plugin.uses[key] === true || plugin.uses.optional[key] === true;
+}
+
 /** A method the plugin did not declare for: it throws, and the kernel's guard turns that into a disable. */
 export function undeclared(method: string, key: UsesKey, detail = ""): () => never {
   return () => {

@@ -1,5 +1,5 @@
 import { CONTRACTS, toolUses } from "@rigline/plugin-api";
-import { type CapabilityModule, undeclared } from "../kernel/types.ts";
+import { type CapabilityModule, declaredSwitch, undeclared } from "../kernel/types.ts";
 
 /**
  * `ctx.onToolUse(handler)`: tool calls lifted out of the conversation stream. The plugin never sees
@@ -8,7 +8,7 @@ import { type CapabilityModule, undeclared } from "../kernel/types.ts";
 export const toolsModule: CapabilityModule<"tools"> = {
   contract: CONTRACTS.find((c) => c.key === "tools") as CapabilityModule<"tools">["contract"],
   grant({ plugin, kernel, own, guard }) {
-    if (!plugin.uses.tools) return { onToolUse: undeclared("onToolUse", "tools") };
+    if (!declaredSwitch(plugin, "tools")) return { onToolUse: undeclared("onToolUse", "tools") };
     return {
       onToolUse(handler) {
         const guarded = guard("onToolUse() handler", (payload: unknown) => {

@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/@rigline/plugin-api/schema/manifest.json",
+  "api": 1,
+  "name": "time-marks",
+  "description": "The clock time on every transcript entry, and a divider where the conversation jumped a day or paused. A small clock icon after the model pill toggles the whole feature, on by default.",
+  "entry": "dist/index.js",
+  "surfaces": ["editor", "sidebar"],
+  "uses": {
+    "anchors": ["transcriptRow"],
+    "mount": true,
+    "style": true,
+    "transcript": true,
+    "optional": {
+      "anchors": ["modelPill", "itemTime"]
+    }
+  }
+}

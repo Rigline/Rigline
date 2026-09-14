@@ -95,13 +95,18 @@ export interface PluginContext {
    * Keep `build()`'s result inside `target`, re-placing it if a re-render removes it. Mounts from
    * several plugins on one target appear in registry order, and every host-placed node is stamped
    * `data-rigline-mount`. Requires `uses.mount`.
+   *
+   * `build()` runs once. A re-render that detaches the node does not destroy it, so the host puts
+   * the same node back with its listeners and whatever state was hung on it intact, and a reference
+   * a plugin keeps to it stays good for the life of the mount. What does end a mount is the anchor
+   * itself leaving the document, which is `watch`'s question rather than this one's.
    */
   mount(target: Element, build: () => Element): Teardown;
 
   /**
-   * As `mount`, but straight after `sibling`. The placement a decoration usually wants: inside the
-   * decorated element it inherits that element's click handling and accessible name. Requires
-   * `uses.mount`.
+   * As `mount`, but straight after `sibling`, and with the same once-only `build()`. The placement a
+   * decoration usually wants: inside the decorated element it would inherit that element's click
+   * handling and accessible name. Requires `uses.mount`.
    */
   mountAfter(sibling: Element, build: () => Element): Teardown;
 

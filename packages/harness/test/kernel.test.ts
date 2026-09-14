@@ -14,6 +14,17 @@ import { harnessSkipReason, register } from "../src/suite.ts";
 
 const VERSION = "2.1.270";
 
+interface SurvivorWindow {
+  readonly __survivor?: {
+    readonly sessions: number;
+    readonly threw: string | null;
+    readonly clicks: number;
+    readonly builds: number;
+    readonly node?: Element;
+  };
+  readonly __detach?: () => void;
+}
+
 interface FixtureWindow {
   readonly __staleImported?: boolean;
   readonly __optional?: {
@@ -245,6 +256,79 @@ export default { setup() {} };`,
           () => (window as unknown as FixtureWindow).__staleImported,
         );
         expect(imported).toBeUndefined();
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
+    it("grants a switch declared only under optional, and re-places a mount without rebuilding it", async () => {
+      // Two properties of the capability layer that a plugin can only find out about the hard way.
+      // A switch under `uses.optional` is still declared: optional changes the verdict when what it
+      // rests on is gone, never whether the method exists. And a mount the host puts back is the
+      // node the plugin built, so a reference it kept, and anything it hung on that node, survives.
+      const survivor: FixturePlugin = {
+        name: "survivor",
+        manifest: {
+          uses: {
+            anchors: ["modelPill"],
+            mount: true,
+            optional: { ...EMPTY_DECLARATIONS, session: true },
+          },
+        },
+        source: `export default { setup(ctx) {
+    const state = { sessions: 0, threw: null, clicks: 0, builds: 0, sameNode: null };
+    window.__survivor = state;
+    try {
+      ctx.onSessionId(() => { state.sessions += 1; });
+    } catch (e) {
+      state.threw = String(e && e.message ? e.message : e);
+    }
+    ctx.watch("modelPill", (pill) => ctx.mountAfter(pill, () => {
+      state.builds += 1;
+      const s = document.createElement("span");
+      s.className = "harness-badge";
+      s.textContent = "S";
+      // A listener on the node itself: it survives a re-placement only if the node does.
+      s.addEventListener("click", () => { state.clicks += 1; });
+      state.node = s;
+      return s;
+    }));
+    window.__detach = () => {
+      const badge = document.getElementsByClassName("harness-badge")[0];
+      badge.remove();
+    };
+  } };`,
+      };
+      const booted = await boot({ plugins: [survivor] });
+      try {
+        await booted.page.waitForSelector(".harness-badge");
+        const before = await booted.page.evaluate(
+          () => (window as unknown as SurvivorWindow).__survivor,
+        );
+        // Declared only under optional, and the handler still fired with the current session.
+        expect(before?.threw).toBeNull();
+        expect(before?.sessions).toBeGreaterThan(0);
+        expect(before?.builds).toBe(1);
+
+        // Detach it the way a re-render does, and let the shared observer put it back.
+        await booted.page.evaluate(() => (window as unknown as SurvivorWindow).__detach?.());
+        await booted.page.waitForSelector(".harness-badge");
+        await booted.page.click(".harness-badge");
+
+        const after = await booted.page.evaluate(() => {
+          const w = window as unknown as SurvivorWindow;
+          return {
+            state: w.__survivor,
+            isSameNode: document.getElementsByClassName("harness-badge")[0] === w.__survivor?.node,
+          };
+        });
+        // Re-placed, not rebuilt: one build, the same node object, and its listener still attached.
+        expect(after.state?.builds).toBe(1);
+        expect(after.isSameNode).toBe(true);
+        expect(after.state?.clicks).toBe(1);
+
+        const d = await booted.diagnostics();
+        expect(d.plugins.find((p) => p.name === "survivor")?.status).toBe("loaded");
       } finally {
         await booted.close();
       }

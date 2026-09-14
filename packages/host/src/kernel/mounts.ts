@@ -23,8 +23,8 @@ interface ActiveMount {
   readonly placement: Placement;
   readonly order: number;
   readonly owner: string;
-  readonly build: () => Element;
-  node: Element;
+  /** Built once, by `attach`, and re-placed rather than rebuilt. See `replaceLost`. */
+  readonly node: Element;
   readonly onError: (reason: string) => void;
 }
 
@@ -81,18 +81,32 @@ export function createMountService(message: (e: unknown) => string): MountServic
     else mount.anchor.appendChild(node);
   }
 
+  /**
+   * Put back every mount a re-render detached, re-inserting the node rather than building a new one.
+   *
+   * React removing a foreign child detaches the node; it does not destroy it, and a detached node
+   * keeps its listeners, its attributes and whatever state the plugin hung on it. So the node goes
+   * back exactly as it was, and `build()` is called precisely once per mount, by `attach`.
+   *
+   * Rebuilding was the obvious implementation and was wrong in a way that only shows up in a
+   * plugin: it makes the node a plugin holds a reference to silently stale, so every plugin with
+   * per-node state has to notice re-placement and re-attach to the new node. Two first-party
+   * plugins got that wrong in different ways — one tracked the current node by hand, the other
+   * leaked two document-level listeners belonging to a pop-up whose badge had been replaced
+   * underneath it — which is a hazard in the capability rather than two bugs in the plugins.
+   *
+   * An anchor that has left the document takes its mount with it, and is skipped: retrying would
+   * re-insert on every mutation forever. Whether a replacement anchor exists is the plugin's
+   * question, and `watch` is how it asks.
+   */
   function replaceLost(): void {
     for (const m of active) {
       if (m.node.isConnected) continue;
-      // An anchor that has left the document takes its mount with it; retrying would rebuild on
-      // every mutation forever. Whether a replacement anchor exists is the plugin's question, and
-      // `watch` is how it asks.
       if (!m.anchor.isConnected) continue;
       try {
-        m.node = m.build();
         place(m, m.node);
       } catch (e) {
-        m.onError(`mount() re-render threw: ${message(e)}`);
+        m.onError(`mount() re-placement threw: ${message(e)}`);
       }
     }
   }
@@ -132,7 +146,7 @@ export function createMountService(message: (e: unknown) => string): MountServic
         onError(`${called} build() threw: ${message(e)}`);
         return null;
       }
-      const entry: ActiveMount = { anchor, placement, order, owner, build, node, onError };
+      const entry: ActiveMount = { anchor, placement, order, owner, node, onError };
       place(entry, node);
       active.push(entry);
       return () => {

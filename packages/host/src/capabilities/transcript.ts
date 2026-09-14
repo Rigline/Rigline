@@ -1,5 +1,5 @@
 import { CONTRACTS } from "@rigline/plugin-api";
-import { type CapabilityModule, undeclared } from "../kernel/types.ts";
+import { type CapabilityModule, declaredSwitch, undeclared } from "../kernel/types.ts";
 
 /**
  * `ctx.decorateTranscript(build)`: one entry per transcript row, with its real time, and a node
@@ -14,7 +14,7 @@ export const transcriptModule: CapabilityModule<"transcript"> = {
     (c) => c.key === "transcript",
   ) as CapabilityModule<"transcript">["contract"],
   grant({ plugin, kernel, own, disable }) {
-    if (!plugin.uses.transcript) {
+    if (!declaredSwitch(plugin, "transcript")) {
       return { decorateTranscript: undeclared("decorateTranscript", "transcript") };
     }
     return {

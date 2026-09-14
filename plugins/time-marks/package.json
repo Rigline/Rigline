@@ -1,0 +1,14 @@
+{
+  "name": "rigline-time-marks",
+  "version": "1.0.0-alpha.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "rigline build",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@rigline/plugin-api": "workspace:*",
+    "rigline": "workspace:*"
+  }
+}

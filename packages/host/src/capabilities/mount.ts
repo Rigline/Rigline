@@ -1,11 +1,11 @@
 import { CONTRACTS } from "@rigline/plugin-api";
-import { type CapabilityModule, undeclared } from "../kernel/types.ts";
+import { type CapabilityModule, declaredSwitch, undeclared } from "../kernel/types.ts";
 
 /** `ctx.mount`, `ctx.mountAfter` and `ctx.watch`: DOM placement the host keeps in place. */
 export const mountModule: CapabilityModule<"mount"> = {
   contract: CONTRACTS.find((c) => c.key === "mount") as CapabilityModule<"mount">["contract"],
   grant({ plugin, kernel, own, disable }) {
-    if (!plugin.uses.mount) {
+    if (!declaredSwitch(plugin, "mount")) {
       return {
         mount: undeclared("mount", "mount"),
         mountAfter: undeclared("mountAfter", "mount"),

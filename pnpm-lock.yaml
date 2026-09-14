@@ -184,6 +184,15 @@ importers:
         specifier: workspace:*
         version: link:../../packages/cli
 
+  plugins/time-marks:
+    devDependencies:
+      '@rigline/plugin-api':
+        specifier: workspace:*
+        version: link:../../packages/plugin-api
+      rigline:
+        specifier: workspace:*
+        version: link:../../packages/cli
+
 packages:
 
   '@biomejs/biome@2.5.13':
