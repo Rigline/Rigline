@@ -395,8 +395,11 @@ done.
   document-wide mutation observer (D52); the observer remains only as the fallback for a webview no
   renderer injected into. `place()` indexes its peers by anchor rather than filtering every active
   mount per node, which is what made a rebuild O(N²) at one mount per transcript row. Re-placement
-  is counted rather than assumed — `mounts.replaced`, `mounts.lost` and the driver in use — and the
-  probe reports all three on its own line. Pinned at the DOM tier against the real bundle, which
+  is counted rather than assumed — `mounts.replaced`, `mounts.moved`, `mounts.lost` and the driver in
+  use — and the probe reports them on its own line. A pass re-checks *position* and not only
+  presence, which is what stops a mount being stranded when its anchor is moved rather than replaced
+  (D52, amended); `place` returns early when the node already sits where it belongs, so a commit is
+  not a DOM write, and that half is pinned by its own test. Pinned at the DOM tier against the real bundle, which
   also needed the harness to be able to force a genuine re-render: a bare `node.remove()` stopped
   standing in for one the moment the host stopped watching every mutation in the document. **Left:
   reading `replaced` off the live panel over a few days.** If it stays at zero, `replaceLost` and
@@ -530,18 +533,6 @@ contract is the output, and a plugin built with any other toolchain is treated i
 - Anchor governance, load-bearing now rather than tidy (D44): who may add to the table, what
   evidence an entry needs, and how a local `anchors.json` override is promoted into the shipped
   table once it is confirmed.
-- Whether a mount should re-check its *position* and not only its presence. `replaceLost` skips
-  every mount whose node is still connected, so an anchor that a re-render relocates without
-  replacing leaves its mount stranded — the same gap that produced the 0.x prototype's vanishing
-  session-id pill ([archive](archive/0.x/vanishing-session-id-pill.md)), where an attachment chip in
-  the composer reordered that row. Not reproduced on 2.1.270 with an attachment chip present
-  (2026-09-14), and `watch` already handles the case where React *replaces* the pill rather than
-  moving it, which is the more common shape. What makes this a question rather than a fix waiting to
-  be typed is cost: closing it means calling `place` for every connected mount on every commit, and
-  there is one mount per transcript row. That is only affordable if `place` returns early when the
-  node is already where it belongs, so idempotence is the work, not the loop. Note also that the
-  probe is blind to it — the ordering check degrades from PASS to N/A rather than failing, which is
-  its own small thing to fix if this is taken up.
 - Whether `ctx.style` refuses a selector naming a class the plugin did not declare, or only lints.
 - Whether `pnpm stage publish` completes the OIDC exchange. D46 and D50 lean on one `pnpm stage
   publish -r` staging the whole workspace, but pnpm's support for trusted publishing is reported
@@ -711,3 +702,12 @@ the extension to be working.
   16:27 "recovery" was the window being closed, not recovering, and it says so with the duration
   marked as a lower bound. The webview half is confirmed in a real browser against the real bundle —
   storage available, writes landing, meters peaking on real traffic.
+- 2026-09-14: The drifting-mount gap noted in the morning reproduced by the afternoon and is fixed
+  (D52, amended). An attachment chip in the composer reorders the footer row; the model pill goes to
+  the end of it and every decoration anchored to the pill stays behind, silently and permanently,
+  because a mount was only ever re-placed when its own node was detached. A pass now asks where each
+  mount belongs rather than only whether it is still there, `place` is idempotent so that is
+  affordable at one mount per transcript row, and drift is counted apart from re-placement because a
+  `moved` rate that never settles would mean the host and the app are undoing each other every
+  frame. The probe was blind to this and is not any more: an anchor with no host-placed node beside
+  it, while one of ours is on screen, is a FAIL rather than the N/A it read as when it happened.

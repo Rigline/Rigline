@@ -76,6 +76,7 @@ export interface Diagnostics {
     driver: "commit" | "observer";
     active: number;
     replaced: number;
+    moved: number;
     lost: number;
   };
   readonly meters: Record<string, { peak: number; peakAt: number | null; recent: number }>;

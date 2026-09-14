@@ -216,6 +216,23 @@ describe("mountOrderVerdict", () => {
   });
 });
 
+describe("mountOrderVerdict, drift", () => {
+  it("fails when our own mount is on screen but nothing sits beside the anchor", () => {
+    const { verdict, detail } = mountOrderVerdict([], true);
+    expect(verdict).toBe("fail");
+    expect(detail).toContain("drifted");
+  });
+
+  it("stays n/a when nothing of ours is mounted to have drifted", () => {
+    expect(mountOrderVerdict([], false).verdict).toBe("n/a");
+  });
+
+  it("still checks ordering once there are siblings to order", () => {
+    expect(mountOrderVerdict([0, 1], true).verdict).toBe("pass");
+    expect(mountOrderVerdict([3, 1], true).verdict).toBe("fail");
+  });
+});
+
 describe("chainComposeVerdict", () => {
   it("is n/a before any rename_tab has crossed", () => {
     expect(chainComposeVerdict(false, false).verdict).toBe("n/a");
@@ -315,24 +332,32 @@ describe("stylesheetVerdict", () => {
 });
 
 describe("mountReplacementVerdict", () => {
-  it("is n/a when nothing has had to be put back", () => {
-    const { verdict, detail } = mountReplacementVerdict("commit", 12, 0, 0);
+  it("is n/a when nothing has had to be put back or moved", () => {
+    const { verdict, detail } = mountReplacementVerdict("commit", 12, 0, 0, 0);
     expect(verdict).toBe("n/a");
     expect(detail).toContain("12 active");
   });
 
   it("passes when a re-placement happened, because that is the mechanism working", () => {
-    const { verdict, detail } = mountReplacementVerdict("commit", 12, 3, 0);
+    const { verdict, detail } = mountReplacementVerdict("commit", 12, 3, 0, 0);
     expect(verdict).toBe("pass");
     expect(detail).toContain("3 re-placed");
   });
 
+  it("reports drift separately from re-placement, since they answer different questions", () => {
+    const { verdict, detail } = mountReplacementVerdict("commit", 12, 0, 7, 0);
+    expect(verdict).toBe("pass");
+    expect(detail).toContain("7 moved");
+    expect(detail).not.toContain("re-placed");
+    expect(mountReplacementVerdict("commit", 12, 3, 7, 0).detail).toContain("3 re-placed, 7 moved");
+  });
+
   it("fails on a mount left detached from an anchor that is still there", () => {
-    expect(mountReplacementVerdict("commit", 12, 3, 1).verdict).toBe("fail");
+    expect(mountReplacementVerdict("commit", 12, 3, 0, 1).verdict).toBe("fail");
   });
 
   it("names the driver, so the observer fallback is never silent", () => {
-    expect(mountReplacementVerdict("observer", 1, 0, 0).detail).toContain("observer");
+    expect(mountReplacementVerdict("observer", 1, 0, 0, 0).detail).toContain("observer");
   });
 });
 

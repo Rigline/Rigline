@@ -296,6 +296,25 @@ same per-frame coalescing rather than working in its own callback. `requestAnima
 a hidden webview, so re-placement defers until the panel is on screen again, which is right —
 nothing needs re-placing while nothing is visible, and becoming visible is itself a commit.
 
+**A pass re-checks position, not only presence (amended 2026-09-14).** The first version skipped
+every mount whose own node was still connected, which meant an anchor a re-render *moved* rather
+than replaced left its mount stranded where the anchor used to be. That is the 0.x prototype's
+vanishing session-id pill (archive/0.x/vanishing-session-id-pill.md), reproduced in 1.0 within a day
+of the note being written: an attachment chip in the composer reordered the footer row, the model
+pill went to the end of it, and all three first-party decorations stayed behind — silently, and
+permanently, because nothing ever looked again.
+
+So the pass asks where each mount *belongs* and moves only when the answer has changed. Idempotence
+is what makes that affordable and is not optional: `after()` and `insertBefore` remove and re-insert
+unconditionally, so a version that repositioned a correctly-placed node would write to the DOM once
+per mount per frame — one per transcript row — and drop any text selection inside one.
+
+Drift is counted separately from re-placement, because the two answer different questions and one of
+them is a warning. `replaced` is a node put back after removal; `moved` is a node that had drifted.
+A `moved` rate that does not settle means the host and the app are fighting over a position, each
+undoing the other every frame, which is the one way this change could be worse than the gap it
+closes — so it is a number on the panel rather than something to be discovered.
+
 **Re-placement is on probation, and counted so the question can be settled with numbers.** The 0.x
 prototype measured a node appended to a React-owned container surviving *zero* removals on all three
 surfaces, and kept its re-mount anyway because at one observer per anchor it was nearly free; at one

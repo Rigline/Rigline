@@ -55,6 +55,7 @@ export interface HarnessDiagnostics {
     readonly driver: "commit" | "observer";
     readonly active: number;
     readonly replaced: number;
+    readonly moved: number;
     readonly lost: number;
   };
   readonly meters: Record<

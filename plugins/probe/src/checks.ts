@@ -184,10 +184,24 @@ export function mountSurvivesVerdict(
  * about ordering is proven by one node sharing an anchor with itself, which is the ordinary case
  * until another plugin decorates the same anchor.
  */
-export function mountOrderVerdict(indices: readonly number[]): {
+export function mountOrderVerdict(
+  indices: readonly number[],
+  anchored = false,
+): {
   verdict: Verdict;
   detail: string;
 } {
+  // `anchored` is the drift check, and it is why this is not simply an ordering assertion. This
+  // plugin's own badge is mounted after the anchor, so when it is on screen there must be a
+  // host-placed node immediately after the anchor; finding none means every decoration on that
+  // anchor has been left behind by a re-render that moved it. Without this the failure reads as
+  // "n/a, 0 nodes", which is what it read as when it actually happened.
+  if (anchored && indices.length === 0) {
+    return {
+      verdict: "fail",
+      detail: "no host-placed node beside the anchor: mounts have drifted",
+    };
+  }
   if (indices.length < 2) {
     return { verdict: "n/a", detail: `${indices.length} node(s) on the anchor` };
   }
@@ -315,12 +329,17 @@ export function mountReplacementVerdict(
   driver: string,
   active: number,
   replaced: number,
+  moved: number,
   lost: number,
 ): { verdict: Verdict; detail: string } {
   const where = `${active} active, on ${driver}`;
+  const work = [
+    replaced > 0 ? `${replaced} re-placed` : null,
+    moved > 0 ? `${moved} moved` : null,
+  ].filter((part) => part !== null);
   if (lost > 0) return { verdict: "fail", detail: `${lost} still detached, ${where}` };
-  if (replaced > 0) return { verdict: "pass", detail: `${replaced} re-placed, ${where}` };
-  return { verdict: "n/a", detail: `nothing detached yet, ${where}` };
+  if (work.length > 0) return { verdict: "pass", detail: `${work.join(", ")}, ${where}` };
+  return { verdict: "n/a", detail: `nothing detached or moved yet, ${where}` };
 }
 
 /** Wall-clock `HH:MM:SS` for a report meant to be lined up against VS Code's own logs, which are

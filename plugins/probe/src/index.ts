@@ -99,6 +99,7 @@ interface ProbeDiagnostics {
     readonly driver: "commit" | "observer";
     readonly active: number;
     readonly replaced: number;
+    readonly moved: number;
     readonly lost: number;
   };
   readonly meters: Record<
@@ -525,8 +526,8 @@ export default definePlugin({
       const survives = mountSurvivesVerdict(badgeMounted, currentBadge?.isConnected ?? false);
       report("mount survives re-render", survives.verdict, survives.detail);
 
-      const { driver, active, replaced, lost } = diag.mounts;
-      const replacement = mountReplacementVerdict(driver, active, replaced, lost);
+      const { driver, active, replaced, moved, lost } = diag.mounts;
+      const replacement = mountReplacementVerdict(driver, active, replaced, moved, lost);
       report("mounts re-placed after a re-render", replacement.verdict, replacement.detail);
 
       if (ctx.surface === "sessionList") {
@@ -546,7 +547,9 @@ export default definePlugin({
           if (index !== -1) indices.push(index);
           sibling = sibling.nextElementSibling;
         }
-        const order = mountOrderVerdict(indices);
+        // Our own badge being on screen is what makes "nothing beside the anchor" a failure rather
+        // than an absence: it is mounted after this anchor, so it must be one of those siblings.
+        const order = mountOrderVerdict(indices, currentBadge?.isConnected === true);
         report("mounts sharing an anchor keep registry order", order.verdict, order.detail);
       }
 

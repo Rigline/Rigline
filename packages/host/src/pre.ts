@@ -177,6 +177,10 @@ interface RiglineBridge {
       driver: "commit" | "observer";
       active: number;
       replaced: number;
+      /** Mounts repositioned after their anchor moved. A rate that never settles means the host and
+       * the app are each undoing the other every frame, which is the one way this can be worse than
+       * the drift it fixes. */
+      moved: number;
       lost: number;
     };
     /**
@@ -539,6 +543,7 @@ try {
     "sweep",
     "rebuild",
     "replace",
+    "move",
   ] as const;
 
   const meters = {} as Record<string, { peak: number; peakAt: number | null; recent: number }>;
@@ -658,7 +663,7 @@ try {
       identifiersFor: null,
       react: { hook: "installed", version: null, commits: 0, notified: 0 },
       transcript: { entries: 0, timed: 0, sweeps: 0, rebuilds: 0 },
-      mounts: { driver: "commit", active: 0, replaced: 0, lost: 0 },
+      mounts: { driver: "commit", active: 0, replaced: 0, moved: 0, lost: 0 },
       meters,
       storage: { available: false, writes: 0, failures: 0, bytes: 0, lastError: null },
       previous: null,

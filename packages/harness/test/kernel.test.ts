@@ -348,6 +348,7 @@ export default { setup() {} };`,
         expect(d.mounts.driver).toBe("commit");
         expect(d.mounts.replaced).toBeGreaterThan(0);
         expect(d.mounts.lost).toBe(0);
+        expect(d.mounts.moved).toBe(0);
         expect(d.mounts.active).toBeGreaterThan(0);
         // The meters and the flight recorder (D53), pinned in a real browser because both are
         // things a Node test cannot reach: a peak is only meaningful against real traffic, and
@@ -358,6 +359,61 @@ export default { setup() {} };`,
         expect(d.storage.writes).toBeGreaterThan(0);
         expect(d.storage.failures).toBe(0);
         expect(d.storage.bytes).toBeGreaterThan(0);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
+    it("follows an anchor that a re-render moved rather than replaced", async () => {
+      // The symptom that sent us looking (docs/archive/0.x/vanishing-session-id-pill.md, and again
+      // in 1.0 on 2026-09-14): an attachment chip reorders the composer footer, the model pill goes
+      // to the end of the row, and every decoration anchored to it stays behind. The node is still
+      // connected and the pill is still the same element, so neither "put back what was detached"
+      // nor "re-anchor when the element changes" sees anything wrong. Only a position check does.
+      const booted = await boot({ plugins: [mounterPlugin] });
+      try {
+        await booted.page.waitForSelector(".harness-badge");
+        // Move the pill to the end of its own parent, which is what the app's own re-render does,
+        // and then let a real commit drive the pass.
+        await booted.page.evaluate(() => {
+          const pill = document.getElementsByClassName("modelPill_gGYT1w")[0];
+          pill?.parentElement?.appendChild(pill);
+          (window as unknown as { __harness?: { rerender: () => void } }).__harness?.rerender();
+        });
+        await booted.page.waitForFunction(() => {
+          const pill = document.getElementsByClassName("modelPill_gGYT1w")[0];
+          const badge = document.getElementsByClassName("harness-badge")[0];
+          return pill != null && badge != null && pill.nextElementSibling === badge;
+        });
+
+        const d = await booted.diagnostics();
+        // Counted as a move, not as a re-placement: the node never left the document, and the two
+        // numbers answer different questions (D52).
+        expect(d.mounts.moved).toBeGreaterThan(0);
+        expect(d.mounts.lost).toBe(0);
+        expect(booted.consoleErrors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
+    it("leaves a correctly placed mount alone, so a commit is not a DOM write", async () => {
+      // The other half of the same change, and the risk it introduced. Re-checking position every
+      // commit is only safe because `place` is skipped when the node already sits where it belongs;
+      // without that the host would rewrite every mount once per frame and drop any selection
+      // inside one. Many commits, no moves, is the assertion.
+      const booted = await boot({ plugins: [mounterPlugin] });
+      try {
+        await booted.page.waitForSelector(".harness-badge");
+        await booted.page.evaluate(() => {
+          const w = window as unknown as { __harness?: { rerender: () => void } };
+          for (let i = 0; i < 5; i++) w.__harness?.rerender();
+        });
+        await booted.page.waitForTimeout(300);
+
+        const d = await booted.diagnostics();
+        expect(d.mounts.moved).toBe(0);
+        expect(d.mounts.lost).toBe(0);
       } finally {
         await booted.close();
       }

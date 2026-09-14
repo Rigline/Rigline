@@ -87,6 +87,36 @@ export function createMountService(
       .sort((a, b) => a.order - b.order);
   }
 
+  /**
+   * Whether `mount`'s node already sits where `place` would put it, so `place` can be a no-op.
+   *
+   * The two placements are judged differently, and the asymmetry is the point rather than an
+   * oversight. An `after` mount is a decoration *of* its anchor — a badge beside the model pill —
+   * and being one element further along is already the bug this exists to catch, so it must follow
+   * its predecessor immediately. An `inside` mount was only ever asked to be *within* the anchor;
+   * the append that placed it there was a convention, not a promise. Holding it to "still last"
+   * would have the host re-appending it every time React added a child of its own, once per mount
+   * per frame, with one mount per transcript row.
+   *
+   * Element siblings, not node siblings: a text node appearing between a mount and its predecessor
+   * is not drift, and treating it as drift would mean a DOM write every frame for as long as it
+   * stayed there.
+   */
+  function positioned(mount: ActiveMount): boolean {
+    if (!mount.node.isConnected) return false;
+    const peers = peersOf(mount);
+    if (mount.placement === "after") {
+      const predecessor = peers.filter((m) => m.order < mount.order).at(-1)?.node ?? mount.anchor;
+      return mount.node.previousElementSibling === predecessor;
+    }
+    if (mount.node.parentNode !== mount.anchor) return false;
+    const later = peers.find((m) => m.order > mount.order);
+    if (!later) return true;
+    return (
+      (mount.node.compareDocumentPosition(later.node) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+    );
+  }
+
   function place(mount: ActiveMount, node: Element): void {
     node.setAttribute("data-rigline-mount", mount.owner);
     const peers = peersOf(mount);
@@ -119,30 +149,16 @@ export function createMountService(
    * re-insert on every pass forever. Whether a replacement anchor exists is the plugin's question,
    * and `watch` is how it asks.
    *
-   * **A known gap, deliberately not closed yet: a node that stayed connected while its *anchor*
-   * moved.** The `isConnected` guard below skips every mount whose own node is still in the
-   * document, so a re-render that relocates the anchor without replacing it leaves the mount
-   * stranded where the anchor used to be. This is the 0.x prototype's "vanishing session-id pill"
-   * exactly — see docs/archive/0.x/vanishing-session-id-pill.md, where an attachment chip in the
-   * composer made the app reorder that row and the badge drifted away from the model pill.
+   * **Position, not merely presence.** A mount whose node is still connected but whose anchor was
+   * *moved* rather than replaced is stranded where the anchor used to be, and the first version of
+   * this skipped it for exactly that reason. It is the 0.x prototype's vanishing session-id pill
+   * (docs/archive/0.x/vanishing-session-id-pill.md) and it reproduced here the same way: an
+   * attachment chip in the composer reorders the footer row, the model pill goes to the end of it,
+   * and every decoration anchored to the pill stays behind. Silently and permanently, because
+   * `watch` only re-anchors when the pill's *identity* changes and a move does not change it.
    *
-   * It has not been reproduced on 2.1.270 (checked 2026-09-14, with an attachment chip present),
-   * and the two designs fail differently even where the gap is the same. 0.x re-anchored on a 1 Hz
-   * poll, so the pill's identity changing under it produced the visible flapping that made the bug
-   * obvious; `watch` re-anchors on the commit that changed it, so React *replacing* the pill is
-   * handled cleanly and only React *moving* the same element slips through — which shows up as a
-   * badge quietly in the wrong place rather than one jumping about.
-   *
-   * Worth knowing before chasing it: the probe does not catch this. Check 13 still passes, because
-   * the node is connected; check 14 walks `data-rigline-mount` siblings forward from the anchor,
-   * finds none, and returns `n/a` rather than `fail`. A silent downgrade from PASS to N/A is the
-   * whole signal.
-   *
-   * The fix 0.x landed is the one to reach for: make `place` idempotent — return early when the
-   * node already sits where it belongs — and then call it for every connected mount as well, so
-   * drift self-heals instead of only outright removal doing so. Idempotence first and not
-   * optionally: `after()` and `insertBefore` remove and re-insert unconditionally, so repositioning
-   * a correctly-placed node every frame would churn the DOM and drop a text selection inside it.
+   * So every mount with a live anchor is asked whether it is still where it belongs, and `place`
+   * runs only when the answer is no. `positioned` is what keeps that affordable.
    *
    * **Both counters exist to answer whether this function should exist** (D52). `replaced`
    * accumulates re-placements that reconnected the node. `lost` is a gauge, recounted every pass
@@ -154,17 +170,25 @@ export function createMountService(
   function replaceLost(): void {
     let lost = 0;
     for (const m of active) {
-      if (m.node.isConnected) continue;
+      // An anchor that has left the document takes its mount with it. Whether a replacement anchor
+      // exists is the plugin's question, and `watch` is how it asks.
       if (!m.anchor.isConnected) continue;
+      if (positioned(m)) continue;
+      const wasConnected = m.node.isConnected;
       try {
         place(m, m.node);
       } catch (e) {
         m.onError(`mount() re-placement threw: ${message(e)}`);
       }
-      if (m.node.isConnected) {
+      if (!m.node.isConnected) {
+        lost += 1;
+      } else if (wasConnected) {
+        diagnostics.moved += 1;
+        meter("move");
+      } else {
         diagnostics.replaced += 1;
         meter("replace");
-      } else lost += 1;
+      }
     }
     diagnostics.lost = lost;
     diagnostics.active = active.length;
