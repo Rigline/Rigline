@@ -389,7 +389,7 @@ describe("formatReport", () => {
     preAt: 12,
     postAt: 486,
     react: { hook: "installed", version: "19.1.0", commits: 4821, notified: 92 },
-    mounts: { driver: "commit", active: 6, replaced: 1, lost: 0 },
+    mounts: { driver: "commit", active: 6, replaced: 1, lost: 0, abandoned: [] },
     storage: { available: true, writes: 14, failures: 0, bytes: 18_600, lastError: null },
     bus: {
       outbound: 1204,

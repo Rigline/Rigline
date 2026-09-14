@@ -403,6 +403,33 @@ document-wide observer and 319 mounts it is not. So the host counts re-placement
 reports the count. If it stays zero on the live panel, `replaceLost` goes, and `place()` loses its
 per-node scan of every peer with it.
 
+**D54. A decoration does not join a container whose owner measures its children, and the host
+stops when it finds itself in a fight.** The composer footer runs a three-stage fit ladder over the
+measured widths of its own element children and resets it, through `flushSync`, on any foreign
+mutation inside it. The app exempts the one child it moves itself — the model pill — from that
+reset; nothing exempts ours. So a decoration anchored to the pill both changes the layout decision
+and re-triggers it every time the decision moves the pill, which oscillates at one cycle per frame
+whenever the footer is near its threshold. A selection chip is enough to put it there.
+
+Footer decorations therefore anchor to the `spacer`, which renders in both layouts, and reach it
+through `mountBefore` so they land at the end of the left cluster rather than beside the send
+button. The point is not the position: it is that the width a decoration contributes stops
+depending on the stage, so the ladder converges. It converges at stage 2 while a chip is attached,
+which is the honest cost of adding width to a full row and is not a defect to tune away.
+
+The general half is the damper. The host takes exactly one kind of corrective action — put this
+mount back where it belongs, re-anchor this watch to the element that replaced its own — and
+either, repeated on consecutive passes without settling, means the app is undoing it as fast as it
+is done. D52 named that condition and made it a number; this stops it. After a bounded run the host
+abandons the mount or the watch, tears the node down rather than leaving a ghost, records the plugin
+and the anchor in diagnostics, and logs once. Nothing retries: a fight the host cannot win by
+repeating is not one it should re-enter, and the panel is worth more than the decoration.
+
+The measurement skips children with `position: absolute`, and a decoration could have hidden in
+that exemption instead. Rejected: it buys invisibility to the ladder by giving up layout space, so
+the decoration has to overlay the footer rather than sit in it, and a badge meant to be read and
+copied is the wrong thing to make an overlay. The exemption is right for a marker, not for this.
+
 **D24. A row's own timestamp is never read.** It is `Date.now()` from when the row object was
 built, so every row in a reopened session claims to be from just now. Real times come from the bus
 (`get_session_response` and `io_message` records), and an entry with no record is `null`.

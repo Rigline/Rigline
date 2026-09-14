@@ -1,5 +1,5 @@
 /**
- * The session's short id beside the model pill, and every identifier it has in a pop-up behind it.
+ * The session's short id in the composer footer, and every identifier it has in a pop-up behind it.
  *
  * Every fact below traces back to docs/archive/0.x/messaging-identity.md, which is the authority
  * on where the address comes from; this file only summarises the parts that shape a decision here.
@@ -167,9 +167,10 @@ export function currentAddress(
  * opposite of what this did first. The address is unbounded in practice: the CLI names a session
  * after its directory, so a worktree called `abcd-1234-ticket-work-46` produces an address of that
  * whole width, and a Remote Control session takes its *title*, which can be a sentence. The badge
- * sits in the composer footer beside the model pill and has room for a token, not a phrase. A
- * session id is fixed-width and its first eight characters identify a session as well as anything
- * does, so the pill shows the thing it can rely on and the pop-up carries the address, which is
+ * sits at the end of the composer footer's left cluster and has room for a token, not a phrase —
+ * and every character it takes is width the footer's own fit ladder has to find (D54). A session id
+ * is fixed-width and its first eight characters identify a session as well as anything does, so the
+ * badge shows the thing it can rely on and the pop-up carries the address, which is
  * where you go when you actually want to copy it.
  */
 export function headlineText(sessionId: string | null): string {
@@ -304,8 +305,8 @@ export default definePlugin({
      * Resolve an optional anchor and, when this extension has it, add its class. Every one of the
      * ten footer-menu classes below is declared under `uses.optional` rather than `uses`: they are
      * borrowed styling for the pop-up, not load-bearing for the badge, so losing one to a future
-     * extension update should cost the pop-up some polish, never the plugin (D41). `modelPill` is
-     * the opposite case and stays required, because there is nothing to mount after without it.
+     * extension update should cost the pop-up some polish, never the plugin (D41). `footerSpacer`
+     * is the opposite case and stays required: without it there is nothing to mount against.
      * `POPUP_FALLBACK` and the inline styles below are what keeps the pop-up usable — positioned,
      * legible, clickable — on a version of the extension that has retired the whole family.
      */
@@ -509,21 +510,27 @@ export default definePlugin({
       return span;
     }
 
-    // ctx.watch is the host's shared re-anchor observer: it finds the model pill once, keeps the
-    // badge attached to it across an ordinary re-render (ctx.mountAfter's own job), and calls back
-    // here again if the pill *element itself* is ever swapped for a new one. The 0.x prototype ran
-    // its own setInterval sync() for exactly that last case, because its mountAfter equivalent had
-    // no way to notice an anchor being replaced outright; ctx.watch folds that polling into one
-    // shared observer instead of one per plugin, so nothing here polls for anything.
+    // ctx.watch is the host's shared re-anchor observer: it finds the spacer once, keeps the badge
+    // attached to it across an ordinary re-render (ctx.mountBefore's own job), and calls back here
+    // again if the spacer *element itself* is ever swapped for a new one. The 0.x prototype ran its
+    // own setInterval sync() for exactly that last case, because its mountAfter equivalent had no
+    // way to notice an anchor being replaced outright; ctx.watch folds that polling into one shared
+    // observer instead of one per plugin, so nothing here polls for anything.
     //
-    // modelPillRow, the wrapper some footer layouts put around the pill, was considered and
-    // rejected as the anchor: the footer sometimes renders the pill bare and sometimes wraps it,
-    // so the row is a conditional element and the pill is the only one present in both layouts.
-    // mountAfter, not mount-inside: the pill is itself a clickable combobox button, so anything
-    // mounted inside it would inherit that button's click handling and accessible name, and would
-    // not be separately selectable text - which defeats a badge meant to be copied.
-    const stopWatch = ctx.watch("modelPill", (pill) => {
-      const stopMount = ctx.mountAfter(pill, buildBadge);
+    // **The anchor is the footer's spacer, and not the model pill it sits beside.** The footer
+    // measures the widths of its own element children to pick one of three fit stages, and the
+    // widest stage moves the pill out of the footer into its own row; a badge anchored to the pill
+    // therefore leaves and re-enters the measured container every time the measurement changes its
+    // mind, and re-entering re-triggers the measurement. That oscillates at one cycle per frame,
+    // and it is why this is not `watch("modelPill")` however much more it would read like one (D54;
+    // docs/plan.md, "The composer footer measures its own children"). The spacer renders in every
+    // stage, so the width this badge contributes is constant and the ladder settles.
+    //
+    // mountBefore, not mountAfter: the spacer is `flex-grow:1`, so after it is the right-hand
+    // cluster beside the send button, and before it is the end of the left one, where the pill and
+    // the selection chip are.
+    const stopWatch = ctx.watch("footerSpacer", (spacer) => {
+      const stopMount = ctx.mountBefore(spacer, buildBadge);
       return () => {
         stopMount();
         closePopup();

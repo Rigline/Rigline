@@ -22,7 +22,8 @@ export interface Declarations {
   readonly messages: readonly string[];
   /** Outbound message type -> the payload fields the plugin may replace through `ctx.rewrite()`. */
   readonly rewrites: Readonly<Record<string, readonly string[]>>;
-  /** Whether the plugin places DOM through `ctx.mount()`, `ctx.mountAfter()` or `ctx.watch()`. */
+  /** Whether the plugin places DOM through `ctx.mount()`, `ctx.mountAfter()`, `ctx.mountBefore()`
+   * or `ctx.watch()`. */
   readonly mount: boolean;
   /** Whether the plugin injects a stylesheet through `ctx.style()`. */
   readonly style: boolean;

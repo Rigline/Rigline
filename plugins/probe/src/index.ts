@@ -104,6 +104,7 @@ interface ProbeDiagnostics {
     readonly moved: number;
     readonly lost: number;
     readonly multiple: Readonly<Record<string, number>>;
+    readonly abandoned: readonly string[];
   };
   readonly meters: Record<
     string,
@@ -393,7 +394,10 @@ export default definePlugin({
     const stylesheet = stylesheetVerdict(styled);
     report("stylesheet applied", stylesheet.verdict, stylesheet.detail);
 
-    // Check 11: resolved once; the anchor table does not change at runtime.
+    // Check 11: resolved once; the anchor table does not change at runtime. Still `modelPill`,
+    // which the badge no longer mounts against: it is the table's most-refined singleton, so it is
+    // the one worth asking whether resolution still works, and asking it of the anchor this plugin
+    // happens to mount on would prove less.
     try {
       const resolved = ctx.anchor("modelPill");
       const anchor = anchorResolvesVerdict(resolved, null);
@@ -405,14 +409,18 @@ export default definePlugin({
 
     // Badge placement, and checks 12/13/14 which ride along with it.
     if (ctx.surface === "sessionList") {
-      report("anchor element found", "n/a", "sessionList renders no model pill");
+      report("anchor element found", "n/a", "sessionList renders no composer footer");
       ctx.mount(document.body, buildBadge);
     } else {
       report("anchor element found", "n/a", "not found yet");
-      ctx.watch("modelPill", (el) => {
+      // The footer's spacer, not the model pill: the footer measures its own element children to
+      // pick a fit stage and moves the pill out of itself at the widest one, so a decoration
+      // anchored to the pill oscillates against the measurement it is part of (D54). mountBefore
+      // puts the badge at the end of the left cluster rather than beside the send button.
+      ctx.watch("footerSpacer", (el) => {
         anchorEl = el;
         report("anchor element found", "pass", "found");
-        return ctx.mountAfter(el, buildBadge);
+        return ctx.mountBefore(el, buildBadge);
       });
     }
 
@@ -530,7 +538,14 @@ export default definePlugin({
       report("mount survives re-render", survives.verdict, survives.detail);
 
       const { driver, active, replaced, moved, lost } = diag.mounts;
-      const replacement = mountReplacementVerdict(driver, active, replaced, moved, lost);
+      const replacement = mountReplacementVerdict(
+        driver,
+        active,
+        replaced,
+        moved,
+        lost,
+        diag.mounts.abandoned ?? [],
+      );
       report("mounts re-placed after a re-render", replacement.verdict, replacement.detail);
 
       const unique = anchorUniqueVerdict(diag.mounts.multiple ?? {});
@@ -545,16 +560,20 @@ export default definePlugin({
       } else if (anchorEl === null) {
         report("mounts sharing an anchor keep registry order", "n/a", "anchor not found yet");
       } else {
+        // Backwards, and unshifted, so `indices` still reads left to right: the footer decorations
+        // mount *before* their anchor, with the highest registry order nearest it, which is the
+        // same "registry order reads left to right" the forward walk asserted when they mounted
+        // after one.
         const indices: number[] = [];
-        let sibling = anchorEl.nextElementSibling;
+        let sibling = anchorEl.previousElementSibling;
         while (sibling?.hasAttribute("data-rigline-mount")) {
           const owner = sibling.getAttribute("data-rigline-mount");
           const index = diag.plugins.findIndex((p) => p.name === owner);
-          if (index !== -1) indices.push(index);
-          sibling = sibling.nextElementSibling;
+          if (index !== -1) indices.unshift(index);
+          sibling = sibling.previousElementSibling;
         }
         // Our own badge being on screen is what makes "nothing beside the anchor" a failure rather
-        // than an absence: it is mounted after this anchor, so it must be one of those siblings.
+        // than an absence: it is mounted before this anchor, so it must be one of those siblings.
         const order = mountOrderVerdict(indices, currentBadge?.isConnected === true);
         report("mounts sharing an anchor keep registry order", order.verdict, order.detail);
       }

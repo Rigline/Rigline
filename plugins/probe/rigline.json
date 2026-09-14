@@ -5,7 +5,7 @@
   "description": "Rigline's own integration harness. Proves every capability the host grants through the same ctx any plugin gets, plus the kernel's own bookkeeping, and shows the result as a small badge in the composer footer.",
   "entry": "dist/index.js",
   "uses": {
-    "anchors": ["modelPill", "transcriptRow", "sessionListItem"],
+    "anchors": ["footerSpacer", "modelPill", "transcriptRow", "sessionListItem"],
     "messages": [
       "init",
       "request",

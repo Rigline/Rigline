@@ -106,16 +106,29 @@ export const ANCHORS = {
     kind: "singleton",
     refine: '[role="combobox"]',
     description:
-      "The model picker pill in the composer footer. It is a combobox button, so mount after it rather than inside it, or a decoration inherits its click handling and its accessible name and stops being selectable text. The agent-map button wears the same pill class and is not a picker, which is what the refinement excludes.",
+      "The model picker pill in the composer footer. It is a combobox button, so mount after it rather than inside it, or a decoration inherits its click handling and its accessible name and stops being selectable text. The agent-map button wears the same pill class and is not a picker, which is what the refinement excludes. Read it for what the pill says; do not mount on it. The footer moves it between two containers as the footer's fit ladder changes stage, so a decoration anchored here enters and leaves a container whose owner measures its children, and oscillates against it (D54). Footer decorations go on footerSpacer.",
     surfaces: ["editor", "sidebar"],
   },
   modelPillRow: {
     module: "gGYT1w",
     local: "modelPillRow",
     kind: "singleton",
-    description: "A wrapper around the model pill in one of the footer's two layouts.",
+    description:
+      "The wrapper the composer footer puts the model pill in once the footer is too narrow to hold it inline. Not a static layout variant: the footer measures its own children and escalates a three-stage fit ladder, and this row is stage 2 (D54). Anything mounted here is on screen only while the footer is that narrow.",
     surfaces: ["editor", "sidebar"],
-    when: "The footer renders the pill bare in one layout and inside this row in the other; the pill always renders, the row only sometimes.",
+    when: "Only at fit stage 2, which the footer sets on itself as data-fit-stage; the pill always renders, the row only sometimes.",
+  },
+  footerSpacer: {
+    module: "gGYT1w",
+    local: "spacer",
+    kind: "singleton",
+    knownSites: {
+      count: 2,
+      why: "the second is the footer's own fit measurement testing a child against the class, not a second gap",
+    },
+    description:
+      "The flexible gap dividing the composer footer's left cluster from its right. The anchor for a footer decoration, and the reason is the footer rather than the gap: the footer measures the widths of its element children to decide a three-stage fit ladder, and resets that measurement through flushSync on any foreign mutation inside it, so a decoration whose footer membership changes with the stage fights the ladder that moved it (D54). This one renders in both layouts, so a decoration mounted against it contributes a constant width and the ladder converges. The footer counts the spacer itself as zero width, by class. Use mountBefore to land at the end of the left cluster; mountAfter puts a decoration out beside the send button.",
+    surfaces: ["editor", "sidebar"],
   },
   composer: {
     module: "07S1Yg",

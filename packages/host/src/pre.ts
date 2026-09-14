@@ -191,6 +191,14 @@ interface RiglineBridge {
        * that may be on the wrong control.
        */
       multiple: Record<string, number>;
+      /**
+       * Mounts and watches the host gave up on, `"<plugin>: <what>"` each (D54). The host takes one
+       * kind of corrective action and only one; a run of them on consecutive passes that never
+       * settles means something is undoing each as fast as it is done, and the host stops rather
+       * than keep a panel flickering for a decoration. Empty is the expected state, and a name here
+       * is the whole finding rather than a number to weigh.
+       */
+      abandoned: string[];
     };
     /**
      * The busiest one-second window each hot path has seen, and when (D53). Totals live beside their
@@ -553,6 +561,11 @@ try {
     "rebuild",
     "replace",
     "move",
+    // Watches re-anchored: the element a watch was bound to swapped for another. The third
+    // corrective action the mount service takes, and the one neither `replace` nor `move` can
+    // see, because it tears one mount down and attaches another rather than repositioning a node
+    // (D54). A watch fighting the app's own layout shows up here and in no other number.
+    "rebind",
   ] as const;
 
   const meters = {} as Record<string, { peak: number; peakAt: number | null; recent: number }>;
@@ -672,7 +685,15 @@ try {
       identifiersFor: null,
       react: { hook: "installed", version: null, commits: 0, notified: 0 },
       transcript: { entries: 0, timed: 0, sweeps: 0, rebuilds: 0 },
-      mounts: { driver: "commit", active: 0, replaced: 0, moved: 0, lost: 0, multiple: {} },
+      mounts: {
+        driver: "commit",
+        active: 0,
+        replaced: 0,
+        moved: 0,
+        lost: 0,
+        multiple: {},
+        abandoned: [],
+      },
       meters,
       storage: { available: false, writes: 0, failures: 0, bytes: 0, lastError: null },
       previous: null,

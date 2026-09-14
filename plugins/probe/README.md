@@ -17,12 +17,12 @@ sanely declare.
 Every check reports a verdict of `pass`, `fail` or `n/a`, plus a one-line detail, through a single
 path so the badge's failing count and the panel's lines can never disagree. `n/a` is a real state,
 not a lesser failure: it means a check cannot apply on this surface (the session list renders no
-model pill and no transcript) or has had no opportunity yet (no session id has arrived, no tool has
-run, no tab has been renamed).
+composer footer and no transcript) or has had no opportunity yet (no session id has arrived, no tool
+has run, no tab has been renamed).
 
 ## The badge
 
-A small `RIG` badge sits beside the model pill in the composer footer on the full editor and the
+A small `RIG` badge sits at the end of the composer footer's left cluster on the full editor and the
 sidebar, or fixed to the bottom-right corner on the session list, which has no composer. Green means
 every check is `pass` or `n/a`; red means at least one is `fail`, with the failing count shown on
 the badge and as its tooltip.

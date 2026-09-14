@@ -368,7 +368,7 @@ export default definePlugin({
 
     // The host builds a mount once and re-places that same node through an ordinary re-render, so
     // this reference stays good for the life of one mount. What does build a second button is the
-    // model pill itself being swapped for a new element, which ctx.watch reports and which starts a
+    // anchor itself being swapped for a new element, which ctx.watch reports and which starts a
     // fresh mount: buildIcon() then repoints this at whichever node is actually live, so a toggle
     // click reaches what is on screen rather than a detached predecessor.
     let currentIcon: HTMLButtonElement | null = null;
@@ -412,11 +412,18 @@ export default definePlugin({
       return button;
     }
 
-    // modelPill carries only the toggle: losing it costs the button, never the feature, since the
-    // stored preference already governs whether decoration runs regardless of whether this ever
-    // fires. Declared optional so an extension update that retires the pill costs this one
+    // footerSpacer carries only the toggle: losing it costs the button, never the feature, since
+    // the stored preference already governs whether decoration runs regardless of whether this ever
+    // fires. Declared optional so an extension update that retires the spacer costs this one
     // decoration rather than the plugin (D41); ctx.watch already answers "the class is gone" the
     // same way an unfound anchor answers everywhere else, by watching nothing rather than throwing.
-    ctx.watch("modelPill", (el) => ctx.mountAfter(el, buildIcon));
+    //
+    // The spacer rather than the model pill, which is the obvious anchor and the wrong one: the
+    // footer measures its own element children to choose a fit stage and moves the pill out of
+    // itself at the widest one, so a decoration anchored to the pill leaves and re-enters the
+    // measured container on every change of mind and re-triggers the measurement by doing it (D54).
+    // mountBefore rather than mountAfter because the spacer is `flex-grow:1`: before it is the end
+    // of the footer's left cluster, after it is out beside the send button.
+    ctx.watch("footerSpacer", (el) => ctx.mountBefore(el, buildIcon));
   },
 });

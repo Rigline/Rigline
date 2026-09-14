@@ -1,7 +1,7 @@
 # session-id
 
-A small badge immediately after the model pill in the composer footer, showing which session this
-panel is hosting, with every identifier it has one click behind it.
+A small badge at the end of the composer footer's left cluster, showing which session this panel is
+hosting, with every identifier it has one click behind it.
 
 ## What it shows
 
@@ -28,9 +28,17 @@ in the pop-up, which is where you go when you actually want to copy it.
 
 ## What it depends on
 
-- **`modelPill`** (required): the badge mounts immediately after it. Without this anchor there is
+- **`footerSpacer`** (required): the badge mounts immediately before it, which puts it at the end
+  of the footer's left cluster rather than out beside the send button. Without this anchor there is
   nowhere to put the badge, so it is the one dependency that refuses the whole plugin if a future
   extension version retires it.
+
+  The model pill is the obvious anchor and the wrong one. The footer measures the widths of its own
+  element children to choose one of three fit stages, and the widest stage moves the pill out of the
+  footer into a row of its own — so a badge anchored to the pill leaves and re-enters the container
+  being measured every time the measurement changes its mind, and re-entering it re-triggers the
+  measurement. That oscillates at one cycle per frame and makes the composer unusable. See D54 in
+  `docs/decisions.md`.
 - **The ten `footerMenu*` anchors** (`uses.optional`): borrowed styling so the pop-up matches the
   app's own footer menus. These are declared optional (D41 in `docs/decisions.md`) because they are
   cosmetic rather than load-bearing — losing the whole family degrades the pop-up to plain inline

@@ -1,7 +1,8 @@
 import { ANCHORS, type AnchorName, CONTRACTS } from "@rigline/plugin-api";
 import { type CapabilityModule, declaredSwitch, undeclared } from "../kernel/types.ts";
 
-/** `ctx.mount`, `ctx.mountAfter` and `ctx.watch`: DOM placement the host keeps in place. */
+/** `ctx.mount`, `ctx.mountAfter`, `ctx.mountBefore` and `ctx.watch`: DOM placement the host keeps
+ * in place. */
 export const mountModule: CapabilityModule<"mount"> = {
   contract: CONTRACTS.find((c) => c.key === "mount") as CapabilityModule<"mount">["contract"],
   grant({ plugin, kernel, own, disable }) {
@@ -9,6 +10,7 @@ export const mountModule: CapabilityModule<"mount"> = {
       return {
         mount: undeclared("mount", "mount"),
         mountAfter: undeclared("mountAfter", "mount"),
+        mountBefore: undeclared("mountBefore", "mount"),
         watch: undeclared("watch", "mount"),
       };
     }
@@ -36,6 +38,18 @@ export const mountModule: CapabilityModule<"mount"> = {
           build,
           disable,
           "mountAfter()",
+        );
+        return off ? own(off) : () => {};
+      },
+      mountBefore(sibling, build) {
+        const off = kernel.mounts.attach(
+          sibling,
+          "before",
+          plugin.order,
+          plugin.name,
+          build,
+          disable,
+          "mountBefore()",
         );
         return off ? own(off) : () => {};
       },
@@ -73,7 +87,9 @@ export const mountModule: CapabilityModule<"mount"> = {
           selector,
           unique: ANCHORS[name as AnchorName]?.kind === "singleton",
         };
-        return own(kernel.mounts.watch(target, (el) => onFound(el) ?? undefined, disable));
+        return own(
+          kernel.mounts.watch(target, plugin.name, (el) => onFound(el) ?? undefined, disable),
+        );
       },
     };
   },

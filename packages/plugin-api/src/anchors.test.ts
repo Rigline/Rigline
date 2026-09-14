@@ -88,9 +88,12 @@ describe("the anchor table", () => {
     }
   });
 
-  it("holds the fifteen element anchors the ambiguity measurement was taken over", () => {
+  // Sixteen, the fifteen the ambiguity measurement was taken over plus `footerSpacer` (D54). The
+  // number is asserted so that adding an anchor is a deliberate act with a test to update, not so
+  // that it stays at any particular value.
+  it("holds the sixteen element anchors, so a new one cannot arrive unnoticed", () => {
     const elements = entries.filter(([, spec]) => spec.kind !== "style");
-    expect(elements).toHaveLength(15);
+    expect(elements).toHaveLength(16);
     expect(
       elements.every(([, spec]) => spec.kind === "singleton" || spec.kind === "collection"),
     ).toBe(true);

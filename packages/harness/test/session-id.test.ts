@@ -48,7 +48,7 @@ function loadSessionIdPlugin(): { plugin: FixturePlugin | null; reason: string |
         // does not parse the manifest file itself (packages/harness/src/payload.ts).
         manifest: {
           uses: {
-            anchors: ["modelPill"],
+            anchors: ["footerSpacer"],
             messages: ["io_message"],
             mount: true,
             session: true,
@@ -79,7 +79,7 @@ describe.skipIf(skip !== null)(
   () => {
     const boot = register(VERSION);
 
-    it("mounts the badge after the real model pill, stamped and loaded without error", async () => {
+    it("mounts the badge before the real footer spacer, stamped and loaded without error", async () => {
       const booted = await boot({ plugins: [sessionIdPlugin as FixturePlugin] });
       try {
         // A freshly-mounted badge holds only its label span, painted synchronously to the dimmed
@@ -92,18 +92,26 @@ describe.skipIf(skip !== null)(
           return el !== null && (el.textContent?.length ?? 0) > 0;
         });
 
+        // The spacer, and the badge immediately before it. Anchoring to the model pill is what this
+        // replaced, and the reason is a property of the real bundle rather than of this plugin: the
+        // footer measures its element children to pick a fit stage and moves the pill out of itself
+        // at the widest one, so a badge anchored to the pill leaves and re-enters the container
+        // being measured and oscillates against the measurement (D54). Asserting the spacer here is
+        // what would notice the anchor being quietly moved back.
         const info = await booted.page.evaluate(() => {
           const badge = document.getElementById("rigline-session-id");
-          const pill = document.getElementsByClassName("modelPill_gGYT1w")[0] ?? null;
+          const spacer = document.getElementsByClassName("spacer_gGYT1w")[0] ?? null;
           return {
             mountAttr: badge?.getAttribute("data-rigline-mount") ?? null,
-            isNextSibling: pill !== null && pill.nextElementSibling === badge,
+            isPreviousSibling: spacer !== null && spacer.previousElementSibling === badge,
+            inFooter: badge?.parentElement?.classList.contains("inputFooter_gGYT1w") ?? false,
             text: badge?.textContent ?? null,
             title: badge?.title ?? null,
           };
         });
         expect(info.mountAttr).toBe("session-id");
-        expect(info.isNextSibling).toBe(true);
+        expect(info.isPreviousSibling).toBe(true);
+        expect(info.inFooter).toBe(true);
         expect(info.text).not.toBe("");
         expect(info.title).not.toBe("");
 

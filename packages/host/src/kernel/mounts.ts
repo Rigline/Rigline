@@ -28,10 +28,18 @@
 import type { Teardown } from "@rigline/plugin-api";
 import type { Diagnostics, ReactBridge } from "./bridge.ts";
 
-export type Placement = "inside" | "after";
+export type Placement = "inside" | "after" | "before";
+
+/**
+ * Consecutive passes of the same corrective action before the host concludes it is losing and
+ * stops. Roughly half a second at 60fps: long enough that a boot settling, or a re-render storm
+ * while a session loads, passes through untouched; short enough that a real fight costs a flicker
+ * rather than a panel. See `abandon` (D54).
+ */
+const THRASH_LIMIT = 30;
 
 interface ActiveMount {
-  /** What the node is positioned by: its parent when "inside", its predecessor when "after". */
+  /** What the node is positioned by: its parent when "inside", its sibling otherwise. */
   readonly anchor: Element;
   readonly placement: Placement;
   readonly order: number;
@@ -39,6 +47,10 @@ interface ActiveMount {
   /** Built once, by `attach`, and re-placed rather than rebuilt. See `replaceLost`. */
   readonly node: Element;
   readonly onError: (reason: string) => void;
+  /** Consecutive passes that found this mount out of position. Reset the moment one does not. */
+  streak: number;
+  /** Set once the streak ran out: the host has stopped re-placing this node. */
+  abandoned: boolean;
 }
 
 /** What an anchor resolved to, and what it claims about itself, as `watch` needs them. */
@@ -53,10 +65,15 @@ export interface WatchTarget {
 
 interface Watch {
   readonly target: WatchTarget;
+  readonly owner: string;
   readonly onFound: (element: Element) => Teardown | undefined;
   readonly onError: (reason: string) => void;
   current: Element | null;
   teardown: Teardown | null;
+  /** Consecutive passes that re-anchored this watch. Reset the moment one has nothing to do. */
+  streak: number;
+  /** Set once the streak ran out: the host has stopped re-anchoring this watch. */
+  abandoned: boolean;
 }
 
 export interface MountService {
@@ -73,6 +90,7 @@ export interface MountService {
   /** Hand `onFound` the first element `target` matches now and whenever it is replaced. */
   watch(
     target: WatchTarget,
+    owner: string,
     onFound: (element: Element) => Teardown | undefined,
     onError: (reason: string) => void,
   ): Teardown;
@@ -100,15 +118,16 @@ export function createMountService(
   /**
    * Whether `mount`'s node already sits where `place` would put it, so `place` can be a no-op.
    *
-   * The two placements are judged differently, and the asymmetry is the point rather than an
-   * oversight. An `after` mount is a decoration *of* its anchor — a badge beside the model pill —
-   * and being one element further along is already the bug this exists to catch, so it must follow
-   * its predecessor immediately. An `inside` mount was only ever asked to be *within* the anchor;
-   * the append that placed it there was a convention, not a promise. Holding it to "still last"
-   * would have the host re-appending it every time React added a child of its own, once per mount
-   * per frame, with one mount per transcript row.
+   * The sibling placements and `inside` are judged differently, and the asymmetry is the point
+   * rather than an oversight. An `after` or `before` mount is a decoration *of* its anchor — a badge
+   * beside the model pill, a badge at the end of the footer's left cluster — and being one element
+   * further along is already the bug this exists to catch, so it must be adjacent to its neighbour.
+   * An `inside` mount was only ever asked to be *within* the anchor; the append that placed it there
+   * was a convention, not a promise. Holding it to "still last" would have the host re-appending it
+   * every time React added a child of its own, once per mount per frame, with one mount per
+   * transcript row.
    *
-   * Element siblings, not node siblings: a text node appearing between a mount and its predecessor
+   * Element siblings, not node siblings: a text node appearing between a mount and its neighbour
    * is not drift, and treating it as drift would mean a DOM write every frame for as long as it
    * stayed there.
    */
@@ -119,6 +138,10 @@ export function createMountService(
       const predecessor = peers.filter((m) => m.order < mount.order).at(-1)?.node ?? mount.anchor;
       return mount.node.previousElementSibling === predecessor;
     }
+    if (mount.placement === "before") {
+      const successor = peers.find((m) => m.order > mount.order)?.node ?? mount.anchor;
+      return mount.node.nextElementSibling === successor;
+    }
     if (mount.node.parentNode !== mount.anchor) return false;
     const later = peers.find((m) => m.order > mount.order);
     if (!later) return true;
@@ -127,6 +150,12 @@ export function createMountService(
     );
   }
 
+  /**
+   * Registry order reads the same way for both sibling placements: left to right, lowest order
+   * first. So an `after` mount is positioned against the nearest *earlier* peer and falls back to
+   * the anchor, and a `before` mount against the nearest *later* one — which puts the highest order
+   * immediately before the anchor and keeps `anchor A B C` and `A B C anchor` consistent.
+   */
   function place(mount: ActiveMount, node: Element): void {
     node.setAttribute("data-rigline-mount", mount.owner);
     const peers = peersOf(mount);
@@ -136,9 +165,40 @@ export function createMountService(
       (earlier.at(-1)?.node ?? mount.anchor).after(node);
       return;
     }
+    if (mount.placement === "before") {
+      (peers.find((m) => m.order > mount.order)?.node ?? mount.anchor).before(node);
+      return;
+    }
     const later = peers.find((m) => m.order > mount.order);
     if (later) mount.anchor.insertBefore(node, later.node);
     else mount.anchor.appendChild(node);
+  }
+
+  /**
+   * Stop taking a corrective action that is not working, and say so once (D54).
+   *
+   * The host has exactly two: put this mount back where it belongs, and re-anchor this watch to the
+   * element that replaced its own. Either one repeated on `THRASH_LIMIT` consecutive passes without
+   * the next pass finding nothing to do means something is undoing it as fast as it is done, and
+   * repeating it faster is not a way to win. The reproducing case is a decoration inside a container
+   * whose owner measures its children: the measurement reflows, the reflow moves the anchor, the
+   * host follows, following re-triggers the measurement (D54). The host cannot see any of that, only
+   * that it keeps acting and the world keeps not being as it left it.
+   *
+   * The node is taken out of the document rather than left where it last landed. A frozen mount is
+   * usually mid-oscillation and half of that cycle has it inside a container the app is about to
+   * unmount, so leaving it puts a ghost on screen in a place nobody chose; removing it makes one
+   * decoration disappear, which the diagnostics and the console then account for. It is reported
+   * through the plugin's own `onError`, which disables that plugin rather than the panel — the
+   * plugin asked for a position the host cannot hold, and that is its problem to have (D27).
+   */
+  function abandon(what: string, owner: string, node: Element | null, fail: (r: string) => void) {
+    diagnostics.abandoned.push(`${owner}: ${what}`);
+    node?.remove();
+    fail(
+      `${what} was re-placed ${THRASH_LIMIT} passes running without settling, so Rigline stopped; ` +
+        `the app is very likely moving it back (see decisions.md D54)`,
+    );
   }
 
   /**
@@ -176,14 +236,35 @@ export function createMountService(
    * fail silently as well as loudly, since `after()` on a parentless node is a no-op by
    * specification and `insertBefore` throws when the peer it positions against is not the anchor's
    * child. A `lost` that stays above zero is a node nobody can see being retried every frame.
+   *
+   * **A mount the host cannot keep in place is given up on** (D54). A pass that finds a mount
+   * already positioned clears its streak, so only an unbroken run of corrections counts, and a mount
+   * whose anchor has left the document is skipped without counting — that is the app's business and
+   * `watch`'s question, not a fight.
    */
   function replaceLost(): void {
     let lost = 0;
+    // Collected rather than abandoned in place, and left null while there is nothing to collect:
+    // `abandon` reports through the plugin's `onError`, which disables the plugin and runs its
+    // teardowns, and a mount teardown splices `active` — which is the array being walked. The
+    // common pass allocates nothing.
+    let giveUp: ActiveMount[] | null = null;
     for (const m of active) {
       // An anchor that has left the document takes its mount with it. Whether a replacement anchor
       // exists is the plugin's question, and `watch` is how it asks.
       if (!m.anchor.isConnected) continue;
-      if (positioned(m)) continue;
+      if (positioned(m)) {
+        m.streak = 0;
+        continue;
+      }
+      if (m.abandoned) continue;
+      m.streak += 1;
+      if (m.streak > THRASH_LIMIT) {
+        m.abandoned = true;
+        if (giveUp === null) giveUp = [];
+        giveUp.push(m);
+        continue;
+      }
       const wasConnected = m.node.isConnected;
       try {
         place(m, m.node);
@@ -202,6 +283,12 @@ export function createMountService(
     }
     diagnostics.lost = lost;
     diagnostics.active = active.length;
+    if (giveUp) {
+      for (const m of giveUp) {
+        abandon(`the mount ${m.placement} its anchor`, m.owner, m.node, m.onError);
+      }
+      diagnostics.active = active.length;
+    }
   }
 
   /**
@@ -234,10 +321,28 @@ export function createMountService(
     // the same question: the site count taken at build time says how many places the bundle applies
     // a class, and only this says how many elements a refinement actually leaves on screen. It is
     // the same one query per watch per pass, and there are a handful of watches.
+    if (w.abandoned) return;
     const matches = document.querySelectorAll(w.target.selector);
     const found = matches[0] ?? null;
     if (w.target.unique && matches.length > 1) reportMultiple(w.target.anchor, matches.length);
-    if (found === w.current && (found === null || found.isConnected)) return;
+    if (found === w.current && (found === null || found.isConnected)) {
+      w.streak = 0;
+      return;
+    }
+    // A re-anchor, as against a first resolution or an anchor going away: the element this watch
+    // was bound to has been swapped for another. It is the corrective action the host takes here,
+    // and so the one that can be fought (D54) — and the one the mount counters cannot see, because
+    // it tears one mount down and attaches another rather than moving a node. The reproducing case
+    // ran at one re-anchor per frame with `moved` and `replaced` both flat.
+    if (found !== null && w.current !== null) {
+      meter("rebind");
+      w.streak += 1;
+      if (w.streak > THRASH_LIMIT) {
+        w.abandoned = true;
+        abandon(`the watch on anchor "${w.target.anchor}"`, w.owner, null, w.onError);
+        return;
+      }
+    }
     if (w.teardown) {
       const off = w.teardown;
       w.teardown = null;
@@ -299,7 +404,16 @@ export function createMountService(
         onError(`${called} build() threw: ${message(e)}`);
         return null;
       }
-      const entry: ActiveMount = { anchor, placement, order, owner, node, onError };
+      const entry: ActiveMount = {
+        anchor,
+        placement,
+        order,
+        owner,
+        node,
+        onError,
+        streak: 0,
+        abandoned: false,
+      };
       const peers = byAnchor.get(anchor);
       if (peers) peers.push(entry);
       else byAnchor.set(anchor, [entry]);
@@ -322,8 +436,17 @@ export function createMountService(
         entry.node.remove();
       };
     },
-    watch(target, onFound, onError) {
-      const w: Watch = { target, onFound, onError, current: null, teardown: null };
+    watch(target, owner, onFound, onError) {
+      const w: Watch = {
+        target,
+        owner,
+        onFound,
+        onError,
+        current: null,
+        teardown: null,
+        streak: 0,
+        abandoned: false,
+      };
       watches.push(w);
       runWatch(w);
       return () => {

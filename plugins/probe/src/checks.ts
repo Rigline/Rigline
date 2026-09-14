@@ -192,9 +192,9 @@ export function mountOrderVerdict(
   detail: string;
 } {
   // `anchored` is the drift check, and it is why this is not simply an ordering assertion. This
-  // plugin's own badge is mounted after the anchor, so when it is on screen there must be a
-  // host-placed node immediately after the anchor; finding none means every decoration on that
-  // anchor has been left behind by a re-render that moved it. Without this the failure reads as
+  // plugin's own badge is mounted beside the anchor, so when it is on screen there must be a
+  // host-placed node adjacent to the anchor; finding none means every decoration on that anchor
+  // has been left behind by a re-render that moved it. Without this the failure reads as
   // "n/a, 0 nodes", which is what it read as when it actually happened.
   if (anchored && indices.length === 0) {
     return {
@@ -324,6 +324,12 @@ export function stylesheetVerdict(present: boolean): { verdict: Verdict; detail:
  * `driver` rides along because the fallback is otherwise silent: "observer" against the real
  * extension means no React renderer injected, which is a much larger problem than re-placement and
  * would otherwise only show up as an empty transcript two lines further down the panel.
+ *
+ * `abandoned` outranks `lost` and is reported by name rather than by count (D54). It means the host
+ * kept re-placing something and kept being undone, concluded it was losing, and stopped — so the
+ * decoration is gone and, before it went, the panel was flickering at frame rate. A count would say
+ * how bad; the name says which plugin and which anchor, which is the thing anyone reading this
+ * needs next.
  */
 export function mountReplacementVerdict(
   driver: string,
@@ -331,12 +337,16 @@ export function mountReplacementVerdict(
   replaced: number,
   moved: number,
   lost: number,
+  abandoned: readonly string[] = [],
 ): { verdict: Verdict; detail: string } {
   const where = `${active} active, on ${driver}`;
   const work = [
     replaced > 0 ? `${replaced} re-placed` : null,
     moved > 0 ? `${moved} moved` : null,
   ].filter((part) => part !== null);
+  if (abandoned.length > 0) {
+    return { verdict: "fail", detail: `gave up on ${abandoned.join("; ")}, ${where}` };
+  }
   if (lost > 0) return { verdict: "fail", detail: `${lost} still detached, ${where}` };
   if (work.length > 0) return { verdict: "pass", detail: `${work.join(", ")}, ${where}` };
   return { verdict: "n/a", detail: `nothing detached or moved yet, ${where}` };
@@ -401,6 +411,7 @@ export interface ReportFacts {
     readonly active: number;
     readonly replaced: number;
     readonly lost: number;
+    readonly abandoned: readonly string[];
   };
   readonly storage: {
     readonly available: boolean;
@@ -474,6 +485,11 @@ export function formatReport(facts: ReportFacts, checks: readonly CheckResult[])
     `  mounts     ${facts.mounts.active} active, ${facts.mounts.replaced} re-placed, ` +
       `${facts.mounts.lost} lost, on ${facts.mounts.driver}`,
   );
+  // Only when there is one, and then by name: an empty line here would be the usual case and would
+  // train the eye to skip it, where a line that appears at all is the finding (D54).
+  if (facts.mounts.abandoned.length > 0) {
+    out.push(`  abandoned  ${facts.mounts.abandoned.join("; ")}`);
+  }
   const storage = facts.storage.available
     ? `${facts.storage.writes} writes, ${bytes(facts.storage.bytes)}, ${facts.storage.failures} failures`
     : "unavailable";

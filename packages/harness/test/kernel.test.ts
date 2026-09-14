@@ -514,6 +514,193 @@ export default { setup() {} };`,
       }
     }, 20000);
 
+    it("mounts before an anchor in registry order, which is what footer decorations need", async () => {
+      // `mountBefore` exists because the composer footer measures its own element children and
+      // reflows on the total, so a decoration belongs at the end of the footer's left cluster,
+      // against the spacer that divides it from the right one (D54). Nothing unconditional sits
+      // immediately before that spacer, so `mountAfter` cannot express the position at all.
+      //
+      // Registry order has to read the same way it does for `mountAfter` — lowest order leftmost —
+      // which for a `before` mount means the *highest* order ends up nearest the anchor. Two
+      // plugins is the only way to assert that; one node proves nothing about ordering.
+      const first: FixturePlugin = {
+        name: "first",
+        manifest: { uses: { anchors: ["footerSpacer"], mount: true } },
+        source: `export default { setup(ctx) {
+    ctx.watch("footerSpacer", (el) => ctx.mountBefore(el, () => {
+      const s = document.createElement("span");
+      s.className = "harness-before";
+      s.textContent = "1";
+      return s;
+    }));
+  } };`,
+      };
+      const second: FixturePlugin = {
+        name: "second",
+        manifest: { uses: { anchors: ["footerSpacer"], mount: true } },
+        source: `export default { setup(ctx) {
+    ctx.watch("footerSpacer", (el) => ctx.mountBefore(el, () => {
+      const s = document.createElement("span");
+      s.className = "harness-before";
+      s.textContent = "2";
+      return s;
+    }));
+  } };`,
+      };
+      const booted = await boot({ plugins: [first, second] });
+      try {
+        await booted.page.waitForFunction(
+          () => document.getElementsByClassName("harness-before").length === 2,
+        );
+        const placement = await booted.page.evaluate(() => {
+          const spacer = document.getElementsByClassName("spacer_gGYT1w")[0] ?? null;
+          const order: string[] = [];
+          let sibling = spacer?.previousElementSibling ?? null;
+          while (sibling?.hasAttribute("data-rigline-mount")) {
+            order.unshift(sibling.getAttribute("data-rigline-mount") ?? "?");
+            sibling = sibling.previousElementSibling;
+          }
+          return {
+            order,
+            // The footer is the container whose children are measured; being *in* it is the
+            // point of the placement, not an incidental consequence of it.
+            inFooter:
+              document
+                .getElementsByClassName("harness-before")[0]
+                ?.parentElement?.classList.contains("inputFooter_gGYT1w") ?? false,
+          };
+        });
+        expect(placement.order).toEqual(["first", "second"]);
+        expect(placement.inFooter).toBe(true);
+
+        const d = await booted.diagnostics();
+        expect(d.mounts.abandoned).toEqual([]);
+        expect(booted.consoleErrors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 30000);
+
+    it("gives up on a mount that keeps being undone, rather than fighting it every frame", async () => {
+      // D54. The host re-places a mount it finds out of position, once per commit; when something
+      // else moves it straight back, that is a fight the host loses at frame rate, and the panel
+      // flickers for as long as it keeps trying. The real case is subtler than this — a decoration
+      // inside a container whose owner measures its children, where the host's own insertion is
+      // what re-triggers the measurement — but the host cannot see a cause either way. All it can
+      // see is that it keeps acting and the world keeps not staying as it left it, which is what
+      // this reproduces directly.
+      const stubborn: FixturePlugin = {
+        name: "stubborn",
+        manifest: { uses: { anchors: ["footerSpacer"], mount: true } },
+        source: `export default { setup(ctx) {
+    ctx.watch("footerSpacer", (el) => ctx.mountBefore(el, () => {
+      const s = document.createElement("span");
+      s.className = "harness-stubborn";
+      s.textContent = "X";
+      return s;
+    }));
+  } };`,
+      };
+      const booted = await boot({ plugins: [stubborn] });
+      try {
+        await booted.page.waitForSelector(".harness-stubborn");
+        // The undo has to land before the next pass, not merely before the next commit, which is
+        // what makes this an observer rather than a step in the loop below. An earlier version
+        // moved the node once per re-render and never tripped the damper, correctly: the host got
+        // a clean pass in between every fought one, and a correction that sticks even briefly is
+        // not a fight. A MutationObserver fires as a microtask straight after the host's own DOM
+        // write, so every pass finds the node displaced, which is the real pathology's shape.
+        // Re-parenting is idempotent — a node already in `body` is left alone — so the callback
+        // cannot re-queue itself.
+        await booted.page.evaluate(() => {
+          const undo = () => {
+            const node = document.getElementsByClassName("harness-stubborn")[0];
+            if (node && node.parentElement !== document.body) document.body.appendChild(node);
+          };
+          new MutationObserver(undo).observe(document.body, { childList: true, subtree: true });
+          undo();
+        });
+        // Spaced over frames because the pre hook coalesces commit notices to one a frame: a tight
+        // loop of re-renders would be a handful of passes rather than the thirty-odd this needs.
+        await booted.page.evaluate(async () => {
+          const w = window as unknown as { __harness?: { rerender: () => void } };
+          const frame = () =>
+            new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          for (let i = 0; i < 45; i++) {
+            w.__harness?.rerender();
+            await frame();
+          }
+        });
+
+        const d = await booted.diagnostics();
+        expect(d.mounts.abandoned).toHaveLength(1);
+        expect(d.mounts.abandoned[0]).toContain("stubborn");
+        // Not left where it last landed: half of an oscillation has the node somewhere nobody
+        // chose, and a ghost on screen is worse than a decoration that is plainly gone.
+        const present = await booted.page.evaluate(
+          () => document.getElementsByClassName("harness-stubborn").length,
+        );
+        expect(present).toBe(0);
+        // Reported through the plugin's own failure path, so it is the plugin that is disabled and
+        // named, not the panel that is degraded anonymously (D27).
+        expect(d.plugins.find((p) => p.name === "stubborn")?.status).toBe("error");
+        expect(booted.consoleErrors.join("\n")).toContain("stubborn");
+      } finally {
+        await booted.close();
+      }
+    }, 40000);
+
+    it("gives up on a watch whose anchor is replaced every time it re-anchors", async () => {
+      // The other half of the damper, and the half the reported case actually ran through (D54).
+      // Re-anchoring tears one mount down and attaches another rather than repositioning a node, so
+      // `moved` and `replaced` both stay flat while the panel flickers at frame rate — which is why
+      // the mount counters could not have caught it and why `rebind` exists.
+      //
+      // The plugin invalidates its own anchor from inside `onFound`, which reads like sabotage and
+      // is in fact the pathology's exact shape: in the real case placing the decoration is what
+      // makes the app re-render the anchor, so every pass hands the watch a different element and
+      // none of it is visible to the host as a cause.
+      const churner: FixturePlugin = {
+        name: "churner",
+        manifest: { uses: { anchors: ["footerSpacer"], mount: true } },
+        source: `export default { setup(ctx) {
+    ctx.watch("footerSpacer", (el) => {
+      const stop = ctx.mountBefore(el, () => {
+        const s = document.createElement("span");
+        s.className = "harness-churner";
+        s.textContent = "C";
+        return s;
+      });
+      el.replaceWith(el.cloneNode(true));
+      return stop;
+    });
+  } };`,
+      };
+      const booted = await boot({ plugins: [churner] });
+      try {
+        await booted.page.waitForSelector(".harness-churner");
+        await booted.page.evaluate(async () => {
+          const w = window as unknown as { __harness?: { rerender: () => void } };
+          const frame = () =>
+            new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          for (let i = 0; i < 45; i++) {
+            w.__harness?.rerender();
+            await frame();
+          }
+        });
+
+        const d = await booted.diagnostics();
+        expect(d.mounts.abandoned).toHaveLength(1);
+        expect(d.mounts.abandoned[0]).toContain("churner");
+        expect(d.mounts.abandoned[0]).toContain("footerSpacer");
+        // The number that would have named this from the panel, had it existed at the time.
+        expect(d.meters.rebind?.peak ?? 0).toBeGreaterThan(0);
+        expect(d.plugins.find((p) => p.name === "churner")?.status).toBe("error");
+      } finally {
+        await booted.close();
+      }
+    }, 40000);
+
     it("joins a tool result back to the call it answers, and drops one it cannot name", async () => {
       // D51. A tool_result block carries a tool_use_id, the output and is_error, and no tool name
       // at all, so the join is the whole value: without it a plugin knows something finished but

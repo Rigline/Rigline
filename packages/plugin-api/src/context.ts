@@ -111,6 +111,17 @@ export interface PluginContext {
   mountAfter(sibling: Element, build: () => Element): Teardown;
 
   /**
+   * As `mountAfter`, but straight before `sibling`. Requires `uses.mount`.
+   *
+   * The placement for the end of a run of elements, where the thing you want to be last in is a
+   * container you must not append to. The composer footer is the case: it measures its element
+   * children, so a decoration belongs beside the spacer that divides its two clusters rather than
+   * appended after the send button, and `mountAfter` cannot say that because nothing unconditional
+   * sits immediately before the spacer (D54).
+   */
+  mountBefore(sibling: Element, build: () => Element): Teardown;
+
+  /**
    * Be told when an element for `name` is in the document, and again whenever the one last handed
    * over leaves and another appears. `onFound` may return a teardown, run before the next call and
    * on the plugin's own teardown. No plugin polls for an element. Requires `uses.mount` and the

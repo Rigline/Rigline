@@ -80,6 +80,12 @@ export interface Diagnostics {
     lost: number;
     /** Anchors naming one element whose selector matched more than one, and the most that ever did. */
     multiple: Record<string, number>;
+    /**
+     * Mounts and watches the host gave up on, `"<plugin>: <what>"` each, because the same
+     * correction kept being undone (D54). Never empty in the ordinary case, so a name here is the
+     * whole finding: the host and the app were fighting over a position and the host conceded.
+     */
+    abandoned: string[];
   };
   readonly meters: Record<string, { peak: number; peakAt: number | null; recent: number }>;
   readonly storage: {

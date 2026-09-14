@@ -3,7 +3,7 @@ import { booleanShape, type CapabilityContract, switchContract } from "./types.t
 /** DOM placement, with re-placement and ordering owned by the host. Depends on nothing harvested. */
 export const mountContract: CapabilityContract<"mount"> = {
   key: "mount",
-  grants: ["mount", "mountAfter", "watch"],
+  grants: ["mount", "mountAfter", "mountBefore", "watch"],
   schema: { type: "boolean", description: "Adds elements to the panel." },
   shape: booleanShape,
   gaps: () => [],

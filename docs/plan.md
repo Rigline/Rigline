@@ -71,7 +71,7 @@ pnpm workspace, TypeScript throughout, every package a real package with its own
 | `packages/cli` | `rigline` | Thin command surface over core: `install`, `update`, `check`, `status`, `restore`, `watch`, `add`, `remove`, `list`, `build`, `dev`. |
 | `packages/host` | `@rigline/host` (private) | The injected runtime: `pre.js` (bus tap, buffer, rewrite chain, React devtools hook) and `post.js` (kernel plus capability modules). Built to exactly two files. |
 | `packages/plugin-api` | `@rigline/plugin-api` | What a plugin is written against: `PluginContext`, the manifest type and JSON schema, `definePlugin`, the generated identifier unions, and the pure helpers shared by host and core (capability contracts, session rule, stream shape, transcript derivations). |
-| `plugins/session-id` | first-party plugin | Session id and inter-agent messaging address beside the model pill. |
+| `plugins/session-id` | first-party plugin | Session id and inter-agent messaging address in the composer footer. |
 | `plugins/worktree-prefix` | first-party plugin | Worktree prefix on the session tab label; declares the worktree-list host patch. |
 | `plugins/time-marks` | first-party plugin | Clock times and pause dividers on transcript rows. |
 | `plugins/probe` | first-party plugin | The live integration harness: a check per capability and the `RIG` badge in the composer footer. |
@@ -124,11 +124,11 @@ is blocked on curation.
   "$schema": "node_modules/@rigline/plugin-api/schema/manifest.json",
   "api": 1,
   "name": "session-id",
-  "description": "The panel's session id, beside the model pill.",
+  "description": "The panel's session id, in the composer footer.",
   "entry": "dist/index.js",
   "surfaces": ["editor", "sidebar"],
   "uses": {
-    "anchors": ["modelPill"],
+    "anchors": ["footerSpacer"],
     "classes": { "8RAulQ": ["menu"] },
     "messages": ["io_message"],
     "rewrites": { "rename_tab": ["title"] },
@@ -716,6 +716,86 @@ Recommended, but not taken unilaterally, because it widens the contract and noth
 needs it today. Until it is settled, the authoring guide should say: scope a rule to something you
 placed, never to an anchor's bare class.
 
+## The composer footer measures its own children
+
+**`inputFooter` is a fit-managed container: its owner measures every element child and reflows on
+the total, and any foreign mutation inside it resets that measurement.** A decoration mounted there
+is a participant in the app's layout algorithm and a trigger for it, and three first-party plugins
+were both. Measured on 2.1.270; built and installed.
+
+The mechanism, in the app's own code. A layout effect walks the footer's element children, sums
+`getBoundingClientRect().width` plus horizontal margins plus any clipped overflow, compares the
+total against the container's content width, and escalates one step of a three-stage ladder when it
+does not fit. The stage is on the footer as `data-fit-stage`:
+
+| stage | what changes |
+| --- | --- |
+| 0 | everything at full width |
+| 1 | pills collapse to icon-only — CSS hides their labels on `[data-fit-stage="1"]` |
+| 2 | the model pill leaves the footer and renders in `modelPillRow`, a sibling div below it |
+
+The ladder only ever escalates, so on its own it converges. What resets it to stage 0 is a
+`MutationObserver` on the footer — `childList`, `characterData`, `subtree` — whose callback runs
+the reset through `flushSync`. It carries its own self-trigger guard: a childList record is ignored
+when every added and removed node carries the model pill's class or is the pill's pop-up, which is
+exactly the exemption the pill needs to move between stages without kicking the measurement that
+moved it. A characterData record is ignored inside `[data-footer-fixed-width]`, which is how the
+cache-window timer ticks without doing the same.
+
+**Two stage-invariant facts make this navigable.** The measurement skips children whose computed
+`position` is `absolute`, so an absolutely-positioned decoration contributes nothing to the fit;
+and the `spacer` child — the `flex-grow:1` gap dividing the footer's left cluster from its right —
+is counted as zero width by name. The spacer has exactly one application site, renders in both
+layouts, and is the seam where a decoration belongs, which is what makes it the anchor.
+
+### Why it oscillates, and why only sometimes
+
+Rigline carries none of the guard's exemptions, so a decoration entering or leaving the footer is a
+full reset of the app's ladder. That closes a loop:
+
+1. Stage 0, decorations in the footer and counted. With a selection chip present the row is already
+   near the threshold, so it does not fit: 0 to 1, still does not fit, 1 to 2.
+2. React unmounts the pill from the footer and mounts a new one inside `modelPillRow`. Removing the
+   pill is exempt, so nothing resets.
+3. On the next commit the mount pass sees a different pill, tears the mounts down and re-anchors to
+   it — which removes our nodes from the footer. Not exempt: reset to stage 0.
+4. Stage 0 renders the pill inline again and unmounts `modelPillRow`, taking our nodes out of the
+   document with it. The pass re-anchors, rebuilds and inserts into the footer. Not exempt: reset,
+   does not fit, back to stage 2.
+
+One cycle per frame, with the decoration rebuilt each time, which is why it reads as the pill
+flickering between two lines and the badge blinking in and out. It needs a selection chip because
+the three decorations are together the difference between fitting at stage 1 and not; without the
+chip there is slack, the ladder settles, and nothing moves.
+
+**The instrument for this is not `moved`.** The loop runs through `watch` re-anchoring, which tears
+down one mount and attaches another, so `mounts.replaced` and `mounts.moved` stay flat while the
+panel is unusable. Re-anchoring is metered for that reason.
+
+### The work
+
+1. **`footerSpacer`, a stage-invariant anchor**, and `ctx.mountBefore` to use it. Anchoring to the
+   pill is what makes a decoration's footer membership depend on the stage; anchoring to the spacer
+   makes the width contribution constant, so the ladder converges — at stage 2 while a chip is
+   attached, stably, which is the honest outcome of adding width to a full row. `mountBefore` is
+   what puts a node at the end of the left cluster rather than out beside the send button;
+   `mountAfter` cannot say it, because nothing unconditional sits immediately before the spacer.
+2. **A thrash damper in the mount service.** After a run of consecutive passes in which the host
+   takes the same corrective action on one mount or one watch, it stops taking it, records the
+   plugin and the anchor, and says so once. This is the follow-through on D52's own warning that a
+   rate which never settles means the host and the app are undoing each other every frame: that
+   condition was made visible and then left to run. A decoration is never worth an unusable
+   composer.
+3. **Record the hazard on the anchors themselves.** `modelPill` reads as a plain mount-after target
+   and `modelPillRow` describes the two layouts as a static choice rather than a width-driven one.
+   Both now say what the footer does, because the next author has no other way to find out.
+
+Deferred, pending evidence it is needed: `data-footer-fixed-width` on our footer nodes. It would
+stop a text change inside a decoration resetting the ladder — `paint()` and the copy flash both do —
+but it cannot close the loop on its own, and it is a claim about width that the flash breaks, since
+`copy failed` is wider than eight hex characters. Revisit if the footer is seen refitting on a
+badge's own text.
+
 ## Next session
 
 Start here. Phase 3 is built, merged and verified live; the anchor-ambiguity work above is done;
@@ -745,7 +825,13 @@ the extension to be working.
    instrument. Read it before deciding anything — do not pre-optimise it, and do not hand-wave it
    either. Also check `mounts.multiple` is empty while you are there: a name in it is a singleton
    whose refinement has stopped refining.
-3. **Small items still carried.** `ctx.watch` on the session list has no model pill, so a plugin
+
+   *`mounts.abandoned` and the `rebind` meter* (D54). `abandoned` empty is the expected state and a
+   name in it is the whole finding — the host and the app were fighting over a position and the host
+   conceded, so a decoration is gone and the panel was flickering before it went. `rebind`'s peak is
+   the early warning for the same thing: a handful over a session is ordinary, a per-second rate
+   that keeps climbing is a watch losing.
+3. **Small items still carried.** `ctx.watch` on the session list has no composer footer, so a plugin
    wanting a badge there mounts on `document.body` — a sentence in the authoring guide, not an API
    change. The harness's `page.ts` could generate its reply table from the same anchors codegen
    reads, which was noted, not tried, and is now more attractive: a wrong reply type sat in that
@@ -916,3 +1002,23 @@ the extension to be working.
   left are closed: `ctx.style` scoping was safe for a reason the plan now records, and `assistantRow`
   and `userRow` are refined rather than demoted. One fork left open and written up: whether a plugin
   may have the resolved selector.
+- 2026-09-14: The composer footer turned out to measure its own children, which is what Leo had been
+  seeing as a rapid flicker whenever a file was attached (D54, and the section above). The footer
+  sums the widths of its element children to pick one of three fit stages and resets that
+  measurement through `flushSync` on any foreign mutation inside it, exempting only the one child it
+  moves itself; all three first-party decorations were anchored to that child. So placing them
+  changed the layout decision, the decision moved the anchor, following the anchor left the measured
+  container, and leaving it re-triggered the measurement — one cycle per frame with the badge rebuilt
+  each time. Fixed at the anchor: `footerSpacer` plus a new `ctx.mountBefore` puts the decorations at
+  the end of the footer's left cluster, present in every stage, so the width they contribute is
+  constant and the ladder converges. The ladder converging at stage 2 while a chip is attached is the
+  honest cost and is not a defect. The general half is a damper: a mount re-placed, or a watch
+  re-anchored, on thirty consecutive passes without settling is abandoned by name rather than fought
+  at frame rate, which is the follow-through on D52's own warning that such a rate would mean the
+  host and the app were undoing each other. The instrument that would have named this does not exist
+  before today either — the loop ran through `watch`, which tears one mount down and attaches
+  another, so `moved` and `replaced` both stayed flat; there is now a `rebind` meter. Three harness
+  tests in a real browser: the new placement's ordering, and each half of the damper. `footerSpacer`
+  resolves on all three installed versions, so the anchor is not new to 2.1.270. Deferred until
+  there is evidence it is needed: `data-footer-fixed-width`, which would stop a badge's own text
+  changes resetting the ladder but cannot close the loop and is a width claim the copy flash breaks.
