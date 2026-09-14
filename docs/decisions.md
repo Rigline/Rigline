@@ -510,3 +510,36 @@ its own work and stacks a second loader on the first.
 
 **D39. Never point a test at the live extension directory.** A failing assertion mid-test leaves a
 real install half-patched, and the panel renders blank when the static import is broken.
+
+**D53. The host records rates and peaks, not only totals; one bounded ring survives the window; and
+nothing Rigline writes out ever carries message content.**
+
+A cumulative counter cannot be read. `sweeps: 44120` is an hour of ordinary work and four seconds of
+pathology written the same way, which is why the host had nothing to say about itself during a
+lockup that took a window down. So every hot path — commit notices, transcript sweeps and rebuilds,
+mount re-placements, outbound messages, tap clones — carries a per-second rate, its peak, and the
+moment it peaked. The probe already polls at 1 Hz, so that is the bucket and the cost is a counter
+reset per second.
+
+**Persistence is `localStorage`, because it is the only route out of the webview and it does
+survive.** The CSP is `default-src 'none'` with no `connect-src`, so nothing in there can write a
+file or fetch; D20 forbids a plugin originating a bus message, so the extension host cannot be asked
+to log on its behalf; and webview console output reaches no log file. What remains is storage, and
+the webview origin is stable — VS Code keeps persisted origin stores keyed by viewType and extension
+id (`mainThreadWebviewPanel.origins`, `webviewViews.origins`), so a ring written under it survives a
+webview reload, a window reload and a force-close alike. It is bounded, written on a coarse timer
+rather than per frame, read back at boot, and every access is wrapped: storage that is full,
+disabled or cleared must cost a diagnostic, never a panel.
+
+**`rigline doctor` collects what a webview cannot see, and stops there.** Install state per version,
+patched or vanilla, and the lines in VS Code's own logs that bear on a misbehaving panel —
+unresponsive events with their sample stacks, extension-host and renderer errors. That is where the
+evidence actually lived during the lockup, and no amount of in-webview instrumentation would have
+reached it. It is deliberately not a general VS Code health checker: the test for including a source
+is whether it can speak to a panel that misbehaved, not whether it is interesting.
+
+**It reads timing and error lines only, never message content, and prints what it included.** The
+extension's own log runs to megabytes of prompts, tool commands, file paths and session ids. A
+report meant to be pasted into an issue that scooped that up would be a serious leak, and the person
+pasting it would have no way to know. Redaction is therefore a property of what the collector reads
+rather than a filter applied afterwards, because a filter is a thing that can be forgotten.

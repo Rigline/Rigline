@@ -66,6 +66,7 @@ export function createTranscriptService(
   diagnostics: Diagnostics["transcript"],
   rowClass: string | null,
   message: (e: unknown) => string,
+  meter: (name: string) => void,
 ): TranscriptService {
   const times = new Map<string, number>();
   const decorators: Decorator[] = [];
@@ -103,6 +104,7 @@ export function createTranscriptService(
       rows.push(row);
     }
     diagnostics.sweeps++;
+    meter("sweep");
     diagnostics.entries = found.length;
     diagnostics.timed = found.reduce((n, e) => n + (e.at === null ? 0 : 1), 0);
 
@@ -110,6 +112,7 @@ export function createTranscriptService(
     entries = found;
     elements = rows;
     diagnostics.rebuilds++;
+    meter("rebuild");
     for (const decorator of [...decorators]) redecorate(decorator);
   }
 

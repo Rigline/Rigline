@@ -349,6 +349,15 @@ export default { setup() {} };`,
         expect(d.mounts.replaced).toBeGreaterThan(0);
         expect(d.mounts.lost).toBe(0);
         expect(d.mounts.active).toBeGreaterThan(0);
+        // The meters and the flight recorder (D53), pinned in a real browser because both are
+        // things a Node test cannot reach: a peak is only meaningful against real traffic, and
+        // localStorage is exactly the API that is present and then throws on use.
+        expect(d.meters.inbound?.peak).toBeGreaterThan(0);
+        expect(d.meters.replace?.peak).toBeGreaterThan(0);
+        expect(d.storage.available).toBe(true);
+        expect(d.storage.writes).toBeGreaterThan(0);
+        expect(d.storage.failures).toBe(0);
+        expect(d.storage.bytes).toBeGreaterThan(0);
       } finally {
         await booted.close();
       }

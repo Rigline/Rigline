@@ -23,6 +23,7 @@ import {
   errorMessage,
   failingCount,
   formatLine,
+  formatReport,
   hostErrorsVerdict,
   immutabilityVerdict,
   leakVerdict,
@@ -100,6 +101,34 @@ interface ProbeDiagnostics {
     readonly replaced: number;
     readonly lost: number;
   };
+  readonly meters: Record<
+    string,
+    { readonly peak: number; readonly peakAt: number | null; readonly recent: number }
+  >;
+  readonly storage: {
+    readonly available: boolean;
+    readonly writes: number;
+    readonly failures: number;
+    readonly bytes: number;
+    readonly lastError: string | null;
+  };
+  readonly previous: {
+    readonly from: number;
+    readonly to: number;
+    readonly entries: readonly Record<string, unknown>[];
+  } | null;
+  readonly preAt: number;
+  readonly postAt: number | null;
+  readonly tapClones: number;
+  readonly tapCloneMs: number;
+  readonly tapCloneMaxMs: number;
+  readonly tapCloneMaxType: string | null;
+  readonly hostPatches: readonly {
+    readonly plugin: string;
+    readonly applied: boolean;
+    readonly required: boolean;
+    readonly reason?: string;
+  }[];
 }
 
 function readDiagnostics(): ProbeDiagnostics | null {
@@ -245,8 +274,46 @@ export default definePlugin({
 
     let copyFlashTimer: ReturnType<typeof setTimeout> | null = null;
 
+    /**
+     * What the clipboard gets: everything, where the panel shows the check lines alone.
+     *
+     * The split is the point. The panel is scanned for a red line and stays legible by staying
+     * short; a report pasted into an issue is read cold by somebody who cannot ask a follow-up
+     * question, and wants the version, the peaks and the previous run's tail. Falls back to the
+     * check lines alone if the bridge has gone, which would itself be worth reporting.
+     */
+    function clipboardText(): string {
+      const diag = readDiagnostics();
+      if (!diag) return reportText();
+      return formatReport(
+        {
+          extension: diag.identifiersFor,
+          surface: ctx.surface,
+          preAt: diag.preAt,
+          postAt: diag.postAt,
+          react: diag.react,
+          mounts: diag.mounts,
+          storage: diag.storage,
+          bus: {
+            outbound: diag.outboundCount,
+            inbound: diag.inboundCount,
+            clones: diag.tapClones,
+            cloneMs: diag.tapCloneMs,
+            cloneMaxMs: diag.tapCloneMaxMs,
+            cloneMaxType: diag.tapCloneMaxType,
+          },
+          meters: diag.meters,
+          plugins: diag.plugins,
+          hostPatches: diag.hostPatches,
+          previous: diag.previous,
+          errors: diag.errors,
+        },
+        ORDER.map((name) => checks.get(name) as CheckResult),
+      );
+    }
+
     function onCopyClick(): void {
-      const ok = copyToClipboard(reportText());
+      const ok = copyToClipboard(clipboardText());
       if (copyFlashTimer !== null) clearTimeout(copyFlashTimer);
       copyButton.textContent = ok ? "copied" : "copy failed";
       copyFlashTimer = setTimeout(() => {
@@ -291,7 +358,7 @@ export default definePlugin({
     copyButton.type = "button";
     copyButton.className = "rigline-probe-panel-copy";
     copyButton.textContent = "copy";
-    copyButton.title = "Copy the whole report to the clipboard";
+    copyButton.title = "Copy the full report — versions, peaks, plugins and the previous run";
     copyButton.addEventListener("click", onCopyClick);
     controls.appendChild(copyButton);
     const panelBody = document.createElement("pre");

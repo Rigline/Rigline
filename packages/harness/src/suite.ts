@@ -57,6 +57,16 @@ export interface HarnessDiagnostics {
     readonly replaced: number;
     readonly lost: number;
   };
+  readonly meters: Record<
+    string,
+    { readonly peak: number; readonly peakAt: number | null; readonly recent: number }
+  >;
+  readonly storage: {
+    readonly available: boolean;
+    readonly writes: number;
+    readonly failures: number;
+    readonly bytes: number;
+  };
 }
 
 /** One message as the fake host recorded it arriving: the envelope, with the inner request. */

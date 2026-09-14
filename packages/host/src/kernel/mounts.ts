@@ -72,6 +72,7 @@ export function createMountService(
   message: (e: unknown) => string,
   react: ReactBridge,
   diagnostics: Diagnostics["mounts"],
+  meter: (name: string) => void,
 ): MountService {
   const active: ActiveMount[] = [];
   /** `active` indexed by anchor, so positioning a node costs its own anchor's mounts, not all of
@@ -135,8 +136,10 @@ export function createMountService(
       } catch (e) {
         m.onError(`mount() re-placement threw: ${message(e)}`);
       }
-      if (m.node.isConnected) diagnostics.replaced += 1;
-      else lost += 1;
+      if (m.node.isConnected) {
+        diagnostics.replaced += 1;
+        meter("replace");
+      } else lost += 1;
     }
     diagnostics.lost = lost;
     diagnostics.active = active.length;

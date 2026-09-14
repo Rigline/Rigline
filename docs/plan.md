@@ -407,6 +407,22 @@ done.
   to be showing — the panel is written only while open and only on a change, which makes the DOM the
   wrong place to read a report back out of.
 
+- Observability, so that "the panel misbehaved" is answerable (D53). Four pieces, and the ordering
+  is by what would have shortened the lockup investigation most:
+  - **Rates and peaks on every hot path** — commit notices, transcript sweeps and rebuilds, mount
+    re-placements, outbound messages, tap clones. Each keeps a per-second rate, its peak, and when it
+    peaked. Cumulative totals alone cannot distinguish an hour of work from four seconds of
+    pathology, which is the whole reason the host had nothing to say for itself.
+  - **A bounded ring in `localStorage`**, snapshotted on a coarse timer and read back at boot, so the
+    probe can open with what the *previous* run was doing when it died. Viable because the webview
+    origin is stable across reloads and restarts; every access wrapped, because storage that is
+    disabled or full must cost a diagnostic and never a panel.
+  - **The probe's copy carries the whole picture** — version, driver, counters, peaks, plugin
+    statuses, host errors, the previous run's tail — rather than the verdict lines alone.
+  - **`rigline doctor`**, which collects what no webview can see: install state per version, and the
+    lines in VS Code's own logs that bear on a misbehaving panel. Timing and error lines only, never
+    message content, and it prints what it included.
+
 ### Phase 4: the community layer
 
 - `~/.rigline` install model, `rigline add` from npm and from a path. **The permission summary and

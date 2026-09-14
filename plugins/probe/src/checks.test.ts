@@ -8,6 +8,7 @@ import {
   errorMessage,
   failingCount,
   formatLine,
+  formatReport,
   hostErrorsVerdict,
   immutabilityVerdict,
   leakVerdict,
@@ -332,5 +333,78 @@ describe("mountReplacementVerdict", () => {
 
   it("names the driver, so the observer fallback is never silent", () => {
     expect(mountReplacementVerdict("observer", 1, 0, 0).detail).toContain("observer");
+  });
+});
+
+describe("formatReport", () => {
+  const facts = {
+    extension: "2.1.270",
+    surface: "editor",
+    preAt: 12,
+    postAt: 486,
+    react: { hook: "installed", version: "19.1.0", commits: 4821, notified: 92 },
+    mounts: { driver: "commit", active: 6, replaced: 1, lost: 0 },
+    storage: { available: true, writes: 14, failures: 0, bytes: 18_600, lastError: null },
+    bus: {
+      outbound: 1204,
+      inbound: 3891,
+      clones: 2110,
+      cloneMs: 412.4,
+      cloneMaxMs: 31.2,
+      cloneMaxType: "list_sessions_response",
+    },
+    meters: {
+      commit: { peak: 142, peakAt: Date.parse("2026-09-14T06:26:38Z"), recent: 3 },
+      sweep: { peak: 12, peakAt: Date.parse("2026-09-14T06:26:38Z"), recent: 0 },
+      resend: { peak: 0, peakAt: null, recent: 0 },
+    },
+    plugins: [{ name: "session-id", status: "loaded" as const }],
+    hostPatches: [{ plugin: "worktree-prefix", applied: true, required: false }],
+    previous: {
+      from: Date.parse("2026-09-14T06:21:03Z"),
+      to: Date.parse("2026-09-14T06:26:41Z"),
+      entries: [{ at: Date.parse("2026-09-14T06:26:41Z"), outbound: 900, lost: 0, peaks: {} }],
+    },
+    errors: [],
+  };
+  const checks = [{ name: "tables loaded", verdict: "pass" as const, detail: "2.1.270" }];
+
+  it("leads with the facts a stranger needs before any check line", () => {
+    const text = formatReport(facts, checks);
+    expect(text).toContain("2.1.270, surface editor");
+    expect(text).toContain("6 active, 1 re-placed, 0 lost, on commit");
+    expect(text).toContain("14 writes");
+  });
+
+  it("ranks peaks by how busy they got and omits the ones that never fired", () => {
+    const text = formatReport(facts, checks);
+    const commit = text.indexOf("commit ");
+    const sweep = text.indexOf("sweep ");
+    expect(commit).toBeGreaterThan(-1);
+    expect(commit).toBeLessThan(sweep);
+    expect(text).not.toContain("resend ");
+  });
+
+  it("includes the previous run's tail, which is the whole reason it is persisted", () => {
+    expect(formatReport(facts, checks)).toContain("previous run (");
+    expect(formatReport(facts, checks)).toContain("outbound=900");
+  });
+
+  it("says so plainly when there are no host errors", () => {
+    expect(formatReport(facts, checks)).toContain("host errors (0)");
+    expect(formatReport(facts, checks)).toContain("(none)");
+  });
+
+  it("still reports when storage was unavailable and nothing has been counted", () => {
+    const bare = {
+      ...facts,
+      storage: { ...facts.storage, available: false },
+      meters: {},
+      previous: null,
+    };
+    const text = formatReport(bare, checks);
+    expect(text).toContain("storage    unavailable");
+    expect(text).toContain("(nothing has been counted yet)");
+    expect(text).not.toContain("previous run (");
   });
 });

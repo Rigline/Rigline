@@ -179,6 +179,37 @@ interface RiglineBridge {
       replaced: number;
       lost: number;
     };
+    /**
+     * The busiest one-second window each hot path has seen, and when (D53). Totals live beside their
+     * own concepts above; this is the only place a *rate* is recorded, and the only thing that can
+     * distinguish a quiet hour from a bad four seconds after the fact.
+     */
+    meters: Record<string, { peak: number; peakAt: number | null; recent: number }>;
+    /**
+     * What became of the crash-surviving ring in `localStorage`, and what the previous run left
+     * there. Published by post.ts, which owns the writing; declared here because this is where the
+     * bridge's shape lives.
+     *
+     * `available: false` is ordinary rather than alarming — storage can be disabled, full or
+     * cleared, and all three must cost a diagnostic and never a panel.
+     */
+    storage: {
+      available: boolean;
+      writes: number;
+      failures: number;
+      bytes: number;
+      lastError: string | null;
+    };
+    /**
+     * The tail of the previous run's ring, or null when there was none to read. This is the whole
+     * point of persisting anything: a window that had to be force-closed leaves no other account of
+     * what the panel was doing in its last minutes.
+     */
+    previous: {
+      from: number;
+      to: number;
+      entries: readonly Record<string, unknown>[];
+    } | null;
     readonly errors: string[];
   };
   /**
@@ -254,6 +285,16 @@ interface RiglineBridge {
     /** react-dom's version, once a renderer has injected. Null means none has, and none will. */
     rendererVersion(): string | null;
   };
+  /**
+   * Count one event against a named hot path's current second (D53).
+   *
+   * On the bridge rather than folded into each counter's own site because the counters that matter
+   * are not all in this file: transcript sweeps and mount re-placements are the kernel's, and both
+   * are exactly the paths a runaway re-render shows up in first. An unknown name is ignored rather
+   * than registered, so the set stays the one declared here and a typo cannot invent a meter that
+   * nothing reports.
+   */
+  meter(name: string): void;
 }
 
 declare global {
@@ -306,6 +347,7 @@ try {
       const elapsed = performance.now() - started;
       bridge.diagnostics.tapCloneMs += elapsed;
       bridge.diagnostics.tapClones++;
+      meter("tapClone");
       if (elapsed > bridge.diagnostics.tapCloneMaxMs) {
         bridge.diagnostics.tapCloneMaxMs = elapsed;
         bridge.diagnostics.tapCloneMaxType = type;
@@ -480,6 +522,63 @@ try {
   }
 
   /**
+   * The hot paths that carry a rate as well as a total (D53).
+   *
+   * A cumulative counter cannot be read. `sweeps: 44120` is an hour of ordinary work and four
+   * seconds of pathology written identically, and telling those apart is the entire question when a
+   * panel has gone wrong. So each of these keeps the busiest one-second window it has ever seen, and
+   * when that was, beside the totals that already exist.
+   */
+  const METERS = [
+    "outbound",
+    "inbound",
+    "tapClone",
+    "resend",
+    "commit",
+    "notify",
+    "sweep",
+    "rebuild",
+    "replace",
+  ] as const;
+
+  const meters = {} as Record<string, { peak: number; peakAt: number | null; recent: number }>;
+  const windows = {} as Record<string, { start: number; count: number }>;
+  for (const name of METERS) {
+    meters[name] = { peak: 0, peakAt: null, recent: 0 };
+    windows[name] = { start: Date.now(), count: 0 };
+  }
+
+  /**
+   * Count one event against `name`'s current second.
+   *
+   * The peak is raised as the window fills rather than when it closes, which is not a detail. A
+   * burst of five thousand inside one second followed by silence never closes its window — nothing
+   * arrives to close it — so a peak recorded only on close would miss precisely the event this
+   * exists to catch, and report zero. `recent` is the last *closed* window, which is the honest
+   * number for "what is it doing now" and is meaningless mid-window.
+   *
+   * `Date.now()` rather than `performance.now()` because a peak is only useful if it can be lined up
+   * against VS Code's own logs, which are wall-clock. Roughly twenty nanoseconds a call, against
+   * paths that already clone a payload or touch the DOM.
+   */
+  function meter(name: string): void {
+    const m = meters[name];
+    const w = windows[name];
+    if (!m || !w) return;
+    const now = Date.now();
+    if (now - w.start >= 1000) {
+      m.recent = w.count;
+      w.start = now;
+      w.count = 0;
+    }
+    w.count += 1;
+    if (w.count > m.peak) {
+      m.peak = w.count;
+      m.peakAt = w.start;
+    }
+  }
+
+  /**
    * The global react-dom looks for when it initialises.
    *
    * Spelled literally because this file runs before anything could load a generated table, and
@@ -502,6 +601,7 @@ try {
     const fire = (): void => {
       commitScheduled = false;
       bridge.diagnostics.react.notified++;
+      meter("notify");
       // A copy: a handler may unsubscribe itself, which is what a plugin being disabled does.
       for (const handler of [...commitHandlers]) {
         try {
@@ -559,6 +659,9 @@ try {
       react: { hook: "installed", version: null, commits: 0, notified: 0 },
       transcript: { entries: 0, timed: 0, sweeps: 0, rebuilds: 0 },
       mounts: { driver: "commit", active: 0, replaced: 0, lost: 0 },
+      meters,
+      storage: { available: false, writes: 0, failures: 0, bytes: 0, lastError: null },
+      previous: null,
       errors: [],
     },
     bus: {
@@ -621,6 +724,7 @@ try {
           );
 
           bridge.diagnostics.resent++;
+          meter("resend");
           // Deliberately not tapped: a reader reports what the app said, and this is the plugin
           // layer speaking. diagnostics.resent is where it shows up instead.
           realPost(patched ?? envelope);
@@ -649,6 +753,7 @@ try {
         return rendererVersion;
       },
     },
+    meter,
   };
   globalThis.__rigline = bridge;
 
@@ -682,6 +787,7 @@ try {
     const realCommit = hook.onCommitFiberRoot;
     hook.onCommitFiberRoot = function (this: unknown, ...args: unknown[]): unknown {
       bridge.diagnostics.react.commits++;
+      meter("commit");
       scheduleCommitNotice();
       return typeof realCommit === "function"
         ? (realCommit as (...a: unknown[]) => unknown).apply(this, args)
@@ -706,6 +812,7 @@ try {
       },
       onCommitFiberRoot(): void {
         bridge.diagnostics.react.commits++;
+        meter("commit");
         scheduleCommitNotice();
       },
       // Called by react-dom at module load to check the build was dead-code-eliminated. It only
@@ -726,6 +833,7 @@ try {
       cached = {
         postMessage(message: unknown) {
           bridge.diagnostics.outboundCount++;
+          meter("outbound");
           // Taps first, and against the app's own message: a reader reports what the app said, not
           // what another plugin made of it. Only the chain sees the accumulated value.
           tap(message);
@@ -743,6 +851,7 @@ try {
     const data = event.data as { type?: unknown; message?: unknown } | null;
     if (data?.type !== "from-extension") return;
     bridge.diagnostics.inboundCount++;
+    meter("inbound");
     tap(data.message);
   });
 } catch {

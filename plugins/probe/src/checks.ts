@@ -322,3 +322,159 @@ export function mountReplacementVerdict(
   if (replaced > 0) return { verdict: "pass", detail: `${replaced} re-placed, ${where}` };
   return { verdict: "n/a", detail: `nothing detached yet, ${where}` };
 }
+
+/** Wall-clock `HH:MM:SS` for a report meant to be lined up against VS Code's own logs, which are
+ * local time. An ISO string would be unambiguous and three times as wide for no gain here. */
+function clock(at: number): string {
+  return new Date(at).toTimeString().slice(0, 8);
+}
+
+/** A byte count in whichever unit keeps it to three or four characters. */
+function bytes(n: number): string {
+  return n < 1024 ? `${n} B` : `${(n / 1024).toFixed(1)} KB`;
+}
+
+/**
+ * Everything the copied report carries beyond the check lines (D53).
+ *
+ * A plain facts object rather than the diagnostics bridge itself, so this file stays free of the
+ * host's shape and the formatting stays unit-testable. The caller does the one narrow translation.
+ */
+export interface ReportFacts {
+  readonly extension: string | null;
+  readonly surface: string;
+  readonly preAt: number;
+  readonly postAt: number | null;
+  readonly react: {
+    readonly hook: string;
+    readonly version: string | null;
+    readonly commits: number;
+    readonly notified: number;
+  };
+  readonly mounts: {
+    readonly driver: string;
+    readonly active: number;
+    readonly replaced: number;
+    readonly lost: number;
+  };
+  readonly storage: {
+    readonly available: boolean;
+    readonly writes: number;
+    readonly failures: number;
+    readonly bytes: number;
+    readonly lastError: string | null;
+  };
+  readonly bus: {
+    readonly outbound: number;
+    readonly inbound: number;
+    readonly clones: number;
+    readonly cloneMs: number;
+    readonly cloneMaxMs: number;
+    readonly cloneMaxType: string | null;
+  };
+  readonly meters: Record<
+    string,
+    { readonly peak: number; readonly peakAt: number | null; readonly recent: number }
+  >;
+  readonly plugins: readonly PluginStatusLike[];
+  readonly hostPatches: readonly {
+    readonly plugin: string;
+    readonly applied: boolean;
+    readonly required: boolean;
+    readonly reason?: string;
+  }[];
+  readonly previous: {
+    readonly from: number;
+    readonly to: number;
+    readonly entries: readonly Record<string, unknown>[];
+  } | null;
+  readonly errors: readonly string[];
+}
+
+/** One snapshot row of the previous run, as `key=value` pairs in a stable order. */
+function previousRow(entry: Record<string, unknown>): string {
+  const at = entry.at;
+  const when = typeof at === "number" ? clock(at) : "--:--:--";
+  const pairs = Object.entries(entry)
+    .filter(([k, v]) => k !== "at" && k !== "peaks" && typeof v === "number" && v !== 0)
+    .map(([k, v]) => `${k}=${String(v)}`);
+  return `  ${when}  ${pairs.join(" ") || "(all zero)"}`;
+}
+
+/**
+ * The whole report, for the clipboard.
+ *
+ * Rich where the panel is lean, and deliberately so: the panel is a list you scan for a red line,
+ * while this is what somebody pastes into an issue and a stranger has to diagnose from cold. The
+ * peaks block is the part that is new and the part that matters — a total says a panel has been busy
+ * and a peak says when, which is the difference between a report that can be correlated with VS
+ * Code's own logs and one that cannot.
+ *
+ * It carries no message content, no titles and no transcript text, by construction rather than by
+ * filtering (D53). The session id is the one identifier present, already truncated to eight
+ * characters by its own check, and already on screen in the panel.
+ */
+export function formatReport(facts: ReportFacts, checks: readonly CheckResult[]): string {
+  const out: string[] = ["rigline probe report"];
+
+  out.push("");
+  out.push(`  extension  ${facts.extension ?? "unknown"}, surface ${facts.surface}`);
+  const post = facts.postAt === null ? "not reported" : `${facts.postAt}ms`;
+  out.push(`  boot       pre ${facts.preAt}ms, post ${post}`);
+  out.push(
+    `  react      ${facts.react.version ?? "no renderer"}, hook ${facts.react.hook}, ` +
+      `${facts.react.commits} commits / ${facts.react.notified} notified`,
+  );
+  out.push(
+    `  mounts     ${facts.mounts.active} active, ${facts.mounts.replaced} re-placed, ` +
+      `${facts.mounts.lost} lost, on ${facts.mounts.driver}`,
+  );
+  const storage = facts.storage.available
+    ? `${facts.storage.writes} writes, ${bytes(facts.storage.bytes)}, ${facts.storage.failures} failures`
+    : "unavailable";
+  out.push(
+    `  storage    ${storage}${facts.storage.lastError ? ` — ${facts.storage.lastError}` : ""}`,
+  );
+  const worst = facts.bus.cloneMaxType ? ` worst ${facts.bus.cloneMaxType}` : "";
+  out.push(
+    `  bus        ${facts.bus.outbound} out / ${facts.bus.inbound} in, ${facts.bus.clones} clones ` +
+      `(${Math.round(facts.bus.cloneMs)}ms, max ${facts.bus.cloneMaxMs.toFixed(1)}ms${worst})`,
+  );
+
+  const busy = Object.entries(facts.meters)
+    .filter(([, m]) => m.peak > 0)
+    .sort((a, b) => b[1].peak - a[1].peak);
+  out.push("", "peaks (busiest one-second window, and when)");
+  if (busy.length === 0) out.push("  (nothing has been counted yet)");
+  for (const [name, m] of busy) {
+    const at = m.peakAt === null ? "" : ` at ${clock(m.peakAt)}`;
+    out.push(`  ${name.padEnd(10)} ${String(m.peak).padStart(6)}/s${at}, now ${m.recent}/s`);
+  }
+
+  out.push("", "plugins");
+  for (const p of facts.plugins) {
+    out.push(`  ${p.name.padEnd(16)} ${p.status}${p.reason ? ` — ${p.reason}` : ""}`);
+  }
+
+  if (facts.hostPatches.length > 0) {
+    out.push("", "host patches");
+    for (const p of facts.hostPatches) {
+      const verdict = p.applied ? "applied" : `not applied (${p.reason ?? "no reason given"})`;
+      out.push(`  ${p.plugin.padEnd(16)} ${p.required ? "required" : "optional"}, ${verdict}`);
+    }
+  }
+
+  if (facts.previous) {
+    out.push("", `previous run (${clock(facts.previous.from)} to ${clock(facts.previous.to)})`);
+    for (const entry of facts.previous.entries) out.push(previousRow(entry));
+  }
+
+  out.push("", "checks");
+  for (const check of checks) out.push(`  ${formatLine(check)}`);
+
+  out.push("", `host errors (${facts.errors.length})`);
+  if (facts.errors.length === 0) out.push("  (none)");
+  for (const e of facts.errors) out.push(`  ${e}`);
+
+  return out.join("\n");
+}

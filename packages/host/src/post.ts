@@ -21,6 +21,7 @@ import {
 import { MODULES } from "./capabilities/index.ts";
 import { type Bridge, bridge as findBridge, type PluginStatus } from "./kernel/bridge.ts";
 import { createMountService } from "./kernel/mounts.ts";
+import { createRecorder } from "./kernel/record.ts";
 import { createSessionService } from "./kernel/session.ts";
 import { detectSurface } from "./kernel/surface.ts";
 import { createToolService } from "./kernel/tools.ts";
@@ -131,7 +132,7 @@ async function main(): Promise<void> {
     console.error("[rigline] the pre hook did not run; no plugins can be loaded");
     return;
   }
-  const { diagnostics, bus, react } = bridge;
+  const { diagnostics, bus, react, meter } = bridge;
   diagnostics.postAt = Math.round(performance.now());
   diagnostics.rootChildrenAtPost = document.querySelector("#root")?.childElementCount ?? -1;
 
@@ -163,7 +164,7 @@ async function main(): Promise<void> {
     diagnostics.errors.push(`registry: ${message(e)}`);
   }
 
-  const mounts = createMountService(message, react, diagnostics.mounts);
+  const mounts = createMountService(message, react, diagnostics.mounts, meter);
   const kernel: Kernel = {
     tables,
     surface: detectSurface(),
@@ -180,8 +181,14 @@ async function main(): Promise<void> {
       diagnostics.transcript,
       tables.anchors.transcriptRow ?? null,
       message,
+      meter,
     ),
   };
+
+  // Started before plugins load, so a panel that dies during a plugin's setup still leaves a record
+  // of having got that far. The recorder never throws and never blocks: if storage is unavailable it
+  // reports that and does nothing (D53).
+  createRecorder(diagnostics, kernel.surface);
 
   try {
     for (const plugin of entries) {

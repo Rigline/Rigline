@@ -78,6 +78,15 @@ export interface Diagnostics {
     replaced: number;
     lost: number;
   };
+  readonly meters: Record<string, { peak: number; peakAt: number | null; recent: number }>;
+  readonly storage: {
+    available: boolean;
+    writes: number;
+    failures: number;
+    bytes: number;
+    lastError: string | null;
+  };
+  previous: { from: number; to: number; entries: readonly Record<string, unknown>[] } | null;
   readonly errors: string[];
 }
 
@@ -101,6 +110,8 @@ export interface Bridge {
   readonly diagnostics: Diagnostics;
   readonly bus: Bus;
   readonly react: ReactBridge;
+  /** Count one event against a named hot path's current second. See the pre hook's own `meter`. */
+  meter(name: string): void;
 }
 
 /** The bridge, or null when the pre hook did not run, in which case nothing can be loaded. */
