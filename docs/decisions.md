@@ -4,6 +4,10 @@ The durable record. Principles are the rules the architecture is derived from; d
 choices made under them. Amend by editing the entry and noting the date; the file should read as
 what is true now, never as a history of what was once true.
 
+A decision's number is its identity, not its position: source comments cite them, so a new entry
+takes the next free number and sits in the section it belongs to, and numbering runs monotonically
+within a section rather than down the file.
+
 Measurements cited here were taken during the 0.x investigation across extension versions 2.1.200
 to 2.1.268 and are documented in [archive/0.x/](archive/0.x/README.md). Treat them as indicative
 and re-measure before quoting one as current.
@@ -43,7 +47,8 @@ manifest. A convenience build preset is shipped; "plugins are built with X" is n
 
 **P7. Version-specific data is derived where it is installed, never shipped.** The payload is one
 prebuilt pair that fits any version; the identifier tables beside it are harvested from the
-bundle being patched, per installed directory. There is no version matrix.
+bundle being patched, per installed directory. There is no version matrix. The same holds for the
+identifier types an author compiles against, which is why none are published (D40).
 
 **P8. Loud beats silent, and absent beats wrong.** Every failure mode must be attributable to a
 plugin or to a named anchor. A feature that is cleanly missing is preferred to one that is subtly
@@ -89,7 +94,8 @@ module identity and has never been observed to change while the module survives.
 plugin targets UI.** `modelPill` rather than `("gGYT1w", "modelPill")`. The update flow validates
 the table once per extension version; a retired anchor refuses only the plugins that use it. Raw
 `cls(module, local)` stays as the escape hatch so curation never blocks an author. Confirmed by
-Leo 2026-09-13.
+Leo 2026-09-13. It is also the only thing that can repair a plugin whose author has not touched it,
+which is what makes curation load-bearing rather than cosmetic (D44).
 
 **D8. The protocol is harvested from anchored dispatch sites, never by scanning for `type:"…"`.**
 The loose scan was measured at 41% other protocols (markdown AST nodes, Zod issue codes, MCP tool
@@ -140,6 +146,55 @@ check, so the grant and the gate cannot drift apart.
 unknown field, a failed required patch) live under `fixtures/` and are never installed by default.
 Installing them live would force an expected-refusals list to be maintained wherever refusals are
 scored.
+
+**D40. No harvested identifier types are published; an author harvests and commits their own.**
+`@rigline/plugin-api` ships the curated anchor names, the manifest type and the context types, and
+no literal unions over the extension's own identifiers. It declares an interface whose members
+default to `string`; `rigline codegen --out src/generated.ts` writes an author's harvest as an
+augmentation of it, and the author commits that file the way they commit a lockfile — a record of
+the version they built and tested against, and the baseline `rigline diff` reads after an update.
+
+A published snapshot can never carry the version released tomorrow, which is exactly when an author
+needs it; a green typecheck against one asserts only that the identifiers existed wherever codegen
+ran, which is not the question anybody is asking; and shipping several under a selector rebuilds the
+version matrix P7 exists to refuse, with ceremony. The contract is the install-time check on the
+user's machine (D43); types are dev-time ergonomics and are scoped to that. With no local harvest
+every union widens to `string` and a plugin still compiles, so a scaffold builds before codegen has
+ever run.
+
+The exception draws the line in the right place. `AnchorName` is Rigline's own vocabulary, curated
+in this repo and versioned with the package, while module hashes and local class names are the
+extension's vocabulary and are harvested where they are used. A plugin written entirely against
+anchors needs no generated file at all, so the type system enforces D7's preference instead of
+restating it.
+
+**D41. Optional declarations sit in `uses.optional`, and refuse nothing.** It mirrors `uses` key for
+key. An optional is checked against the installed version's tables exactly as a required one is, and
+a missing optional is reported at install and carried into diagnostics; it simply never refuses the
+plugin. Only the two lookup-shaped capabilities need a runtime grant: `ctx.optional.anchor(name)`
+and `ctx.optional.cls(module, local)` return `string | null`, so `strictNullChecks` makes the author
+handle absence, while `ctx.anchor` and `ctx.cls` keep returning `string` because the declaration
+check already refused a plugin whose required identifier is gone. An optional message, rewrite or
+switch needs no API at all: the handler never fires, which is already what absence does, and the
+declaration only stops it refusing the plugin. Nesting it under `uses` rather than beside it keeps
+the check as the same walk over the same contracts with a different verdict, so a capability added
+later is optional-capable without anything being taught about it.
+
+Two grants rather than one function typed from the manifest. Making `ctx` generic over a
+`const`-asserted import of the plugin's own `rigline.json` does work, and is rejected: it makes the
+entry module compile-depend on its manifest through import attributes, it is fragile across a
+stranger's tsconfig, and it buys a keystroke. Two grants keep the load-bearing dependencies legible
+in the source — what a plugin hard-depends on is what it calls without `.optional` — and for code
+that runs in the app's realm with full DOM access, reviewable beats terse.
+
+**D42. A plugin ships one build; per-extension-version variants are rejected.** Rejected rather than
+deferred, so it does not come back. Variants address backward spread only, and an author cannot
+build one for a version that does not exist yet, which is where the cost actually falls: the painful
+window is between an extension update and the maintainer catching up, not between a user and an old
+release. Declared identifiers plus D41 already say "works wherever these exist", forward, without
+prophecy. Users take the extension update almost immediately, so backward spread is transient on one
+machine (the D4 window) and narrow across users, and a user who pins is served correctly by D43's
+check with no mechanism of its own.
 
 ### The context
 
@@ -224,13 +279,40 @@ the more useful question anyway.
 **D30. The update flow writes its artefacts and tells you to commit them; it never commits.** From
 `watch` it runs unattended, and the diff is the most useful thing an update produces.
 
+**D43. The declaration check runs in Node at install, per extension directory, and names what it
+refused.** The same `capabilityViolation` the kernel asks at load is asked of every enabled plugin
+against the tables harvested from the directory being patched, and the outcome is reported per
+version: refused on 2.1.268 naming the identifier that is gone, installed on 2.1.270. The webview
+keeps its own check, because a baked registry can outlive its tables; this one exists so a person
+learns from the install rather than from a console line after a reload. It refuses a plugin for one
+directory and never blocks the install (D27). Its output is also the maintainer's bug report — an
+identifier name instead of "it stopped working".
+
+**D44. The anchor table is the repair path, and `~/.rigline/anchors.json` overrides it.** When a
+curated pair retires, one edit to one table repairs every plugin that used the name, and nothing
+else in the system can repair a plugin whose author has not touched it. That makes the shipped
+table's publish cadence a real cost, because the extension updates weekly and npm does not. So the
+table is overridable and extensible from `~/.rigline/anchors.json`: a two-line pair posted in an
+issue thread reaches every user the day it is found, with no publish and no round of maintainer
+releases. An override is reported at install by name, so it is never invisible. The same reasoning
+makes raw `cls()` worth counting — those are the dependencies an anchor-table fix cannot reach, and
+the install says how many a plugin has.
+
+**D45. A retired identifier is reported with its likely successor, and never remapped.** A rename
+usually shows in the diff as one local name gone from a module and one new name arrived in the same
+module; naming that pairing hands the maintainer and the curator an answer instead of a question,
+for the cost of a line in `formatDiff`. Applying it automatically is exactly the subtly-wrong
+outcome P8 refuses: a class that resolves to the wrong element renders as misplaced markup no plugin
+can be blamed for, and absent beats wrong.
+
 ### Distribution and state
 
 **D31. Distribution is `@rigline/core` plus the `rigline` CLI now, with a companion VS Code extension
 as a later phase; core is designed so either can be its consumer.** Confirmed by Leo 2026-09-13.
 
-**D32. User state lives under `~/.rigline`**: config, installed plugins, harvest baseline, class-map
-snapshots. A clone of this repo is for developing Rigline, not for using it.
+**D32. User state lives under `~/.rigline`**: config, installed plugins, anchor-table overrides
+(D44), harvest baseline, class-map snapshots. A clone of this repo is for developing Rigline, not
+for using it.
 
 **D33. Plugins are distributed as npm packages carrying `rigline.json` and a built entry, or as a
 local directory for development.**

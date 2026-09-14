@@ -134,22 +134,50 @@ is blocked on curation.
     "rewrites": { "rename_tab": ["title"] },
     "tools": true,
     "session": true,
-    "style": true
+    "style": true,
+    "optional": {
+      "anchors": ["worktreePill"]
+    }
   },
   "patches": []
 }
 ```
 
 Everything a plugin depends on sits under `uses`, so the permission summary is a walk over one
-object. `patches` stays top-level because it is not a use of the webview; it changes the host.
-Package metadata (`version`, `homepage`, `repository`, `license`) comes from `package.json`; the
-manifest carries only what the installer needs without executing anything.
+object. `uses.optional` mirrors it key for key and is checked the same way, but a missing optional
+is reported rather than refusing the plugin (D41). `patches` stays top-level because it is not a use
+of the webview; it changes the host. Package metadata (`version`, `homepage`, `repository`,
+`license`) comes from `package.json`; the manifest carries only what the installer needs without
+executing anything.
+
+### Surviving an extension update
+
+The extension updates roughly weekly and users take it almost immediately, so the failure that
+matters is not a spread of old versions to support: it is the window between an update landing and a
+plugin's maintainer catching up. Four mechanisms shorten that window, ranked by what they buy.
+
+- **The anchor table and its local override** (D7, D44). The only repair that works without the
+  plugin's author: one curated pair, fixed once, repairs every plugin that used the name, and
+  `~/.rigline/anchors.json` lets that fix reach users the day it is found rather than the day it is
+  published. This is the argument for curating aggressively, and for counting a plugin's raw `cls()`
+  calls at install, since those are the dependencies no table fix can reach.
+- **Optional declarations** (D41). Turns the loss of one decoration into the loss of one decoration,
+  rather than the whole plugin.
+- **The install-time check** (D43). The user learns what broke, by identifier, at install; the
+  maintainer gets that name in the bug report.
+- **Successor suggestions in the diff** (D45). When the maintainer or the curator does sit down, the
+  diff already names the likely replacement.
+
+Backward compatibility is deliberately absent from that list (D42): a plugin ships one build, and
+per-version variants ask an author to predict a release that does not exist yet.
 
 ### Where state lives
 
 The repo commits `packages/plugin-api/src/generated.ts` as the baseline the first-party code
-compiles against. A user's machine keeps its own state under `~/.rigline/`: `config.json` (enabled
-plugins, per-plugin settings), `plugins/` (installed third-party plugins), `baseline.json` (the
+compiles against — our own harvest, not something published (D40); a plugin author runs `rigline
+codegen --out` and commits theirs. A user's machine keeps its own state under `~/.rigline/`:
+`config.json` (enabled plugins, per-plugin settings), `plugins/` (installed third-party plugins),
+`anchors.json` (local overrides and additions to the curated anchor table), `baseline.json` (the
 last harvest, for "what changed" after an update) and `snapshots/` (class maps per version). A
 clone of this repo is for developing Rigline, not for using it.
 
@@ -158,9 +186,12 @@ clone of this repo is for developing Rigline, not for using it.
 `@rigline/core` and the `rigline` CLI are published to npm; plugins are npm packages carrying a
 `rigline.json` and a built entry, installed with `rigline add <spec>`, or a local directory during
 development. The version-specific half (identifier tables, registry, resolved anchors) is derived
-on the installing machine from the bundle in front of it, so there is no version matrix to ship. A
-companion VS Code extension wrapping core for hands-off updates, a reload prompt and a settings UI
-is a later phase; core is designed so it can be that consumer. Publishing anything is Leo's step.
+on the installing machine from the bundle in front of it, so there is no version matrix to ship.
+`@rigline/plugin-api` publishes the anchor names, the manifest type and the context types, and no
+harvested identifier unions (D40), so the published API version never doubles as an extension-version
+pin. A companion VS Code extension wrapping core for hands-off updates, a reload prompt and a
+settings UI is a later phase; core is designed so it can be that consumer. Publishing anything is
+Leo's step.
 
 ### Trust model
 
@@ -250,21 +281,36 @@ done.
 
 ### Phase 3: plugins, build preset, update flow, CLI
 
+- `uses.optional` and the `ctx.optional` grants (D41), landed first so the three plugins are its
+  first consumers and can say whether the shape is right.
+- The identifier types move to an augmentable interface (D40): plugin-api stops exporting harvested
+  unions directly, `rigline codegen --out` writes an augmentation, and the first-party plugins prove
+  both halves — that a local harvest narrows, and that its absence still compiles.
 - `rigline build` (Rolldown preset) and `rigline dev` (rebuild, re-inject, remind to reload).
 - The three plugins in TypeScript against the new `ctx`, tests included.
+- The install-time declaration check (D43), reported per extension directory by plugin and by the
+  identifier that is gone. `capabilityViolation` currently runs only in the webview, despite its own
+  doc comment claiming both sides.
+- Successor suggestions in the diff (D45).
 - The update flow and watcher: report and inject around a plugin problem; block only on the
   harvest floor or Rigline's own build.
 - The CLI complete.
 - Acceptance: all three plugins verified live; a simulated update (a copied extension directory
-  with an identifier removed) refuses the right plugin by name and injects the rest.
+  with an identifier removed) refuses the right plugin by name and injects the rest, and the same
+  identifier removed from an *optional* declaration degrades that plugin instead of refusing it.
 
 ### Phase 4: the community layer
 
-- `~/.rigline` install model, `rigline add` from npm and from a path, permission summary, host-patch
-  opt-in.
-- Authoring guide, a `create-rigline-plugin` template, the manifest JSON schema shipped with
-  plugin-api.
-- Topic docs: architecture, identifier layers, the bus, host patches, the transcript, verification.
+- `~/.rigline` install model, `rigline add` from npm and from a path. **The permission summary and
+  the per-patch host-patch opt-in (D26) land before or with `add`, never after it**: both are in the
+  design and wired to nothing today (`permissionSummary` is written, tested and called by no one;
+  `applyPatches` takes every enabled plugin's declared patch regardless of origin), and `add` is what
+  turns a third-party host patch from a hand-copied directory into a one-liner.
+- `~/.rigline/anchors.json`, the local anchor override (D44), reported by name at install.
+- Authoring guide, a `create-rigline-plugin` template that runs `rigline codegen --out` on first
+  use, the manifest JSON schema shipped with plugin-api.
+- Topic docs: architecture, identifier layers, the bus, host patches, the transcript, verification,
+  surviving an update.
 - Publish prep: package metadata, changelog, CI. Leo publishes.
 
 ### Phase 5, later: companion VS Code extension
@@ -284,23 +330,40 @@ built by a preset over an unchanged output contract; capabilities and identifier
 registries; refusal fixtures kept out of the live install; Vitest and Biome; user state under
 `~/.rigline`; the 0.x material archived rather than repaired, and 1.x written from first principles.
 
+## Decided 2026-09-14
+
+Confirmed by Leo after a validation pass over the third-party and version-spread questions, with the
+reasoning in [decisions.md](decisions.md) as D40 to D45. The reframe that settled the priority is
+his: users take an extension update almost immediately, so the cost to design against is the gap
+between an update landing and a maintainer catching up, not a spread of old versions to support. Out
+of that — no harvested types are published, and an author harvests and commits their own; optional
+declarations with a nullable grant, so the compiler forces the check exactly where a dependency may
+be absent; per-version plugin builds rejected outright rather than deferred; the declaration check
+wired into the Node install; the anchor table named as the repair path and made overridable from
+`~/.rigline/anchors.json`; successor suggestions in the diff.
+
 ## Open questions, not blocking
 
 - Per-plugin settings: schema in the manifest, values in `~/.rigline/config.json`, delivered as
   `ctx.settings`. Design in phase 3, ship in phase 4 unless a first-party plugin needs it sooner.
-- Anchor governance: who may add to the table, and what evidence an entry needs.
+- Anchor governance, load-bearing now rather than tidy (D44): who may add to the table, what
+  evidence an entry needs, and how a local `anchors.json` override is promoted into the shipped
+  table once it is confirmed.
 - Whether `ctx.style` refuses a selector naming a class the plugin did not declare, or only lints.
 
 ## Next session
 
-Start here. Phase 2 is closed and verified live; phase 3 has not begun.
+Start here. Phase 2 is closed and verified live; phase 3 has not begun. The direction was validated
+and adjusted on 2026-09-14 — read "Surviving an extension update" above and D40 to D45 before
+starting, because they change work that was already scheduled.
 
-1. **Phase 3, in this order:** the three first-party plugins in TypeScript against the new ctx
-   (`session-id`, `worktree-prefix`, `time-marks`; the 0.x inventory of each is in
+1. **Phase 3, in this order:** `uses.optional` and the augmentable identifier types first, since both
+   change what a plugin compiles against; then the three first-party plugins in TypeScript against
+   the new ctx (`session-id`, `worktree-prefix`, `time-marks`; the 0.x inventory of each is in
    [archive/0.x/inventory-plugins.md](archive/0.x/inventory-plugins.md) and holds the rules, the
-   CSS that must not narrow the content, and the tests to reproduce), then `rigline dev`, then the
-   update flow and watcher, then `rigline check`. Each plugin should be added as a harness test as
-   well as a live check, since `packages/harness` can now drive the real bundle.
+   CSS that must not narrow the content, and the tests to reproduce); then the install-time check,
+   `rigline dev`, the update flow and watcher, and `rigline check`. Each plugin should be added as a
+   harness test as well as a live check, since `packages/harness` can now drive the real bundle.
 2. **Small items carried over:** a helper or documented pattern for a mount whose `build()` runs
    again on re-placement (the probe had to track its current node by hand); `ctx.watch` on the
    session list has no model pill, so a plugin that wants a badge there mounts on `document.body`;
@@ -308,6 +371,10 @@ Start here. Phase 2 is closed and verified live; phase 3 has not begun.
    proof test (a `tsc` run over a fixture plugin showing wrong pairs fail to compile) is still
    deferred; the harness's `page.ts` could generate its reply table from the same anchors codegen
    reads, which was noted and not tried.
+3. **Two camp-site fixes found on 2026-09-14, neither urgent:** `packages/core/src/plugins/discover.ts`
+   calls the user config `rigline.config.json` in two doc comments while `riglinePaths().config` is
+   `~/.rigline/config.json`; and `packages/plugin-api/package.json` lists `schema` under `files`,
+   which does not exist yet and which the probe's `$schema` already points at.
 
 ## Status log
 
@@ -342,3 +409,18 @@ Start here. Phase 2 is closed and verified live; phase 3 has not begun.
   defect recorded under phase 2: worth reading before assuming a lockup is a hot-path cost problem,
   because it presented as one and was not. Recorded rather than waved off — the lockup vanished
   after a reinstall, which is the shape of a bug that comes back.
+- 2026-09-14: Direction validated before phase 3, against two questions from Leo — how a third-party
+  plugin gets installed alongside the first-party ones, and how a spread of extension versions is
+  handled. The third-party mechanism turned out to be already working: `~/.rigline/plugins` is
+  a discovery root, and a plugin dropped there is validated, copied per version and baked like any
+  other. What is missing is the two gates, not the mechanism — `permissionSummary` is written and
+  tested and called by nothing, and D26's per-patch opt-in does not exist at all, so every enabled
+  plugin's declared host patch currently applies unreviewed. Both now block `rigline add` in phase 4
+  rather than merely sharing a phase with it. The version question separated into four: several
+  versions on one machine (solved, D4, verified live on three); a plugin against whichever version
+  the user has (right mechanism, no reporting — `capabilityViolation` runs only in the webview
+  despite its doc comment claiming both sides); all-or-nothing refusal, which had no answer and now
+  has D41; and the published `generated.ts` quietly making the plugin-api version an
+  extension-version pin, which now has D40. Leo's reframe set the priority and is recorded above
+  under Decided 2026-09-14. Six decisions added, D40 to D45; the plan's phase 3 and phase 4 lists
+  and its "Surviving an extension update" section follow from them. No code changed.
