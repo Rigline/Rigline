@@ -584,11 +584,21 @@ The work, in order, and the first three belong together:
 2. **Harvest application-site counts** as part of the classes layer, and make a `singleton` with more
    than one site and no refinement fail codegen by name. Carry the count into the diff so an update
    that *starts* reusing a class is reported.
-3. **Add the refinement** — a further selector on the same element, e.g. `modelPill` gains
-   `[role="combobox"]`, which the picker has and the agent-map button does not. `ctx.anchor()` keeps
-   returning a bare class, because plugins pass it to `classList.add`; the resolved *selector* is
-   what `watch` needs, so it is an additive field on the generated tables rather than a change to
-   the existing one. Then fix the other four.
+3. **Resolve to a selector and query with `querySelector`**, rather than resolving to a class and
+   reaching for `getElementsByClassName(...)[0]`. This is the part to get right first, because the
+   class-shaped API is what makes a refinement look like an invented feature: against a selector it
+   is just the rest of the selector (`.modelPill_gGYT1w[role="combobox"]`, plain CSS), `singleton`
+   against `collection` is just which of the two standard calls to make, and a descendant
+   relationship costs nothing — which may be the cleanest reading of `sessionListItemName`.
+   `ctx.anchor()` keeps returning a bare class, because a style anchor is borrowed rather than
+   queried and a plugin passes it to `classList.add`; the resolved selector is an additive field on
+   the generated tables, consumed only by the host. Then give `modelPill` its `[role="combobox"]`
+   and fix the other four.
+
+   One thing to measure rather than assume: `getElementsByClassName` returns a live, cached
+   collection and `querySelectorAll` allocates a static one per call, and the transcript sweep runs
+   over several hundred rows per commit. The `sweep` meter added under D53 is how to tell whether
+   that matters; do not pre-optimise it, and do not hand-wave it either.
 4. **Report multiplicity at runtime**: `watch` says when a class matched more than one element, and
    the probe asserts one element per declared singleton. Build time counts sites; runtime counts
    elements, and one site inside a list renders many.

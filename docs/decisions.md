@@ -115,11 +115,26 @@ the class really is one), and the uniqueness rule is not expressible until they 
 `style` keeps its meaning and is exempt: a borrowed class being used in several places is the point
 of borrowing it.
 
-An entry may carry a **refinement** — a further selector on the same element — and a singleton whose
-class is applied at more than one site must carry one or fail codegen by name. `modelPill` takes
-`[role="combobox"]`, which the picker has and the agent map does not. ARIA is what P1 asks for: it
-crosses a serialisation boundary, it is a contract the extension is unlikely to break quietly, and
-it is not minifier output.
+**An anchor resolves to a CSS selector, and the host queries with `querySelector`.** Resolving to a
+bare class and reaching for `getElementsByClassName(...)[0]` is what made a refinement look like a
+new feature needing a new word; against a selector it is simply the rest of the selector, and
+`.modelPill_gGYT1w[role="combobox"]` is plain CSS with no vocabulary of ours in it. `singleton`
+against `collection` then stops being a taxonomy and becomes which of the two standard calls to
+make, and a descendant or child relationship becomes expressible for nothing — which the
+module-and-local pair can never do, and which may well be the cleanest reading of
+`sessionListItemName`. A singleton whose class is applied at more than one site must carry a
+refinement or fail codegen by name.
+
+`modelPill` takes `[role="combobox"]`, which the picker has and the agent map does not. ARIA is what
+P1 asks for: it crosses a serialisation boundary, it is a contract the extension is unlikely to break
+quietly, and it is not minifier output.
+
+What stays bespoke, and should, is substituting the harvested class into that selector: class names
+are hashed per build, so a table cannot hold `.modelPill_gGYT1w` and stay true, and the substitution
+is the whole reason the layer exists. `ctx.anchor()` keeps returning a bare class because a style
+anchor is *borrowed* rather than queried — a plugin passes it to `classList.add`, never to a query —
+so the two resolved forms serve the two kinds and neither plugin nor author ever assembles a
+selector by hand.
 
 And the count becomes a harvested fact rather than an assumption. The class harvest already reads
 each module's map; counting how many places apply each class is the same pass, and it makes
