@@ -51,7 +51,14 @@ export function uncountedClasses(map: Classes["map"]): Classes {
   return { map, sites: {}, uncounted: Object.keys(map) };
 }
 
-export function resolveAnchors(classes: Classes): ResolvedAnchors {
+/**
+ * A table of anchor specs by name. `ANCHORS` is the one this repo ships; the parameter exists
+ * because D44's `~/.rigline/anchors.json` override resolves against a merged table, and because a
+ * rule about the table is best tested against a table rather than by editing the real one.
+ */
+export type AnchorTable = Readonly<Record<string, AnchorSpec>>;
+
+export function resolveAnchors(classes: Classes, table: AnchorTable = ANCHORS): ResolvedAnchors {
   const resolvedClasses = {} as Record<AnchorName, string | null>;
   const selectors = {} as Record<AnchorName, string | null>;
   const reasons: Record<string, string> = {};
@@ -59,32 +66,30 @@ export function resolveAnchors(classes: Classes): ResolvedAnchors {
   const ambiguous: { name: AnchorName; sites: number }[] = [];
   const unverified: AnchorName[] = [];
 
-  for (const name of Object.keys(ANCHORS) as AnchorName[]) {
-    const spec: AnchorSpec = ANCHORS[name];
+  for (const name of Object.keys(table) as AnchorName[]) {
+    const spec = table[name] as AnchorSpec;
     const resolved = classes.map[spec.module]?.[spec.local] ?? null;
     if (resolved === null) {
       resolvedClasses[name] = null;
       selectors[name] = null;
       missing.push(name);
-      reasons[name] = missingAnchorReason(name);
+      reasons[name] = absentReason(name, spec);
       continue;
     }
 
     const sites = siteCount(classes, spec.module, spec.local);
     if (sites === null) {
       unverified.push(name);
-    } else if (spec.kind === "singleton" && sites > 1 && !refined(spec)) {
+    } else if (spec.kind === "singleton" && sites > allowedSites(spec) && !refined(spec)) {
       resolvedClasses[name] = null;
       selectors[name] = null;
       ambiguous.push({ name, sites });
-      reasons[name] =
-        `anchor "${name}" (${spec.module}.${spec.local}) names one element, but this extension ` +
-        `applies its class at ${sites} places and the table has no refinement to tell them apart`;
+      reasons[name] = ambiguityReason(name, spec, sites);
       continue;
     }
 
     resolvedClasses[name] = resolved;
-    selectors[name] = spec.kind === "style" ? null : selectorFor(name, classes);
+    selectors[name] = spec.kind === "style" ? null : selectorFor(name, classes, table);
     if (selectors[name] === null && spec.kind !== "style") {
       // Only an unresolvable `within` gets here: the class is present, so the ancestor is what is
       // missing, and saying which is the difference between a repair and a hunt (D44).
@@ -98,18 +103,49 @@ export function resolveAnchors(classes: Classes): ResolvedAnchors {
   return { classes: resolvedClasses, selectors, reasons, missing, ambiguous, unverified };
 }
 
+function absentReason(name: string, spec: AnchorSpec): string {
+  return `anchor "${name}" (${spec.module}.${spec.local}) is not in this extension`;
+}
+
 /**
  * Why an anchor whose class this version has not got is unresolved, in one place so that a test
  * simulating the absence and the resolution that reports it cannot word it differently.
  */
 export function missingAnchorReason(name: AnchorName): string {
-  const spec: AnchorSpec = ANCHORS[name];
-  return `anchor "${name}" (${spec.module}.${spec.local}) is not in this extension`;
+  return absentReason(name, ANCHORS[name]);
 }
 
 /** Whether the spec says anything at all about which of the elements sharing the class it means. */
 function refined(spec: AnchorSpec): boolean {
   return spec.refine !== undefined || spec.within !== undefined;
+}
+
+/**
+ * How many references a singleton may have before it stops being one: one, or however many a
+ * `knownSites` acknowledgement has read and accounted for (D7).
+ *
+ * Bounded rather than blanket, which is the whole difference between an acknowledgement and the
+ * `collection` relabel it exists to stop being the cheaper move. An acknowledged anchor that gains
+ * a further reference is ambiguous again, and the reason names both numbers so the next maintainer
+ * can see they are looking at a claim that has been outgrown rather than one never made.
+ */
+function allowedSites(spec: AnchorSpec): number {
+  return spec.knownSites?.count ?? 1;
+}
+
+function ambiguityReason(name: string, spec: AnchorSpec, sites: number): string {
+  const pair = `${spec.module}.${spec.local}`;
+  const acknowledged = spec.knownSites;
+  if (acknowledged) {
+    return (
+      `anchor "${name}" (${pair}) names one element and accounts for ${acknowledged.count} ` +
+      `references ("${acknowledged.why}"), but this extension has ${sites}`
+    );
+  }
+  return (
+    `anchor "${name}" (${pair}) names one element, but this extension applies its class at ` +
+    `${sites} places and the table has no refinement to tell them apart`
+  );
 }
 
 /**
@@ -120,15 +156,19 @@ function refined(spec: AnchorSpec): boolean {
  * instead of failing one.
  */
 function selectorFor(
-  name: AnchorName,
+  name: string,
   classes: Classes,
+  table: AnchorTable,
   seen: Set<string> = new Set(),
 ): string | null {
   if (seen.has(name)) {
     return null;
   }
   seen.add(name);
-  const spec: AnchorSpec = ANCHORS[name];
+  const spec = table[name];
+  if (spec === undefined) {
+    return null;
+  }
   const resolved = classes.map[spec.module]?.[spec.local];
   if (resolved === undefined) {
     return null;
@@ -137,7 +177,7 @@ function selectorFor(
   if (spec.within === undefined) {
     return own;
   }
-  const ancestor = selectorFor(spec.within as AnchorName, classes, seen);
+  const ancestor = selectorFor(spec.within, classes, table, seen);
   return ancestor === null ? null : `${ancestor} ${own}`;
 }
 

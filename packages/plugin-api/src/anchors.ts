@@ -20,7 +20,8 @@
  * entry says which of three things it names — one element, many elements, or a look to borrow —
  * and carries whatever else it takes to pick its element out of the ones sharing the class. Core
  * counts how many places the bundle applies each class and refuses to resolve a `singleton` that
- * is applied more than once without a refinement.
+ * is applied more than once without a refinement — or without `knownSites`, which is how an entry
+ * says the extra references were read and are one control.
  *
  * Adding an entry: verify the pair against the installed bundle (the class map the core harvests
  * is the source of truth; search the bundle for `local:"local_hash"`), describe what the element
@@ -76,6 +77,22 @@ export interface AnchorSpec {
    * ancestor is an element rather than a style, and that no chain of them loops.
    */
   readonly within?: string;
+  /**
+   * "I have read these application sites and they are one control." For a `singleton` only, and
+   * only where a refinement is not the answer.
+   *
+   * The site count is an upper bound: it counts every reference to a class, so the bundle passing
+   * one somewhere as a value reads as a site — which is exactly what one of `modelPill`'s three
+   * already is. Without this, a maintainer meeting that has two discharges, and both are bad: a
+   * refinement against something that discriminates nothing, or relabelling the anchor
+   * `collection`, which switches the check off permanently. Under weekly extension releases the
+   * relabel is the cheaper move every time, so the rule would corrode itself.
+   *
+   * It is bounded, not a blanket exemption: a count above `count` is ambiguous again, and the
+   * failure names both numbers. `why` is required for the same reason a host patch's is — the field
+   * exists to be read by the next person, and a bare number invites bumping without looking.
+   */
+  readonly knownSites?: { readonly count: number; readonly why: string };
   /** The surfaces it renders on, where known. Absent means not yet measured. */
   readonly surfaces?: readonly Surface[];
   /** The condition under which it renders, when it is not always present. */

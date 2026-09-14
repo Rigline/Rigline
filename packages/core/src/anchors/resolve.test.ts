@@ -128,6 +128,32 @@ describe("resolveAnchors", () => {
       expect(resolved.ambiguous).toEqual([]);
     });
 
+    it("exempts a singleton up to an acknowledged count, and fails again above it", () => {
+      // `knownSites` is the escape from the one trap this check sets: the site count is an upper
+      // bound, so a bundle that merely passes a class somewhere as a value reads as a second site
+      // and there is nothing to refine against. The acknowledgement is bounded, which is what keeps
+      // it from being the `collection` relabel under a politer name.
+      const table = {
+        composer: {
+          ...composer,
+          knownSites: { count: 2, why: "the second is a helper argument, not a second control" },
+        },
+      };
+      const withCount = (sites: number) =>
+        resolveAnchors(
+          counted(mapWith([composer.module, composer.local]), {
+            [composer.module]: { [composer.local]: sites },
+          }),
+          table,
+        );
+
+      expect(withCount(2).ambiguous).toEqual([]);
+      expect(withCount(2).classes.composer).toBe("inputContainer_07S1Yg");
+      expect(withCount(3).ambiguous).toEqual([{ name: "composer", sites: 3 }]);
+      expect(withCount(3).reasons.composer).toContain("accounts for 2 references");
+      expect(withCount(3).reasons.composer).toContain("helper argument");
+    });
+
     it("reports an uncounted module as unverified and still resolves it", () => {
       const map = mapWith([composer.module, composer.local]);
       const resolved = resolveAnchors({ map, sites: {}, uncounted: [composer.module] });

@@ -141,6 +141,25 @@ whose class-map variable the harvest cannot find is *uncounted*, which is not ze
 still resolve and are reported as unverified, because an unknown read as "exactly one site" is the
 silent pass this whole layer exists to stop.
 
+**`knownSites` is the acknowledgement, and it is bounded.** The count is an upper bound — it counts
+every reference to a class, so the bundle handing one somewhere as a value reads as a site, which is
+what one of `modelPill`'s three already is. Without a way to say "I have read these and they are one
+control", a maintainer facing that has only two discharges: invent a refinement against something
+that discriminates nothing, or relabel the anchor `collection`, which is a lie that switches the
+check off for good. Under weekly extension releases the lie is the cheaper move every time, so the
+rule would corrode itself. So a singleton may carry `knownSites: { count, why }` and is ambiguous
+only above that count. It takes a `why` for the same reason a host patch does: the field exists to
+be read by the next person, and a bare number invites bumping without looking. It does not blanket-
+exempt — a count that climbs past the acknowledged one fails again, naming both numbers.
+
+**Refusal is whole-plugin, not per-capability.** A tempting alternative nulls only the selector, so
+`watch` refuses while the bare class survives for `ctx.anchor()` — on the grounds that the host
+picking the wrong element silently is the real bug, and a plugin scoping its own CSS is responsible
+for its own hygiene. Rejected, and worth writing down so it is not reopened: it hands a plugin a
+class the host has just concluded is untrustworthy, with no channel to say so, and the CSS use is
+the one that has already damaged a layout once. A name that means two controls is not a name, and
+half-refusing it trades a legible failure for a subtle one (P8). Confirmed by Leo 2026-09-14.
+
 What stays bespoke, and should, is substituting the harvested class into that selector: class names
 are hashed per build, so a table cannot hold `.modelPill_gGYT1w` and stay true, and the substitution
 is the whole reason the layer exists. `ctx.anchor()` keeps returning a bare class because a style
@@ -445,6 +464,20 @@ issue thread reaches every user the day it is found, with no publish and no roun
 releases. An override is reported at install by name, so it is never invisible. The same reasoning
 makes raw `cls()` worth counting — those are the dependencies an anchor-table fix cannot reach, and
 the install says how many a plugin has.
+
+**An override carries a refinement, not only a pair (amended 2026-09-14).** "A two-line pair" was
+written when the only way a name stopped resolving was the class retiring. There are now two, and
+the second — a singleton whose class the version applies in more than one place (D7) — cannot be
+repaired by a pair, because the class is right there and it is the *identity* that has gone. So an
+override may supply `refine` and `within` as well as `module` and `local`.
+
+**Until it exists, refusal is a repair path we do not have.** This is unimplemented, and that is
+load-bearing rather than incidental: an ambiguous or retired anchor refuses the plugins that
+declared it, and with no override the only repair is a Rigline release — npm, plus D48's minimum
+age, so days, against an extension that updates weekly. That is survivable while the only consumer
+is also the maintainer and can edit the table in the repo. It stops being survivable the moment
+somebody else installs a plugin, so this gates `rigline add` alongside the permission summary and
+D26's per-patch opt-in.
 
 **D45. A retired identifier is reported with its likely successor, and never remapped.** A rename
 usually shows in the diff as one local name gone from a module and one new name arrived in the same

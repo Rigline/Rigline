@@ -127,9 +127,16 @@ function installCommand(args: string[]): number {
       log: (line) => console.log(`  ${line}`),
     });
     hostChanged ||= report.hostChanged;
+    // Three states, not two, and the summary used to fold the first two together: `enabled` means
+    // "not switched off in config", so a plugin this version refuses was listed as enabled two
+    // lines under its own REFUSED line. The two lines a person actually reads contradicted each
+    // other, on the one output a consumer sees when a plugin disappears from their panel.
+    const refused = report.verdicts.filter((v) => v.refusal !== null).map((v) => v.plugin);
+    const loading = report.enabled.filter((name) => !refused.includes(name));
     console.log(
-      `${report.version}: ${report.action}; plugins enabled: ${report.enabled.join(", ") || "none"}` +
-        (report.disabled.length > 0 ? `; disabled: ${report.disabled.join(", ")}` : ""),
+      `${report.version}: ${report.action}; plugins: ${loading.join(", ") || "none"}` +
+        (refused.length > 0 ? `; refused by ${report.version}: ${refused.join(", ")}` : "") +
+        (report.disabled.length > 0 ? `; switched off: ${report.disabled.join(", ")}` : ""),
     );
   }
   console.log(

@@ -50,6 +50,23 @@ describe("the anchor table", () => {
     }
   });
 
+  it("keeps `knownSites` to singletons, above the default, and never without a reason", () => {
+    for (const [name, spec] of entries) {
+      if (spec.knownSites === undefined) continue;
+      // Only a singleton claims to be one element, so only a singleton can acknowledge references
+      // that are not it. On anything else the field would read as documentation and check nothing.
+      expect(spec.kind, name).toBe("singleton");
+      // One is the default. Stating it acknowledges nothing and reads as though it did.
+      expect(spec.knownSites.count, name).toBeGreaterThan(1);
+      // A refinement is the better answer wherever there is something to refine against; carrying
+      // both means the acknowledgement is dead weight, since a refined anchor is already exempt.
+      expect(spec.refine, name).toBeUndefined();
+      expect(spec.within, name).toBeUndefined();
+      // The whole value of the field is that somebody wrote down what they read.
+      expect(spec.knownSites.why.length, name).toBeGreaterThan(20);
+    }
+  });
+
   it("points every `within` at an element anchor that exists", () => {
     for (const [name, spec] of entries) {
       if (spec.within === undefined) continue;

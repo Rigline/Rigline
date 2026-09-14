@@ -457,7 +457,14 @@ done.
   minimum release age with `--now` and a report naming what was withheld and why; the source record
   with its kind discriminator and declaration fingerprint, and `update` re-gating on a fingerprint
   change.
-- `~/.rigline/anchors.json`, the local anchor override (D44), reported by name at install.
+- `~/.rigline/anchors.json`, the local anchor override (D44, amended), reported by name at install.
+  **This one gates `add` the same way the permission summary does**, and for a concrete reason
+  rather than tidiness: an anchor that stops resolving refuses the plugins that declared it, and
+  until the override exists the only repair is a Rigline release — npm, plus D48's minimum age, so
+  days against the extension's weekly cadence. That is survivable while the only consumer is also
+  the maintainer and can edit the table. It stops being survivable the moment somebody else installs
+  a plugin. The override must carry a refinement, not only a module-and-local pair, because an
+  ambiguous anchor is now one of the two ways a name stops resolving and a pair cannot repair it.
 - Our own release pipeline first (D46): the staged-publish workflow for `@rigline/core`, `rigline`
   and `@rigline/plugin-api`, proven on a real release before it is handed to anyone else. One
   `pnpm stage publish -r` stages all three; each is approved on its own. The workflow emits the
@@ -618,6 +625,14 @@ The work, in order, and the first three belong together:
    A module whose variable the harvest cannot find is *uncounted*, which is not zero. The anchors in
    it keep resolving and are reported as unverified; an unknown that reads as "exactly one site" is
    the silent pass this whole layer exists to stop.
+
+   And a singleton may carry `knownSites: { count, why }`, which is the escape from the one trap
+   this check sets. The count is an upper bound — the bundle passing a class somewhere as a value
+   reads as a site, which is what one of `modelPill`'s three already is — so a maintainer can meet a
+   count of two with nothing to refine against. Without a way to say "I read these and they are one
+   control", the discharges are an arbitrary refinement or relabelling the anchor `collection`,
+   and under weekly releases the relabel is the cheaper move every time. It is bounded: a count
+   above the acknowledged one is ambiguous again, and the failure names both numbers.
 3. **Resolve to a selector and query with `querySelector`**, rather than resolving to a class and
    reaching for `getElementsByClassName(...)[0]`. This is the part to get right first, because the
    class-shaped API is what makes a refinement look like an invented feature: against a selector it
@@ -869,6 +884,16 @@ the extension to be working.
   mounts were exactly where the anchor they were given put them. An audit of the whole table found
   five of fifteen identity anchors already ambiguous on 2.1.270. P2 and D7 are amended and the work
   is specified above; none of it is built.
+- 2026-09-14: Anchor-ambiguity review, after the fact and worth it. Three changes. `knownSites` is
+  the acknowledgement a maintainer needs when the site count over-reads and there is nothing to
+  refine against — without it the cheapest discharge was relabelling the anchor `collection`, a lie
+  that switches the check off for good. `codegen --check` now asks about the anchors and not only
+  about the file, which is the invocation that runs unattended and could go green over an ambiguity
+  a maintainer had committed. And `rigline install`'s summary stopped listing a refused plugin as
+  enabled, two lines under its own REFUSED line. The review also found that D44's override is
+  unimplemented, so an ambiguous anchor currently has no consumer-side repair at all; that is
+  survivable only while the one consumer is also the maintainer, and it now gates `rigline add`.
+  Settled and recorded so it is not reopened: refusal stays whole-plugin rather than per-capability.
 - 2026-09-14: Anchor ambiguity built, items 1 to 4, and installed on all three versions. `kind` is
   `singleton`/`collection`/`style`; the classes layer counts application sites from the same bytes
   it reads the map from and carries them into the diff as `classes.reused`; anchors resolve to a CSS
