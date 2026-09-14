@@ -732,10 +732,19 @@ the extension to be working.
    reason is concrete rather than theoretical: `applyPatches` takes every enabled plugin's declared
    patch and writes it into `extension.js` with nothing asked and nothing shown, which is correct for
    a first-party plugin in this repo and exactly what D26 refuses for anybody else's.
-2. **Read the mount re-placement count off the live panel** (D52). The probe's last line carries
-   `replaced`, `lost` and the driver. Zero `replaced` after a few days of real use retires
-   `replaceLost`; any `lost` at all is a node nobody can see being retried every frame, and is a bug
-   to chase rather than a number to note.
+2. **Read the live panel's own numbers off the probe**, after a few days of real use. Two questions,
+   one act — the probe's copied report carries both.
+
+   *Mount re-placement* (D52): the last line carries `replaced`, `lost` and the driver. Zero
+   `replaced` retires `replaceLost`; any `lost` at all is a node nobody can see being retried every
+   frame, and is a bug to chase rather than a number to note.
+
+   *The sweep meter* (D53), which the selector change made worth reading: `getElementsByClassName`
+   returned a live cached collection and `querySelectorAll` allocates a static one per call, and the
+   transcript sweep runs over several hundred rows per commit. The `sweep` meter's peak is the
+   instrument. Read it before deciding anything — do not pre-optimise it, and do not hand-wave it
+   either. Also check `mounts.multiple` is empty while you are there: a name in it is a singleton
+   whose refinement has stopped refining.
 3. **Small items still carried.** `ctx.watch` on the session list has no model pill, so a plugin
    wanting a badge there mounts on `document.body` — a sentence in the authoring guide, not an API
    change. The harness's `page.ts` could generate its reply table from the same anchors codegen
