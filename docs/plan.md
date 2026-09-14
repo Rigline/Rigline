@@ -437,14 +437,12 @@ contract is the output, and a plugin built with any other toolchain is treated i
 
 ## Next session
 
-Start here. Phase 2 is closed and verified live; phase 3 has not begun. The direction was validated
-and adjusted on 2026-09-14 — read "Surviving an extension update" above and D40 to D45 before
-starting, because they change work that was already scheduled.
+Start here. Phase 2 is closed and verified live; phase 3 has not begun.
 
-Distribution was settled the same day as D46 to D50, and none of it blocks phase 3: it is all phase
-4, it changes no interface phase 3 builds against, and no code was written for it. The one thread
-that reaches back is D40's augmentation, which phase 3 lands and which the template later depends on
-working from a file outside the plugin's own directory — so prove that once while D40 is fresh.
+Read "Surviving an extension update" above and D40 to D45 before starting. D46 to D50 are phase 4
+and block nothing here — they touch no interface phase 3 builds against. One thread does reach back:
+phase 3 lands D40's augmentation, and the phase 4 template needs it working from a file outside the
+plugin's own directory, so prove that while it is in hand.
 
 1. **Phase 3, in this order:** `uses.optional` and the augmentable identifier types first, since both
    change what a plugin compiles against; then the three first-party plugins in TypeScript against
@@ -463,7 +461,7 @@ working from a file outside the plugin's own directory — so prove that once wh
    deliberate choice rather than a default, since D46 to D48 ask the same of everyone else
    (`minimumReleaseAge` already defaults to 1440 on pnpm 12, but `allowBuilds` and
    `blockExoticSubdeps` do not).
-3. **Two camp-site fixes found on 2026-09-14, neither urgent:** `packages/core/src/plugins/discover.ts`
+3. **Two camp-site fixes, neither urgent:** `packages/core/src/plugins/discover.ts`
    calls the user config `rigline.config.json` in two doc comments while `riglinePaths().config` is
    `~/.rigline/config.json` — settle it when D49 lands, which widens that same file from
    `{disabled: []}` to a per-plugin source record and would otherwise bake the inconsistency deeper;
