@@ -421,7 +421,23 @@ done.
     statuses, host errors, the previous run's tail — rather than the verdict lines alone.
   - **`rigline doctor`**, which collects what no webview can see: install state per version, and the
     lines in VS Code's own logs that bear on a misbehaving panel. Timing and error lines only, never
-    message content, and it prints what it included.
+    message content, and it prints what it included. `--out FILE`, `--since 90m|24h|7d|all`, and
+    `--ext`/`--logs` to point it at a copy. Redaction is one `Ledger`: a path never offered to
+    `open` cannot reach the report, so there is no filter to forget. The load-bearing test writes a
+    sentinel into a per-extension log and asserts it is absent from the rendered markdown while that
+    directory's size is still reported.
+
+  Five things about VS Code's logs contradicted the plan and are now pinned by tests, because each
+  one produced a plausible wrong answer rather than an obvious failure. The newest launch directory
+  is routinely empty, so a launch is chosen by newest *write* among those with content, never by
+  name or directory mtime. Unresponsive episodes pair newest-first: oldest-first invented a
+  151-minute lockup out of a 09:42 detect and a 12:12 recovery belonging to different windows.
+  Recovery lines are sometimes written twice a millisecond apart, and taking both at face value
+  fabricates a second lockup. The "this recovery is really a window closing" threshold has to be
+  three seconds — observed gaps were 1.5, 1.65, 1.9 and 2.1s, so "a second or two" would have missed
+  one. And a continuation line is defined by having no timestamp, never by its indent: `main.log`
+  uses four spaces, `exthost.log` a tab, some `renderer.log` lines none at all, and an uncaught
+  exception's frames sit on the *following* empty `[error]` line rather than its own.
 
 ### Phase 4: the community layer
 
@@ -675,3 +691,11 @@ the extension to be working.
   and at one document-wide observer with 319 mounts it is not. Re-placement is now counted and on
   the probe's panel, so the question closes on Rigline's own numbers. The probe also has its copy
   button back.
+- 2026-09-14: Observability landed, all four pieces (D53). The host carries rates and peaks as well
+  as totals on nine hot paths; a bounded ring in `localStorage` survives a force-close and is read
+  back at boot; the probe's copy button carries the whole picture; and `rigline doctor` collects
+  install state plus the lines in VS Code's own logs that bear on a misbehaving panel. Against this
+  machine's logs, doctor independently reproduces the reading that took a session of hand work: the
+  16:27 "recovery" was the window being closed, not recovering, and it says so with the duration
+  marked as a lower bound. The webview half is confirmed in a real browser against the real bundle —
+  storage available, writes landing, meters peaking on real traffic.

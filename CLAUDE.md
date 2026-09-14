@@ -47,6 +47,7 @@ from. Update the plan before writing code; log status there, not here.
     pnpm rigline restore    # every version back to the extension's bytes
     pnpm rigline codegen    # regenerate plugin-api's generated.ts
     pnpm rigline diff A B   # identifier drift between two extension dirs
+    pnpm rigline doctor     # install state plus VS Code's own logs, as a pasteable report
 
 `rigline` is a workspace devDependency of the repo root (`workspace:*`, resolving to
 `packages/cli`), so `pnpm install` links its bin and `pnpm rigline <command>` runs the local

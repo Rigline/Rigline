@@ -12,11 +12,13 @@ import { parseArgs } from "node:util";
 import {
   CORE_VERSION,
   check,
+  collect,
   diffScans,
   EXTENSIONS_DIR,
   extensionVersion,
   findExtension,
   formatDiff,
+  formatDoctor,
   formatFlow,
   generate,
   harvestAll,
@@ -25,6 +27,7 @@ import {
   inspect,
   install,
   installedExtensions,
+  parseSince,
   readBundles,
   restoreAll,
   riglinePaths,
@@ -77,6 +80,14 @@ const USAGE = `rigline ${CORE_VERSION}
   rigline restore
       Every installed version back to the extension's own bytes. Needs neither VS Code nor
       the extension to be working.
+
+  rigline doctor [--out FILE] [--since 24h] [--ext DIR] [--logs DIR]
+      A markdown diagnostic for a panel that misbehaved: install state per version, and the
+      lines in VS Code's own logs that bear on it — unresponsive episodes with their sample
+      stacks, renderer and extension-host errors. It never opens an extension's own output
+      channel, and it ends by naming every file it read and every file it refused.
+      --since bounds how far back it looks: 24h by default, also 90m, 7d, or "all". Whatever
+      the window, the most recent launch directory with anything in it is always read.
 `;
 
 /** The prebuilt pre.js and post.js, from the host package's build. */
@@ -138,6 +149,49 @@ function statusCommand(): number {
     );
     console.log(`  ${ext}`);
   }
+  return 0;
+}
+
+/**
+ * The diagnostic collector (D53). Always exits 0: a machine with no VS Code logs, or none inside
+ * the window, still gets an install-state report, and a person whose panel has just frozen should
+ * not also have to work out why the tool that was meant to explain it failed.
+ *
+ * `--ext` and `--logs` point it at copies rather than at what is installed, which is how this gets
+ * rehearsed against somebody else's log bundle without a test ever touching a live directory (D39).
+ */
+function doctorCommand(args: string[]): number {
+  const { values } = parseArgs({
+    args,
+    options: {
+      out: { type: "string" },
+      since: { type: "string" },
+      ext: { type: "string" },
+      logs: { type: "string" },
+    },
+    allowPositionals: false,
+  });
+
+  const report = collect({
+    exts: values.ext ? [resolve(values.ext)] : undefined,
+    logRoots: values.logs ? [{ label: "--logs", path: resolve(values.logs) }] : undefined,
+    sinceMs: values.since === undefined ? undefined : parseSince(values.since),
+  });
+  const markdown = formatDoctor(report);
+
+  if (values.out === undefined) {
+    // Straight to stdout, unadorned, so `rigline doctor | clip` and `> doctor.md` both produce the
+    // document and nothing else. Every other word this command has to say goes to stderr.
+    process.stdout.write(markdown);
+    return 0;
+  }
+  const out = resolve(values.out);
+  writeFileSync(out, markdown);
+  const read = report.reads.length;
+  console.log(
+    `wrote ${out}: ${read} log ${read === 1 ? "file" : "files"} read, ` +
+      `${report.skips.length} found and left unopened`,
+  );
   return 0;
 }
 
@@ -398,6 +452,8 @@ async function main(argv: string[]): Promise<number> {
       return statusCommand();
     case "restore":
       return restoreCommand();
+    case "doctor":
+      return doctorCommand(rest);
     case undefined:
     case "--help":
     case "-h":
