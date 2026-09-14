@@ -149,10 +149,16 @@ scored.
 
 **D40. No harvested identifier types are published; an author harvests and commits their own.**
 `@rigline/plugin-api` ships the curated anchor names, the manifest type and the context types, and
-no literal unions over the extension's own identifiers. It declares an interface whose members
-default to `string`; `rigline codegen --out src/generated.ts` writes an author's harvest as an
-augmentation of it, and the author commits that file the way they commit a lockfile — a record of
+no literal unions over the extension's own identifiers. It declares an interface, `RiglineIdentifiers`,
+that is empty as published; `ModuleId`, `ModuleClasses`, `MessageType` and `OutboundFields` are
+derived from it by conditional lookup, each falling back to its `string`-shaped default when the
+key it looks for is absent. `rigline codegen` writes an author's harvest as a module augmentation
+filling those keys in, and the author commits that file the way they commit a lockfile — a record of
 the version they built and tested against, and the baseline `rigline diff` reads after an update.
+The augmentation merges through an alias, so it names the package (`declare module
+"@rigline/plugin-api"`) even though the interface is declared in a module the index only re-exports,
+and it may live anywhere the author's tsconfig pulls in — verified in both resolutions, source
+through `paths` and the emitted `.d.ts` through `node_modules`.
 
 A published snapshot can never carry the version released tomorrow, which is exactly when an author
 needs it; a green typecheck against one asserts only that the identifiers existed wherever codegen
@@ -176,9 +182,16 @@ and `ctx.optional.cls(module, local)` return `string | null`, so `strictNullChec
 handle absence, while `ctx.anchor` and `ctx.cls` keep returning `string` because the declaration
 check already refused a plugin whose required identifier is gone. An optional message, rewrite or
 switch needs no API at all: the handler never fires, which is already what absence does, and the
-declaration only stops it refusing the plugin. Nesting it under `uses` rather than beside it keeps
-the check as the same walk over the same contracts with a different verdict, so a capability added
-later is optional-capable without anything being taught about it.
+declaration only stops it refusing the plugin. `ctx.watch` is the one place that rule needed
+extending rather than restating, added 2026-09-14 when the grants were built: it takes an anchor
+*name*, not a class, so an optional anchor would otherwise be resolvable and unwatchable. It accepts
+an optionally-declared name and returns a no-op teardown when the class is absent, which is the same
+"the handler never fires" answer, reached the only way the signature allows. Nesting `optional`
+under `uses` rather than beside it keeps the check as the same walk over the same contracts with a
+different verdict, so a capability added later is optional-capable without anything being taught
+about it. In code that walk is one method: a contract answers `gaps()` with every identifier its
+declaration depends on that the tables lack, and the two verdicts are the first gap over the
+required half and all of them over the optional half.
 
 Two grants rather than one function typed from the manifest. Making `ctx` generic over a
 `const`-asserted import of the plugin's own `rigline.json` does work, and is rejected: it makes the

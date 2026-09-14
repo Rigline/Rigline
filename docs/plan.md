@@ -173,9 +173,17 @@ per-version variants ask an author to predict a release that does not exist yet.
 
 ### Where state lives
 
-The repo commits `packages/plugin-api/src/generated.ts` as the baseline the first-party code
-compiles against — our own harvest, not something published (D40); a plugin author runs `rigline
-codegen --out` and commits theirs. A user's machine keeps its own state under `~/.rigline/`:
+The repo commits `generated.ts` **at the workspace root** as the baseline the first-party plugins
+compile against — our own harvest, not something published (D40); a plugin author runs `rigline
+codegen` in their own repo and commits theirs. It sits at the root rather than inside
+`packages/plugin-api/src/` for three reasons, settled in phase 3: keeping a harvest out of the
+published package is then a property of the layout rather than an exclusion rule somebody has to
+remember; one file serves every plugin in the repo, which is the shape the phase 4 template needs
+(D50); and it makes the default `rigline codegen` output the same rule for us as for an author —
+`generated.ts` in the current directory. The file imports nothing, so it is free of any package it
+sits beside. It carries three things: the module augmentation D40 describes, `EXTENSION_VERSION`,
+and `SCAN`, the harvest reduced to its layer views, which is the baseline the update flow diffs
+against (D29). A user's machine keeps its own state under `~/.rigline/`:
 `config.json` (enabled plugins, per-plugin settings), `plugins/` (installed third-party plugins),
 `anchors.json` (local overrides and additions to the curated anchor table), `baseline.json` (the
 last harvest, for "what changed" after an update) and `snapshots/` (class maps per version). A
@@ -309,10 +317,31 @@ done.
 ### Phase 3: plugins, build preset, update flow, CLI
 
 - `uses.optional` and the `ctx.optional` grants (D41), landed first so the three plugins are its
-  first consumers and can say whether the shape is right.
+  first consumers and can say whether the shape is right. The shape settled: `Uses` splits into
+  `Declarations` (the nine capability keys) and `Uses extends Declarations` with one extra member,
+  `optional: Declarations`, so both verdicts are the same walk over the same contracts. A contract's
+  `violation()` becomes `gaps()`, returning *every* identifier the declaration depends on that the
+  tables lack rather than only the first; `capabilityViolation` is then the first gap over the
+  required half and `optionalGaps` is all of them over the optional half. The runtime half is a
+  second method on a capability module, `grantOptional()`, which only `anchors` and `classes`
+  implement; the kernel assembles `ctx.optional` from those and still names no capability. One
+  addition beyond D41 as written: `ctx.watch` accepts an anchor declared optional and returns a
+  no-op teardown when the class is absent, because "the handler never fires" is what absence already
+  means everywhere else and the alternative is an optional anchor that cannot be watched.
 - The identifier types move to an augmentable interface (D40): plugin-api stops exporting harvested
-  unions directly, `rigline codegen --out` writes an augmentation, and the first-party plugins prove
-  both halves — that a local harvest narrows, and that its absence still compiles.
+  unions directly, `rigline codegen` writes an augmentation, and the first-party plugins prove
+  both halves — that a local harvest narrows, and that its absence still compiles. plugin-api
+  declares `interface RiglineIdentifiers {}` and derives `ModuleId`, `ModuleClasses`, `MessageType`
+  and `OutboundFields` from it by conditional lookup with a `string`-shaped fallback; those four are
+  the only harvested types anything consumed, so the five protocol-direction unions and the
+  `TABLES`/`EXTENSION_VERSION`/`PARTIAL_FIELD_TYPES`/`UNREACHABLE_CSS_MODULES` values leave the
+  published surface with them. Proven by spike before being built, in all three arrangements that
+  matter: the augmentation narrows from a file outside the plugin's own directory, both when
+  `@rigline/plugin-api` resolves through tsconfig `paths` to source and when it resolves through
+  real `node_modules` to the emitted `.d.ts` — merging into the interface even though `index.ts`
+  only re-exports it — and the same plugin compiles unchanged with the file absent. The mechanism
+  the phase 4 template needs is a shared `tsconfig.plugin.json` at the root whose `files` names the
+  harvest and whose `include` each plugin overrides with its own `src`.
 - `rigline build` (Rolldown preset) and `rigline dev` (rebuild, re-inject, remind to reload).
 - The three plugins in TypeScript against the new `ctx`, tests included.
 - The install-time declaration check (D43), reported per extension directory by plugin and by the
@@ -320,7 +349,9 @@ done.
   doc comment claiming both sides.
 - Successor suggestions in the diff (D45).
 - The update flow and watcher: report and inject around a plugin problem; block only on the
-  harvest floor or Rigline's own build.
+  harvest floor or Rigline's own build. The baseline rule D29 gives as two sentences is one rule in
+  code: `./generated.ts`'s `SCAN` when the directory has one, `~/.rigline/baseline.json` otherwise,
+  which is the committed harvest for this repo and for an author's repo alike.
 - The CLI complete.
 - Acceptance: all three plugins verified live; a simulated update (a copied extension directory
   with an identifier removed) refuses the right plugin by name and injects the rest, and the same
