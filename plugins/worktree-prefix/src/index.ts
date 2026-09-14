@@ -46,13 +46,26 @@
 import { definePlugin, type Payload } from "@rigline/plugin-api";
 
 /**
- * Separates the marker from the app's own title, e.g. `"TD-1234 - Refactor the bus"`.
+ * Separates the marker from the app's own title, e.g. `"TD-1234 › Refactor the bus"`.
  *
- * The 0.x archive's OCR pass rendered this constant as `": "`, but the same archive's *un-OCR'd*
- * test file expects `" - "` in every single assertion. The test file is clean TypeScript, not a
- * scanned screenshot, so it is authoritative here: `": "` is read as the OCR error, not the test.
+ * A chevron rather than a hyphen, and the reason is the ambiguity a hyphen creates rather than
+ * taste. Session titles routinely contain hyphens — a ticket key in the title is the common case —
+ * so `"ABCD-123 - Refactor the bus"` on a tab reads equally well as a session called that and not
+ * in a worktree, or a session called "Refactor the bus" in worktree ABCD-123. The whole point of
+ * the prefix is to answer that at a glance, and a separator that can be mistaken for part of a name
+ * cannot.
+ *
+ * U+203A specifically, out of the glyphs that are visibly not name material. It sits in General
+ * Punctuation, the same block the rest of a title draws from, so it renders in the tab's own
+ * typeface; a box-drawing bar or a geometric triangle can fall back to another font in a
+ * proportional UI face and land at the wrong weight or baseline. It also reads as containment —
+ * this session is *in* that worktree — which is the actual relationship, and is the idiom VS Code's
+ * own breadcrumb bar already uses.
+ *
+ * The 0.x prototype used `" - "` (rendered `": "` by the archive's OCR pass, which its own un-OCR'd
+ * test file contradicts). Neither survives the ambiguity above.
  */
-const SEPARATOR = " - ";
+const SEPARATOR = " › ";
 
 /** How much of a non-ticket worktree name to show. A budget, not a hard cut — see `worktreeLabel`. */
 const SHORT_LENGTH = 8;

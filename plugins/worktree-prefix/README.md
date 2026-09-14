@@ -3,7 +3,17 @@
 Prefixes a session's native VS Code tab label with the worktree it belongs to: a ticket key (e.g.
 `TD-1234`) when the worktree directory's name starts with one, and otherwise as much of the name as
 fits in eight characters, cut at a word boundary. Tabs from several worktrees of the same repo are
-then told apart at a glance.
+then told apart at a glance:
+
+    ABCD-123 › Refactor the bus
+
+The separator is a chevron rather than a hyphen because session titles routinely contain hyphens —
+a ticket key in the title is the common case — so `ABCD-123 - Refactor the bus` reads equally well
+as a session called that and not in a worktree, or a session called "Refactor the bus" inside
+worktree `ABCD-123`. Answering that at a glance is the whole point of the prefix. U+203A sits in
+the same Unicode block the rest of a title draws from, so it renders in the tab's own typeface
+rather than falling back to another font the way a box-drawing bar can, and it reads as containment,
+which is the actual relationship.
 
 A ticket key is never shortened, however long it is: `PLATFORM99-100001` comes through whole. The
 pattern is a letter, one to nine more letters or digits, a hyphen and one to six digits, which

@@ -42,6 +42,13 @@ import type { FixturePlugin } from "../src/payload.ts";
 import { harnessSkipReason, register } from "../src/suite.ts";
 
 const VERSION = "2.1.270";
+
+/**
+ * What the plugin puts between the worktree label and the app's own title. Written out here rather
+ * than imported from the plugin on purpose: a test that reads the same constant as the code cannot
+ * notice the constant changing, and this one is user-visible on every tab.
+ */
+const SEP = " › ";
 const skipReason = await harnessSkipReason(VERSION);
 
 // The plugin's own built output, not a hand-copied stand-in: this drives what actually ships.
@@ -246,14 +253,17 @@ describe.skipIf(skipReason !== null)(
         ]);
         await pulse(booted);
         await waitForRenameCount(booted, 2);
-        expect((await titles(booted)).at(-1)).toBe(`TD-1234 - ${bare}`);
+        expect((await titles(booted)).at(-1)).toBe(`TD-1234${SEP}${bare}`);
+        // Pinned literally, once: a hyphen here is indistinguishable from one inside a session
+        // title, which is the ambiguity the separator exists to remove.
+        expect((await titles(booted)).at(-1)).toBe(`TD-1234 › ${bare}`);
 
         // Same field, same state, same original: resend() always replays the app's pristine
         // title, never the chain's last output, so a second resend must reapply identically
         // rather than compounding.
         await pulse(booted);
         await waitForRenameCount(booted, 3);
-        expect((await titles(booted)).at(-1)).toBe(`TD-1234 - ${bare}`);
+        expect((await titles(booted)).at(-1)).toBe(`TD-1234${SEP}${bare}`);
       } finally {
         await booted.close();
       }
@@ -278,9 +288,9 @@ describe.skipIf(skipReason !== null)(
         await hostSessionList(booted, [
           { id: "s-worktree", worktree: { name: WORKTREE_NAME, path: WORKTREE_PATH } },
         ]);
-        await pulse(booted, "TD-1234 - ");
+        await pulse(booted, `TD-1234${SEP}`);
         await waitForRenameCount(booted, 2);
-        expect((await titles(booted)).at(-1)).toBe(`TD-1234 - ${bare}`);
+        expect((await titles(booted)).at(-1)).toBe(`TD-1234${SEP}${bare}`);
       } finally {
         await booted.close();
       }
@@ -307,7 +317,7 @@ describe.skipIf(skipReason !== null)(
         // "spike": eight characters is a budget, and the cut lands on the word boundary inside it
         // rather than mid-token. The 0.x prototype's blind slice gave "spike-ne", which is how a
         // name that happens to be ticket-shaped became a different, plausible ticket number.
-        expect((await titles(booted)).at(-1)).toBe(`spike - ${bare}`);
+        expect((await titles(booted)).at(-1)).toBe(`spike${SEP}${bare}`);
       } finally {
         await booted.close();
       }
@@ -348,7 +358,7 @@ describe.skipIf(skipReason !== null)(
         ]);
         await pulse(booted);
         await waitForRenameCount(booted, 2);
-        expect((await titles(booted)).at(-1)).toBe(`TD-1234 - ${bare}`);
+        expect((await titles(booted)).at(-1)).toBe(`TD-1234${SEP}${bare}`);
 
         // The farewell names the session currently hosted, so it is read as "hosting nothing" —
         // not "keep whatever was last known" — and the prefix must drop with it.
@@ -380,7 +390,7 @@ describe.skipIf(skipReason !== null)(
         // there is nothing here but the observed tool call itself.
         await hostTool(booted, "EnterWorktree", { name: WORKTREE_NAME });
         await waitForRenameCount(booted, 2);
-        expect((await titles(booted)).at(-1)).toBe(`TD-1234 - ${bare}`);
+        expect((await titles(booted)).at(-1)).toBe(`TD-1234${SEP}${bare}`);
 
         await hostTool(booted, "ExitWorktree", {});
         await waitForRenameCount(booted, 3);
@@ -408,13 +418,13 @@ describe.skipIf(skipReason !== null)(
         // And the failure left nothing behind: the next attempt, which does succeed, still lands.
         await hostTool(booted, "EnterWorktree", { name: WORKTREE_NAME });
         await waitForRenameCount(booted, 3);
-        expect((await titles(booted)).at(-1)).toBe(`TD-1234 - ${bare}`);
+        expect((await titles(booted)).at(-1)).toBe(`TD-1234${SEP}${bare}`);
 
         // A failed exit is refused the same way, and does not strip a prefix that still holds.
         await hostTool(booted, "ExitWorktree", {}, false);
         await pulse(booted);
         await waitForRenameCount(booted, 4);
-        expect((await titles(booted)).at(-1)).toBe(`TD-1234 - ${bare}`);
+        expect((await titles(booted)).at(-1)).toBe(`TD-1234${SEP}${bare}`);
       } finally {
         await booted.close();
       }
@@ -432,12 +442,12 @@ describe.skipIf(skipReason !== null)(
         ]);
         await pulse(booted);
         await waitForRenameCount(booted, 2);
-        expect((await titles(booted)).at(-1)).toBe(`TD-1234 - ${bare}`);
+        expect((await titles(booted)).at(-1)).toBe(`TD-1234${SEP}${bare}`);
 
         // A later observed move to a *different* worktree must win over the list's answer.
         await hostTool(booted, "EnterWorktree", { name: "OT-9" });
         await waitForRenameCount(booted, 3);
-        expect((await titles(booted)).at(-1)).toBe(`OT-9 - ${bare}`);
+        expect((await titles(booted)).at(-1)).toBe(`OT-9${SEP}${bare}`);
 
         // An observed exit is a positive answer; the list entry (never refreshed) still claims a
         // worktree, and must not resurrect the prefix.
