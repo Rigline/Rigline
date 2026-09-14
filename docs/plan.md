@@ -205,8 +205,11 @@ publish through this pipeline, and `create-rigline-plugin` ships the same workfl
 gets it by generating a repository rather than by reading a guide. The one-time steps that cannot be
 automated are Leo's: the npm organisation, 2FA on the account that approves, a bootstrap publish of
 each package under a temporary token (npm states a brand-new package cannot be staged), then the
-trusted-publisher entry naming the repo, workflow file and environment, set to stage-only.
-Provenance comes from the OIDC half and needs the source repo public.
+trusted-publisher entry naming the repo, workflow file and environment, set to stage-only, and then
+revoking that bootstrap token. The revocation is not tidying: there is no setting that requires
+staging, so the gate holds only while every credential able to publish the package is stage-limited,
+and one surviving full-rights token quietly reopens the direct path. Provenance comes from the OIDC
+half and needs the source repo public.
 
 **What `add` does on the way in** (D47, D48, D49). It resolves the version against the registry,
 refuses anything younger than the minimum release age unless `--now` is passed, fetches and

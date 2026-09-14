@@ -335,28 +335,41 @@ named, and no npm credential exists in the repository to be stolen. Staged publi
 publish *goes live*: `npm stage publish` needs no 2FA and produces a version nobody can install, the
 owner reviews the queue with `npm stage list` and `npm stage view <id>`, and `npm stage approve
 <id>` makes it installable and does require 2FA. Either works without the other — you can stage with
-an ordinary token, and you can trusted-publish straight to live. Together, CI reaches the registry
-with no secret and still cannot ship. The join is enforceable rather than conventional, which is the
-reason for taking both: a trusted publisher can be configured with stage-only permissions, allowing
-`npm stage publish` and refusing `npm publish`, and we configure it that way. Rigline's own packages
-publish the same way — we ask no more of a plugin author than of ourselves, and the template is
-lifted from a workflow we run. Two steps cannot be automated and are Leo's: the npm organisation,
-and a bootstrap publish of each package under a temporary token. Staging is the documented blocker —
-npm states you cannot stage a brand-new package — and practitioners report the same of configuring a
-trusted publisher, which npm's own page does not state either way. Either constraint alone forces
-the same first step, so version one of each package goes up by hand and every version after it goes
-through the workflow.
+an ordinary token, and you can trusted-publish straight to live. Both are taken because each covers
+the other's blind spot. Trusted publishing removes the standing secret, the credential-theft path
+that dominates real npm compromises, and is the only source of a provenance attestation.
+Staging covers everything an OIDC token does nothing about — a poisoned build dependency, an edited
+workflow, a compromised account with push rights — all of which reach the publish step by a route
+that looks legitimate. Taken alone the trusted half is the weaker one: it hands the workflow ambient
+publish rights with no human anywhere in the path.
+
+The primitive that makes the gate real is stage-only, and it is available on both kinds of
+credential: `Read and write (stage only)` on a granular token, and stage-only permissions on a
+trusted publisher, each refusing `npm publish` while accepting `npm stage publish`. There is no
+org-wide or package-wide switch that requires staging, so the credential inventory is the actual
+control surface: the gate holds exactly as long as *every* credential able to publish that package
+is stage-limited. One forgotten full-rights token silently voids it. The bootstrap token below is
+therefore revoked the moment the trusted publisher is configured, never left in a drawer.
+
+Rigline's own packages publish the same way — we ask no more of a plugin author than of ourselves,
+and the template is lifted from a workflow we run. Two steps cannot be automated and are Leo's: the
+npm organisation, and a bootstrap publish of each package under a temporary token. Staging is the
+documented blocker — npm states you cannot stage a brand-new package — and practitioners report the
+same of configuring a trusted publisher, which npm's own page does not state either way. Either
+constraint alone forces the same first step, so version one of each package goes up by hand and
+every version after it goes through the workflow.
 
 Provenance belongs to the trusted-publishing half, not the staged half: a trusted publish generates
 an attestation binding the tarball to the commit and workflow that built it, and it requires the
 source repository to be public. Whether that attestation survives a staged approval is documented
 nowhere — `npm stage publish` accepts `--provenance`, which suggests it is produced at stage time
 and carried, but a flag is not evidence. Confirm it on our own first release, and do not let the
-authoring guide claim provenance until someone has seen it on a published package (P8). Floors: npm
-CLI 11.15.0 and Node 22.14, both below our own (D34). pnpm
-wraps the same registry workflow as `pnpm stage publish` (since 11.3), and `-r` stages every
-publishable package in the workspace, so our three go up as one CI step and are approved
-individually; a single-package plugin repo needs no flag at all.
+authoring guide claim provenance until someone has seen it on a published package (P8).
+
+Floors: npm CLI 11.15.0 and Node 22.14, both below our own (D34). pnpm wraps the same registry
+workflow as `pnpm stage publish` (since 11.3), and `-r` stages every publishable package in the
+workspace, so our three go up as one CI step and are approved individually; a single-package plugin
+repo needs no flag at all.
 
 **D47. `rigline add` never runs a package manager.** A plugin's distributed form is one browser ES
 module plus a manifest (P6), and the webview cannot resolve a bare specifier, so a plugin is already
