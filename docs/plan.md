@@ -234,6 +234,19 @@ done.
   delete superseded payload directories by name. The deliberate caution at
   `settleWebviewBackup` — never delete a payload directory on the strength of bytes this installer
   did not write — is unchanged and still right; a directory *we* named is not foreign.
+- Defect found and fixed 2026-09-14, **the probe's boot-window false negative**. The badge came up
+  `RIG 1` for about a second on a fresh window before turning green. The failing check was
+  "replay buffer sealed", and it could not have been anything else: the probe's first
+  `pollDiagnostics()` ran synchronously inside its own `setup()`, and `setup()` runs inside the
+  kernel's plugin-loading loop, while `bus.sealBuffer()` is deliberately called only once that loop
+  has finished. So the probe asked before the answer could exist. The first poll is now deferred to
+  a macrotask, which is after the kernel's `finally` because everything between is a microtask
+  continuation, and is sound because the probe is pinned last in registry order. That fixes the
+  whole class rather than this one check — every diagnostics-driven check was being read inside the
+  boot window. The host was correct throughout; only the probe's timing was wrong.
+- **Acceptance met 2026-09-14.** `install` round-trips, `status` reads patched with the marker on
+  all three installed versions, and the probe reports every check green on the full editor, the
+  sidebar and the session list. Phase 2 closed.
 
 ### Phase 3: plugins, build preset, update flow, CLI
 
@@ -280,33 +293,21 @@ registries; refusal fixtures kept out of the live install; Vitest and Biome; use
 
 ## Next session
 
-Start here. The seam is the end of phase 2 with one thing outstanding and phase 3 not begun.
+Start here. Phase 2 is closed and verified live; phase 3 has not begun.
 
-1. **Live verification is pending.** `rigline install` has injected 2.1.268 to 2.1.270 with the
-   probe enabled. Leo runs Developer: Reload Webviews and reads the `RIG` badge on the full
-   editor, the sidebar and the session-list window; the panel behind it lists twenty-one checks.
-   A blank panel means the static import failed: `node packages/cli/dist/index.js restore`,
-   reload the window, and read the webview developer tools console. Fix whatever it says, rerun
-   `pnpm build` and `install`, reload again. Then run `restore`, confirm `status` reads vanilla,
-   and `install` once more. Record the outcome in the status log and close phase 2.
-2. **Phase 3, in this order:** the three first-party plugins in TypeScript against the new ctx
+1. **Phase 3, in this order:** the three first-party plugins in TypeScript against the new ctx
    (`session-id`, `worktree-prefix`, `time-marks`; the 0.x inventory of each is in
    [archive/0.x/inventory-plugins.md](archive/0.x/inventory-plugins.md) and holds the rules, the
    CSS that must not narrow the content, and the tests to reproduce), then `rigline dev`, then the
    update flow and watcher, then `rigline check`. Each plugin should be added as a harness test as
    well as a live check, since `packages/harness` can now drive the real bundle.
-3. **Small items carried over:** a helper or documented pattern for a mount whose `build()` runs
+2. **Small items carried over:** a helper or documented pattern for a mount whose `build()` runs
    again on re-placement (the probe had to track its current node by hand); `ctx.watch` on the
    session list has no model pill, so a plugin that wants a badge there mounts on `document.body`;
    `.local/spike/` in the checkout is scratch from the spike and can be deleted; the compile-time
    proof test (a `tsc` run over a fixture plugin showing wrong pairs fail to compile) is still
    deferred; the harness's `page.ts` could generate its reply table from the same anchors codegen
    reads, which was noted and not tried.
-4. **Live state predates the rename.** The 2.1.268-2.1.270 injections mentioned above were made by
-   a build whose marker comment reads `PROTOTYPE-PRE`, not `RIGLINE-PRE`. The vanilla/patched verdict
-   is a byte-diff against `.orig`, unaffected by this; only the `(marker present)` annotation in
-   `status` output will be missing for these three until they're restored and reinjected with a
-   build made after this rename.
 
 ## Status log
 

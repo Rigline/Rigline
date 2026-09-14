@@ -398,10 +398,16 @@ export default definePlugin({
       }
     }
 
-    pollDiagnostics(performance.now());
+    // Deferred, not called here: setup() runs inside the kernel's plugin-loading loop, and the
+    // kernel seals the replay buffer only once that loop has finished, so a poll taken now reports
+    // a failure for something that could not yet be true. Everything between here and the seal is a
+    // microtask continuation, so a macrotask lands after it. Sound because the probe is pinned last
+    // in registry order: no later plugin's import can yield a macrotask turn ahead of this.
+    const firstPoll = setTimeout(() => pollDiagnostics(performance.now()), 0);
     const interval = setInterval(() => pollDiagnostics(performance.now()), 1000);
 
     return () => {
+      clearTimeout(firstPoll);
       clearInterval(interval);
       document.removeEventListener("keydown", onKeydown);
       document.removeEventListener("mousedown", onPointerDown);
