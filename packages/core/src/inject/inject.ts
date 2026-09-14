@@ -10,7 +10,12 @@
  */
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import { sharedFields } from "@rigline/plugin-api";
+import {
+  capabilityViolation,
+  type IdentifierTables,
+  optionalGaps,
+  sharedFields,
+} from "@rigline/plugin-api";
 import { generate } from "../codegen/generate.ts";
 import { UserError } from "../errors.ts";
 import {
@@ -26,6 +31,7 @@ import { harvestAll } from "../layers/index.ts";
 import {
   bakeRegistry,
   capabilityUseNotes,
+  type DiscoveredPlugin,
   declaredPatches,
   discoverPlugins,
   enabledPlugins,
@@ -190,6 +196,17 @@ export interface InstallOptions {
   readonly log?: (line: string) => void;
 }
 
+/** One enabled plugin's verdict against the tables harvested from this extension directory (D43). */
+export interface PluginVerdict {
+  readonly plugin: string;
+  /** Why this version will refuse it at load, naming the identifier that is gone, or null. */
+  readonly refusal: string | null;
+  /** Optional declarations this version cannot honour: what it will load without. */
+  readonly missingOptional: readonly string[];
+  /** Raw `cls()` pairs declared: the dependencies no anchor-table fix can reach (D44). */
+  readonly rawClasses: number;
+}
+
 export interface InstallReport {
   readonly ext: string;
   readonly version: string;
@@ -199,6 +216,32 @@ export interface InstallReport {
   readonly enabled: readonly string[];
   readonly disabled: readonly string[];
   readonly notes: readonly string[];
+  /** Every enabled plugin, checked against this directory's tables before anything was written. */
+  readonly verdicts: readonly PluginVerdict[];
+}
+
+/**
+ * Every enabled plugin's verdict against one version's tables (D43).
+ *
+ * The same `capabilityViolation` the kernel asks at load, asked here so a person learns from the
+ * install rather than from a console line after a reload — and so the identifier name reaches the
+ * plugin's maintainer in a bug report instead of "it stopped working".
+ *
+ * It changes nothing. A refused plugin is still copied and still baked into the registry, and the
+ * kernel refuses it at load exactly as it would have: enforcement stays in one place, and a plugin
+ * quietly missing from the panel is worse than one the probe can name and explain. Never a reason
+ * to block the install (D27).
+ */
+export function pluginVerdicts(
+  enabled: readonly DiscoveredPlugin[],
+  tables: IdentifierTables,
+): PluginVerdict[] {
+  return enabled.map((p) => ({
+    plugin: p.name,
+    refusal: capabilityViolation(p.manifest.uses, tables),
+    missingOptional: optionalGaps(p.manifest.uses, tables),
+    rawClasses: Object.values(p.manifest.uses.classes).reduce((n, l) => n + l.length, 0),
+  }));
 }
 
 /**
@@ -239,6 +282,7 @@ export function install(ext: string, options: InstallOptions): InstallReport {
   let enabledNames: readonly string[] = [];
   let disabledNames: readonly string[] = [];
   const notes: string[] = [];
+  let verdicts: readonly PluginVerdict[] = [];
 
   if (options.plugins) {
     const { roots, last, configPath } = options.plugins;
@@ -286,6 +330,21 @@ export function install(ext: string, options: InstallOptions): InstallReport {
     }
     writeFileSync(join(state.payloadDir, "registry.js"), bakeRegistry(enabled, outcomes));
 
+    // Before the notes, because this is the one report that says whether a plugin will work here.
+    verdicts = pluginVerdicts(enabled, generated.tables);
+    for (const verdict of verdicts) {
+      if (verdict.refusal)
+        log(`${verdict.plugin}: REFUSED on ${generated.tables.version} — ${verdict.refusal}`);
+      for (const gap of verdict.missingOptional) {
+        log(`${verdict.plugin}: loads without an optional dependency — ${gap}`);
+      }
+      if (verdict.rawClasses > 0) {
+        log(
+          `${verdict.plugin}: ${verdict.rawClasses} raw class pair(s), which no anchor-table fix can repair`,
+        );
+      }
+    }
+
     notes.push(...capabilityUseNotes(enabled));
     for (const shared of sharedFields(
       enabled.map((p) => ({ name: p.name, rewrites: p.manifest.uses.rewrites })),
@@ -319,6 +378,7 @@ export function install(ext: string, options: InstallOptions): InstallReport {
     enabled: enabledNames,
     disabled: disabledNames,
     notes,
+    verdicts,
   };
 }
 

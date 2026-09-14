@@ -43,6 +43,7 @@ export type {
   Injection,
   InstallOptions,
   InstallReport,
+  PluginVerdict,
   RestoreResult,
   Verdict,
 } from "./inject/inject.ts";
@@ -51,6 +52,7 @@ export {
   inspect,
   install,
   PATCH_BYTES,
+  pluginVerdicts,
   restore,
   restoreAll,
   verdict,
@@ -71,3 +73,14 @@ export {
   readConfig,
   readManifest,
 } from "./plugins/discover.ts";
+export type { BaselineSource } from "./update/baseline.ts";
+export {
+  GENERATED_FILE,
+  readBaseline,
+  readGeneratedScan,
+  writeBaseline,
+} from "./update/baseline.ts";
+export type { FlowOptions, FlowReport, UpdateOptions, VersionReport } from "./update/flow.ts";
+export { check, formatFlow, update } from "./update/flow.ts";
+export type { Watcher, WatchOptions } from "./update/watch.ts";
+export { watch } from "./update/watch.ts";

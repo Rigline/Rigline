@@ -5,19 +5,23 @@
  * Commands land here as core grows. Every command throws UserError for a problem a person must
  * fix and lets anything else propagate with its stack, so a bug is never dressed up as advice.
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, relative, resolve } from "node:path";
+import { existsSync, watch as fsWatch, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import {
   CORE_VERSION,
+  check,
   diffScans,
+  EXTENSIONS_DIR,
   extensionVersion,
   findExtension,
   formatDiff,
+  formatFlow,
   generate,
   harvestAll,
   hostVerdict,
+  type InstallOptions,
   inspect,
   install,
   installedExtensions,
@@ -26,7 +30,9 @@ import {
   riglinePaths,
   scanOf,
   UserError,
+  update,
   verdict,
+  watch,
 } from "@rigline/core";
 import { buildPlugin } from "./build.ts";
 
@@ -46,6 +52,24 @@ const USAGE = `rigline ${CORE_VERSION}
   rigline install [--ext DIR] [--payload DIR]
       Inject the loader into every installed extension version (or DIR), harvesting each
       version's tables and baking the enabled plugins. Reload webviews afterwards.
+
+  rigline check
+      Read-only. Per installed version: what moved since the baseline, which plugins this
+      version would refuse and by which identifier, and which curated anchors it lacks.
+      Exits 1 when a person is needed.
+
+  rigline update
+      check, and put the loader back in every installed version. Rewrites ./generated.ts
+      when the directory has one, records the new baseline, and tells you to commit.
+      Never commits. Exits 1 when a person is needed.
+
+  rigline watch [--interval SECONDS]
+      update, and again whenever the set of installed extension directories changes,
+      which is what an extension update looks like from outside VS Code.
+
+  rigline dev [DIR...]
+      Build the named plugin directories (or every first-party one), re-inject, and rebuild
+      on every source change. Reload webviews after each one.
 
   rigline status
       Per installed version: is each bundle vanilla or patched, judged against its backup.
@@ -67,6 +91,12 @@ function repoPluginsDir(): string {
   return resolve(here, "..", "..", "..", "plugins");
 }
 
+/** Where plugins are discovered from, and which of them a person has turned off. */
+function pluginOptions(): NonNullable<InstallOptions["plugins"]> {
+  const paths = riglinePaths();
+  return { roots: [repoPluginsDir(), paths.plugins], last: ["probe"], configPath: paths.config };
+}
+
 function installCommand(args: string[]): number {
   const { values } = parseArgs({
     args,
@@ -75,16 +105,11 @@ function installCommand(args: string[]): number {
   });
   const targets = values.ext ? [values.ext] : installedExtensions();
   if (targets.length === 0) throw new UserError("no Claude Code extension is installed");
-  const paths = riglinePaths();
   let hostChanged = false;
   for (const ext of targets) {
     const report = install(ext, {
       payloadDir: values.payload ?? defaultPayloadDir(),
-      plugins: {
-        roots: [repoPluginsDir(), paths.plugins],
-        last: ["probe"],
-        configPath: paths.config,
-      },
+      plugins: pluginOptions(),
       log: (line) => console.log(`  ${line}`),
     });
     hostChanged ||= report.hostChanged;
@@ -199,6 +224,150 @@ async function build(args: string[]): Promise<number> {
   return 0;
 }
 
+function checkCommand(): number {
+  const report = check({ plugins: pluginOptions() });
+  console.log(formatFlow(report));
+  return report.attention.length > 0 ? 1 : 0;
+}
+
+function updateCommand(): number {
+  const report = update({
+    payloadDir: defaultPayloadDir(),
+    plugins: pluginOptions(),
+    // Only where the directory already has one; `update` never creates a harvest for somebody who
+    // has not asked for one, and it never commits what it rewrites (D30).
+    codegen: true,
+  });
+  console.log(formatFlow(report));
+  return report.attention.length > 0 ? 1 : 0;
+}
+
+/**
+ * Runs until interrupted. Its exit code is the last report's, so a watcher stopped after an update
+ * that needs a person still says so, and `rigline watch; echo $?` from a script is meaningful.
+ */
+function watchCommand(args: string[]): Promise<number> {
+  const { values } = parseArgs({
+    args,
+    options: { interval: { type: "string" } },
+    allowPositionals: false,
+  });
+  const seconds = values.interval === undefined ? 30 : Number(values.interval);
+  if (!Number.isFinite(seconds) || seconds < 1) {
+    throw new UserError(`--interval needs a number of seconds, got ${values.interval}`);
+  }
+
+  return new Promise((resolveWith) => {
+    let code = 0;
+    const watcher = watch({
+      payloadDir: defaultPayloadDir(),
+      plugins: pluginOptions(),
+      codegen: true,
+      intervalMs: seconds * 1000,
+      onReport(report) {
+        console.log(`
+[${new Date().toISOString()}]`);
+        console.log(formatFlow(report));
+        code = report.attention.length > 0 ? 1 : 0;
+      },
+      onError(error) {
+        // Reported and survived, never fatal: a harvest run against a directory VS Code is still
+        // writing fails once and succeeds on the next pass, and a watcher that exits then is a
+        // watcher that is never running when it is needed.
+        console.error(`rigline watch: ${error instanceof Error ? error.message : String(error)}`);
+        code = 1;
+      },
+    });
+    console.log(`watching ${EXTENSIONS_DIR} every ${seconds}s; Ctrl-C to stop`);
+    const stop = (): void => {
+      watcher.stop();
+      resolveWith(code);
+    };
+    process.once("SIGINT", stop);
+    process.once("SIGTERM", stop);
+  });
+}
+
+/**
+ * The development loop: build, inject, and do it again on every source change.
+ *
+ * It rebuilds and re-injects rather than watching the injected copy, because a plugin's shipped
+ * form is a directory the installer copies; there is nothing on the other side to watch. Re-running
+ * the install refreshes the payload in place without rewriting the bundle, so the cost of a change
+ * is a rebuild and a webview reload.
+ */
+async function dev(args: string[]): Promise<number> {
+  const { positionals } = parseArgs({ args, options: {}, allowPositionals: true });
+  const dirs =
+    positionals.length > 0
+      ? positionals.map((d) => resolve(d))
+      : readdirSync(repoPluginsDir(), { withFileTypes: true })
+          .filter(
+            (e) => e.isDirectory() && existsSync(join(repoPluginsDir(), e.name, "rigline.json")),
+          )
+          .map((e) => join(repoPluginsDir(), e.name));
+  if (dirs.length === 0) throw new UserError("no plugin directories to develop");
+
+  const exts = installedExtensions();
+  if (exts.length === 0) throw new UserError("no Claude Code extension is installed");
+
+  async function once(): Promise<void> {
+    for (const dir of dirs) {
+      const built = await buildPlugin({ dir });
+      console.log(`built ${basename(dir)}: ${built.input} -> ${built.output}`);
+    }
+    let hostChanged = false;
+    for (const ext of exts) {
+      const report = install(ext, { payloadDir: defaultPayloadDir(), plugins: pluginOptions() });
+      hostChanged ||= report.hostChanged;
+      for (const verdict of report.verdicts) {
+        if (verdict.refusal) console.log(`  REFUSED ${verdict.plugin}: ${verdict.refusal}`);
+      }
+    }
+    console.log(
+      hostChanged
+        ? "Developer: Reload Window (a host patch changed; this ends the window's sessions)"
+        : "Developer: Reload Webviews",
+    );
+  }
+
+  await once();
+
+  // Debounced, because one editor save can be several filesystem events, and a rebuild racing its
+  // own re-install would leave the payload half from each.
+  let pending: NodeJS.Timeout | null = null;
+  let building = false;
+  const schedule = (): void => {
+    if (pending) clearTimeout(pending);
+    pending = setTimeout(() => {
+      pending = null;
+      if (building) return;
+      building = true;
+      once()
+        .catch((error: unknown) => {
+          console.error(`rigline dev: ${error instanceof Error ? error.message : String(error)}`);
+        })
+        .finally(() => {
+          building = false;
+        });
+    }, 150);
+  };
+
+  for (const dir of dirs) {
+    const src = join(dir, "src");
+    if (!existsSync(src)) continue;
+    fsWatch(src, { recursive: true }, schedule);
+  }
+  console.log(
+    `watching ${dirs.length} plugin source director${dirs.length === 1 ? "y" : "ies"}; Ctrl-C to stop`,
+  );
+
+  return new Promise((resolveWith) => {
+    process.once("SIGINT", () => resolveWith(0));
+    process.once("SIGTERM", () => resolveWith(0));
+  });
+}
+
 async function main(argv: string[]): Promise<number> {
   const [command, ...rest] = argv;
   switch (command) {
@@ -210,6 +379,14 @@ async function main(argv: string[]): Promise<number> {
       return build(rest);
     case "install":
       return installCommand(rest);
+    case "check":
+      return checkCommand();
+    case "update":
+      return updateCommand();
+    case "watch":
+      return watchCommand(rest);
+    case "dev":
+      return dev(rest);
     case "status":
       return statusCommand();
     case "restore":
