@@ -212,7 +212,11 @@ function settle(
         attention.push(`${version.version} refuses "${verdict.plugin}": ${verdict.refusal}`);
       }
       for (const gap of verdict.missingOptional) {
-        attention.push(`${version.version}: "${verdict.plugin}" loads without ${gap}`);
+        // The gap is already a sentence, so it is joined with a dash rather than folded into one:
+        // "loads without anchor X is not in this extension" is what folding gets you.
+        attention.push(
+          `${version.version}: "${verdict.plugin}" loads without one of its optional dependencies — ${gap}`,
+        );
       }
     }
     if (version.anchorsMissing.length > 0) {
@@ -248,6 +252,11 @@ function settle(
   return { baseline, scan, diffs, versions, wrote, attention };
 }
 
+/** "1 plugin", "3 plugins". A report a person reads should not make them read "(s)". */
+function count(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
 /** A plain-text report of one flow, for the CLI and for a watcher's log. */
 export function formatFlow(report: FlowReport): string {
   const lines: string[] = [];
@@ -269,7 +278,7 @@ export function formatFlow(report: FlowReport): string {
       if (verdict.refusal) lines.push(`  REFUSED ${verdict.plugin}: ${verdict.refusal}`);
       else if (verdict.missingOptional.length > 0) {
         lines.push(
-          `  ${verdict.plugin}: loads, without ${verdict.missingOptional.length} optional dependency(ies)`,
+          `  ${verdict.plugin}: loads, without ${count(verdict.missingOptional.length, "optional dependency", "optional dependencies")}`,
         );
       }
     }
@@ -277,11 +286,11 @@ export function formatFlow(report: FlowReport): string {
     // to read; a count is something anyone can read.
     const refused = version.verdicts.filter((v) => v.refusal !== null).length;
     lines.push(
-      `  ${version.verdicts.length} plugin(s) checked` +
+      `  ${count(version.verdicts.length, "plugin", "plugins")} checked` +
         (refused === 0 ? ", every declaration holds" : `, ${refused} refused`) +
         (version.anchorsMissing.length === 0
           ? ""
-          : `; ${version.anchorsMissing.length} curated anchor(s) unresolved`),
+          : `; ${count(version.anchorsMissing.length, "curated anchor", "curated anchors")} unresolved`),
     );
   }
 

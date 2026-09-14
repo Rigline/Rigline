@@ -53,15 +53,15 @@ const USAGE = `rigline ${CORE_VERSION}
       Inject the loader into every installed extension version (or DIR), harvesting each
       version's tables and baking the enabled plugins. Reload webviews afterwards.
 
-  rigline check
-      Read-only. Per installed version: what moved since the baseline, which plugins this
-      version would refuse and by which identifier, and which curated anchors it lacks.
-      Exits 1 when a person is needed.
+  rigline check [--ext DIR]
+      Read-only. Per installed version (or DIR): what moved since the baseline, which
+      plugins this version would refuse and by which identifier, and which curated anchors
+      it lacks. Exits 1 when a person is needed.
 
-  rigline update
-      check, and put the loader back in every installed version. Rewrites ./generated.ts
-      when the directory has one, records the new baseline, and tells you to commit.
-      Never commits. Exits 1 when a person is needed.
+  rigline update [--ext DIR]
+      check, and put the loader back in every installed version (or DIR). Rewrites
+      ./generated.ts when the directory has one, records the new baseline, and tells you to
+      commit. Never commits. Exits 1 when a person is needed.
 
   rigline watch [--interval SECONDS]
       update, and again whenever the set of installed extension directories changes,
@@ -224,14 +224,21 @@ async function build(args: string[]): Promise<number> {
   return 0;
 }
 
-function checkCommand(): number {
-  const report = check({ plugins: pluginOptions() });
+/** `--ext DIR`, for rehearsing against a copy rather than against what is installed (D39). */
+function extOption(args: string[]): readonly string[] | undefined {
+  const { values } = parseArgs({ args, options: { ext: { type: "string" } } });
+  return values.ext ? [resolve(values.ext)] : undefined;
+}
+
+function checkCommand(args: string[]): number {
+  const report = check({ exts: extOption(args), plugins: pluginOptions() });
   console.log(formatFlow(report));
   return report.attention.length > 0 ? 1 : 0;
 }
 
-function updateCommand(): number {
+function updateCommand(args: string[]): number {
   const report = update({
+    exts: extOption(args),
     payloadDir: defaultPayloadDir(),
     plugins: pluginOptions(),
     // Only where the directory already has one; `update` never creates a harvest for somebody who
@@ -380,9 +387,9 @@ async function main(argv: string[]): Promise<number> {
     case "install":
       return installCommand(rest);
     case "check":
-      return checkCommand();
+      return checkCommand(rest);
     case "update":
-      return updateCommand();
+      return updateCommand(rest);
     case "watch":
       return watchCommand(rest);
     case "dev":
