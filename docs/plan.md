@@ -337,8 +337,10 @@ done.
   and `@rigline/plugin-api`, proven on a real release before it is handed to anyone else. One
   `pnpm stage publish -r` stages all three; each is approved on its own. The workflow emits the
   stage ids into the run summary rather than relying on npm to notify anybody.
-- Authoring guide, a `create-rigline-plugin` template that runs `rigline codegen --out` on first
-  use and carries the same publish workflow, the manifest JSON schema shipped with plugin-api.
+- Authoring guide and the `create-rigline-plugin` template (D50): a pnpm workspace with `plugins/*`,
+  one member scaffolded and a documented way to add the next, `rigline codegen --out` run once at
+  the root on first use, and the same staged-publish workflow we run ourselves. The manifest JSON
+  schema ships with plugin-api.
 - Topic docs: architecture, identifier layers, the bus, host patches, the transcript, verification,
   surviving an update, publishing a plugin.
 - Publish prep: package metadata, changelog, CI. The one-time npm setup is Leo's (organisation, 2FA,
@@ -385,6 +387,14 @@ Added on top: `add` runs no package manager at all rather than merely disabling 
 and the minimum release age is 1440 minutes to match pnpm's default rather than the few hours first
 suggested, since the urgent repair path is the anchor override and not a republish. Git stays
 available as a later source kind, which is why a source is recorded by kind from the first entry.
+
+And the template that carries all of it (D50) is a pnpm workspace holding many plugins, Leo's call
+on the superset argument: it scaffolds correctly for one plugin, a single-plugin template cannot
+grow into a workspace without a restructure, and it is nearly free to write because it is the shape
+of this repo. pnpm for the template too — not for symmetry, but because `minimumReleaseAge` and
+`allowBuilds` defend an author's own machine on the same reasoning D48 applies to that author's
+users. P6 is unchanged and worth restating, since a template is the easiest place to lose it: the
+contract is the output, and a plugin built with any other toolchain is treated identically.
 
 ## Open questions, not blocking
 
@@ -491,3 +501,12 @@ starting, because they change work that was already scheduled.
   1440-minute default rather than a few hours, affordable precisely because D44 carries the urgent
   case. Four decisions added, D46 to D49, D33 amended to record git as deferred with its reason and
   its re-entry point. No code changed.
+- 2026-09-14: Template shape settled as D50, Leo's call: a pnpm workspace holding many plugins,
+  because that scaffolds correctly for one while the reverse needs a restructure, and because it is
+  the shape of this repo already. Verified the property it rests on — `pnpm -r publish` publishes
+  only packages whose version is not yet on the registry, so a multi-plugin repo releases
+  incrementally on version bumps with no changeset tooling. pnpm is pushed to authors for its
+  supply-chain defaults rather than for consistency. The entry carries an explicit restatement of P6
+  because a template is the easiest place to let a toolchain leak into a contract, and names the one
+  real cost of the shape: a trusted publisher is per package, so plugin number two needs its own npm
+  setup even though it shares the workflow file. No code changed.

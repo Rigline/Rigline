@@ -372,6 +372,28 @@ widens a plugin's reach re-runs the permission summary and D26's per-patch opt-i
 inheriting consent given to a narrower version. An update that only changes code does not re-prompt,
 which keeps the gate honest about what it governs: declared reach, not trust in a particular build.
 
+**D50. The plugin template is a pnpm workspace holding many plugins; one plugin is that workspace
+with one member.** The multi-plugin shape is a superset — it scaffolds correctly for one plugin,
+whereas a single-plugin template cannot grow into a workspace without a restructure, and adding a
+second plugin should be a directory copy. It also costs us close to nothing to write, being the
+shape of this repo. `pnpm stage publish -r` stages only packages whose version is not yet on the
+registry, so bumping one plugin releases one plugin and no changeset tooling is needed. The
+harvested `generated.ts` is produced once at the workspace root by `rigline codegen --out` and
+imported by every plugin in the repo, since they all compile against the same installed extension
+(D40, P7). pnpm is the template's package manager for what its defaults do rather than for
+consistency with us: `minimumReleaseAge` defends the author's own machine and CI on exactly the
+reasoning D48 applies to that author's users, and `allowBuilds` turns a dependency's build script
+into an explicit grant. The cost of the shape is per-package npm setup — a trusted publisher is
+configured per package, so each plugin needs its own entry naming the same workflow file, and its
+own bootstrap publish (D46). That is friction on a second plugin, never on a second release.
+
+This does not weaken P6. The template is a convenience, exactly as the build preset is: a plugin is
+one browser-target ES module and a manifest however it was produced, and one built with npm, yarn,
+bun or a shell script is discovered, gated and loaded identically. What is published is the output
+contract, never the toolchain — the template is how the good path is made the easy one, not a
+requirement we could enforce or would want to. The package name stays singular, because
+`create-rigline-plugin` is what an author types.
+
 ### Toolchain and verification
 
 **D34. Toolchain: pnpm 12, TypeScript 7, Rolldown for browser bundles, Vitest, Biome with
