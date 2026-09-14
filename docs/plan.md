@@ -551,6 +551,59 @@ contract is the output, and a plugin built with any other toolchain is treated i
   which is enough for us. If a plugin author's release sits unapproved for a week, revisit — the
   template may need to open an issue or post to the repo instead.
 
+## Anchor ambiguity: the next piece of work
+
+**An anchor's class can be on more than one control, and nothing checks it** (P2, D7 amended). This
+is specified here rather than left as a fork because the design is settled; what is left is typing.
+
+Measured on 2.1.270, five of fifteen identity anchors are already ambiguous:
+
+| anchor | pair | application sites |
+| --- | --- | --- |
+| `modelPill` | gGYT1w.modelPill | 3 |
+| `transcriptRow` | 07S1Yg.message | 3 |
+| `assistantRow` | 07S1Yg.timelineMessage | 8 |
+| `userRow` | 07S1Yg.userMessageContainer | 3 |
+| `sessionListItemName` | OOQiHg.sessionName | 2 |
+
+Every `kind: "style"` entry that shares a class is doing so correctly and is out of scope.
+
+**How the count is taken**, since re-deriving it wasted an afternoon once: each CSS module's class
+map is a `var NAME={local:"local_hash",...}` object literal in the webview bundle, so the module
+hash gives the minified variable that holds it, and applications are occurrences of `NAME.local`.
+The class harvest already parses those literals; counting the applications is the same pass over the
+same bytes. Two of the five were found by eye first and three only by the count, which is the
+argument for making it a harvested fact rather than a review habit.
+
+The work, in order, and the first three belong together:
+
+1. **Split `kind` three ways**: `singleton` (exactly one, a second match is a bug), `collection`
+   (many by design; the question is whether every match is one of them), `style` (borrowed, exempt).
+   Nothing else is expressible until these are told apart. Fifteen `element` entries need sorting
+   into the first two; the table's own `description` on each says which it is.
+2. **Harvest application-site counts** as part of the classes layer, and make a `singleton` with more
+   than one site and no refinement fail codegen by name. Carry the count into the diff so an update
+   that *starts* reusing a class is reported.
+3. **Add the refinement** — a further selector on the same element, e.g. `modelPill` gains
+   `[role="combobox"]`, which the picker has and the agent-map button does not. `ctx.anchor()` keeps
+   returning a bare class, because plugins pass it to `classList.add`; the resolved *selector* is
+   what `watch` needs, so it is an additive field on the generated tables rather than a change to
+   the existing one. Then fix the other four.
+4. **Report multiplicity at runtime**: `watch` says when a class matched more than one element, and
+   the probe asserts one element per declared singleton. Build time counts sites; runtime counts
+   elements, and one site inside a list renders many.
+
+Then check two things the audit implicated but did not prove. **`ctx.style` scoping is the same bug
+in another capability** — time-marks scopes its CSS to `transcriptRow`, which has three application
+sites, so if the other two are not rows its divider rule is painting on unrelated elements, silently
+and cosmetically. And **`assistantRow` and `userRow` are declared by nothing today**, so they are
+latent rather than live; they still need refinements or demotion before a plugin reaches for them.
+
+The pattern to carry: **a class proposes, something else disposes.** `decorateTranscript` was
+untouched by all of this because `sweep` reads each candidate's fiber and drops anything without a
+row identity, so a stray match costs it a little work and nothing else. `watch` had no second
+opinion, and that is the difference.
+
 ## Next session
 
 Start here. Phase 3 is built, merged and verified live; phase 4 has not begun.
@@ -711,3 +764,10 @@ the extension to be working.
   `moved` rate that never settles would mean the host and the app are undoing each other every
   frame. The probe was blind to this and is not any more: an anchor with no host-placed node beside
   it, while one of ours is on screen, is a FAIL rather than the N/A it read as when it happened.
+- 2026-09-14: The drifting-mount fix turned out not to be what Leo was seeing, and finding out why
+  was worth more than the fix. Three first-party decorations had been mounted on the agent-map
+  button rather than the model picker, because both carry `modelPill_gGYT1w` and `watch` took the
+  first match. Nothing had drifted; the probe's own ordering check said PASS, correctly, because the
+  mounts were exactly where the anchor they were given put them. An audit of the whole table found
+  five of fifteen identity anchors already ambiguous on 2.1.270. P2 and D7 are amended and the work
+  is specified above; none of it is built.

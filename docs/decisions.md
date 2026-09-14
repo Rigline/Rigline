@@ -22,11 +22,14 @@ and fails loudly; a plugin may not, because its failure is a blank panel with no
 Match shapes, never a particular identifier: `processRequest($)` in one build is
 `processRequest(e)` in another.
 
-**P2. Declared dependencies are enforced, not trusted.** The manifest is data, read without
-executing the plugin, checked against what the installed extension contains, and a plugin whose
-declaration does not hold is refused by name with the specific missing identifier. A capability
-that hands over derived state still declares what the host taps for it, so a retirement upstream
-refuses the plugin instead of leaving a handler that never fires.
+**P2. Declared dependencies are enforced, not trusted, and enforcement means identifiable and not
+merely present.** The manifest is data, read without executing the plugin, checked against what the
+installed extension contains, and a plugin whose declaration does not hold is refused by name with
+the specific missing identifier. A capability that hands over derived state still declares what the
+host taps for it, so a retirement upstream refuses the plugin instead of leaving a handler that
+never fires. Proving an identifier *exists* is the easy half and was for a long time the only half:
+a CSS-module class names a look, not a thing, so a check that stops at existence will pass a name
+that points at two different controls and let a plugin decorate the wrong one in silence (D7).
 
 **P3. One plugin's failure never costs another plugin, or the loader.** Refusal at load, isolation
 at runtime, and an install that reports a plugin problem and injects around it. What blocks an
@@ -90,12 +93,44 @@ substring selectors.** Local names collide across modules (`tab` lives in two), 
 silently resolves the wrong one. The map is grouped by the six-character hash suffix, which is the
 module identity and has never been observed to change while the module survives.
 
-**D7. A curated anchor table maps stable names to module-scoped classes and is the primary way a
-plugin targets UI.** `modelPill` rather than `("gGYT1w", "modelPill")`. The update flow validates
+**D7. A curated anchor table maps stable names to module-scoped classes, refined where a class is
+not an identity, and is the primary way a plugin targets UI.** `modelPill` rather than `("gGYT1w", "modelPill")`. The update flow validates
 the table once per extension version; a retired anchor refuses only the plugins that use it. Raw
 `cls(module, local)` stays as the escape hatch so curation never blocks an author. Confirmed by
 Leo 2026-09-13. It is also the only thing that can repair a plugin whose author has not touched it,
 which is what makes curation load-bearing rather than cosmetic (D44).
+
+**A class names a look, not a thing (amended 2026-09-14).** `modelPill_gGYT1w` is on the model
+picker *and* on the agent-map button, because both are pills and sharing a pill style is what a
+style is for. `watch` resolved the class and took the first match, so three first-party decorations
+spent an afternoon glued to the agent map — passing every check, including the probe's own ordering
+check, because they were correctly placed against the anchor they were given. Measured across
+2.1.270, five of fifteen identity anchors have this property: `modelPill` (3 application sites),
+`transcriptRow` (3), `assistantRow` (8), `userRow` (3), `sessionListItemName` (2).
+
+So three things change. `kind` splits three ways rather than two, because "element" conflates a
+**singleton** (the model pill, the composer: exactly one, and a second match is a bug) with a
+**collection** (transcript rows: many by design, where the question is whether everything carrying
+the class really is one), and the uniqueness rule is not expressible until they are told apart.
+`style` keeps its meaning and is exempt: a borrowed class being used in several places is the point
+of borrowing it.
+
+An entry may carry a **refinement** — a further selector on the same element — and a singleton whose
+class is applied at more than one site must carry one or fail codegen by name. `modelPill` takes
+`[role="combobox"]`, which the picker has and the agent map does not. ARIA is what P1 asks for: it
+crosses a serialisation boundary, it is a contract the extension is unlikely to break quietly, and
+it is not minifier output.
+
+And the count becomes a harvested fact rather than an assumption. The class harvest already reads
+each module's map; counting how many places apply each class is the same pass, and it makes
+ambiguity a build-time verdict per version and a `diff` signal the week an update *starts* reusing a
+class. That is the failure this whole layer exists to catch, and until now it was the one kind of
+drift nothing looked for.
+
+The pattern worth carrying elsewhere: **a class proposes, something else disposes.** The transcript
+capability survived the same ambiguity untouched, because `sweep` never trusts the class — it reads
+each candidate's fiber and drops anything without a row identity, so a stray match costs it a little
+work and nothing else. `watch` had no second opinion.
 
 **D8. The protocol is harvested from anchored dispatch sites, never by scanning for `type:"…"`.**
 The loose scan was measured at 41% other protocols (markdown AST nodes, Zod issue codes, MCP tool
