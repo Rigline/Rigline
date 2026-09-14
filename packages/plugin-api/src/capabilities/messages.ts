@@ -4,6 +4,11 @@ import { type CapabilityContract, isStringArray } from "./types.ts";
 export const messagesContract: CapabilityContract<"messages"> = {
   key: "messages",
   grants: ["onMessage"],
+  schema: {
+    type: "array",
+    description: "Bus message types this plugin taps through ctx.onMessage().",
+    items: { type: "string" },
+  },
   shape(value) {
     return isStringArray(value) ? null : "must be an array of message types";
   },

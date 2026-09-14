@@ -48,10 +48,12 @@ export {
   byteLength,
   EMPTY_DECLARATIONS,
   EMPTY_USES,
+  NAME_PATTERN,
   patchShapeProblem,
   SURFACES,
   validateManifest,
 } from "./manifest.ts";
+export { manifestSchema, manifestSchemaJson } from "./schema.ts";
 export { nextSessionId } from "./session.ts";
 export type { ToolUse } from "./stream.ts";
 export { toolUses } from "./stream.ts";

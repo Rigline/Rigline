@@ -133,19 +133,19 @@ describe("discoverPlugins", () => {
 });
 
 describe("readConfig", () => {
-  it("returns an empty disabled list when the file is absent", () => {
-    const path = join(tempDir(), "rigline.config.json");
-    expect(readConfig(path)).toEqual({ disabled: [] });
+  it("returns an empty disabled list when the file is absent, and still says where it looked", () => {
+    const path = join(tempDir(), "config.json");
+    expect(readConfig(path)).toEqual({ path, disabled: [] });
   });
 
   it("reads a real disable list", () => {
-    const path = join(tempDir(), "rigline.config.json");
+    const path = join(tempDir(), "config.json");
     writeFileSync(path, JSON.stringify({ disabled: ["a", "b"] }));
-    expect(readConfig(path)).toEqual({ disabled: ["a", "b"] });
+    expect(readConfig(path)).toEqual({ path, disabled: ["a", "b"] });
   });
 
   it("rejects a disabled value that is not an array of strings", () => {
-    const path = join(tempDir(), "rigline.config.json");
+    const path = join(tempDir(), "config.json");
     writeFileSync(path, JSON.stringify({ disabled: "a" }));
     expect(() => readConfig(path)).toThrow(/must be an array/);
   });
@@ -159,7 +159,7 @@ describe("enabledPlugins", () => {
     writePlugin(root, "gamma");
     const discovered = discoverPlugins([root]);
 
-    const enabled = enabledPlugins(discovered, { disabled: ["beta"] });
+    const enabled = enabledPlugins(discovered, { path: "config.json", disabled: ["beta"] });
     expect(enabled.map((p) => p.name)).toEqual(["alpha", "gamma"]);
   });
 
@@ -169,10 +169,13 @@ describe("enabledPlugins", () => {
     const discovered = discoverPlugins([root]);
     const lines: string[] = [];
 
-    enabledPlugins(discovered, { disabled: ["ghost"] }, (line) => lines.push(line));
+    const path = join(tempDir(), "config.json");
+    enabledPlugins(discovered, { path, disabled: ["ghost"] }, (line) => lines.push(line));
 
+    // Names the file a person has to open, not the shape of its name: a message that says
+    // "config.json" leaves them looking for which one.
     expect(lines).toEqual([
-      'rigline.config.json disables "ghost", which was not found among the discovered plugins',
+      `${path} disables "ghost", which was not found among the discovered plugins`,
     ]);
   });
 });
@@ -222,7 +225,7 @@ describe("bakeRegistry", () => {
     writePlugin(root, "alpha");
     writePlugin(root, "beta");
     const discovered = discoverPlugins([root]);
-    const enabled = enabledPlugins(discovered, { disabled: ["beta"] });
+    const enabled = enabledPlugins(discovered, { path: "config.json", disabled: ["beta"] });
 
     const source = bakeRegistry(enabled, []);
     expect(source).toContain('"name":"alpha"');

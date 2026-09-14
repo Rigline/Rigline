@@ -1,10 +1,15 @@
-import { ANCHORS } from "../anchors.ts";
+import { ANCHOR_NAMES, ANCHORS } from "../anchors.ts";
 import { type CapabilityContract, isStringArray } from "./types.ts";
 
 /** Curated anchors: names the table promises, resolved per extension version by the installer. */
 export const anchorsContract: CapabilityContract<"anchors"> = {
   key: "anchors",
   grants: ["anchor"],
+  schema: {
+    type: "array",
+    description: "Curated anchor names, resolved through ctx.anchor().",
+    items: { enum: [...ANCHOR_NAMES] },
+  },
   shape(value) {
     if (!isStringArray(value)) return "must be an array of anchor names";
     const unknown = value.filter((name) => !(name in ANCHORS));

@@ -1,0 +1,291 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rigline.dev/schema/manifest.json",
+  "title": "Rigline plugin manifest",
+  "description": "rigline.json: what a plugin depends on, as data. Read by the installer and by the loader without evaluating the plugin.",
+  "type": "object",
+  "required": [
+    "api",
+    "name",
+    "entry"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "api": {
+      "const": 1,
+      "description": "The version of this shape and of ctx. Only 1 exists; it moves when a meaning changes, never for growth."
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,213}$",
+      "description": "Must match the plugin's directory name."
+    },
+    "description": {
+      "type": "string"
+    },
+    "entry": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The built entry module, relative to this file and inside this directory."
+    },
+    "surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "enum": [
+          "editor",
+          "sidebar",
+          "sessionList"
+        ]
+      },
+      "description": "The webview surfaces this plugin is for. Absent means all of them."
+    },
+    "uses": {
+      "title": "uses",
+      "description": "Everything this plugin depends on. An identifier named here that the installed extension does not have refuses the plugin by name.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "anchors": {
+          "type": "array",
+          "description": "Curated anchor names, resolved through ctx.anchor().",
+          "items": {
+            "enum": [
+              "modelPill",
+              "modelPillRow",
+              "composer",
+              "transcriptRow",
+              "assistantRow",
+              "userRow",
+              "sessionListItem",
+              "sessionListItemName",
+              "sessionStatusFilterButton",
+              "worktreePill",
+              "worktreeBanner",
+              "branchPill",
+              "repoPill",
+              "focusNavTab",
+              "marketplaceTabBar",
+              "footerMenuPopup",
+              "footerMenuPopupRight",
+              "footerMenuHeader",
+              "footerMenuHeaderTitle",
+              "footerMenuHeaderHint",
+              "footerMenuDivider",
+              "footerMenuItem",
+              "footerMenuItemText",
+              "footerMenuItemLabel",
+              "footerMenuItemDescription",
+              "itemTime"
+            ]
+          }
+        },
+        "classes": {
+          "type": "object",
+          "description": "Raw module-scoped classes, by six-character module hash. The escape hatch; prefer anchors, which one table edit can repair for every plugin at once.",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "messages": {
+          "type": "array",
+          "description": "Bus message types this plugin taps through ctx.onMessage().",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rewrites": {
+          "type": "object",
+          "description": "Outbound message type to the payload fields this plugin may replace. A rewrite may only name a field the message already carries.",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "mount": {
+          "type": "boolean",
+          "description": "Adds elements to the panel."
+        },
+        "style": {
+          "type": "boolean",
+          "description": "Adds a stylesheet, which can restyle the panel."
+        },
+        "tools": {
+          "type": "boolean",
+          "description": "watches the tool calls the assistant makes, including their arguments"
+        },
+        "session": {
+          "type": "boolean",
+          "description": "follows which session the panel is hosting"
+        },
+        "transcript": {
+          "type": "boolean",
+          "description": "reads every transcript entry's identity and time, and draws on transcript rows"
+        },
+        "optional": {
+          "title": "uses.optional",
+          "description": "The same keys, for what this plugin can do without. A missing one is reported and costs the plugin that decoration; it never refuses the plugin.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "anchors": {
+              "type": "array",
+              "description": "Curated anchor names, resolved through ctx.anchor().",
+              "items": {
+                "enum": [
+                  "modelPill",
+                  "modelPillRow",
+                  "composer",
+                  "transcriptRow",
+                  "assistantRow",
+                  "userRow",
+                  "sessionListItem",
+                  "sessionListItemName",
+                  "sessionStatusFilterButton",
+                  "worktreePill",
+                  "worktreeBanner",
+                  "branchPill",
+                  "repoPill",
+                  "focusNavTab",
+                  "marketplaceTabBar",
+                  "footerMenuPopup",
+                  "footerMenuPopupRight",
+                  "footerMenuHeader",
+                  "footerMenuHeaderTitle",
+                  "footerMenuHeaderHint",
+                  "footerMenuDivider",
+                  "footerMenuItem",
+                  "footerMenuItemText",
+                  "footerMenuItemLabel",
+                  "footerMenuItemDescription",
+                  "itemTime"
+                ]
+              }
+            },
+            "classes": {
+              "type": "object",
+              "description": "Raw module-scoped classes, by six-character module hash. The escape hatch; prefer anchors, which one table edit can repair for every plugin at once.",
+              "additionalProperties": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "messages": {
+              "type": "array",
+              "description": "Bus message types this plugin taps through ctx.onMessage().",
+              "items": {
+                "type": "string"
+              }
+            },
+            "rewrites": {
+              "type": "object",
+              "description": "Outbound message type to the payload fields this plugin may replace. A rewrite may only name a field the message already carries.",
+              "additionalProperties": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "mount": {
+              "type": "boolean",
+              "description": "Adds elements to the panel."
+            },
+            "style": {
+              "type": "boolean",
+              "description": "Adds a stylesheet, which can restyle the panel."
+            },
+            "tools": {
+              "type": "boolean",
+              "description": "watches the tool calls the assistant makes, including their arguments"
+            },
+            "session": {
+              "type": "boolean",
+              "description": "follows which session the panel is hosting"
+            },
+            "transcript": {
+              "type": "boolean",
+              "description": "reads every transcript entry's identity and time, and draws on transcript rows"
+            }
+          }
+        }
+      }
+    },
+    "patches": {
+      "type": "array",
+      "description": "Byte substitutions in the extension host's own bundle, applied by the installer. A patch from a plugin outside the Rigline repository needs explicit opt-in at install.",
+      "items": {
+        "type": "object",
+        "required": [
+          "find",
+          "replace",
+          "why"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "find": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The exact bytes to find. Must occur exactly once in the bundle."
+          },
+          "replace": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The bytes to write in their place. Must be the same byte length as find, because matches are located before any is written and a substitution that resized the bundle would move every offset after it."
+          },
+          "why": {
+            "type": "string",
+            "minLength": 1,
+            "description": "What the patch buys. The bytes cannot say for themselves."
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Refuse the plugin when the patch cannot apply, rather than loading it without. Default false."
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "anchorName": {
+      "enum": [
+        "modelPill",
+        "modelPillRow",
+        "composer",
+        "transcriptRow",
+        "assistantRow",
+        "userRow",
+        "sessionListItem",
+        "sessionListItemName",
+        "sessionStatusFilterButton",
+        "worktreePill",
+        "worktreeBanner",
+        "branchPill",
+        "repoPill",
+        "focusNavTab",
+        "marketplaceTabBar",
+        "footerMenuPopup",
+        "footerMenuPopupRight",
+        "footerMenuHeader",
+        "footerMenuHeaderTitle",
+        "footerMenuHeaderHint",
+        "footerMenuDivider",
+        "footerMenuItem",
+        "footerMenuItemText",
+        "footerMenuItemLabel",
+        "footerMenuItemDescription",
+        "itemTime"
+      ]
+    }
+  }
+}

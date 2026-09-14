@@ -50,6 +50,13 @@ export interface CapabilityContract<K extends UsesKey = UsesKey> {
   readonly key: K;
   /** The `ctx` members this capability grants. Used by the advisory source scan and by docs. */
   readonly grants: readonly string[];
+  /**
+   * This key's fragment of the manifest's JSON schema, so an author's editor completes and
+   * validates a declaration before anything is run (D18). It is a second statement of the same
+   * rule `shape` enforces, in the one language editors read; the two are held together by a test
+   * rather than by anybody remembering, because they cannot be derived from one another.
+   */
+  readonly schema: Readonly<Record<string, unknown>>;
   /** Why `value` is not a well-formed declaration for this key, or null. Shape only. */
   shape(value: unknown): string | null;
   /**
@@ -94,6 +101,7 @@ export function switchContract<K extends "tools" | "session" | "transcript">(spe
   return {
     key: spec.key,
     grants: spec.grants,
+    schema: { type: "boolean", description: spec.summary },
     shape: booleanShape,
     gaps(declared, tables) {
       if (!declared) return [];

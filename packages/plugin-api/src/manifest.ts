@@ -108,8 +108,13 @@ export const EMPTY_USES: Uses = Object.freeze({
   optional: EMPTY_DECLARATIONS,
 });
 
-/** A valid name is what npm accepts as an unscoped package name segment and what a directory can be called. */
-const NAME = /^[a-z0-9][a-z0-9._-]{0,213}$/;
+/**
+ * A valid name is what npm accepts as an unscoped package name segment and what a directory can be
+ * called. Exported as a source string as well, because the JSON schema needs the same rule and two
+ * copies of a pattern is two rules waiting to disagree.
+ */
+export const NAME_PATTERN = "^[a-z0-9][a-z0-9._-]{0,213}$";
+const NAME = new RegExp(NAME_PATTERN);
 
 /** One half of `uses`, shape-checked contract by contract, with every omitted key left empty. */
 function declarationsOf(

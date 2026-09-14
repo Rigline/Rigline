@@ -111,7 +111,7 @@ function writePlugin(
 }
 
 function writeConfig(disabled: readonly string[]): string {
-  const path = join(tempDir("rigline-config-"), "rigline.config.json");
+  const path = join(tempDir("rigline-config-"), "config.json");
   writeFileSync(path, JSON.stringify({ disabled }));
   return path;
 }

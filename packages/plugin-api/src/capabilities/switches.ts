@@ -4,6 +4,7 @@ import { booleanShape, type CapabilityContract, switchContract } from "./types.t
 export const mountContract: CapabilityContract<"mount"> = {
   key: "mount",
   grants: ["mount", "mountAfter", "watch"],
+  schema: { type: "boolean", description: "Adds elements to the panel." },
   shape: booleanShape,
   gaps: () => [],
   summary: (declared) => (declared ? ["adds elements to the panel"] : []),
@@ -13,6 +14,7 @@ export const mountContract: CapabilityContract<"mount"> = {
 export const styleContract: CapabilityContract<"style"> = {
   key: "style",
   grants: ["style"],
+  schema: { type: "boolean", description: "Adds a stylesheet, which can restyle the panel." },
   shape: booleanShape,
   gaps: () => [],
   summary: (declared) => (declared ? ["adds a stylesheet, which can restyle the panel"] : []),

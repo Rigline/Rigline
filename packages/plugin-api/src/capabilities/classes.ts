@@ -4,6 +4,12 @@ import { type CapabilityContract, isRecordOfStringArrays } from "./types.ts";
 export const classesContract: CapabilityContract<"classes"> = {
   key: "classes",
   grants: ["cls"],
+  schema: {
+    type: "object",
+    description:
+      "Raw module-scoped classes, by six-character module hash. The escape hatch; prefer anchors, which one table edit can repair for every plugin at once.",
+    additionalProperties: { type: "array", items: { type: "string" } },
+  },
   shape(value) {
     return isRecordOfStringArrays(value)
       ? null

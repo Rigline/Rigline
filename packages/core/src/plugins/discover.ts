@@ -26,8 +26,10 @@ export interface DiscoveredPlugin {
   readonly manifest: ValidManifest;
 }
 
-/** `rigline.config.json`: the one thing a person, not a plugin author, controls at install time. */
+/** `~/.rigline/config.json`: the one thing a person, not a plugin author, controls at install time. */
 export interface PluginsConfig {
+  /** Where it was read from, so a report about it can name the file somebody has to edit. */
+  readonly path: string;
   readonly disabled: readonly string[];
 }
 
@@ -97,10 +99,10 @@ export function discoverPlugins(
   return ordered;
 }
 
-/** `rigline.config.json`. Absent means nothing is disabled; malformed is a person's mistake, loud. */
+/** `~/.rigline/config.json`. Absent means nothing is disabled; malformed is a person's mistake, loud. */
 export function readConfig(path: string): PluginsConfig {
   if (!existsSync(path)) {
-    return { disabled: [] };
+    return { path, disabled: [] };
   }
   let value: unknown;
   try {
@@ -115,7 +117,7 @@ export function readConfig(path: string): PluginsConfig {
   if (!Array.isArray(disabled) || !disabled.every((d) => typeof d === "string")) {
     throw new UserError(`${path}: "disabled" must be an array of strings`);
   }
-  return { disabled };
+  return { path, disabled };
 }
 
 /**
@@ -131,9 +133,7 @@ export function enabledPlugins(
   const names = new Set(discovered.map((p) => p.name));
   for (const name of config.disabled) {
     if (!names.has(name)) {
-      log(
-        `rigline.config.json disables "${name}", which was not found among the discovered plugins`,
-      );
+      log(`${config.path} disables "${name}", which was not found among the discovered plugins`);
     }
   }
   const disabled = new Set(config.disabled);
