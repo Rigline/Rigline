@@ -221,6 +221,19 @@ done.
   mount ordering, error isolation, refusal by name without import, transcript timing, rewrite).
   `rigline install` has injected 2.1.268, 2.1.269 and 2.1.270 on this machine with the probe
   enabled. Awaiting the live reload and the badge on all three surfaces.
+- Defect found and fixed 2026-09-14, **superseded payload directories**. `install` and `restore`
+  only ever wrote and removed the *current* payload directory, so the rename left
+  `webview/prototype/` sitting beside `webview/rigline/` in all three installed versions. The live
+  bundle no longer referenced it — `settleWebviewBackup` had correctly rolled the old patch back —
+  but a webview opened *before* the reinstall still held `./prototype/pre.js` and `./prototype/post.js`
+  resolved in its module graph, and those files were still on disk, so it went on running the
+  whole superseded loader: a second `MutationObserver`, devtools hook chain, `io_message` tap and
+  transcript sweep, alongside the new generation in any freshly opened surface. The symptom was
+  VS Code locking up with the sidebar and an editor session open together, which is why it
+  presented as a two-surface bug and cleared after a remove and fresh install. Both commands now
+  delete superseded payload directories by name. The deliberate caution at
+  `settleWebviewBackup` — never delete a payload directory on the strength of bytes this installer
+  did not write — is unchanged and still right; a directory *we* named is not foreign.
 
 ### Phase 3: plugins, build preset, update flow, CLI
 
@@ -319,3 +332,12 @@ Start here. The seam is the end of phase 2 with one thing outstanding and phase 
   `~/.prototype` to `~/.rigline`, the injected marker comments, the `__prototype` bridge global, and the
   `GRO` probe badge (now `RIG`). `docs/archive/0.x/` is untouched: it is the historical prototype's
   own record and genuinely was called Prototype at the time.
+- 2026-09-14: Live verification after the rename. All three versions restored and reinjected from a
+  post-rename build, so the marker now reads `RIGLINE-PRE` and `status` annotates all three. Added
+  `CONTRIBUTING.md` (build, install, uninstall, blank-panel recovery) with a pointer from the
+  README, since the install and uninstall route existed only in `CLAUDE.md`, which humans do not
+  read; and made `rigline` a `workspace:*` devDependency of the repo root so the CLI runs as
+  `pnpm rigline <command>` instead of by path. Verification also turned up the superseded-payload
+  defect recorded under phase 2: worth reading before assuming a lockup is a hot-path cost problem,
+  because it presented as one and was not. Recorded rather than waved off — the lockup vanished
+  after a reinstall, which is the shape of a bug that comes back.

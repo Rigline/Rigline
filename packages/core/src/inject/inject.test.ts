@@ -170,6 +170,19 @@ describe("install", () => {
     expect(readFileSync(join(payloadOutDir(ext), "post.js"), "utf8")).toBe("POST_MARKER");
   });
 
+  it("removes a superseded payload directory, which would otherwise keep running", () => {
+    const ext = fixture();
+    const stale = join(ext, "webview", "prototype");
+    mkdirSync(stale, { recursive: true });
+    writeFileSync(join(stale, "pre.js"), "STALE");
+    writeFileSync(join(stale, "post.js"), "STALE");
+
+    install(ext, { payloadDir: payload() });
+
+    expect(existsSync(stale)).toBe(false);
+    expect(existsSync(payloadOutDir(ext))).toBe(true);
+  });
+
   it("refreshes the payload without rewriting the bundle on a second install", () => {
     const ext = fixture();
     install(ext, { payloadDir: payload("v1", "v1") });
@@ -245,6 +258,18 @@ describe("restore", () => {
     expect(result).toEqual({ ext, restored: true });
     expect(readFileSync(bundlePath(ext))).toEqual(original);
     expect(existsSync(payloadOutDir(ext))).toBe(false);
+  });
+
+  it("removes a superseded payload directory too, so nothing is left to load", () => {
+    const ext = fixture();
+    install(ext, { payloadDir: payload() });
+    const stale = join(ext, "webview", "prototype");
+    mkdirSync(stale, { recursive: true });
+    writeFileSync(join(stale, "pre.js"), "STALE");
+
+    restore(ext);
+
+    expect(existsSync(stale)).toBe(false);
   });
 
   it("reports the reason rather than throwing when there is no backup", () => {
