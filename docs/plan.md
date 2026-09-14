@@ -267,6 +267,34 @@ registries; refusal fixtures kept out of the live install; Vitest and Biome; use
 - Anchor governance: who may add to the table, and what evidence an entry needs.
 - Whether `ctx.style` refuses a selector naming a class the plugin did not declare, or only lints.
 
+## Next session
+
+Start here. The seam is the end of phase 2 with one thing outstanding and phase 3 not begun.
+
+1. **Live verification is pending.** `prototype install` has injected 2.1.268 to 2.1.270 with the
+   probe enabled. Leo runs Developer: Reload Webviews and reads the `GRO` badge on the full
+   editor, the sidebar and the session-list window; the panel behind it lists twenty-one checks.
+   A blank panel means the static import failed: `node packages/cli/dist/index.js restore`,
+   reload the window, and read the webview developer tools console. Fix whatever it says, rerun
+   `pnpm build` and `install`, reload again. Then run `restore`, confirm `status` reads vanilla,
+   and `install` once more. Record the outcome in the status log and close phase 2.
+2. **Phase 3, in this order:** the three first-party plugins in TypeScript against the new ctx
+   (`session-id`, `worktree-prefix`, `time-marks`; the 0.x inventory of each is in
+   [archive/0.x/inventory-plugins.md](archive/0.x/inventory-plugins.md) and holds the rules, the
+   CSS that must not narrow the content, and the tests to reproduce), then `prototype dev`, then the
+   update flow and watcher, then `prototype check`. Each plugin should be added as a harness test as
+   well as a live check, since `packages/harness` can now drive the real bundle.
+3. **Small items carried over:** a helper or documented pattern for a mount whose `build()` runs
+   again on re-placement (the probe had to track its current node by hand); `ctx.watch` on the
+   session list has no model pill, so a plugin that wants a badge there mounts on `document.body`;
+   `.local/spike/` in the checkout is scratch from the spike and can be deleted; the compile-time
+   proof test (a `tsc` run over a fixture plugin showing wrong pairs fail to compile) is still
+   deferred; the harness's `page.ts` could generate its reply table from the same anchors codegen
+   reads, which was noted and not tried.
+4. **Held decision:** the npm scope. `@prototype` is taken; `@prototypejs`, `@prototype-dev` and
+   `@prototype-plugins` were free on 2026-09-13; bare `prototype` and `prototype-cli` are taken. Leo will
+   decide; nothing is published, so the rename is a sweep.
+
 ## Status log
 
 - 2026-09-13: Archive assembled and inventoried. Anchors validated on 2.1.270. Corpus snapshotted.
