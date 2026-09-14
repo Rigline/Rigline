@@ -119,6 +119,31 @@ export function createMountService(
    * re-insert on every pass forever. Whether a replacement anchor exists is the plugin's question,
    * and `watch` is how it asks.
    *
+   * **A known gap, deliberately not closed yet: a node that stayed connected while its *anchor*
+   * moved.** The `isConnected` guard below skips every mount whose own node is still in the
+   * document, so a re-render that relocates the anchor without replacing it leaves the mount
+   * stranded where the anchor used to be. This is the 0.x prototype's "vanishing session-id pill"
+   * exactly — see docs/archive/0.x/vanishing-session-id-pill.md, where an attachment chip in the
+   * composer made the app reorder that row and the badge drifted away from the model pill.
+   *
+   * It has not been reproduced on 2.1.270 (checked 2026-09-14, with an attachment chip present),
+   * and the two designs fail differently even where the gap is the same. 0.x re-anchored on a 1 Hz
+   * poll, so the pill's identity changing under it produced the visible flapping that made the bug
+   * obvious; `watch` re-anchors on the commit that changed it, so React *replacing* the pill is
+   * handled cleanly and only React *moving* the same element slips through — which shows up as a
+   * badge quietly in the wrong place rather than one jumping about.
+   *
+   * Worth knowing before chasing it: the probe does not catch this. Check 13 still passes, because
+   * the node is connected; check 14 walks `data-rigline-mount` siblings forward from the anchor,
+   * finds none, and returns `n/a` rather than `fail`. A silent downgrade from PASS to N/A is the
+   * whole signal.
+   *
+   * The fix 0.x landed is the one to reach for: make `place` idempotent — return early when the
+   * node already sits where it belongs — and then call it for every connected mount as well, so
+   * drift self-heals instead of only outright removal doing so. Idempotence first and not
+   * optionally: `after()` and `insertBefore` remove and re-insert unconditionally, so repositioning
+   * a correctly-placed node every frame would churn the DOM and drop a text selection inside it.
+   *
    * **Both counters exist to answer whether this function should exist** (D52). `replaced`
    * accumulates re-placements that reconnected the node. `lost` is a gauge, recounted every pass
    * rather than accumulated, of mounts still detached from a live anchor afterwards — `place` can

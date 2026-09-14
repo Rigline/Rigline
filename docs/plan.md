@@ -530,6 +530,18 @@ contract is the output, and a plugin built with any other toolchain is treated i
 - Anchor governance, load-bearing now rather than tidy (D44): who may add to the table, what
   evidence an entry needs, and how a local `anchors.json` override is promoted into the shipped
   table once it is confirmed.
+- Whether a mount should re-check its *position* and not only its presence. `replaceLost` skips
+  every mount whose node is still connected, so an anchor that a re-render relocates without
+  replacing leaves its mount stranded — the same gap that produced the 0.x prototype's vanishing
+  session-id pill ([archive](archive/0.x/vanishing-session-id-pill.md)), where an attachment chip in
+  the composer reordered that row. Not reproduced on 2.1.270 with an attachment chip present
+  (2026-09-14), and `watch` already handles the case where React *replaces* the pill rather than
+  moving it, which is the more common shape. What makes this a question rather than a fix waiting to
+  be typed is cost: closing it means calling `place` for every connected mount on every commit, and
+  there is one mount per transcript row. That is only affordable if `place` returns early when the
+  node is already where it belongs, so idempotence is the work, not the loop. Note also that the
+  probe is blind to it — the ordering check degrades from PASS to N/A rather than failing, which is
+  its own small thing to fix if this is taken up.
 - Whether `ctx.style` refuses a selector naming a class the plugin did not declare, or only lints.
 - Whether `pnpm stage publish` completes the OIDC exchange. D46 and D50 lean on one `pnpm stage
   publish -r` staging the whole workspace, but pnpm's support for trusted publishing is reported
