@@ -1,71 +1,20 @@
 /**
- * Host and plugin DOM behaviour against the real webview bundle, headless, no VS Code: the third
- * verification tier docs/host.md's "Verification" section names.
+ * The host kernel's own DOM behaviour against the real webview bundle, headless, no VS Code: the
+ * third verification tier docs/host.md's "Verification" section names. Each first-party plugin has
+ * its own file beside this one; what is here is the kernel, through fixture plugins small enough to
+ * read in one screen.
  *
  * Skips with a reason, rather than failing, when the corpus snapshot or a launchable Chromium is
- * absent, so a fresh clone without either is not blocked. Each test prepares its own payload (only
- * the fixture plugins it needs) and navigates its own page, so a plugin deliberately made to fail
- * (undeclared, stale) cannot leak an expected console.error into an unrelated test's assertions;
- * one browser is shared across the suite.
+ * absent, so a fresh clone without either is not blocked. The scaffolding is in src/suite.ts.
  */
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { EMPTY_DECLARATIONS } from "@rigline/plugin-api";
-import { type Browser, type ConsoleMessage, chromium, type Page } from "playwright";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { missing, versionDir } from "../../core/test/corpus.ts";
-import { type FixturePlugin, preparePayload, type RemovedIdentifiers } from "../src/payload.ts";
-import { type Harness, startHarness } from "../src/server.ts";
+import { describe, expect, it } from "vitest";
+import type { FixturePlugin } from "../src/payload.ts";
+import { harnessSkipReason, register } from "../src/suite.ts";
 
 const VERSION = "2.1.270";
 
-/** Try launching Chromium once; the failure reason, or null when it launched fine. */
-async function chromiumLaunchFailure(): Promise<string | null> {
-  try {
-    const probe = await chromium.launch();
-    await probe.close();
-    return null;
-  } catch (e) {
-    return e instanceof Error ? e.message : String(e);
-  }
-}
-
-interface PluginStatus {
-  readonly name: string;
-  readonly status: "loaded" | "refused" | "error" | "inactive";
-  readonly reason?: string;
-  readonly missingOptional?: readonly string[];
-}
-
-interface RewriteRecord {
-  readonly plugin: string;
-  readonly type: string;
-  readonly applied: number;
-}
-
-interface HarnessDiagnostics {
-  readonly acquireWrapped: boolean;
-  readonly acquireCalled: boolean;
-  readonly outboundCount: number;
-  readonly inboundCount: number;
-  readonly bufferSealed: boolean;
-  readonly identifiersFor: string | null;
-  readonly errors: readonly string[];
-  readonly react: { readonly hook: string; readonly version: string | null };
-  readonly plugins: readonly PluginStatus[];
-  readonly rewrites: readonly RewriteRecord[];
-  readonly transcript: { readonly timed: number };
-}
-
-interface OutboundEnvelope {
-  readonly type: string;
-  readonly request?: { readonly type: string; readonly title?: unknown };
-}
-
-interface RiglineWindow {
-  readonly __rigline?: { readonly diagnostics: HarnessDiagnostics };
-  readonly __harness?: { readonly sent: readonly OutboundEnvelope[] };
+interface FixtureWindow {
   readonly __staleImported?: boolean;
   readonly __optional?: {
     readonly anchor: string | null;
@@ -75,9 +24,7 @@ interface RiglineWindow {
   };
 }
 
-const corpusReason = missing(VERSION);
-const chromiumReason = corpusReason ? null : await chromiumLaunchFailure();
-const skipReason = corpusReason || chromiumReason || "";
+const skipReason = await harnessSkipReason(VERSION);
 
 const mounterPlugin: FixturePlugin = {
   name: "mounter",
@@ -92,72 +39,16 @@ const mounterPlugin: FixturePlugin = {
   } };`,
 };
 
-describe.skipIf(!!corpusReason || !!chromiumReason)(
+describe.skipIf(skipReason !== null)(
   `webview kernel against the real bundle${skipReason ? ` (${skipReason})` : ""}`,
   () => {
-    let browser: Browser;
-
-    beforeAll(async () => {
-      browser = await chromium.launch();
-    });
-
-    afterAll(async () => {
-      await browser.close();
-    });
-
-    interface Booted {
-      readonly page: Page;
-      readonly consoleErrors: readonly string[];
-      readonly bootMs: number;
-      close(): Promise<void>;
-    }
-
-    /** Prepare a fresh payload with exactly `plugins`, start a server for it, and navigate a fresh page to the boot goal state. */
-    async function boot(
-      plugins: readonly FixturePlugin[],
-      remove?: RemovedIdentifiers,
-    ): Promise<Booted> {
-      const dir = mkdtempSync(join(tmpdir(), "rigline-harness-"));
-      preparePayload(dir, { version: VERSION, plugins, remove });
-      const harness: Harness = await startHarness({
-        bundleDir: join(versionDir(VERSION), "webview"),
-        payloadDir: dir,
-        surface: "editor",
-      });
-      const page = await browser.newPage();
-      const consoleErrors: string[] = [];
-      page.on("console", (msg: ConsoleMessage) => {
-        if (msg.type() === "error") consoleErrors.push(msg.text());
-      });
-      page.on("pageerror", (err) => consoleErrors.push(`pageerror: ${err.message}`));
-
-      const started = performance.now();
-      await page.goto(harness.url);
-      await page.waitForSelector(".modelPill_gGYT1w", { timeout: 15000 });
-      const bootMs = performance.now() - started;
-
-      return {
-        page,
-        consoleErrors,
-        bootMs,
-        async close() {
-          await page.close();
-          await harness.close();
-        },
-      };
-    }
-
-    function diagnostics(page: Page): Promise<HarnessDiagnostics> {
-      return page.evaluate(
-        () => (window as unknown as RiglineWindow).__rigline?.diagnostics as HarnessDiagnostics,
-      );
-    }
+    const boot = register(VERSION);
 
     it("boots the real bundle with the pre and post hooks wired", async () => {
-      const booted = await boot([]);
+      const booted = await boot();
       try {
         console.log(`[harness] boot to .modelPill_gGYT1w: ${booted.bootMs.toFixed(0)}ms`);
-        const d = await diagnostics(booted.page);
+        const d = await booted.diagnostics();
         expect(d.acquireWrapped).toBe(true);
         expect(d.acquireCalled).toBe(true);
         expect(d.outboundCount).toBeGreaterThan(0);
@@ -174,7 +65,7 @@ describe.skipIf(!!corpusReason || !!chromiumReason)(
     }, 20000);
 
     it("mounts a decoration after an anchor, attributed and placed as its sibling", async () => {
-      const booted = await boot([mounterPlugin]);
+      const booted = await boot({ plugins: [mounterPlugin] });
       try {
         await booted.page.waitForSelector(".harness-badge");
         const info = await booted.page.evaluate(() => {
@@ -188,7 +79,7 @@ describe.skipIf(!!corpusReason || !!chromiumReason)(
         expect(info.mountAttr).toBe("mounter");
         expect(info.isNextSibling).toBe(true);
 
-        const d = await diagnostics(booted.page);
+        const d = await booted.diagnostics();
         expect(d.plugins).toContainEqual({ name: "mounter", status: "loaded" });
         expect(booted.consoleErrors).toEqual([]);
       } finally {
@@ -202,10 +93,10 @@ describe.skipIf(!!corpusReason || !!chromiumReason)(
         manifest: { uses: {} },
         source: `export default { setup(ctx) { ctx.anchor("modelPill"); } };`,
       };
-      const booted = await boot([mounterPlugin, undeclaredPlugin]);
+      const booted = await boot({ plugins: [mounterPlugin, undeclaredPlugin] });
       try {
         await booted.page.waitForSelector(".harness-badge");
-        const d = await diagnostics(booted.page);
+        const d = await booted.diagnostics();
         const undeclaredStatus = d.plugins.find((p) => p.name === "undeclared");
         const mounterStatus = d.plugins.find((p) => p.name === "mounter");
         expect(undeclaredStatus?.status).toBe("error");
@@ -223,14 +114,14 @@ describe.skipIf(!!corpusReason || !!chromiumReason)(
         source: `window.__staleImported = true;
 export default { setup() {} };`,
       };
-      const booted = await boot([stalePlugin]);
+      const booted = await boot({ plugins: [stalePlugin] });
       try {
-        const d = await diagnostics(booted.page);
+        const d = await booted.diagnostics();
         const status = d.plugins.find((p) => p.name === "stale");
         expect(status?.status).toBe("refused");
         expect(status?.reason).toBe('unknown module "ZZZZZZ"');
         const imported = await booted.page.evaluate(
-          () => (window as unknown as RiglineWindow).__staleImported,
+          () => (window as unknown as FixtureWindow).__staleImported,
         );
         expect(imported).toBeUndefined();
       } finally {
@@ -251,7 +142,7 @@ export default { setup() {} };`,
     });
   } };`,
       };
-      const booted = await boot([timerPlugin]);
+      const booted = await boot({ plugins: [timerPlugin] });
       try {
         // The fake host pushes one user and one assistant io_message down launch_claude's
         // channel shortly after boot (src/page.ts); wait for both rows and their decoration.
@@ -270,7 +161,7 @@ export default { setup() {} };`,
         );
         expect(rows).toEqual(["t", "t"]);
 
-        const d = await diagnostics(booted.page);
+        const d = await booted.diagnostics();
         expect(d.transcript.timed).toBe(2);
         expect(booted.consoleErrors).toEqual([]);
       } finally {
@@ -320,11 +211,14 @@ export default { setup() {} };`,
         source: `window.__staleImported = true;
 export default { setup() {} };`,
       };
-      const booted = await boot([optimist, pessimist], { anchors: ["worktreePill"] });
+      const booted = await boot({
+        plugins: [optimist, pessimist],
+        remove: { anchors: ["worktreePill"] },
+      });
       try {
         await booted.page.waitForSelector(".harness-badge");
         const result = await booted.page.evaluate(
-          () => (window as unknown as RiglineWindow).__optional,
+          () => (window as unknown as FixtureWindow).__optional,
         );
         expect(result?.threw).toBeNull();
         expect(result?.anchor).toBeNull();
@@ -335,7 +229,7 @@ export default { setup() {} };`,
         // same answer an undelivered message gives.
         expect(result?.watched).toBe(0);
 
-        const d = await diagnostics(booted.page);
+        const d = await booted.diagnostics();
         const loaded = d.plugins.find((p) => p.name === "optimist");
         expect(loaded?.status).toBe("loaded");
         expect(loaded?.missingOptional).toEqual([
@@ -348,7 +242,7 @@ export default { setup() {} };`,
           'anchor "worktreePill" (OOQiHg.worktreePill) is not in this extension',
         );
         const imported = await booted.page.evaluate(
-          () => (window as unknown as RiglineWindow).__staleImported,
+          () => (window as unknown as FixtureWindow).__staleImported,
         );
         expect(imported).toBeUndefined();
       } finally {
@@ -381,11 +275,16 @@ export default { setup() {} };`,
     });
   } };`,
       };
-      const booted = await boot([renamerPlugin]);
+      const booted = await boot({ plugins: [renamerPlugin] });
       try {
         await booted.page.waitForFunction(
           () => {
-            const sent = (window as unknown as RiglineWindow).__harness?.sent ?? [];
+            const sent =
+              (
+                window as unknown as {
+                  __harness?: { sent: { request?: { type: string; title?: unknown } }[] };
+                }
+              ).__harness?.sent ?? [];
             return sent.some(
               (m) =>
                 m.request?.type === "rename_tab" &&
@@ -396,15 +295,13 @@ export default { setup() {} };`,
           { timeout: 10000 },
         );
 
-        const sent = await booted.page.evaluate(
-          () => (window as unknown as RiglineWindow).__harness?.sent ?? [],
-        );
+        const sent = await booted.sent();
         const renameTabs = sent.filter((m) => m.request?.type === "rename_tab");
         const last = renameTabs.at(-1);
         expect(typeof last?.request?.title).toBe("string");
         expect(last?.request?.title as string).toMatch(/^\[h\] /);
 
-        const d = await diagnostics(booted.page);
+        const d = await booted.diagnostics();
         const record = d.rewrites.find((r) => r.plugin === "renamer" && r.type === "rename_tab");
         expect(record?.applied).toBeGreaterThanOrEqual(1);
       } finally {
