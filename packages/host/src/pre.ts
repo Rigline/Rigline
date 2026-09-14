@@ -182,6 +182,15 @@ interface RiglineBridge {
        * the drift it fixes. */
       moved: number;
       lost: number;
+      /**
+       * Anchors declared to name one element whose selector has matched more than one, and the most
+       * that ever matched at once (D7). Build time counts how many places the bundle *applies* a
+       * class; this counts how many elements are on screen, and the two can disagree in both
+       * directions — one site inside a list renders many, and a refinement that stops refining
+       * shows up here and nowhere else. Empty is the expected state; a name in it is a decoration
+       * that may be on the wrong control.
+       */
+      multiple: Record<string, number>;
     };
     /**
      * The busiest one-second window each hot path has seen, and when (D53). Totals live beside their
@@ -663,7 +672,7 @@ try {
       identifiersFor: null,
       react: { hook: "installed", version: null, commits: 0, notified: 0 },
       transcript: { entries: 0, timed: 0, sweeps: 0, rebuilds: 0 },
-      mounts: { driver: "commit", active: 0, replaced: 0, moved: 0, lost: 0 },
+      mounts: { driver: "commit", active: 0, replaced: 0, moved: 0, lost: 0, multiple: {} },
       meters,
       storage: { available: false, writes: 0, failures: 0, bytes: 0, lastError: null },
       previous: null,

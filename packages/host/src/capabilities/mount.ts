@@ -1,4 +1,4 @@
-import { CONTRACTS } from "@rigline/plugin-api";
+import { ANCHORS, type AnchorName, CONTRACTS } from "@rigline/plugin-api";
 import { type CapabilityModule, declaredSwitch, undeclared } from "../kernel/types.ts";
 
 /** `ctx.mount`, `ctx.mountAfter` and `ctx.watch`: DOM placement the host keeps in place. */
@@ -65,7 +65,15 @@ export const mountModule: CapabilityModule<"mount"> = {
           }
           return () => {};
         }
-        return own(kernel.mounts.watch(selector, (el) => onFound(el) ?? undefined, disable));
+        // `unique` is the anchor's own claim, carried through so the host can notice at runtime
+        // when it stops holding (D7). The table is Rigline's vocabulary and ships with the loader,
+        // so this is a lookup rather than another generated field.
+        const target = {
+          anchor: name,
+          selector,
+          unique: ANCHORS[name as AnchorName]?.kind === "singleton",
+        };
+        return own(kernel.mounts.watch(target, (el) => onFound(el) ?? undefined, disable));
       },
     };
   },

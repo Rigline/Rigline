@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   acquireVerdict,
   anchorResolvesVerdict,
+  anchorUniqueVerdict,
   bufferSealedVerdict,
   busTrafficVerdict,
   chainComposeVerdict,
@@ -358,6 +359,26 @@ describe("mountReplacementVerdict", () => {
 
   it("names the driver, so the observer fallback is never silent", () => {
     expect(mountReplacementVerdict("observer", 1, 0, 0, 0).detail).toContain("observer");
+  });
+});
+
+describe("anchorUniqueVerdict", () => {
+  it("passes on an empty record, because that is a measurement and not an absence of one", () => {
+    const { verdict, detail } = anchorUniqueVerdict({});
+    expect(verdict).toBe("pass");
+    expect(detail).toBe("one element each");
+  });
+
+  it("fails and names the anchor and the count, which is where somebody has to go and look", () => {
+    const { verdict, detail } = anchorUniqueVerdict({ modelPill: 2 });
+    expect(verdict).toBe("fail");
+    expect(detail).toBe("modelPill matched 2");
+  });
+
+  it("names every offender, sorted, rather than only the first", () => {
+    expect(anchorUniqueVerdict({ modelPill: 3, composer: 2 }).detail).toBe(
+      "composer matched 2, modelPill matched 3",
+    );
   });
 });
 

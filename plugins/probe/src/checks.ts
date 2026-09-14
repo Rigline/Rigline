@@ -342,6 +342,32 @@ export function mountReplacementVerdict(
   return { verdict: "n/a", detail: `nothing detached or moved yet, ${where}` };
 }
 
+/**
+ * Check 22: every anchor this panel watches that claims to name one element matched exactly one.
+ *
+ * The build-time count and this one answer different questions and neither subsumes the other
+ * (D7). The harvest counts how many *places the bundle applies* a class, which is where an
+ * ambiguity is caught before anyone runs anything; this counts how many *elements are on screen*,
+ * which is the only thing that can tell you a refinement stopped refining — a class applied at one
+ * site inside a list renders many, and a selector that matched one control last week can match two
+ * after a release that never touched the class at all.
+ *
+ * `multiple` carries only the anchors that have failed the claim, so empty is the pass, and the
+ * verdict is `pass` rather than `n/a` when nothing is in it: the host has been looking on every
+ * commit since boot, which is a measurement and not an absence of one.
+ */
+export function anchorUniqueVerdict(multiple: Readonly<Record<string, number>>): {
+  verdict: Verdict;
+  detail: string;
+} {
+  const names = Object.keys(multiple).sort();
+  if (names.length === 0) return { verdict: "pass", detail: "one element each" };
+  return {
+    verdict: "fail",
+    detail: names.map((name) => `${name} matched ${multiple[name]}`).join(", "),
+  };
+}
+
 /** Wall-clock `HH:MM:SS` for a report meant to be lined up against VS Code's own logs, which are
  * local time. An ISO string would be unambiguous and three times as wide for no gain here. */
 function clock(at: number): string {

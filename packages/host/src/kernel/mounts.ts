@@ -41,9 +41,18 @@ interface ActiveMount {
   readonly onError: (reason: string) => void;
 }
 
-interface Watch {
-  /** A resolved anchor selector, not a class: which element the anchor means is the table's answer. */
+/** What an anchor resolved to, and what it claims about itself, as `watch` needs them. */
+export interface WatchTarget {
+  /** The anchor's name. Diagnostics only: what the DOM is queried with is the selector. */
+  readonly anchor: string;
+  /** A resolved selector, not a class: which element the anchor means is the table's answer. */
   readonly selector: string;
+  /** Whether more than one match is a fault, which is exactly what `kind: "singleton"` claims. */
+  readonly unique: boolean;
+}
+
+interface Watch {
+  readonly target: WatchTarget;
   readonly onFound: (element: Element) => Teardown | undefined;
   readonly onError: (reason: string) => void;
   current: Element | null;
@@ -61,9 +70,9 @@ export interface MountService {
     onError: (reason: string) => void,
     called: string,
   ): Teardown | null;
-  /** Hand `onFound` the first element matching `selector` now and whenever it is replaced. */
+  /** Hand `onFound` the first element `target` matches now and whenever it is replaced. */
   watch(
-    selector: string,
+    target: WatchTarget,
     onFound: (element: Element) => Teardown | undefined,
     onError: (reason: string) => void,
   ): Teardown;
@@ -195,12 +204,39 @@ export function createMountService(
     diagnostics.active = active.length;
   }
 
+  /**
+   * An anchor that claims to name one element, matching several.
+   *
+   * The peak is kept rather than the latest, because the count drops back as soon as the second
+   * control unmounts and a gauge that healed itself would leave nothing to find. Warned once per
+   * anchor, at the level it deserves: nothing has thrown and the panel is fine, but a decoration
+   * may be on the wrong control, and that is worth a line in the console the first time and never
+   * once a frame.
+   */
+  function reportMultiple(anchor: string, count: number): void {
+    const previous = diagnostics.multiple[anchor] ?? 0;
+    if (count <= previous) return;
+    diagnostics.multiple[anchor] = count;
+    if (previous === 0) {
+      console.warn(
+        `[rigline] anchor "${anchor}" names one element, and ${count} match it in this panel; a decoration may be on the wrong one`,
+      );
+    }
+  }
+
   function runWatch(w: Watch): void {
-    // `querySelector`, and the selector comes from the anchor table, because a class is a look and
-    // not an identity (D7): `modelPill_gGYT1w` is on the model picker and on the agent-map button
-    // alike, and `getElementsByClassName(...)[0]` handed three first-party decorations to whichever
-    // of them React happened to render first.
-    const found = document.querySelector(w.selector);
+    // The selector comes from the anchor table, because a class is a look and not an identity (D7):
+    // `modelPill_gGYT1w` is on the model picker and on the agent-map button alike, and
+    // `getElementsByClassName(...)[0]` handed three first-party decorations to whichever of them
+    // React happened to render first.
+    //
+    // `querySelectorAll` rather than `querySelector` for the count, which is the runtime half of
+    // the same question: the site count taken at build time says how many places the bundle applies
+    // a class, and only this says how many elements a refinement actually leaves on screen. It is
+    // the same one query per watch per pass, and there are a handful of watches.
+    const matches = document.querySelectorAll(w.target.selector);
+    const found = matches[0] ?? null;
+    if (w.target.unique && matches.length > 1) reportMultiple(w.target.anchor, matches.length);
     if (found === w.current && (found === null || found.isConnected)) return;
     if (w.teardown) {
       const off = w.teardown;
@@ -286,8 +322,8 @@ export function createMountService(
         entry.node.remove();
       };
     },
-    watch(selector, onFound, onError) {
-      const w: Watch = { selector, onFound, onError, current: null, teardown: null };
+    watch(target, onFound, onError) {
+      const w: Watch = { target, onFound, onError, current: null, teardown: null };
       watches.push(w);
       runWatch(w);
       return () => {

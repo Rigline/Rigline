@@ -551,12 +551,13 @@ contract is the output, and a plugin built with any other toolchain is treated i
   which is enough for us. If a plugin author's release sits unapproved for a week, revisit — the
   template may need to open an issue or post to the repo instead.
 
-## Anchor ambiguity: the next piece of work
+## Anchor ambiguity
 
-**An anchor's class can be on more than one control, and nothing checks it** (P2, D7 amended). This
-is specified here rather than left as a fork because the design is settled; what is left is typing.
+**An anchor's class can be on more than one control, and nothing checked it** (P2, D7 amended).
+Built, tested and installed; what follows is the design and the measurements it rests on, and the
+one fork it left open at the end.
 
-Measured on 2.1.270, five of fifteen identity anchors are already ambiguous:
+Measured on 2.1.270, five of fifteen identity anchors were already ambiguous:
 
 | anchor | pair | application sites |
 | --- | --- | --- |
@@ -656,20 +657,54 @@ The work, in order, and the first three belong together:
    the probe asserts one element per declared singleton. Build time counts sites; runtime counts
    elements, and one site inside a list renders many.
 
-Then check two things the audit implicated but did not prove. **`ctx.style` scoping is the same bug
-in another capability** — time-marks scopes its CSS to `transcriptRow`, which has three application
-sites, so if the other two are not rows its divider rule is painting on unrelated elements, silently
-and cosmetically. And **`assistantRow` and `userRow` are declared by nothing today**, so they are
-latent rather than live; they still need refinements or demotion before a plugin reaches for them.
+   The two halves catch different failures and neither subsumes the other, which is the argument for
+   keeping both. Build time catches an ambiguity before anything runs, and is blind to a refinement
+   that has stopped refining; runtime catches exactly that, and only for an anchor some plugin on
+   this surface is actually watching. `watch` counts with `querySelectorAll` and takes `[0]`, which
+   is the same one query per watch per pass it already made, and keeps the peak rather than the
+   latest count so that a second control unmounting does not heal the record.
+
+**Status: items 1 to 4 are built, tested and installed on 2.1.268, 2.1.269 and 2.1.270.** Every
+anchor resolves on all three, none is ambiguous, and none is unverified. The harness proves the
+model pill end to end in a browser twice over: a decoy wearing the pill's class ahead of the real
+picker no longer takes the badge, and a decoy that matches the *refined* selector is reported as a
+multiplicity rather than silently obeyed.
+
+Both things the audit implicated turned out to be settled by item 3 rather than to need work of
+their own. **`ctx.style` scoping** was the suspect case and is safe, for a reason worth knowing:
+time-marks scopes its one rule as `.<transcriptRow>:has(> .LEAD)`, and a `.LEAD` child can only get
+there through `decorateTranscript`, which mounts inside a row the sweep found — and the sweep is now
+refined. The hazard is real for a rule that scopes to a bare anchor class with no such guard, which
+no first-party plugin does; see the fork below. **`assistantRow` and `userRow`** are refined rather
+than demoted: both are collections, `[data-testid="assistant-message"]` and
+`[data-transcript-message]` respectively, so a plugin reaching for either now gets rows.
 
 The pattern to carry: **a class proposes, something else disposes.** `decorateTranscript` was
 untouched by all of this because `sweep` reads each candidate's fiber and drops anything without a
 row identity, so a stray match costs it a little work and nothing else. `watch` had no second
 opinion, and that is the difference.
 
+### The one fork this left: whether a plugin may have the selector
+
+`ctx.anchor()` hands back a bare class and the resolved selector is host-only, which is right for
+the two uses D7 names — borrowing a class to put on your own markup, and the host querying for you.
+It leaves a third: a plugin writing CSS *about* the app's own elements. Such a rule can only be
+scoped to the class, so it lands on every control wearing the look, and the plugin has no way to
+say what the host now says perfectly well.
+
+The obvious answer is `ctx.selector(name)`, returning the resolved selector for an element anchor
+and throwing for a style one — which is also the plainest reading of D7's "neither plugin nor author
+ever assembles a selector by hand". It is not free: it is the first plugin-facing API that hands
+over something version-derived and *composable*, so a plugin can build a selector we never modelled
+and scope a rule wherever it likes, and `ctx.style` already trusts plugins not to lay out the app.
+Recommended, but not taken unilaterally, because it widens the contract and nothing first-party
+needs it today. Until it is settled, the authoring guide should say: scope a rule to something you
+placed, never to an anchor's bare class.
+
 ## Next session
 
-Start here. Phase 3 is built, merged and verified live; phase 4 has not begun.
+Start here. Phase 3 is built, merged and verified live; the anchor-ambiguity work above is done;
+phase 4 has not begun.
 
 **About this machine.** `extension.js` is patched on 2.1.268, 2.1.269 and 2.1.270 — worktree-prefix
 is the first plugin to declare a host patch. A host patch takes effect only after *Developer: Reload
@@ -834,3 +869,16 @@ the extension to be working.
   mounts were exactly where the anchor they were given put them. An audit of the whole table found
   five of fifteen identity anchors already ambiguous on 2.1.270. P2 and D7 are amended and the work
   is specified above; none of it is built.
+- 2026-09-14: Anchor ambiguity built, items 1 to 4, and installed on all three versions. `kind` is
+  `singleton`/`collection`/`style`; the classes layer counts application sites from the same bytes
+  it reads the map from and carries them into the diff as `classes.reused`; anchors resolve to a CSS
+  selector as well as a class and the host queries with `querySelector`; and `watch` counts the
+  elements a singleton matches, which the probe reports. The five ambiguous anchors are refined —
+  `modelPill` on `[role="combobox"]`, the transcript rows on the app's own `[data-transcript-message]`
+  and `[data-testid="assistant-message"]`, `sessionListItemName` scoped inside its row. The harvest
+  reproduced D7's counts exactly on 2.1.270 and showed `modelPill` at two sites on 2.1.268, so the
+  agent-map button arrived in 2.1.269 and `classes.reused` is what would have said so. Two harness
+  tests pin it in a browser, one of which fails against the previous build. Both loose ends the audit
+  left are closed: `ctx.style` scoping was safe for a reason the plan now records, and `assistantRow`
+  and `userRow` are refined rather than demoted. One fork left open and written up: whether a plugin
+  may have the resolved selector.

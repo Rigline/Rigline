@@ -454,6 +454,44 @@ export default { setup() {} };`,
       }
     }, 20000);
 
+    it("says so when an anchor that names one element matches two", async () => {
+      // The runtime half of the same question, and the reason both halves exist (D7). The build
+      // check counts how many places the bundle applies a class and would say nothing here: the
+      // decoy below matches the *refined* selector, which is a refinement that has stopped
+      // refining, and only counting elements on screen can catch that.
+      const booted = await boot({ plugins: [mounterPlugin] });
+      try {
+        await booted.page.waitForSelector(".harness-badge");
+        await booted.page.evaluate(() => {
+          const decoy = document.createElement("button");
+          decoy.className = "modelPill_gGYT1w";
+          decoy.setAttribute("role", "combobox");
+          decoy.id = "harness-twin";
+          document.body.appendChild(decoy);
+          const w = window as unknown as { __harness?: { rerender: () => void } };
+          w.__harness?.rerender();
+        });
+        // A predicate rather than a sleep, and deliberately not an async one: an async callback
+        // here resolves to a promise, which Playwright reads as truthy on the first poll and
+        // returns from immediately.
+        await booted.page.waitForFunction(() => {
+          const w = window as unknown as {
+            __rigline?: { diagnostics: { mounts: { multiple: Record<string, number> } } };
+          };
+          return (w.__rigline?.diagnostics.mounts.multiple.modelPill ?? 0) >= 2;
+        });
+
+        const d = await booted.diagnostics();
+        expect(d.mounts.multiple.modelPill).toBe(2);
+        // A second control wearing the anchor is not a crash and does not disable anything: the
+        // panel is fine and the claim is not, which is a warning and a diagnostic, not an error.
+        expect(booted.consoleErrors).toEqual([]);
+        expect(d.errors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
     it("leaves a correctly placed mount alone, so a commit is not a DOM write", async () => {
       // The other half of the same change, and the risk it introduced. Re-checking position every
       // commit is only safe because `place` is skipped when the node already sits where it belongs;

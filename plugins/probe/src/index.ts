@@ -16,6 +16,7 @@ import { definePlugin } from "@rigline/plugin-api";
 import {
   acquireVerdict,
   anchorResolvesVerdict,
+  anchorUniqueVerdict,
   bufferSealedVerdict,
   busTrafficVerdict,
   type CheckResult,
@@ -62,6 +63,7 @@ const ORDER = [
   "read taps are immutable",
   "anchor resolves",
   "anchor element found",
+  "watched singletons match one element",
   "mount survives re-render",
   "mounts sharing an anchor keep registry order",
   "rewrite chain composes in order",
@@ -101,6 +103,7 @@ interface ProbeDiagnostics {
     readonly replaced: number;
     readonly moved: number;
     readonly lost: number;
+    readonly multiple: Readonly<Record<string, number>>;
   };
   readonly meters: Record<
     string,
@@ -529,6 +532,9 @@ export default definePlugin({
       const { driver, active, replaced, moved, lost } = diag.mounts;
       const replacement = mountReplacementVerdict(driver, active, replaced, moved, lost);
       report("mounts re-placed after a re-render", replacement.verdict, replacement.detail);
+
+      const unique = anchorUniqueVerdict(diag.mounts.multiple ?? {});
+      report("watched singletons match one element", unique.verdict, unique.detail);
 
       if (ctx.surface === "sessionList") {
         report(

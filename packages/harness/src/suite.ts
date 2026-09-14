@@ -57,6 +57,7 @@ export interface HarnessDiagnostics {
     readonly replaced: number;
     readonly moved: number;
     readonly lost: number;
+    readonly multiple: Readonly<Record<string, number>>;
   };
   readonly meters: Record<
     string,

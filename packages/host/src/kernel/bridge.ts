@@ -78,6 +78,8 @@ export interface Diagnostics {
     replaced: number;
     moved: number;
     lost: number;
+    /** Anchors naming one element whose selector matched more than one, and the most that ever did. */
+    multiple: Record<string, number>;
   };
   readonly meters: Record<string, { peak: number; peakAt: number | null; recent: number }>;
   readonly storage: {

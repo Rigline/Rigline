@@ -127,7 +127,19 @@ refinement or fail codegen by name.
 
 `modelPill` takes `[role="combobox"]`, which the picker has and the agent map does not. ARIA is what
 P1 asks for: it crosses a serialisation boundary, it is a contract the extension is unlikely to break
-quietly, and it is not minifier output.
+quietly, and it is not minifier output. The transcript rows take `[data-transcript-message]`, which
+the app queries itself, and the assistant row `[data-testid="assistant-message"]`.
+
+**An ambiguous singleton fails codegen and does not block an install.** The verdict is data — the
+anchor resolves to null, with its reason carried beside it — and the two consumers read it
+differently. `rigline codegen` exits non-zero and names the anchor, because in this repo an
+ambiguous singleton is the table being wrong and a maintainer is standing there. `check` and
+`update` report it for attention and let the per-plugin refusal do the rest, because an upstream
+release that starts reusing a class is neither a collapsed harvest nor a failure of our own build,
+and those are the only two things that may cost every other plugin its injection (P3). A module
+whose class-map variable the harvest cannot find is *uncounted*, which is not zero: its anchors
+still resolve and are reported as unverified, because an unknown read as "exactly one site" is the
+silent pass this whole layer exists to stop.
 
 What stays bespoke, and should, is substituting the harvested class into that selector: class names
 are hashed per build, so a table cannot hold `.modelPill_gGYT1w` and stay true, and the substitution

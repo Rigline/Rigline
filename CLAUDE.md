@@ -34,7 +34,9 @@ from. Update the plan before writing code; log status there, not here.
   sharing a look is what a style is for. `modelPill_gGYT1w` is on the model picker *and* the
   agent-map button, and resolving it to `[0]` put three decorations on the wrong one for an
   afternoon while every check reported green. Five of fifteen identity anchors have this property
-  (D7).
+  (D7). So an anchor resolves to a *selector* and the host queries with `querySelector`: never add a
+  `kind: "singleton"` entry without checking what else wears its class, and never reach for a class
+  where a selector is what you want.
 - **Bound any regex you run over a stringified record.** `JSON.stringify` output is one line;
   `.*` and `(.+?)` cross into unrelated fields. Exclude `"` and `\` and cap the length.
 - **Patch bundles byte-faithfully.** Read and write bytes; text-mode I/O rewrites every line
