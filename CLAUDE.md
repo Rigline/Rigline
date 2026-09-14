@@ -41,12 +41,17 @@ from. Update the plan before writing code; log status there, not here.
 
 ## Working on the live extension
 
-    pnpm build                                    # host, core, cli, and the first-party plugins
-    node packages/cli/dist/index.js install       # inject every installed version; bake plugins
-    node packages/cli/dist/index.js status        # per version: vanilla or patched, by backup
-    node packages/cli/dist/index.js restore       # every version back to the extension's bytes
-    node packages/cli/dist/index.js codegen       # regenerate plugin-api's generated.ts
-    node packages/cli/dist/index.js diff A B      # identifier drift between two extension dirs
+    pnpm build              # host, core, cli, and the first-party plugins
+    pnpm rigline install    # inject every installed version; bake plugins
+    pnpm rigline status     # per version: vanilla or patched, by backup
+    pnpm rigline restore    # every version back to the extension's bytes
+    pnpm rigline codegen    # regenerate plugin-api's generated.ts
+    pnpm rigline diff A B   # identifier drift between two extension dirs
+
+`rigline` is a workspace devDependency of the repo root (`workspace:*`, resolving to
+`packages/cli`), so `pnpm install` links its bin and `pnpm rigline <command>` runs the local
+build directly — no path to `packages/cli/dist/index.js` needed. `pnpm exec rigline <command>`
+is equivalent, if `pnpm <command>` ever collides with a real pnpm subcommand.
 
 Rebuilding the payload or a plugin and running `install` again refreshes the files in place
 without rewriting the bundle. `restore` is the undo and the recovery from a blank panel; it needs

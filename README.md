@@ -35,3 +35,6 @@ pnpm 12 and Node 26.
     pnpm test
     pnpm typecheck
     pnpm lint
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for installing (and uninstalling) Rigline against your own
+copy of the extension.

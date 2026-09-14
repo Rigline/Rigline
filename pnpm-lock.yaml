@@ -115,6 +115,9 @@ importers:
       '@types/node':
         specifier: ^26.5.1
         version: 26.5.1
+      rigline:
+        specifier: workspace:*
+        version: link:packages/cli
       rolldown:
         specifier: ^1.2.8
         version: 1.2.8
