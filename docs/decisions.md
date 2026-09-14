@@ -186,12 +186,16 @@ declaration only stops it refusing the plugin. `ctx.watch` is the one place that
 extending rather than restating, added 2026-09-14 when the grants were built: it takes an anchor
 *name*, not a class, so an optional anchor would otherwise be resolvable and unwatchable. It accepts
 an optionally-declared name and returns a no-op teardown when the class is absent, which is the same
-"the handler never fires" answer, reached the only way the signature allows. A switch declared under
-`uses.optional` is still granted: optional decides the verdict when the thing a declaration rests on
-is gone, never whether the method exists, and for a switch that verdict is a handler that never
-fires. Reading only the required half when building `ctx` made a plugin that declared `tools`
-optionally throw on its first `onToolUse` and disable itself, which is the opposite of the point;
-found by the first plugin to look, and fixed 2026-09-14. Nesting `optional`
+"the handler never fires" answer, reached the only way the signature allows. The rule the grants follow,
+learned by getting it wrong first and fixed 2026-09-14: a lookup-shaped capability has two methods
+and each reads its own half, so `ctx.anchor` refuses a name declared only optionally and sends the
+author to `ctx.optional.anchor`, where the null is unavoidable; everything else has one method,
+which reads both halves. Optional decides the verdict when the thing a declaration rests on is
+gone, never whether the method exists. Reading the required half alone made a plugin that declared
+`tools`, a message tap or a rewrite optionally throw on its first call and disable itself — on
+every version, including the ones where the identifier was present — which is not a weaker form of
+the guarantee but the opposite of it. Two of the three first-party plugins found it independently,
+from different capabilities. Nesting `optional`
 under `uses` rather than beside it keeps the check as the same walk over the same contracts with a
 different verdict, so a capability added later is optional-capable without anything being taught
 about it. In code that walk is one method: a contract answers `gaps()` with every identifier its

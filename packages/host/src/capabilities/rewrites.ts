@@ -14,7 +14,19 @@ import type { CapabilityModule } from "../kernel/types.ts";
 export const rewritesModule: CapabilityModule<"rewrites"> = {
   contract: CONTRACTS.find((c) => c.key === "rewrites") as CapabilityModule<"rewrites">["contract"],
   grant({ plugin, kernel, own, disable }) {
-    const fieldsFor = (type: string): readonly string[] | undefined => plugin.uses.rewrites[type];
+    /**
+     * The fields this plugin may replace on `type`, from both halves of `uses`, or undefined when
+     * it declared none. Optional decides what happens when the field is gone from this extension —
+     * a transform whose patch the host would refuse, reported rather than refusing the plugin — and
+     * never whether `rewrite` exists at all (D41). Unioned rather than preferring one side, because
+     * an author may reasonably hard-depend on one field of a message and treat another as a bonus.
+     */
+    const fieldsFor = (type: string): readonly string[] | undefined => {
+      const required = plugin.uses.rewrites[type];
+      const optional = plugin.uses.optional.rewrites[type];
+      if (!required && !optional) return undefined;
+      return [...(required ?? []), ...(optional ?? [])];
+    };
     return {
       rewrite(type, transform) {
         const fields = fieldsFor(type);

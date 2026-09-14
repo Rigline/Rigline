@@ -5,7 +5,11 @@ import type { CapabilityModule } from "../kernel/types.ts";
 export const messagesModule: CapabilityModule<"messages"> = {
   contract: CONTRACTS.find((c) => c.key === "messages") as CapabilityModule<"messages">["contract"],
   grant({ plugin, kernel, own, guard }) {
-    const declared = new Set(plugin.uses.messages);
+    // Both halves. A type declared only under `uses.optional` is still declared: what optional
+    // decides is the verdict when the type is gone from this extension, and for a read tap that
+    // verdict is a handler that never fires (D41). Reading the required half alone would throw on
+    // the first call and disable the plugin — even on a version where the type is present.
+    const declared = new Set([...plugin.uses.messages, ...plugin.uses.optional.messages]);
     return {
       onMessage(type, handler) {
         if (!declared.has(type)) {

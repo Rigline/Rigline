@@ -193,6 +193,15 @@ importers:
         specifier: workspace:*
         version: link:../../packages/cli
 
+  plugins/worktree-prefix:
+    devDependencies:
+      '@rigline/plugin-api':
+        specifier: workspace:*
+        version: link:../../packages/plugin-api
+      rigline:
+        specifier: workspace:*
+        version: link:../../packages/cli
+
 packages:
 
   '@biomejs/biome@2.5.13':

@@ -32,7 +32,14 @@ const FAKE_HOST = `
       state: { authStatus: {}, experimentGates: {}, openNewInTab: true },
     }),
     get_claude_state: () => ({ type: "get_claude_state_response", cached: false, config: {} }),
-    list_sessions_request: () => ({ type: "list_sessions_request_response", sessions: [] }),
+    // The naming convention this reply follows (docs/archive/0.x/inventory-tools.md) is the "_request"
+    // to "_response" exception, not the general "append _response" rule: the real extension answers
+    // list_sessions_request with list_sessions_response, which is also the one confirmed message
+    // type any plugin (worktree-prefix) taps for it. A stand-in "list_sessions_request_response" here
+    // silenced the app's console warning just as well, since the app itself never reads the reply's
+    // own type field, but it meant onMessage("list_sessions_response", ..) could never fire from this
+    // boot-time reply — a latent harness-fidelity gap nothing had caught before a plugin needed it.
+    list_sessions_request: () => ({ type: "list_sessions_response", sessions: [] }),
     list_remote_sessions: () => ({ type: "list_remote_sessions_response", sessions: [] }),
     get_session_groups: () => ({ type: "get_session_groups_response", groups: [] }),
     get_collapsed_panel_sections: () => ({

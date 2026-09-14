@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/@rigline/plugin-api/schema/manifest.json",
+  "api": 1,
+  "name": "worktree-prefix",
+  "description": "Prefixes a session's native VS Code tab label with the worktree it belongs to: a ticket key when the worktree directory's name starts with one, the first eight characters otherwise. Works by rewriting the outbound rename_tab request, the only route to a native tab's title.",
+  "entry": "dist/index.js",
+  "surfaces": ["editor", "sidebar"],
+  "uses": {
+    "session": true,
+    "tools": true,
+    "messages": ["update_state", "init_response"],
+    "rewrites": {
+      "rename_tab": ["title"]
+    },
+    "optional": {
+      "messages": ["list_sessions_response"]
+    }
+  },
+  "patches": [
+    {
+      "find": "{dir:this.cwd,includeWorktrees:!1,includeProgrammatic:this.includeProgrammaticSessions}",
+      "replace": "{dir:this.cwd,includeWorktrees:!0,includeProgrammatic:this.includeProgrammaticSessions}",
+      "why": "The session list's own fetch opts out of the worktree enumeration the extension already implements and already uses elsewhere (getSession, the resume precheck). Flipping this one flag makes a session that was already relocated into a worktree before this panel connected show up in list_sessions_response, so the prefix can find it on boot, and the extension's own worktree pill, grouping and reload resolution start working too. Optional: without it, ctx.onToolUse still catches every worktree move made during the conversation; this only recovers the session that had already moved before the panel opened.",
+      "required": false
+    }
+  ]
+}
