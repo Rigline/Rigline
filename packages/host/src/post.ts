@@ -12,6 +12,8 @@
 import {
   capabilityViolation,
   type IdentifierTables,
+  type OptionalContext,
+  optionalGaps,
   type PluginContext,
   type RiglinePlugin,
   type Teardown,
@@ -43,6 +45,15 @@ async function loadPlugin(plugin: PluginRecord, kernel: Kernel): Promise<PluginS
   if (plugin.patchRefusal) return refuse(plugin.patchRefusal);
   const violation = capabilityViolation(plugin.uses, kernel.tables);
   if (violation) return refuse(violation);
+  // Read before the surface check, because a plugin inactive here is active in another webview and
+  // the gap is a property of the extension, not of the surface.
+  const missingOptional = optionalGaps(plugin.uses, kernel.tables);
+  if (missingOptional.length > 0) {
+    status.missingOptional = missingOptional;
+    console.warn(
+      `[rigline] plugin "${plugin.name}" is loading without ${missingOptional.length} optional declaration(s): ${missingOptional.join("; ")}`,
+    );
+  }
   if (!plugin.surfaces.includes(kernel.surface)) {
     return Object.assign(status, {
       status: "inactive",
@@ -96,7 +107,11 @@ async function loadPlugin(plugin: PluginRecord, kernel: Kernel): Promise<PluginS
     },
   };
 
-  const ctx = { surface: kernel.surface } as PluginContext;
+  // Two flat merges rather than one nested one: each capability owns disjoint members of its own
+  // object, so neither assign can clobber another capability's slice.
+  const optional = {} as OptionalContext;
+  for (const module of MODULES) Object.assign(optional, module.grantOptional?.(grant));
+  const ctx = { surface: kernel.surface, optional: Object.freeze(optional) } as PluginContext;
   for (const module of MODULES) Object.assign(ctx, module.grant(grant));
   Object.freeze(ctx);
 

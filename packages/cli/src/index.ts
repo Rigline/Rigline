@@ -33,7 +33,8 @@ import { buildPlugin } from "./build.ts";
 const USAGE = `rigline ${CORE_VERSION}
 
   rigline codegen [DIR] [--check] [--out FILE]
-      Harvest the installed extension (or DIR) and write plugin-api's generated.ts.
+      Harvest the installed extension (or DIR) and write ./generated.ts: the identifier
+      augmentation your plugins compile against, and the baseline that update diffs. Commit it.
       --check compares instead of writing and exits 1 when the file is out of date.
 
   rigline diff DIR_A DIR_B
@@ -134,10 +135,16 @@ function restoreCommand(): number {
   return failed > 0 ? 1 : 0;
 }
 
-/** The repo's committed baseline, resolved from this file's location so the command works from any cwd. */
+/**
+ * Where a harvest is committed: `generated.ts` in the directory the command was run from.
+ *
+ * The same rule for this repository and for an author's, which is the point — nothing here knows
+ * it is being run inside Rigline's own checkout. It is the working directory rather than a path
+ * derived from this file's location because the published CLI lives in `node_modules`, where a
+ * relative walk upwards means nothing.
+ */
 function defaultGeneratedPath(): string {
-  const here = dirname(fileURLToPath(import.meta.url));
-  return resolve(here, "..", "..", "plugin-api", "src", "generated.ts");
+  return resolve(process.cwd(), "generated.ts");
 }
 
 function codegen(args: string[]): number {

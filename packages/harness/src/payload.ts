@@ -24,9 +24,22 @@ export interface FixturePlugin {
   };
 }
 
+/**
+ * Identifiers to delete from the harvested tables before writing them, so a test can stand an
+ * extension update up in front of the real bundle. The bundle itself is untouched — what changes is
+ * only what the loader believes about it, which is precisely the state a plugin meets on the
+ * morning after an update it has not caught up with.
+ */
+export interface RemovedIdentifiers {
+  readonly anchors?: readonly string[];
+  readonly modules?: readonly string[];
+  readonly messages?: readonly string[];
+}
+
 export interface PreparePayloadOptions {
   readonly version: string;
   readonly plugins: readonly FixturePlugin[];
+  readonly remove?: RemovedIdentifiers;
 }
 
 /** Write pre.js, post.js, generated.js, registry.js and plugins/<name>/index.js into `dir`. */
@@ -36,7 +49,7 @@ export function preparePayload(dir: string, options: PreparePayloadOptions): voi
   copyFileSync(join(HOST_DIST, "post.js"), join(dir, "post.js"));
 
   const generated = generate(harvestAll(corpusBundles(options.version)));
-  writeFileSync(join(dir, "generated.js"), generated.runtime, "utf8");
+  writeFileSync(join(dir, "generated.js"), withoutIdentifiers(generated.runtime, options.remove));
 
   const plugins = options.plugins.map((plugin) => ({
     name: plugin.name,
@@ -56,4 +69,24 @@ export const patches = [];
     mkdirSync(pluginDir, { recursive: true });
     writeFileSync(join(pluginDir, "index.js"), plugin.source, "utf8");
   }
+}
+
+/**
+ * `runtime` with the named identifiers gone. Rewritten as data rather than regenerated, because the
+ * point is a table that disagrees with the bundle beside it, which no harvest would ever produce.
+ */
+function withoutIdentifiers(runtime: string, remove?: RemovedIdentifiers): string {
+  if (!remove) return runtime;
+  const prefix = runtime.slice(0, runtime.indexOf("{"));
+  const tables = JSON.parse(runtime.slice(runtime.indexOf("{"), runtime.lastIndexOf("}") + 1)) as {
+    anchors: Record<string, string | null>;
+    moduleClasses: Record<string, unknown>;
+    messageTypes: string[];
+  };
+  for (const anchor of remove.anchors ?? []) tables.anchors[anchor] = null;
+  for (const module of remove.modules ?? []) delete tables.moduleClasses[module];
+  const gone = new Set(remove.messages ?? []);
+  tables.messageTypes = tables.messageTypes.filter((type) => !gone.has(type));
+  return `${prefix}${JSON.stringify(tables)};
+`;
 }

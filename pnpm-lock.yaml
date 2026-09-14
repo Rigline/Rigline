@@ -148,6 +148,9 @@ importers:
       '@rigline/core':
         specifier: workspace:*
         version: link:../core
+      '@rigline/plugin-api':
+        specifier: workspace:*
+        version: link:../plugin-api
       playwright:
         specifier: ^1.63.0
         version: 1.63.0

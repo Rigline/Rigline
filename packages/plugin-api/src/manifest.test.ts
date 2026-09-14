@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_USES, patchShapeProblem, SURFACES, validateManifest } from "./manifest.ts";
+import {
+  EMPTY_DECLARATIONS,
+  EMPTY_USES,
+  patchShapeProblem,
+  SURFACES,
+  validateManifest,
+} from "./manifest.ts";
 
 const minimal = { api: 1, name: "demo", entry: "dist/index.js" };
 
@@ -80,6 +86,70 @@ describe("validateManifest", () => {
   it("rejects a non-object outright", () => {
     expect(validateManifest("nope", "demo").problems).toEqual([
       "rigline.json must be a JSON object",
+    ]);
+  });
+});
+
+describe("validateManifest and uses.optional", () => {
+  const withOptional = (optional: unknown) =>
+    validateManifest({ ...minimal, uses: { anchors: ["modelPill"], optional } }, "demo");
+
+  it("fills the optional half the same way as the required one", () => {
+    const { manifest, problems } = withOptional({ anchors: ["worktreePill"], tools: true });
+    expect(problems).toEqual([]);
+    expect(manifest?.uses).toEqual({
+      ...EMPTY_USES,
+      anchors: ["modelPill"],
+      optional: { ...EMPTY_DECLARATIONS, anchors: ["worktreePill"], tools: true },
+    });
+  });
+
+  it("leaves the optional half empty when it is absent, so nothing downstream checks for undefined", () => {
+    const { manifest } = validateManifest(minimal, "demo");
+    expect(manifest?.uses.optional).toEqual(EMPTY_DECLARATIONS);
+  });
+
+  it("checks the optional half's shapes by the same contracts, and says where the problem is", () => {
+    const { manifest, problems } = withOptional({ anchors: "modelPill", mount: "yes" });
+    expect(manifest).toBeNull();
+    expect(problems).toEqual([
+      '"uses.optional.anchors" must be an array of anchor names',
+      '"uses.optional.mount" must be true or false, got "yes"',
+    ]);
+  });
+
+  it("refuses an unknown key on either side, and refuses to nest optional inside itself", () => {
+    expect(withOptional({ nonsense: [] }).problems).toEqual([
+      '"uses.optional.nonsense" is not a capability',
+    ]);
+    expect(withOptional({ optional: {} }).problems).toEqual([
+      '"uses.optional.optional" is not a capability',
+    ]);
+    expect(withOptional("no").problems).toEqual(['"uses.optional" must be an object']);
+  });
+
+  it("refuses an identifier declared on both sides, whose null check could never fire", () => {
+    const both = validateManifest(
+      {
+        ...minimal,
+        uses: {
+          anchors: ["modelPill", "composer"],
+          classes: { gGYT1w: ["modelPill"] },
+          tools: true,
+          optional: {
+            anchors: ["composer"],
+            classes: { gGYT1w: ["modelPill"] },
+            tools: true,
+          },
+        },
+      },
+      "demo",
+    );
+    expect(both.manifest).toBeNull();
+    expect(both.problems).toEqual([
+      '"anchors" name "composer" is declared both required and optional; a required declaration already covers it',
+      '"classes" entry gGYT1w.modelPill is declared both required and optional; a required declaration already covers it',
+      '"tools" is declared both required and optional; a required declaration already covers it',
     ]);
   });
 });

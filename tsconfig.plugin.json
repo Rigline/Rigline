@@ -1,0 +1,14 @@
+{
+  "//": "The base every plugin in this workspace extends. `files` names the committed harvest (D40) so the augmentation is in each plugin's program; a plugin's own tsconfig overrides `include` with its `src` and leaves `files` alone. Relative paths in an extended config resolve against the config that declared them, so this one entry serves every plugin however deep it sits. This is the arrangement the phase 4 template ships.",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["esnext", "dom"],
+    "types": [],
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "paths": {
+      "@rigline/plugin-api": ["./packages/plugin-api/src/index.ts"]
+    }
+  },
+  "files": ["generated.ts"]
+}

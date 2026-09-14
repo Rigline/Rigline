@@ -9,6 +9,7 @@
   },
   "devDependencies": {
     "@rigline/core": "workspace:*",
+    "@rigline/plugin-api": "workspace:*",
     "playwright": "^1.63.0"
   }
 }

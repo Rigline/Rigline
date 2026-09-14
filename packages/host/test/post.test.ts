@@ -1,8 +1,8 @@
 /**
  * The built post hook is one prebuilt file that fits every extension version (decisions.md, P7).
- * plugin-api exports the harvested tables for plugins to compile against, and the post hook
- * imports from the same package, so the guard that nothing version-specific rode along is a
- * check on the built artifact, not on the source.
+ * It imports from `@rigline/plugin-api`, which since D40 carries no harvested identifier at all —
+ * so the real risk this guards is a bundler inlining something from a developer's own
+ * `generated.ts`, which is a fact about the built artifact and not about the source.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";

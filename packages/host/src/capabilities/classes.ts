@@ -5,9 +5,7 @@ import type { CapabilityModule } from "../kernel/types.ts";
 export const classesModule: CapabilityModule<"classes"> = {
   contract: CONTRACTS.find((c) => c.key === "classes") as CapabilityModule<"classes">["contract"],
   grant({ plugin, kernel }) {
-    const declared = new Set(
-      Object.entries(plugin.uses.classes).flatMap(([m, locals]) => locals.map((l) => `${m}:${l}`)),
-    );
+    const declared = pairsOf(plugin.uses.classes);
     return {
       cls(module, local) {
         if (!declared.has(`${module}:${local}`)) {
@@ -21,4 +19,25 @@ export const classesModule: CapabilityModule<"classes"> = {
       },
     };
   },
+  grantOptional({ plugin, kernel }) {
+    const declared = new Set([
+      ...pairsOf(plugin.uses.classes),
+      ...pairsOf(plugin.uses.optional.classes),
+    ]);
+    return {
+      cls(module, local) {
+        if (!declared.has(`${module}:${local}`)) {
+          throw new Error(
+            `optional.cls("${module}", "${local}") was never declared under uses.optional.classes in this plugin's rigline.json`,
+          );
+        }
+        return kernel.tables.moduleClasses[module]?.[local] ?? null;
+      },
+    };
+  },
 };
+
+/** A declaration's module/local pairs as lookup keys. Pairs, never bare locals: a local name is reused across modules. */
+function pairsOf(classes: Readonly<Record<string, readonly string[]>>): Set<string> {
+  return new Set(Object.entries(classes).flatMap(([m, locals]) => locals.map((l) => `${m}:${l}`)));
+}

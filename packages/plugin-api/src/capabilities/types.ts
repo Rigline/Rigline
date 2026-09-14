@@ -8,8 +8,12 @@
  */
 import type { IdentifierTables } from "../tables.ts";
 
-/** Everything a plugin may declare under `uses`, with every key present. */
-export interface Uses {
+/**
+ * Everything a plugin may declare about one capability, with every key present. Declared twice per
+ * manifest: once under `uses` and once under `uses.optional`, which is the same shape read for a
+ * different verdict (D41).
+ */
+export interface Declarations {
   /** Curated anchor names the plugin resolves through `ctx.anchor()`. */
   readonly anchors: readonly string[];
   /** Module hash -> local class names the plugin resolves through `ctx.cls()`. The escape hatch. */
@@ -30,7 +34,17 @@ export interface Uses {
   readonly transcript: boolean;
 }
 
-export type UsesKey = keyof Uses;
+/** Everything a plugin declared under `uses`: the required half, plus the optional half nested. */
+export interface Uses extends Declarations {
+  /**
+   * The same keys again, checked the same way, refusing nothing (D41). Nested under `uses` rather
+   * than beside it so that both verdicts are one walk over one registry, and a capability added
+   * later is optional-capable without anything being taught about it.
+   */
+  readonly optional: Declarations;
+}
+
+export type UsesKey = keyof Declarations;
 
 export interface CapabilityContract<K extends UsesKey = UsesKey> {
   readonly key: K;
@@ -39,13 +53,15 @@ export interface CapabilityContract<K extends UsesKey = UsesKey> {
   /** Why `value` is not a well-formed declaration for this key, or null. Shape only. */
   shape(value: unknown): string | null;
   /**
-   * The first identifier this declaration depends on that `tables` lacks, as a reason a plugin is
-   * refused, or null when every one is present. Reports the first rather than all: the name is
-   * what makes a refusal attributable, and a module that has gone loses every class in it at once.
+   * Every identifier this declaration depends on that `tables` lacks, one reason each, in
+   * declaration order. Both verdicts read this: a required declaration is refused on the first gap,
+   * because the name is what makes a refusal attributable and a module that has gone loses every
+   * class in it at once; an optional declaration is reported on all of them, because each is a
+   * decoration the plugin will go without and the author is owed the whole list.
    */
-  violation(declared: Uses[K], tables: IdentifierTables): string | null;
+  gaps(declared: Declarations[K], tables: IdentifierTables): readonly string[];
   /** One line per thing the plugin will be able to do with this declaration, for the install summary. */
-  summary(declared: Uses[K]): readonly string[];
+  summary(declared: Declarations[K]): readonly string[];
 }
 
 export function isStringArray(value: unknown): value is string[] {
@@ -79,19 +95,24 @@ export function switchContract<K extends "tools" | "session" | "transcript">(spe
     key: spec.key,
     grants: spec.grants,
     shape: booleanShape,
-    violation(declared, tables) {
-      if (!declared) return null;
+    gaps(declared, tables) {
+      if (!declared) return [];
+      const gaps: string[] = [];
       for (const type of spec.messages) {
         if (!tables.messageTypes.includes(type)) {
-          return `"${spec.key}" needs message type "${type}", which is gone: ${grant}() would never fire`;
+          gaps.push(
+            `"${spec.key}" needs message type "${type}", which is gone: ${grant}() would never fire`,
+          );
         }
       }
       for (const anchor of spec.anchors) {
         if ((tables.anchors[anchor] ?? null) === null) {
-          return `"${spec.key}" needs anchor "${anchor}", which is gone: ${grant}() would find nothing`;
+          gaps.push(
+            `"${spec.key}" needs anchor "${anchor}", which is gone: ${grant}() would find nothing`,
+          );
         }
       }
-      return null;
+      return gaps;
     },
     summary: (declared) => (declared ? [spec.summary] : []),
   };

@@ -9,6 +9,7 @@
 import type {
   CapabilityContract,
   IdentifierTables,
+  OptionalContext,
   PluginContext,
   Surface,
   Teardown,
@@ -59,6 +60,14 @@ export interface CapabilityModule<K extends UsesKey = UsesKey> {
   readonly contract: CapabilityContract<K>;
   /** The methods this capability adds to one plugin's ctx, scoped to what it declared. */
   grant(grant: Grant): Partial<PluginContext>;
+  /**
+   * The methods this capability adds to `ctx.optional`, for the lookups that may answer null (D41).
+   * Only the two lookup-shaped capabilities implement it; everything else optional needs no API,
+   * because a handler that never fires is already what absence does. Kept as a second method rather
+   * than a nested `optional` key in `grant`'s return so the kernel's merge stays a flat
+   * `Object.assign` and cannot silently clobber one capability's slice with another's.
+   */
+  grantOptional?(grant: Grant): Partial<OptionalContext>;
 }
 
 /** A method the plugin did not declare for: it throws, and the kernel's guard turns that into a disable. */

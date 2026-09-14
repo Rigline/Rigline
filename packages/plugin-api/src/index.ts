@@ -3,26 +3,31 @@
  *
  * A plugin ships a rigline.json manifest and one browser-target ES module whose default export
  * has setup(ctx). This package holds the PluginContext type, the manifest type and schema, the
- * identifier unions generated from the installed extension, the curated anchor table, and the
- * pure helpers the host and core share so that a rule checked in Node and a rule checked in the
- * webview cannot drift apart.
+ * curated anchor table, and the pure helpers the host and core share so that a rule checked in
+ * Node and a rule checked in the webview cannot drift apart.
+ *
+ * What it deliberately does not hold is a single identifier harvested from the extension (D40).
+ * The four types over that vocabulary are declared here as lookups into an empty interface, and
+ * widen to `string` until the author's own `rigline codegen` output augments it.
  */
 
 export const API_VERSION = 1 as const;
 
 export type { AnchorName, AnchorSpec, Surface } from "./anchors.ts";
 export { ANCHOR_NAMES, ANCHORS } from "./anchors.ts";
-export type { CapabilityContract, Uses, UsesKey } from "./capabilities/index.ts";
+export type { CapabilityContract, Declarations, Uses, UsesKey } from "./capabilities/index.ts";
 export {
   CONTRACTS,
   capabilityDrift,
   capabilityUse,
   capabilityViolation,
+  optionalGaps,
   patchViolation,
   permissionSummary,
   sharedFields,
 } from "./capabilities/index.ts";
 export type {
+  OptionalContext,
   Payload,
   PluginContext,
   RewritableType,
@@ -32,25 +37,16 @@ export type {
 } from "./context.ts";
 export { definePlugin } from "./context.ts";
 export type {
-  InboundPush,
-  InboundRequest,
-  InboundResponse,
   MessageType,
   ModuleClasses,
   ModuleId,
   OutboundFields,
-  OutboundNotification,
-  OutboundRequest,
-} from "./generated.ts";
-export {
-  EXTENSION_VERSION,
-  PARTIAL_FIELD_TYPES,
-  TABLES,
-  UNREACHABLE_CSS_MODULES,
-} from "./generated.ts";
-export type { HostPatch, Manifest, ValidManifest } from "./manifest.ts";
+  RiglineIdentifiers,
+} from "./identifiers.ts";
+export type { DeclaredUses, HostPatch, Manifest, ValidManifest } from "./manifest.ts";
 export {
   byteLength,
+  EMPTY_DECLARATIONS,
   EMPTY_USES,
   patchShapeProblem,
   SURFACES,

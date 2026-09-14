@@ -64,21 +64,46 @@ describe("generate", () => {
     expect(source).not.toMatch(/\|.*\|.*\|.*\|/);
   });
 
-  it("renders every protocol direction, the replies and the fields as types", () => {
+  it("renders one augmentation of the published interface, and no harvested type of its own", () => {
     const { source } = generate(harvest());
-    for (const name of [
-      "OutboundRequest",
-      "OutboundNotification",
-      "InboundPush",
-      "InboundRequest",
-      "InboundResponse",
-    ]) {
-      expect(source).toContain(`export type ${name} =`);
+    expect(source).toContain('declare module "@rigline/plugin-api" {');
+    expect(source).toContain("interface RiglineIdentifiers {");
+    for (const key of ["modules:", "classes: {", "messages:", "outboundFields: {"]) {
+      expect(source).toContain(key);
     }
+    // D40: the published package ships no harvested identifier types, so codegen writes none —
+    // not even ones an author might find handy. Everything it says, it says by augmentation.
+    expect(source).not.toMatch(/^export (type|interface) /m);
     expect(source).toMatch(/"rename_tab":\n\s+\| "hasPendingPermissions"\n\s+\| "title";/);
     expect(source).toContain('"visibility_changed":never;');
     expect(source).not.toMatch(/\| "type"/);
-    expect(source).toContain("export const TABLES: IdentifierTables = {");
+  });
+
+  it("imports nothing, so it survives being moved to whichever root an author keeps it at", () => {
+    const { source } = generate(harvest());
+    expect(source).not.toMatch(/^\s*import /m);
+    expect(source).not.toContain(' from "');
+  });
+
+  it("carries the scan as the baseline the update flow diffs against", () => {
+    const { source, scan } = generate(harvest());
+    expect(source).toContain("export const SCAN = {");
+    expect(scan.views["classes.modules"]).toEqual(new Set(["OOQiHg", "gGYT1w", "yumWmQ"]));
+    expect(source).toContain('"version": "9.9.9"');
+    // Views, not tables: "what moved" is a question about identifier sets, and the runtime tables
+    // answer a different one. The full class names are what a person searches the diff for.
+    expect(source).toContain('"modelPill_gGYT1w"');
+  });
+
+  it("names what a person would otherwise have to go and look up", () => {
+    const { source } = generate(
+      harvest({
+        replies: { responses: ["rename_tab_response"], unanswered: ["authenticate_mcp_server"] },
+      }),
+    );
+    expect(source).toContain("//   authenticate_mcp_server");
+    expect(source).toContain("//   update_session_state");
+    expect(source).toContain("oblbPg");
   });
 
   it("renders the runtime tables as one plain ES module with the same data", async () => {

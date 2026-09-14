@@ -5,7 +5,7 @@ export const mountContract: CapabilityContract<"mount"> = {
   key: "mount",
   grants: ["mount", "mountAfter", "watch"],
   shape: booleanShape,
-  violation: () => null,
+  gaps: () => [],
   summary: (declared) => (declared ? ["adds elements to the panel"] : []),
 };
 
@@ -14,7 +14,7 @@ export const styleContract: CapabilityContract<"style"> = {
   key: "style",
   grants: ["style"],
   shape: booleanShape,
-  violation: () => null,
+  gaps: () => [],
   summary: (declared) => (declared ? ["adds a stylesheet, which can restyle the panel"] : []),
 };
 

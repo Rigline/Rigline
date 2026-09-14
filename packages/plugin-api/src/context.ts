@@ -11,7 +11,7 @@
  * imports the host; a module singleton would defeat both the scoping and the attribution.
  */
 import type { AnchorName, Surface } from "./anchors.ts";
-import type { MessageType, ModuleClasses, ModuleId, OutboundFields } from "./generated.ts";
+import type { MessageType, ModuleClasses, ModuleId, OutboundFields } from "./identifiers.ts";
 import type { ToolUse } from "./stream.ts";
 import type { TranscriptEntry } from "./transcript.ts";
 
@@ -30,9 +30,45 @@ export type RewritePatch<T extends RewritableType> = Partial<Record<OutboundFiel
  */
 export type Payload = Readonly<Record<string, unknown>>;
 
+/**
+ * The lookups whose answer may legitimately be "not in this extension" (D41).
+ *
+ * Two methods, not one function typed from the manifest. Making `ctx` generic over a
+ * `const`-asserted import of the plugin's own `rigline.json` does work, and is rejected: it makes
+ * the entry module compile-depend on its manifest through import attributes, it is fragile across
+ * a stranger's tsconfig, and it buys a keystroke. Keeping the optional lookups on their own object
+ * leaves the load-bearing dependencies legible in the source — what a plugin hard-depends on is
+ * what it calls without `.optional` — and for code that runs in the app's realm with full DOM
+ * access, reviewable beats terse.
+ *
+ * An identifier declared required may also be read through here. It simply never returns null, and
+ * refusing the call would be a rule with no failure behind it.
+ */
+export interface OptionalContext {
+  /**
+   * The class an anchor resolves to, or null when this extension has not got it. Requires the name
+   * under `uses.optional.anchors` (or `uses.anchors`).
+   */
+  anchor(name: AnchorName): string | null;
+
+  /**
+   * A raw module-scoped class, or null when this extension has not got it. Requires the pair under
+   * `uses.optional.classes` (or `uses.classes`). Prefer `optional.anchor()`.
+   */
+  cls<M extends ModuleId>(module: M, local: ModuleClasses[M]): string | null;
+}
+
 export interface PluginContext {
   /** Which webview surface this is. The full editor is the one with no distinguishing global. */
   readonly surface: Surface;
+
+  /**
+   * The lookups that may come back null, for identifiers declared under `uses.optional`. Everything
+   * else optional needs no API: an undelivered message, an un-fired rewrite and a switch whose
+   * handler never runs are already what absence does, and the declaration only stops them refusing
+   * the plugin.
+   */
+  readonly optional: OptionalContext;
 
   /**
    * The class an anchor resolves to in the installed extension, e.g. `anchor("modelPill")` gives
@@ -73,7 +109,12 @@ export interface PluginContext {
    * Be told when an element for `name` is in the document, and again whenever the one last handed
    * over leaves and another appears. `onFound` may return a teardown, run before the next call and
    * on the plugin's own teardown. No plugin polls for an element. Requires `uses.mount` and the
-   * anchor under `uses.anchors`.
+   * anchor under `uses.anchors` or `uses.optional.anchors`.
+   *
+   * The one place an optional declaration needed more than a nullable lookup: this takes a name and
+   * not a class, so an optional anchor would otherwise be resolvable and unwatchable. An anchor
+   * declared optional that this extension has not got watches nothing and tears down cleanly, which
+   * is the same answer every other optional dependency gives.
    */
   // biome-ignore lint/suspicious/noConfusingVoidType: a callback with nothing to tear down simply returns; `undefined` would force an explicit return
   watch(name: AnchorName, onFound: (element: Element) => Teardown | void): Teardown;

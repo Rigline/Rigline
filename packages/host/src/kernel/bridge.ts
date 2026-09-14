@@ -16,6 +16,12 @@ export interface PluginStatus {
   readonly name: string;
   status: "loaded" | "refused" | "error" | "inactive";
   reason?: string;
+  /**
+   * Optional declarations this extension cannot honour: what the plugin is loading without (D41).
+   * Never a reason it is refused, and present on a loaded plugin, which is the whole point — the
+   * plugin works and one of its decorations will not appear, and nothing else would say so.
+   */
+  missingOptional?: readonly string[];
 }
 
 export interface RewriteRecord {

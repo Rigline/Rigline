@@ -11,10 +11,11 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { EMPTY_DECLARATIONS } from "@rigline/plugin-api";
 import { type Browser, type ConsoleMessage, chromium, type Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { missing, versionDir } from "../../core/test/corpus.ts";
-import { type FixturePlugin, preparePayload } from "../src/payload.ts";
+import { type FixturePlugin, preparePayload, type RemovedIdentifiers } from "../src/payload.ts";
 import { type Harness, startHarness } from "../src/server.ts";
 
 const VERSION = "2.1.270";
@@ -34,6 +35,7 @@ interface PluginStatus {
   readonly name: string;
   readonly status: "loaded" | "refused" | "error" | "inactive";
   readonly reason?: string;
+  readonly missingOptional?: readonly string[];
 }
 
 interface RewriteRecord {
@@ -65,6 +67,12 @@ interface RiglineWindow {
   readonly __rigline?: { readonly diagnostics: HarnessDiagnostics };
   readonly __harness?: { readonly sent: readonly OutboundEnvelope[] };
   readonly __staleImported?: boolean;
+  readonly __optional?: {
+    readonly anchor: string | null;
+    readonly cls: string | null;
+    readonly watched: number;
+    readonly threw: string | null;
+  };
 }
 
 const corpusReason = missing(VERSION);
@@ -105,9 +113,12 @@ describe.skipIf(!!corpusReason || !!chromiumReason)(
     }
 
     /** Prepare a fresh payload with exactly `plugins`, start a server for it, and navigate a fresh page to the boot goal state. */
-    async function boot(plugins: readonly FixturePlugin[]): Promise<Booted> {
+    async function boot(
+      plugins: readonly FixturePlugin[],
+      remove?: RemovedIdentifiers,
+    ): Promise<Booted> {
       const dir = mkdtempSync(join(tmpdir(), "rigline-harness-"));
-      preparePayload(dir, { version: VERSION, plugins });
+      preparePayload(dir, { version: VERSION, plugins, remove });
       const harness: Harness = await startHarness({
         bundleDir: join(versionDir(VERSION), "webview"),
         payloadDir: dir,
@@ -262,6 +273,84 @@ export default { setup() {} };`,
         const d = await diagnostics(booted.page);
         expect(d.transcript.timed).toBe(2);
         expect(booted.consoleErrors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
+    it("degrades a plugin over a missing optional and refuses the one that required it", async () => {
+      // The acceptance case for D41, at the DOM tier: one identifier gone from the tables the
+      // loader reads, two plugins declaring it, and two different verdicts. Nothing about the
+      // bundle changes — only what the loader believes about it, which is the state an extension
+      // update leaves behind.
+      const optimist: FixturePlugin = {
+        name: "optimist",
+        manifest: {
+          uses: {
+            anchors: ["modelPill"],
+            mount: true,
+            optional: {
+              ...EMPTY_DECLARATIONS,
+              anchors: ["worktreePill"],
+              classes: { OOQiHg: ["worktreePill"] },
+            },
+          },
+        },
+        source: `export default { setup(ctx) {
+    const result = { anchor: undefined, cls: undefined, watched: 0, threw: null };
+    try {
+      result.anchor = ctx.optional.anchor("worktreePill");
+      result.cls = ctx.optional.cls("OOQiHg", "worktreePill");
+      ctx.watch("worktreePill", () => { result.watched += 1; });
+    } catch (e) {
+      result.threw = String(e && e.message ? e.message : e);
+    }
+    window.__optional = result;
+    ctx.watch("modelPill", (el) => ctx.mountAfter(el, () => {
+      const s = document.createElement("span");
+      s.className = "harness-badge";
+      s.textContent = "O";
+      return s;
+    }));
+  } };`,
+      };
+      const pessimist: FixturePlugin = {
+        name: "pessimist",
+        manifest: { uses: { anchors: ["worktreePill"] } },
+        source: `window.__staleImported = true;
+export default { setup() {} };`,
+      };
+      const booted = await boot([optimist, pessimist], { anchors: ["worktreePill"] });
+      try {
+        await booted.page.waitForSelector(".harness-badge");
+        const result = await booted.page.evaluate(
+          () => (window as unknown as RiglineWindow).__optional,
+        );
+        expect(result?.threw).toBeNull();
+        expect(result?.anchor).toBeNull();
+        // The same call shape, the other answer: an optional lookup that resolves returns the
+        // class, and only the null case is what the compiler makes an author handle.
+        expect(result?.cls).toBe("worktreePill_OOQiHg");
+        // watch() on an absent optional anchor watches nothing rather than throwing, which is the
+        // same answer an undelivered message gives.
+        expect(result?.watched).toBe(0);
+
+        const d = await diagnostics(booted.page);
+        const loaded = d.plugins.find((p) => p.name === "optimist");
+        expect(loaded?.status).toBe("loaded");
+        expect(loaded?.missingOptional).toEqual([
+          'anchor "worktreePill" (OOQiHg.worktreePill) is not in this extension',
+        ]);
+
+        const refused = d.plugins.find((p) => p.name === "pessimist");
+        expect(refused?.status).toBe("refused");
+        expect(refused?.reason).toBe(
+          'anchor "worktreePill" (OOQiHg.worktreePill) is not in this extension',
+        );
+        const imported = await booted.page.evaluate(
+          () => (window as unknown as RiglineWindow).__staleImported,
+        );
+        expect(imported).toBeUndefined();
       } finally {
         await booted.close();
       }

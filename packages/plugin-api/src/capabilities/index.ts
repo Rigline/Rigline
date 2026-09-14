@@ -14,7 +14,7 @@ import {
   toolsContract,
   transcriptContract,
 } from "./switches.ts";
-import type { CapabilityContract, Uses, UsesKey } from "./types.ts";
+import type { CapabilityContract, Declarations, Uses, UsesKey } from "./types.ts";
 
 export const CONTRACTS: readonly CapabilityContract[] = [
   anchorsContract,
@@ -30,21 +30,47 @@ export const CONTRACTS: readonly CapabilityContract[] = [
   // over it re-narrows by `contract.key`.
 ] as unknown as readonly CapabilityContract[];
 
+/** Every gap in one half of a manifest's declarations, in registry order. */
+function gapsOf(declared: Declarations, tables: IdentifierTables): string[] {
+  return CONTRACTS.flatMap((contract) => contract.gaps(declared[contract.key] as never, tables));
+}
+
 /**
  * The first reason `uses` does not hold against `tables`, or null. Asked in Node before injecting
- * and in the webview before importing a plugin, through this one function.
+ * (D43) and in the webview before importing a plugin, through this one function, so the two cannot
+ * give different answers.
+ *
+ * The first gap rather than all of them: a refusal needs one name a person can search for, and the
+ * rest of the list is usually the same module or the same message going twice.
  */
 export function capabilityViolation(uses: Uses, tables: IdentifierTables): string | null {
-  for (const contract of CONTRACTS) {
-    const violation = contract.violation(uses[contract.key] as never, tables);
-    if (violation) return violation;
-  }
-  return null;
+  return gapsOf(uses, tables)[0] ?? null;
+}
+
+/**
+ * Every optional declaration `tables` cannot honour: what this plugin will do without (D41). All of
+ * them rather than the first, because each is a decoration that will silently not appear and the
+ * author is owed the whole list. Never a refusal, at install or at load.
+ *
+ * `mount` and `style` can never appear here — they depend on nothing harvested — so declaring
+ * either optional is a harmless no-op rather than an error. Mirroring `uses` key for key is what
+ * keeps this one walk over one registry; carving out the two keys that cannot be missing would buy
+ * a validation message and cost the property that makes a new capability optional-capable for free.
+ */
+export function optionalGaps(uses: Uses, tables: IdentifierTables): string[] {
+  return gapsOf(uses.optional, tables);
 }
 
 /** What a plugin will be able to do, one line each, for the install-time summary. */
 export function permissionSummary(uses: Uses): string[] {
-  return CONTRACTS.flatMap((contract) => contract.summary(uses[contract.key] as never));
+  return [
+    ...CONTRACTS.flatMap((contract) => contract.summary(uses[contract.key] as never)),
+    ...CONTRACTS.flatMap((contract) =>
+      contract
+        .summary(uses.optional[contract.key] as never)
+        .map((line) => `where present, ${line}`),
+    ),
+  ];
 }
 
 /**
@@ -62,13 +88,19 @@ export function capabilityUse(source: string): UsesKey[] {
   ).map((contract) => contract.key);
 }
 
-/** Where declared switches and the source disagree, in both directions. Boolean keys only. */
+/**
+ * Where declared switches and the source disagree, in both directions. Boolean keys only, and the
+ * required and optional halves are read together: a switch declared on either side is declared, and
+ * the scan cannot tell which call site meant which.
+ */
 export function capabilityDrift(uses: Uses, used: readonly UsesKey[]): string[] {
   return CONTRACTS.flatMap((contract) => {
     const declared = uses[contract.key];
     if (typeof declared !== "boolean") return [];
+    const optional = uses.optional[contract.key];
+    const isDeclared = declared || optional === true;
     const isUsed = used.includes(contract.key);
-    if (declared === isUsed) return [];
+    if (isDeclared === isUsed) return [];
     const grant = contract.grants.join("/");
     return isUsed
       ? [
@@ -79,4 +111,4 @@ export function capabilityDrift(uses: Uses, used: readonly UsesKey[]): string[] 
 }
 
 export { patchViolation, sharedFields } from "./rewrites.ts";
-export type { CapabilityContract, Uses, UsesKey } from "./types.ts";
+export type { CapabilityContract, Declarations, Uses, UsesKey } from "./types.ts";

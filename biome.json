@@ -6,13 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": [
-      "**",
-      "!**/dist",
-      "!**/node_modules",
-      "!docs/archive",
-      "!packages/plugin-api/src/generated.ts"
-    ]
+    "includes": ["**", "!**/dist", "!**/node_modules", "!docs/archive", "!**/generated.ts"]
   },
   "formatter": {
     "enabled": true,

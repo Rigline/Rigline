@@ -5,11 +5,12 @@ import {
   capabilityDrift,
   capabilityUse,
   capabilityViolation,
+  optionalGaps,
   patchViolation,
   permissionSummary,
   sharedFields,
 } from "./index.ts";
-import type { Uses } from "./types.ts";
+import type { Declarations, Uses } from "./types.ts";
 
 const tables: IdentifierTables = {
   version: "9.9.9",
@@ -32,6 +33,8 @@ const tables: IdentifierTables = {
 };
 
 const uses = (partial: Partial<Uses>): Uses => ({ ...EMPTY_USES, ...partial });
+const optionally = (partial: Partial<Declarations>): Uses =>
+  uses({ optional: { ...EMPTY_USES, ...partial } });
 
 describe("capabilityViolation", () => {
   it("passes an empty declaration and one whose identifiers all exist", () => {
@@ -167,5 +170,78 @@ describe("summaries and the advisory scan", () => {
       'calls onToolUse() without declaring "tools": it will throw and disable the plugin',
     ]);
     expect(capabilityDrift(uses({ tools: true }), ["tools"])).toEqual([]);
+  });
+});
+
+describe("optionalGaps", () => {
+  it("is silent when every optional declaration is honoured", () => {
+    expect(optionalGaps(EMPTY_USES, tables)).toEqual([]);
+    expect(optionalGaps(optionally({ anchors: ["modelPill"], tools: true }), tables)).toEqual([]);
+  });
+
+  it("names an optional identifier that is gone, without it ever becoming a refusal", () => {
+    const declared = optionally({ anchors: ["worktreePill"] });
+    expect(optionalGaps(declared, tables)).toEqual([
+      'anchor "worktreePill" (OOQiHg.worktreePill) is not in this extension',
+    ]);
+    // The whole of D41 in one line: the same declaration, the same tables, the other verdict.
+    expect(capabilityViolation(declared, tables)).toBeNull();
+  });
+
+  it("names every gap rather than the first, because each one is a decoration that will not appear", () => {
+    const gaps = optionalGaps(
+      optionally({
+        anchors: ["worktreePill"],
+        classes: { gGYT1w: ["modelPillRow", "alsoGone"] },
+        messages: ["no_such_message"],
+      }),
+      tables,
+    );
+    expect(gaps).toEqual([
+      'anchor "worktreePill" (OOQiHg.worktreePill) is not in this extension',
+      "unknown class gGYT1w.modelPillRow",
+      "unknown class gGYT1w.alsoGone",
+      'unknown message type "no_such_message"',
+    ]);
+  });
+
+  it("collapses a module that has gone to one line, since every class in it went with it", () => {
+    expect(optionalGaps(optionally({ classes: { ZZZZZZ: ["a", "b", "c"] } }), tables)).toEqual([
+      'unknown module "ZZZZZZ"',
+    ]);
+  });
+
+  it("reports a switch whose expansion is gone, and mount and style never, having nothing to lose", () => {
+    const withoutTools: IdentifierTables = {
+      ...tables,
+      messageTypes: tables.messageTypes.filter((t) => t !== "io_message"),
+    };
+    expect(optionalGaps(optionally({ tools: true }), withoutTools)).toEqual([
+      '"tools" needs message type "io_message", which is gone: onToolUse() would never fire',
+    ]);
+    expect(optionalGaps(optionally({ mount: true, style: true }), withoutTools)).toEqual([]);
+  });
+
+  it("reads the optional half only, so a required gap is not reported twice", () => {
+    expect(optionalGaps(uses({ anchors: ["worktreePill"] }), tables)).toEqual([]);
+  });
+});
+
+describe("permissionSummary with optional declarations", () => {
+  it("marks the conditional lines so a reader can tell a promise from a maybe", () => {
+    const lines = permissionSummary(
+      uses({ anchors: ["modelPill"], optional: { ...EMPTY_USES, anchors: ["worktreePill"] } }),
+    );
+    expect(lines.some((l) => l.startsWith("attaches to modelPill"))).toBe(true);
+    expect(lines.some((l) => l.startsWith("where present, attaches to worktreePill"))).toBe(true);
+  });
+});
+
+describe("capabilityDrift with optional switches", () => {
+  it("counts a switch declared on either side as declared", () => {
+    expect(capabilityDrift(optionally({ tools: true }), ["tools"])).toEqual([]);
+    expect(capabilityDrift(optionally({ tools: true }), [])).toEqual([
+      'declares "tools" but never calls onToolUse()',
+    ]);
   });
 });

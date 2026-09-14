@@ -1,14 +1,23 @@
 /**
  * Rendering a harvest as code.
  *
- * Two outputs, from one object. `generated.ts` lives in `@rigline/plugin-api` and is committed: it
- * carries the identifier tables as data plus literal-union types, so `ctx.cls("gGYT1w", "modelPill")`
- * and `ctx.onMessage("rename_tab", ...)` are checked against the extension version the tables came
- * from, and a fresh clone type-checks with no extension installed. Its diff after an update is the
- * list of what the extension changed. `generated.js` is written beside the injected loader, per
- * extension directory, and is what the post hook checks declarations against at runtime: the
- * loader itself carries nothing version-specific, so one build of it serves every installed
- * version (decisions.md, P7).
+ * Two outputs, from one object. `generated.ts` is the file an author commits in their own
+ * repository, and that this repository commits at its workspace root: it augments
+ * `@rigline/plugin-api`'s empty `RiglineIdentifiers` with the extension's own vocabulary, so
+ * `ctx.cls("gGYT1w", "modelPill")` and `ctx.onMessage("rename_tab", ...)` are checked against the
+ * version it was harvested from — and so a plugin that has never run codegen still compiles, every
+ * union simply widening to `string` (decisions.md, D40). It carries no harvested *types* into the
+ * published package, which is the whole point: a published snapshot could never carry the version
+ * released tomorrow. Beside the augmentation it carries `SCAN`, the same harvest reduced to its
+ * layer views, which is the baseline the update flow diffs the next version against (D29).
+ *
+ * It imports nothing, deliberately. The file sits at a workspace root, outside any package, and a
+ * relative import out of one would be the first thing to break when an author moves it.
+ *
+ * `generated.js` is written beside the injected loader, per extension directory, and is what the
+ * post hook checks declarations against at runtime: the loader itself carries nothing
+ * version-specific, so one build of it serves every installed version (decisions.md, P7). That one
+ * keeps the full tables as data, because the checks are made against data and not against types.
  *
  * Every union is emitted one member per line, so a class or message added upstream shows up in a
  * diff as one added line rather than a reflowed block.
@@ -16,13 +25,16 @@
 import type { IdentifierTables } from "@rigline/plugin-api";
 import { resolveAnchors } from "../anchors/resolve.ts";
 import { collidingLocalNames, unreachableCssClasses } from "../layers/classes.ts";
-import type { Harvest } from "../layers/index.ts";
+import { type Scan, scanToJson } from "../layers/diff.ts";
+import { type Harvest, scanOf } from "../layers/index.ts";
 import { allMessageTypes } from "../layers/protocol.ts";
 import { HarvestError } from "../layers/types.ts";
 
 /** Everything the two renderers need, derived once from a harvest. */
 export interface Generated {
   readonly tables: IdentifierTables;
+  /** The harvest reduced to its layer views: what `generated.ts` carries as `SCAN`. */
+  readonly scan: Scan;
   /** Whole stylesheet modules the class map cannot reach, by module hash. */
   readonly unreachableModules: readonly string[];
   /** The contents of `generated.ts`. */
@@ -72,10 +84,12 @@ export function generate(harvest: Harvest): Generated {
     `${tables.inboundResponses.length} replies, ${fieldCount} payload fields, ` +
     `${anchors.missing.length === 0 ? "every anchor resolved" : `${anchors.missing.length} anchors missing`}`;
 
+  const scan = scanOf(harvest);
   return {
     tables,
+    scan,
     unreachableModules,
-    source: renderSource(harvest, tables, unreachableModules, anchors.missing),
+    source: renderSource(harvest, tables, scan, unreachableModules, anchors.missing),
     runtime: renderRuntime(tables),
     counts,
   };
@@ -113,99 +127,93 @@ function union(values: readonly string[], indent: string): string {
 function renderSource(
   harvest: Harvest,
   tables: IdentifierTables,
+  scan: Scan,
   unreachableModules: readonly string[],
   missingAnchors: readonly string[],
 ): string {
   const modules = Object.keys(tables.moduleClasses);
   const colliding = collidingLocalNames(harvest.classes);
-  const moduleClassesInterface = modules
+  const classesMember = modules
     .map(
-      (m) => `  ${JSON.stringify(m)}:${union(Object.keys(tables.moduleClasses[m] ?? {}), "    ")};`,
+      (m) =>
+        `      ${JSON.stringify(m)}:${union(Object.keys(tables.moduleClasses[m] ?? {}), "        ")};`,
     )
     .join("\n");
-  const outboundFieldsInterface = Object.keys(tables.outboundFields)
-    .map((t) => `  ${JSON.stringify(t)}:${union(tables.outboundFields[t] ?? [], "    ")};`)
+  const fieldsMember = Object.keys(tables.outboundFields)
+    .map((t) => `      ${JSON.stringify(t)}:${union(tables.outboundFields[t] ?? [], "        ")};`)
     .join("\n");
   const unanswered =
     harvest.replies.unanswered.length === 0
-      ? " * (every request this webview sends has a reply)"
-      : harvest.replies.unanswered.map((r) => ` *   ${r}`).join("\n");
+      ? "// Every request this webview sends has a reply by naming convention."
+      : [
+          "// Requests this webview sends that have no reply by naming convention:",
+          ...harvest.replies.unanswered.map((r) => `//   ${r}`),
+        ].join("\n");
+  const partial =
+    tables.partialFieldTypes.length === 0
+      ? "// Every outbound type's field list is complete."
+      : [
+          "// These outbound types spread a variable into their payload, so they may carry fields",
+          "// the harvest cannot see. Those are readable at runtime and not declarable:",
+          ...tables.partialFieldTypes.map((t) => `//   ${t}`),
+        ].join("\n");
   const missing =
     missingAnchors.length === 0
-      ? " * Every curated anchor resolves in this version."
-      : ` * Anchors that do not resolve in this version: ${missingAnchors.join(", ")}.`;
+      ? "Every curated anchor resolves in this version."
+      : `Anchors that do not resolve in this version: ${missingAnchors.join(", ")}.`;
+  const unreachable =
+    unreachableModules.length === 0
+      ? "Every stylesheet module is reachable from this build's markup."
+      : `Stylesheet modules this build's markup does not contain, so no plugin can name them: ${unreachableModules.join(", ")}.`;
 
   return `// Generated by rigline codegen from extension ${tables.version}. Do not edit.
 // Regenerate with: rigline codegen
-import type { IdentifierTables } from "./tables.ts";
+//
+// Commit this file. It is the record of the extension version these plugins were built and tested
+// against: it narrows what \`ctx.cls\`, \`ctx.onMessage\` and \`ctx.rewrite\` will accept, and it is the
+// baseline \`rigline update\` diffs the next version against. Delete it and everything still
+// compiles, with every identifier widened back to \`string\`.
+//
+// ${missing}
+// ${unreachable}
+// ${colliding.length} local class names exist in more than one module, which is why classes are
+// module-scoped here rather than flat: a flat map would resolve the wrong one silently.
+//
+${unanswered}
+//
+${partial}
 
 export const EXTENSION_VERSION = ${JSON.stringify(tables.version)};
 
-/** The CSS modules in the webview bundle, by their six-character hash. */
-export type ModuleId =${union(modules, "  ")};
+declare module "@rigline/plugin-api" {
+  interface RiglineIdentifiers {
+    /** The CSS modules in the webview bundle, by their six-character hash. */
+    modules:${union(modules, "      ")};
 
-/**
- * The local class names each module defines. Module-scoped rather than flat because ${colliding.length}
- * local names exist in more than one module, and a flat map would resolve the wrong one silently.
- */
-export interface ModuleClasses {
-${moduleClassesInterface}
+    /** The local class names each module defines. */
+    classes: {
+${classesMember}
+    };
+
+    /** Every message type a plugin may tap: all four protocol directions plus the reachable replies. */
+    messages:${union(tables.messageTypes, "      ")};
+
+    /**
+     * The payload fields of each outbound message, which is what a rewrite may replace. The
+     * envelope wrappers have no entry: their fields are correlation state. A type whose send site
+     * spreads a variable in may carry fields this cannot see; they are readable but not declarable.
+     */
+    outboundFields: {
+${fieldsMember}
+    };
+  }
 }
 
-/** Requests the webview sends and expects a correlated reply to. */
-export type OutboundRequest =${union(harvest.protocol.outboundRequests, "  ")};
-
-/** Notifications the webview sends without expecting a reply. Includes the two envelope wrappers. */
-export type OutboundNotification =${union(harvest.protocol.outboundNotifications, "  ")};
-
-/** Pushes the extension host sends the webview unprompted. */
-export type InboundPush =${union(harvest.protocol.inboundPushes, "  ")};
-
-/** Requests the extension host makes of the webview. */
-export type InboundRequest =${union(harvest.protocol.inboundRequests, "  ")};
-
 /**
- * Replies to requests this webview sends, harvested from the host bundle and derived from the
- * request side, so a reply nothing here can trigger is not declarable. Requests with no reply by
- * naming convention:
-${unanswered}
+ * The harvest reduced to its layer views: the baseline for "what moved since the version these
+ * plugins were built against" (decisions.md, D29). Read by \`rigline update\`, never by a plugin.
  */
-export type InboundResponse =${union(tables.inboundResponses, "  ")};
-
-/** Every message type a plugin may tap. */
-export type MessageType =
-  | OutboundRequest
-  | OutboundNotification
-  | InboundPush
-  | InboundRequest
-  | InboundResponse;
-
-/**
- * The payload fields of each outbound message, which is what a rewrite may replace. The envelope
- * wrappers have no entry: their fields are correlation state. A type listed in PARTIAL_FIELD_TYPES
- * spreads a variable into its payload, so fields may exist that this cannot see; they are readable
- * but not declarable.
- */
-export interface OutboundFields {
-${outboundFieldsInterface}
-}
-
-/** Outbound types whose send site hides some fields behind a spread. */
-export const PARTIAL_FIELD_TYPES: readonly string[] = ${JSON.stringify(tables.partialFieldTypes)};
-
-/**
- * Stylesheet modules this build's markup does not contain, so no plugin can name them. Whole
- * modules only: a partially reachable module fails codegen, because it means the harvest is
- * dropping pairs.
- */
-export const UNREACHABLE_CSS_MODULES: readonly string[] = ${JSON.stringify(unreachableModules)};
-
-/**
- * The tables as data: what the host checks a manifest's declarations against. The same object is
- * written beside the injected loader as generated.js, per extension directory.
-${missing}
- */
-export const TABLES: IdentifierTables = ${JSON.stringify(tables, null, 2)};
+export const SCAN = ${JSON.stringify(scanToJson(scan), null, 2)};
 `;
 }
 

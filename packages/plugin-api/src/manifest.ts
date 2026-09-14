@@ -6,18 +6,20 @@
  * installer's job is to say what an extension update broke, per plugin, before anything runs
  * (decisions.md, D12, D14).
  *
- * Every dependency sits under `uses`, one key per capability. The shape of each value is checked
- * here by that capability's contract; whether the identifiers it names exist in the installed
- * extension is checked separately, against the harvested tables, by `capabilityViolation`. Shape
- * problems are authoring mistakes and fail the install loudly; a missing identifier is version
- * skew and refuses one plugin.
+ * Every dependency sits under `uses`, one key per capability, plus `uses.optional`, which carries
+ * the same keys again for the dependencies a plugin can do without (D41). The shape of each value
+ * is checked here by that capability's contract; whether the identifiers it names exist in the
+ * installed extension is checked separately, against the harvested tables, by
+ * `capabilityViolation` for the required half and `optionalGaps` for the optional one. Shape
+ * problems are authoring mistakes and fail the install loudly; a missing required identifier is
+ * version skew and refuses one plugin; a missing optional one is reported and refuses nothing.
  */
 import type { AnchorName, Surface } from "./anchors.ts";
 import { CONTRACTS } from "./capabilities/index.ts";
-import type { Uses } from "./capabilities/types.ts";
-import type { MessageType, ModuleClasses, ModuleId, OutboundFields } from "./generated.ts";
+import type { Declarations, Uses } from "./capabilities/types.ts";
+import type { MessageType, ModuleClasses, ModuleId, OutboundFields } from "./identifiers.ts";
 
-export type { Uses, UsesKey } from "./capabilities/types.ts";
+export type { Declarations, Uses, UsesKey } from "./capabilities/types.ts";
 
 /** One byte substitution in the extension-host bundle, applied by the installer (D25). */
 export interface HostPatch {
@@ -46,18 +48,33 @@ export interface Manifest {
   readonly entry: string;
   /** The webview surfaces this plugin is for. Absent means all of them. */
   readonly surfaces?: readonly Surface[];
-  readonly uses?: {
-    readonly anchors?: readonly AnchorName[];
-    readonly classes?: { readonly [M in ModuleId]?: readonly ModuleClasses[M][] };
-    readonly messages?: readonly MessageType[];
-    readonly rewrites?: { readonly [T in keyof OutboundFields]?: readonly OutboundFields[T][] };
-    readonly mount?: boolean;
-    readonly style?: boolean;
-    readonly tools?: boolean;
-    readonly session?: boolean;
-    readonly transcript?: boolean;
+  readonly uses?: DeclaredUses & {
+    /**
+     * The same keys again, for what this plugin can do without. A name here that the installed
+     * extension lacks is reported and costs the plugin that one decoration; the plugin still loads
+     * (D41). Resolve these through `ctx.optional.anchor()` and `ctx.optional.cls()`, which return
+     * `string | null` so the compiler makes the author handle the absence.
+     */
+    readonly optional?: DeclaredUses;
   };
   readonly patches?: readonly HostPatch[];
+}
+
+/**
+ * One half of `uses` as an author writes it: every key optional, and every identifier narrowed to
+ * what the author's own `generated.ts` harvested — or to `string` when they have not run codegen,
+ * which is what lets a scaffold validate before it has one (D40).
+ */
+export interface DeclaredUses {
+  readonly anchors?: readonly AnchorName[];
+  readonly classes?: { readonly [M in ModuleId]?: readonly ModuleClasses[M][] };
+  readonly messages?: readonly MessageType[];
+  readonly rewrites?: { readonly [T in keyof OutboundFields]?: readonly OutboundFields[T][] };
+  readonly mount?: boolean;
+  readonly style?: boolean;
+  readonly tools?: boolean;
+  readonly session?: boolean;
+  readonly transcript?: boolean;
 }
 
 export const SURFACES: readonly Surface[] = ["editor", "sidebar", "sessionList"];
@@ -73,7 +90,8 @@ export interface ValidManifest {
   readonly patches: readonly HostPatch[];
 }
 
-export const EMPTY_USES: Uses = Object.freeze({
+/** One half of `uses` with every key present and empty: what an omitted declaration means. */
+export const EMPTY_DECLARATIONS: Declarations = Object.freeze({
   anchors: [],
   classes: {},
   messages: [],
@@ -85,8 +103,62 @@ export const EMPTY_USES: Uses = Object.freeze({
   transcript: false,
 });
 
+export const EMPTY_USES: Uses = Object.freeze({
+  ...EMPTY_DECLARATIONS,
+  optional: EMPTY_DECLARATIONS,
+});
+
 /** A valid name is what npm accepts as an unscoped package name segment and what a directory can be called. */
 const NAME = /^[a-z0-9][a-z0-9._-]{0,213}$/;
+
+/** One half of `uses`, shape-checked contract by contract, with every omitted key left empty. */
+function declarationsOf(
+  raw: Record<string, unknown>,
+  path: string,
+  problems: string[],
+): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...EMPTY_DECLARATIONS };
+  for (const contract of CONTRACTS) {
+    const value = raw[contract.key];
+    if (value === undefined) continue;
+    const problem = contract.shape(value);
+    if (problem) problems.push(`"${path}.${contract.key}" ${problem}`);
+    else out[contract.key] = value;
+  }
+  return out;
+}
+
+/**
+ * Identifiers named on both sides, which is an authoring mistake rather than version skew: a
+ * required declaration already guarantees the identifier is there, so the optional one describes an
+ * absence the plugin was refused for. Silently preferring the required reading would leave an
+ * author's `ctx.optional.anchor()` null check looking load-bearing when it can never fire.
+ */
+function declaredTwice(
+  required: Record<string, unknown>,
+  optional: Record<string, unknown>,
+): string[] {
+  const both: string[] = [];
+  for (const contract of CONTRACTS) {
+    const a = required[contract.key];
+    const b = optional[contract.key];
+    if (Array.isArray(a) && Array.isArray(b)) {
+      for (const name of b)
+        if (a.includes(name)) both.push(`"${contract.key}" name ${JSON.stringify(name)}`);
+    } else if (isRecord(a) && isRecord(b)) {
+      for (const [key, values] of Object.entries(b)) {
+        const mine = a[key];
+        if (!Array.isArray(mine) || !Array.isArray(values)) continue;
+        for (const name of values) {
+          if (mine.includes(name)) both.push(`"${contract.key}" entry ${key}.${String(name)}`);
+        }
+      }
+    } else if (a === true && b === true) {
+      both.push(`"${contract.key}"`);
+    }
+  }
+  return both;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -156,23 +228,39 @@ export function validateManifest(
     }
   }
 
-  const uses: Record<string, unknown> = { ...EMPTY_USES };
   const rawUses = value.uses;
+  let required: Record<string, unknown> = { ...EMPTY_DECLARATIONS };
+  let optional: Record<string, unknown> = { ...EMPTY_DECLARATIONS };
   if (rawUses !== undefined && !isRecord(rawUses)) {
     problems.push('"uses" must be an object');
   } else if (rawUses !== undefined) {
-    const known = new Set<string>(CONTRACTS.map((c) => c.key));
+    // `optional` is the one key of `uses` that is not a capability: it is the same nine keys again,
+    // read for a different verdict (D41). Checking it by recursion keeps the shape rules in one
+    // place, and the depth is fixed at one because `optional.optional` is not a capability either.
+    const known = new Set<string>([...CONTRACTS.map((c) => c.key), "optional"]);
     for (const key of Object.keys(rawUses)) {
       if (!known.has(key)) problems.push(`"uses.${key}" is not a capability`);
     }
-    for (const contract of CONTRACTS) {
-      const raw = rawUses[contract.key];
-      if (raw === undefined) continue;
-      const problem = contract.shape(raw);
-      if (problem) problems.push(`"uses.${contract.key}" ${problem}`);
-      else uses[contract.key] = raw;
+    required = declarationsOf(rawUses, "uses", problems);
+
+    const rawOptional = rawUses.optional;
+    if (rawOptional !== undefined && !isRecord(rawOptional)) {
+      problems.push('"uses.optional" must be an object');
+    } else if (rawOptional !== undefined) {
+      for (const key of Object.keys(rawOptional)) {
+        if (key === "optional" || !known.has(key)) {
+          problems.push(`"uses.optional.${key}" is not a capability`);
+        }
+      }
+      optional = declarationsOf(rawOptional, "uses.optional", problems);
+      for (const both of declaredTwice(required, optional)) {
+        problems.push(
+          `${both} is declared both required and optional; a required declaration already covers it`,
+        );
+      }
     }
   }
+  const uses: Record<string, unknown> = { ...required, optional };
 
   const patches = value.patches;
   const validPatches: HostPatch[] = [];
