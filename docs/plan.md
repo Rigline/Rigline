@@ -356,6 +356,30 @@ done.
 - Acceptance: all three plugins verified live; a simulated update (a copied extension directory
   with an identifier removed) refuses the right plugin by name and injects the rest, and the same
   identifier removed from an *optional* declaration degrades that plugin instead of refusing it.
+- **Status 2026-09-14: everything above is built and merged, and the simulated-update half of the
+  acceptance is met.** The rehearsal was a copy of 2.1.270 with `sessionItem` renamed to
+  `sessionTile` in the bundle and the stylesheet, which is the shape an upstream rename actually
+  takes: `rigline check` names `sessionItem_OOQiHg -> sessionTile_OOQiHg` as the likely successor,
+  refuses the probe by name on that version alone, loads a plugin declaring the same anchor
+  optionally without it, reports the anchor table's own gap against the table, and exits 1. The
+  same two verdicts are pinned at the DOM tier against the real bundle, and at the unit tier
+  against a doctored harvest. `install` has put all four plugins into 2.1.268, 2.1.269 and 2.1.270
+  on this machine, every declaration holding on every version. **Left: the live check**, which
+  needs a person looking at the panel — and a *window* reload rather than a webview one, because
+  worktree-prefix is the first plugin to declare a host patch and `extension.js` is now patched on
+  all three versions. `pnpm rigline restore` is the undo.
+- Found by the plugins, and worth more than the plugins. Building three real consumers against the
+  fresh `ctx` turned up two faults in the capability layer that no amount of reading would have:
+  **a switch or a list declared only under `uses.optional` was not granted at all**, so a plugin
+  that declared `tools` or a message tap optionally threw on its first call and disabled itself on
+  every version, including the ones where the identifier was present. Two of the three plugins hit
+  it independently, from different capabilities, and both designed around it rather than trusting
+  it — which is the tell that it was a real hole and not a misreading. And **a mount was rebuilt
+  rather than re-placed**: React detaching a foreign child does not destroy it, so `build()` now
+  runs exactly once and the node goes back as it was. That closes the open item below rather than
+  answering it — the probe had been tracking its node by hand and session-id leaked two document
+  listeners, two plugins failing differently at one seam, which is a hazard in the capability
+  rather than two bugs in the plugins.
 
 ### Phase 4: the community layer
 
@@ -468,36 +492,33 @@ contract is the output, and a plugin built with any other toolchain is treated i
 
 ## Next session
 
-Start here. Phase 2 is closed and verified live; phase 3 has not begun.
+Start here. Phase 3 is built and merged; one half of its acceptance is met and the other needs you.
 
-Read "Surviving an extension update" above and D40 to D45 before starting. D46 to D50 are phase 4
-and block nothing here — they touch no interface phase 3 builds against. One thread does reach back:
-phase 3 lands D40's augmentation, and the phase 4 template needs it working from a file outside the
-plugin's own directory, so prove that while it is in hand.
+**Before anything else, two things about this machine.** `extension.js` is patched on 2.1.268,
+2.1.269 and 2.1.270 — worktree-prefix is the first plugin to declare a host patch, so this is the
+first time the host bundle has been touched here. A host patch takes effect only after
+*Developer: Reload Window*, which ends every Claude session in that window, so it is deliberately
+left for a moment you choose. `pnpm rigline restore` puts all three back to the extension's own
+bytes and needs neither VS Code nor the extension to be working.
 
-1. **Phase 3, in this order:** `uses.optional` and the augmentable identifier types first, since both
-   change what a plugin compiles against; then the three first-party plugins in TypeScript against
-   the new ctx (`session-id`, `worktree-prefix`, `time-marks`; the 0.x inventory of each is in
-   [archive/0.x/inventory-plugins.md](archive/0.x/inventory-plugins.md) and holds the rules, the
-   CSS that must not narrow the content, and the tests to reproduce); then the install-time check,
-   `rigline dev`, the update flow and watcher, and `rigline check`. Each plugin should be added as a
-   harness test as well as a live check, since `packages/harness` can now drive the real bundle.
-2. **Small items carried over:** a helper or documented pattern for a mount whose `build()` runs
-   again on re-placement (the probe had to track its current node by hand); `ctx.watch` on the
-   session list has no model pill, so a plugin that wants a badge there mounts on `document.body`;
-   `.local/spike/` in the checkout is scratch from the spike and can be deleted; the compile-time
-   proof test (a `tsc` run over a fixture plugin showing wrong pairs fail to compile) is still
-   deferred; the harness's `page.ts` could generate its reply table from the same anchors codegen
-   reads, which was noted and not tried; and this repo's own supply-chain settings deserve a
-   deliberate choice rather than a default, since D46 to D48 ask the same of everyone else
-   (`minimumReleaseAge` already defaults to 1440 on pnpm 12, but `allowBuilds` and
-   `blockExoticSubdeps` do not).
-3. **Two camp-site fixes, neither urgent:** `packages/core/src/plugins/discover.ts`
-   calls the user config `rigline.config.json` in two doc comments while `riglinePaths().config` is
-   `~/.rigline/config.json` — settle it when D49 lands, which widens that same file from
-   `{disabled: []}` to a per-plugin source record and would otherwise bake the inconsistency deeper;
-   and `packages/plugin-api/package.json` lists `schema` under `files`, which does not exist yet and
-   which the probe's `$schema` already points at.
+1. **The live check, which is the rest of phase 3's acceptance.** Reload the window, then look at
+   the full editor, the sidebar and the session list. The probe's `RIG` badge should be green on all
+   three; session-id's badge should sit after the model pill and open its pop-up on click;
+   time-marks should put a time on every transcript row and a divider at the top of a reopened
+   session; worktree-prefix should prefix a tab opened on a worktree. Everything here is pinned by a
+   harness test against the real 2.1.270 bundle, so what the live check adds is the thing a headless
+   run cannot see: whether it *looks* right, and whether the host patch does what its `why` claims.
+2. **Then phase 4**, which is written up and unblocked. Start with the two gates that must land
+   before or with `rigline add` — the permission summary and D26's per-patch host-patch opt-in — for
+   the reason that just became concrete rather than theoretical: `applyPatches` took
+   worktree-prefix's declared patch and wrote it into `extension.js` on three installed versions
+   with nothing asked and nothing shown. That is correct for a first-party plugin in this repo and
+   exactly what D26 refuses for anybody else's.
+3. **Small items still carried.** `ctx.watch` on the session list has no model pill, so a plugin
+   wanting a badge there mounts on `document.body` — worth a sentence in the authoring guide rather
+   than an API change. The harness's `page.ts` could generate its reply table from the same anchors
+   codegen reads, which was noted, not tried, and is now slightly more attractive: a wrong reply
+   type sat in that table until worktree-prefix needed the message.
 
 ## Status log
 
@@ -571,3 +592,38 @@ plugin's own directory, so prove that while it is in hand.
   because a template is the easiest place to let a toolchain leak into a contract, and names the one
   real cost of the shape: a trusted publisher is per package, so plugin number two needs its own npm
   setup even though it shares the workflow file. No code changed.
+- 2026-09-14: Phase 3 built and merged. `uses.optional` and `ctx.optional` (D41); the augmentable
+  identifier types (D40), spiked before being built and now pinned by a test that drives `tsc`,
+  proving both halves and proving the augmentation reaches a plugin from a file outside its own
+  directory, through `paths` to source and through `node_modules` to the emitted `.d.ts` — which is
+  the property the phase 4 template rests on. The committed harvest moved to the workspace root,
+  which keeps it out of the published package by layout rather than by an exclusion rule. The three
+  plugins, rebuilt in TypeScript from the OCR'd 0.x inventory, each re-deriving the regexes and
+  literals it damaged rather than transcribing them; worktree-prefix's host-patch anchor turned out
+  to carry a space the real bundle does not. The install-time declaration check (D43), successor
+  suggestions in the diff (D45), the update flow and its watcher, and `check`, `update`, `watch`
+  and `dev`. Also the deferred compile-time proof, the manifest JSON schema every `rigline.json`
+  already pointed at and plugin-api did not ship, and this repo's supply-chain settings written
+  down rather than inherited — which corrected the plan's own note, since `blockExoticSubdeps`
+  already defaults to true and `minimumReleaseAge` has defaulted to 1440 since pnpm 11.
+- 2026-09-14: The three plugins earned their keep twice over, by finding two faults in the layer
+  they were the first real consumers of. **A declaration under `uses.optional` was not granted at
+  all** for anything but the two lookup-shaped capabilities: a plugin declaring `tools`, a message
+  tap or a rewrite optionally threw on its first call and disabled itself, on every version,
+  including the ones where the identifier was present. Two of the three plugins hit it
+  independently, from different capabilities, and both designed around it rather than trusting it.
+  The rule is now in D41: a lookup-shaped capability has two methods and each reads its own half,
+  everything else has one method that reads both. **And a mount was rebuilt rather than re-placed.**
+  React detaching a foreign child does not destroy it, so `build()` now runs once and the node goes
+  back as it was. That closes the plan's open question rather than answering it — the probe was
+  tracking its node by hand and session-id leaked two document listeners, which is two plugins
+  failing differently at one seam, and so a hazard in the capability rather than two bugs in the
+  plugins. A third fault was in the harness: its fake host answered `list_sessions_request` with a
+  type the extension does not have, so a tap on the real reply could never have fired there.
+- 2026-09-14: Phase 3's simulated-update acceptance met, and demonstrated end to end rather than
+  only in tests. A copy of 2.1.270 with `sessionItem` renamed to `sessionTile` in the bundle and the
+  stylesheet: `rigline check` names the successor, refuses the probe by name on that version alone,
+  loads a plugin declaring the same anchor optionally without it, reports the anchor table's own gap
+  against the table, and exits 1. All four plugins are installed on 2.1.268, 2.1.269 and 2.1.270
+  with every declaration holding. The live half is left for Leo, and needs a *window* reload
+  because `extension.js` is now patched for the first time.
