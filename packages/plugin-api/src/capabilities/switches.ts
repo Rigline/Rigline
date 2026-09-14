@@ -27,10 +27,11 @@ export const styleContract: CapabilityContract<"style"> = {
  */
 export const toolsContract = switchContract({
   key: "tools",
-  grants: ["onToolUse"],
+  grants: ["onToolUse", "onToolResult"],
   messages: ["io_message"],
   anchors: [],
-  summary: "watches the tool calls the assistant makes, including their arguments",
+  summary:
+    "watches the tool calls the assistant makes, including their arguments and whether each worked",
 });
 
 /** The panel's session id, derived by the host through the farewell rule. */

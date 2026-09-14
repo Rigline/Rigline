@@ -249,6 +249,25 @@ which is not always when a plugin learns something. Replaying the app's own mess
 cannot invent a type, a field value or an envelope. A resend from inside the chain is refused
 because it would recurse.
 
+**D51. `tools` reports outcomes as well as calls, and the host owns the correlation.** `ctx.onToolUse`
+reports what the assistant *asked for*; a plugin that acts on it is acting on an intention, and an
+`EnterWorktree` the user declined or that failed looks exactly like one that worked. The outcome is
+on the same bus: the CLI relays a `tool_result` block on a `type: "user"` record, carrying
+`tool_use_id`, `content` and `is_error`, and the extension itself reads precisely that three-state
+answer — no result yet is pending, `is_error: true` is failure, anything else is success. A declined
+permission arrives as `is_error`, which is the case worth having.
+
+So `ctx.onToolResult(handler)` joins the result back to the call it answers and hands over
+`{ id, name, input, ok, content }`. Joined, because a `tool_result` alone carries no tool name and
+every plugin would otherwise keep its own map; owned by the host for the reason P5 gives, since
+getting the correlation wrong is silent — the visible symptom is a tab confidently naming a
+worktree the session is not in. It is granted by the same `tools` switch and expands to the same
+`io_message`, because it is a second reading of one stream rather than a second dependency.
+
+The map of calls awaiting a result is bounded and drops its oldest entries. A result follows its
+call within seconds, the extension keeps the real history, and an unbounded map here would be the
+replay buffer's mistake made twice (D3).
+
 **D22. A DOM capability hands out data, never an element, where the host discovered the element.**
 Transcript rows are keyed by index upstream and React reuses elements when the list is spliced, so
 identity is the host's problem, and keeping it there lets the mechanism change without any plugin

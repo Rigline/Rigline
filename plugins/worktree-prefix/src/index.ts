@@ -1,7 +1,7 @@
 /**
  * Prefixes a session's native VS Code tab label with the worktree it belongs to: a ticket key
- * (e.g. `TD-1234`) when the worktree directory's name starts with one, the first eight characters
- * of the name otherwise.
+ * (e.g. `TD-1234`) when the worktree directory's name starts with one, and as much of the name as
+ * fits in eight characters, cut at a word boundary, otherwise.
  *
  * **Why a rewrite, and not DOM.** A session's tab is a real VS Code editor tab, entirely outside
  * the webview's DOM. `WebviewPanel.title` is assigned in exactly one place in the extension host —
@@ -19,8 +19,8 @@
  * **Two independent detection sources, and why neither subsumes the other.** `list_sessions_response`
  * reports where a session *began*: it covers a session already relocated into a worktree before
  * this panel connected, which no tool call in this panel's lifetime could ever observe.
- * `ctx.onToolUse` reports where a session *moves to*: it covers a relocation made during the
- * current conversation, which triggers no list refetch at all (the app refetches the list on
+ * `ctx.onToolResult` reports where a session *moves to*, and whether it got there: it covers a
+ * relocation made during the current conversation, which triggers no list refetch at all (the app refetches the list on
  * connection, an archive change, a config-home move, activating a session it does not already
  * hold, and opening the session picker — a session changing its own cwd is none of those). The
  * host patch below changes what a fetch *contains*; it does nothing to make one happen sooner.
@@ -43,7 +43,7 @@
  * recovers it. `EnterWorktree`'s `{path}` form is read the same way for the same reason: the path
  * may sit outside that convention, so only its last segment is usable as a label.
  */
-import { definePlugin, type Payload, type ToolUse } from "@rigline/plugin-api";
+import { definePlugin, type Payload } from "@rigline/plugin-api";
 
 /**
  * Separates the marker from the app's own title, e.g. `"TD-1234 - Refactor the bus"`.
@@ -54,27 +54,70 @@ import { definePlugin, type Payload, type ToolUse } from "@rigline/plugin-api";
  */
 const SEPARATOR = " - ";
 
-/** Truncation length for a worktree name that is not a ticket key. */
+/** How much of a non-ticket worktree name to show. A budget, not a hard cut — see `worktreeLabel`. */
 const SHORT_LENGTH = 8;
 
 /**
- * A ticket key: 1-3 letters/digits, a hyphen, 1-5 digits, then a hyphen (dropped) or the end of
- * the string. Anchored at the start on purpose — this describes the *start* of a worktree
- * directory's name, not a key occurring anywhere inside it, so `TD-123456-x` (six digits, not a
- * ticket shape) and `ABCD-1234` (four leading characters, one too many) both fall through to
- * truncation instead of being coerced into a near-miss.
+ * A ticket key at the *start* of a worktree directory's name: a letter, one to nine more letters or
+ * digits, a hyphen, one to six digits, and then anything that is not alphanumeric, or the end.
+ *
+ * The bounds are the real ones rather than tidy ones. Jira allows a project key of two to ten
+ * characters and issue numbers run past five digits in any long-lived project; Linear's team keys
+ * and Shortcut's `sc-1234` both sit inside the same shape. Requiring a *letter* first is what makes
+ * that width safe: it is the rule that stops `2026-09-14-spike` reading as ticket `2026-09`, which
+ * an alphanumeric-first pattern of the same width would happily do. The trailing
+ * `(?![A-Za-z0-9])` stops `TD-1234x` being read as `TD-1234`.
+ *
+ * Anchored at the start because it describes how a name *begins*, not a key found anywhere inside
+ * it: a worktree called `revert-ABC-123` is not that ticket's worktree.
+ *
+ * Two other conventions were considered and are deliberately not matched. `AB#1234` (Azure DevOps)
+ * and a bare leading issue number (`1234-fix-the-thing`, GitHub flow) are both real, but `#` is
+ * vanishingly rare in a directory name, and a leading bare number cannot be told apart from a date
+ * or a version without guessing — and guessing a ticket number wrong is the failure this whole
+ * function exists to avoid.
  */
-const TICKET = /^([A-Za-z0-9]{1,3}-\d{1,5})(?:-|$)/;
+const TICKET = /^([A-Za-z][A-Za-z0-9]{1,9}-\d{1,6})(?![A-Za-z0-9])/;
 
-/** The ticket key `name` starts with, or its first `SHORT_LENGTH` characters. Case preserved. */
+/** Where a name's own word boundaries are: the separators a directory name is built from. */
+const SEPARATORS = /[-_. ]/;
+
+/**
+ * The label for a worktree: its ticket key when it starts with one, whole, however long; otherwise
+ * as much of the name as fits in `SHORT_LENGTH`, cut at a word boundary.
+ *
+ * The boundary is not cosmetic, and it is the half of this that was wrong. A blind
+ * `slice(0, 8)` turns `ABCD-1234` into `ABCD-123` — not a shortened name but a *different,
+ * perfectly plausible ticket number*, printed onto a real VS Code tab with no way for a reader to
+ * tell. That is exactly what P8 means by absent beating wrong, and widening the pattern above does
+ * not fix it, because there is always a name just outside whatever the bounds are. Cutting at a
+ * separator instead yields `ABCD`, which nobody will read as a ticket.
+ *
+ * Falling back to a hard cut when there is no separator in budget is safe for the same reason: a
+ * single unbroken word has no hyphen-then-digits shape to be mistaken for.
+ */
 export function worktreeLabel(name: string): string {
-  return TICKET.exec(name)?.[1] ?? name.slice(0, SHORT_LENGTH);
+  const ticket = TICKET.exec(name)?.[1];
+  if (ticket !== undefined) return ticket;
+  if (name.length <= SHORT_LENGTH) return name;
+
+  const budget = name.slice(0, SHORT_LENGTH);
+  for (let i = budget.length - 1; i > 0; i--) {
+    if (SEPARATORS.test(budget[i] as string)) return budget.slice(0, i);
+  }
+  return budget;
 }
 
 /** The last non-empty segment of a Windows or POSIX path, ignoring trailing separators. */
 export function lastSegment(path: string): string {
   const segments = path.replace(/[\\/]+$/, "").split(/[\\/]/);
   return segments[segments.length - 1] ?? "";
+}
+
+/** The half of a tool call this plugin reads, shared by `ToolUse` and `ToolResult`. */
+export interface ToolCall {
+  readonly name: string;
+  readonly input: Readonly<Record<string, unknown>>;
 }
 
 /**
@@ -88,7 +131,7 @@ export function lastSegment(path: string): string {
  * extension, so a rename upstream is allowed to silently stop the prefix appearing rather than
  * throw.
  */
-export function worktreeFromTool(tool: ToolUse): string | null | undefined {
+export function worktreeFromTool(tool: ToolCall): string | null | undefined {
   if (tool.name === "ExitWorktree") return null;
   if (tool.name !== "EnterWorktree") return undefined;
   const name = tool.input.name;
@@ -195,8 +238,15 @@ export default definePlugin({
       sessionId = id;
     });
 
-    ctx.onToolUse((tool) => {
-      const next = worktreeFromTool(tool);
+    // The *result*, not the call (D51). `ctx.onToolUse` reports what the assistant asked for, and a
+    // worktree move the user declined — or one that failed because the branch was already checked
+    // out somewhere — arrives there looking exactly like one that worked. Acting on it renames a
+    // real VS Code tab after a move that never happened, and nothing on screen says so. A failed
+    // result is dropped rather than treated as an exit: the session did not go anywhere, so the
+    // answer this plugin already held is still the right one.
+    ctx.onToolResult((result) => {
+      if (!result.ok) return;
+      const next = worktreeFromTool(result);
       // undefined: a tool call this plugin has no opinion about. Leaving observedWorktree alone
       // (rather than setting it to undefined) is what lets "nothing observed yet, defer to the
       // list" and "observed and it said nothing new" both read the same way.

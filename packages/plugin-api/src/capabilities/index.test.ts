@@ -142,7 +142,7 @@ describe("summaries and the advisory scan", () => {
     expect(lines).toEqual([
       "attaches to modelPill: The model picker pill in the composer footer",
       "rewrites rename_tab on its way to the extension host: title",
-      "watches the tool calls the assistant makes, including their arguments",
+      "watches the tool calls the assistant makes, including their arguments and whether each worked",
     ]);
   });
 
@@ -167,7 +167,7 @@ describe("summaries and the advisory scan", () => {
       'declares "session" but never calls onSessionId()',
     ]);
     expect(capabilityDrift(EMPTY_USES, ["tools"])).toEqual([
-      'calls onToolUse() without declaring "tools": it will throw and disable the plugin',
+      'calls onToolUse/onToolResult() without declaring "tools": it will throw and disable the plugin',
     ]);
     expect(capabilityDrift(uses({ tools: true }), ["tools"])).toEqual([]);
   });
@@ -241,7 +241,7 @@ describe("capabilityDrift with optional switches", () => {
   it("counts a switch declared on either side as declared", () => {
     expect(capabilityDrift(optionally({ tools: true }), ["tools"])).toEqual([]);
     expect(capabilityDrift(optionally({ tools: true }), [])).toEqual([
-      'declares "tools" but never calls onToolUse()',
+      'declares "tools" but never calls onToolUse/onToolResult()',
     ]);
   });
 });

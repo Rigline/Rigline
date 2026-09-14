@@ -142,6 +142,22 @@ describe.skipIf(skip !== null)(
         expect(info.hasBorrowedClass).toBe(true);
         expect(info.rowCount).toBeGreaterThan(0);
 
+        // The dimming belongs to the label, never to the badge. `opacity` applies to a whole
+        // subtree, so a badge at 0.35 takes the pop-up down with it and the transcript shows
+        // through the text — which is what it did, live, before this assertion existed. Checking
+        // the badge rather than the pop-up is deliberate: a descendant's own computed opacity
+        // reads 1 whatever an ancestor does, so the pop-up cannot report its own dimming.
+        const dimming = await booted.page.evaluate(() => {
+          const badge = document.getElementById("rigline-session-id");
+          const label = badge?.children[0] ?? null;
+          return {
+            badge: badge === null ? null : getComputedStyle(badge).opacity,
+            label: label === null ? null : getComputedStyle(label).opacity,
+          };
+        });
+        expect(dimming.badge).toBe("1");
+        expect(Number(dimming.label)).toBeLessThan(1);
+
         const d = await booted.diagnostics();
         expect(d.errors).toEqual([]);
         expect(booted.consoleErrors).toEqual([]);

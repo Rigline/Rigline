@@ -12,7 +12,7 @@
  */
 import type { AnchorName, Surface } from "./anchors.ts";
 import type { MessageType, ModuleClasses, ModuleId, OutboundFields } from "./identifiers.ts";
-import type { ToolUse } from "./stream.ts";
+import type { ToolResult, ToolUse } from "./stream.ts";
 import type { TranscriptEntry } from "./transcript.ts";
 
 /** Undo whatever a registration did. Returned by everything that adds a listener or DOM. */
@@ -154,8 +154,20 @@ export interface PluginContext {
   /**
    * Every completed tool call the assistant makes, on every channel this webview shows. Names are
    * matched, never checked. Not replayed and not durable. Requires `uses.tools`.
+   *
+   * This is what was *asked for*. A call the user declined, or that failed, arrives here looking
+   * exactly like one that worked, so anything that acts on the world rather than merely observing
+   * it wants `onToolResult` instead.
    */
   onToolUse(handler: (tool: ToolUse) => void): Teardown;
+
+  /**
+   * Every tool call's outcome, joined back to the call it answers, so the handler gets the tool's
+   * name and arguments alongside whether it worked (D51). A call still running produces nothing;
+   * a declined permission produces `ok: false`. Requires `uses.tools`, the same declaration
+   * `onToolUse` needs, because it is a second reading of one stream and not a second dependency.
+   */
+  onToolResult(handler: (result: ToolResult) => void): Teardown;
 
   /**
    * The session this panel is hosting: called at once with the current id, null if none, and

@@ -368,6 +368,16 @@ done.
   needs a person looking at the panel — and a *window* reload rather than a webview one, because
   worktree-prefix is the first plugin to declare a host patch and `extension.js` is now patched on
   all three versions. `pnpm rigline restore` is the undo.
+- Found by the live check, and fixed the same day. **session-id's pop-up inherited the badge's
+  dimming**: the badge holds its label in a child element precisely so `opacity` does not reach the
+  pop-up subtree, and then set the opacity on the badge anyway, which is the exact failure the 0.x
+  archive recorded and the child element exists to prevent. **worktree-prefix acted on a tool call
+  rather than its outcome**, so a declined or failed `EnterWorktree` renamed the tab as though it
+  had worked; the outcome is on the same bus and the host now owns the correlation (D51). And **its
+  ticket pattern was too narrow while its fallback was too confident** — a real Jira key of four or
+  more characters fell through to an eight-character truncation, which turns `ABCD-1234` into
+  `ABCD-123`: not a shortened name but a different, valid-looking ticket number, which is precisely
+  what P8 refuses.
 - Found by the plugins, and worth more than the plugins. Building three real consumers against the
   fresh `ctx` turned up two faults in the capability layer that no amount of reading would have:
   **a switch or a list declared only under `uses.optional` was not granted at all**, so a plugin
@@ -492,33 +502,24 @@ contract is the output, and a plugin built with any other toolchain is treated i
 
 ## Next session
 
-Start here. Phase 3 is built and merged; one half of its acceptance is met and the other needs you.
+Start here. Phase 3 is built, merged and verified live; phase 4 has not begun.
 
-**Before anything else, two things about this machine.** `extension.js` is patched on 2.1.268,
-2.1.269 and 2.1.270 — worktree-prefix is the first plugin to declare a host patch, so this is the
-first time the host bundle has been touched here. A host patch takes effect only after
-*Developer: Reload Window*, which ends every Claude session in that window, so it is deliberately
-left for a moment you choose. `pnpm rigline restore` puts all three back to the extension's own
-bytes and needs neither VS Code nor the extension to be working.
+**About this machine.** `extension.js` is patched on 2.1.268, 2.1.269 and 2.1.270 — worktree-prefix
+is the first plugin to declare a host patch. A host patch takes effect only after *Developer: Reload
+Window*, which ends every Claude session in that window, so do it at a moment you choose.
+`pnpm rigline restore` puts all three back to the extension's own bytes and needs neither VS Code nor
+the extension to be working.
 
-1. **The live check, which is the rest of phase 3's acceptance.** Reload the window, then look at
-   the full editor, the sidebar and the session list. The probe's `RIG` badge should be green on all
-   three; session-id's badge should sit after the model pill and open its pop-up on click;
-   time-marks should put a time on every transcript row and a divider at the top of a reopened
-   session; worktree-prefix should prefix a tab opened on a worktree. Everything here is pinned by a
-   harness test against the real 2.1.270 bundle, so what the live check adds is the thing a headless
-   run cannot see: whether it *looks* right, and whether the host patch does what its `why` claims.
-2. **Then phase 4**, which is written up and unblocked. Start with the two gates that must land
-   before or with `rigline add` — the permission summary and D26's per-patch host-patch opt-in — for
-   the reason that just became concrete rather than theoretical: `applyPatches` took
-   worktree-prefix's declared patch and wrote it into `extension.js` on three installed versions
-   with nothing asked and nothing shown. That is correct for a first-party plugin in this repo and
-   exactly what D26 refuses for anybody else's.
-3. **Small items still carried.** `ctx.watch` on the session list has no model pill, so a plugin
-   wanting a badge there mounts on `document.body` — worth a sentence in the authoring guide rather
-   than an API change. The harness's `page.ts` could generate its reply table from the same anchors
-   codegen reads, which was noted, not tried, and is now slightly more attractive: a wrong reply
-   type sat in that table until worktree-prefix needed the message.
+1. **Phase 4**, which is written up above and unblocked. Start with the two gates that must land
+   before or with `rigline add` — the permission summary and D26's per-patch host-patch opt-in. The
+   reason is concrete rather than theoretical: `applyPatches` takes every enabled plugin's declared
+   patch and writes it into `extension.js` with nothing asked and nothing shown, which is correct for
+   a first-party plugin in this repo and exactly what D26 refuses for anybody else's.
+2. **Small items still carried.** `ctx.watch` on the session list has no model pill, so a plugin
+   wanting a badge there mounts on `document.body` — a sentence in the authoring guide, not an API
+   change. The harness's `page.ts` could generate its reply table from the same anchors codegen
+   reads, which was noted, not tried, and is now more attractive: a wrong reply type sat in that
+   table until a plugin needed the message.
 
 ## Status log
 

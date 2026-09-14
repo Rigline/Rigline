@@ -294,7 +294,7 @@ describe("capabilityUseNotes", () => {
   it("reports a capability used but not declared", () => {
     const p = plugin("undeclared", {}, "ctx.onToolUse(() => {});");
     expect(capabilityUseNotes([p])).toEqual([
-      'undeclared: calls onToolUse() without declaring "tools": it will throw and disable the plugin',
+      'undeclared: calls onToolUse/onToolResult() without declaring "tools": it will throw and disable the plugin',
     ]);
   });
 

@@ -19,6 +19,7 @@ import type {
 import type { Bus, Diagnostics, ReactBridge } from "./bridge.ts";
 import type { MountService } from "./mounts.ts";
 import type { SessionService } from "./session.ts";
+import type { ToolService } from "./tools.ts";
 import type { TranscriptService } from "./transcript.ts";
 
 /** One registry entry, as the injector baked it, plus its position in the registry. */
@@ -41,6 +42,7 @@ export interface Kernel {
   readonly diagnostics: Diagnostics;
   readonly mounts: MountService;
   readonly session: SessionService;
+  readonly tools: ToolService;
   readonly transcript: TranscriptService;
 }
 

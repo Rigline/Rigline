@@ -55,8 +55,8 @@ export {
 } from "./manifest.ts";
 export { manifestSchema, manifestSchemaJson } from "./schema.ts";
 export { nextSessionId } from "./session.ts";
-export type { ToolUse } from "./stream.ts";
-export { toolUses } from "./stream.ts";
+export type { ToolResult, ToolUse } from "./stream.ts";
+export { PENDING_TOOL_LIMIT, toolResults, toolUses } from "./stream.ts";
 export type { IdentifierTables } from "./tables.ts";
 export type { FiberLike, MessageTime, TranscriptEntry } from "./transcript.ts";
 export { entriesDiffer, messageTimes, rowIdentity } from "./transcript.ts";

@@ -120,7 +120,7 @@
         },
         "tools": {
           "type": "boolean",
-          "description": "watches the tool calls the assistant makes, including their arguments"
+          "description": "watches the tool calls the assistant makes, including their arguments and whether each worked"
         },
         "session": {
           "type": "boolean",
@@ -207,7 +207,7 @@
             },
             "tools": {
               "type": "boolean",
-              "description": "watches the tool calls the assistant makes, including their arguments"
+              "description": "watches the tool calls the assistant makes, including their arguments and whether each worked"
             },
             "session": {
               "type": "boolean",

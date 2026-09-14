@@ -23,6 +23,7 @@ import { type Bridge, bridge as findBridge, type PluginStatus } from "./kernel/b
 import { createMountService } from "./kernel/mounts.ts";
 import { createSessionService } from "./kernel/session.ts";
 import { detectSurface } from "./kernel/surface.ts";
+import { createToolService } from "./kernel/tools.ts";
 import { createTranscriptService } from "./kernel/transcript.ts";
 import type { Grant, Kernel, PluginRecord } from "./kernel/types.ts";
 
@@ -171,6 +172,7 @@ async function main(): Promise<void> {
     diagnostics,
     mounts,
     session: createSessionService(bus),
+    tools: createToolService(bus),
     transcript: createTranscriptService(
       bus,
       react,

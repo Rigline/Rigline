@@ -441,7 +441,7 @@ describe("plugins", () => {
     const report = install(ext, { payloadDir: payload(), plugins: withPlugins([root]) });
 
     expect(report.notes).toContain(
-      'mismatched: calls onToolUse() without declaring "tools": it will throw and disable the plugin',
+      'mismatched: calls onToolUse/onToolResult() without declaring "tools": it will throw and disable the plugin',
     );
     expect(report.notes.some((n) => n.includes("agrees"))).toBe(false);
     expect(report.notes.some((n) => n.includes("transcript"))).toBe(false);

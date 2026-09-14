@@ -1,8 +1,19 @@
 # worktree-prefix
 
 Prefixes a session's native VS Code tab label with the worktree it belongs to: a ticket key (e.g.
-`TD-1234`) when the worktree directory's name starts with one, the first eight characters of the
-name otherwise. Tabs from several worktrees of the same repo are then told apart at a glance.
+`TD-1234`) when the worktree directory's name starts with one, and otherwise as much of the name as
+fits in eight characters, cut at a word boundary. Tabs from several worktrees of the same repo are
+then told apart at a glance.
+
+A ticket key is never shortened, however long it is: `PLATFORM99-100001` comes through whole. The
+pattern is a letter, one to nine more letters or digits, a hyphen and one to six digits, which
+covers Jira's real bounds along with Linear and Shortcut; requiring a letter first is what keeps a
+dated name like `2026-09-14-spike` from reading as ticket `2026-09`.
+
+The word-boundary cut is not cosmetic. A blind eight-character slice turns `ABCD-1234` into
+`ABCD-123` — not a shortened name but a different, perfectly plausible ticket number, printed onto
+a real tab with nothing to tell a reader it is wrong. Cutting at the separator gives `ABCD`, which
+nobody will mistake for a key.
 
 ## How it works
 
@@ -22,8 +33,11 @@ subsumes the other:
 - **`list_sessions_response`** reports where a session *began*. It covers a session that was
   already relocated into a worktree before this panel connected — a tool call in this panel's own
   lifetime could never observe that.
-- **`ctx.onToolUse`**, watching `EnterWorktree`/`ExitWorktree` calls, reports where a session
-  *moves to* during the current conversation. The app refetches the session list on connection, an
+- **`ctx.onToolResult`**, watching `EnterWorktree`/`ExitWorktree` *outcomes*, reports where a
+  session *moves to* during the current conversation. The outcome rather than the call: a move the
+  user declined, or one that failed because the branch was already checked out elsewhere, arrives
+  at `ctx.onToolUse` looking exactly like one that worked, and acting on it renames a real tab
+  after a move that never happened. The app refetches the session list on connection, an
   archive change, a config-home move, activating a session it does not already hold, and opening
   the session picker — a session changing its own cwd is none of those, so nothing else would
   notice a move made mid-conversation.

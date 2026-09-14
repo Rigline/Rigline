@@ -143,26 +143,51 @@ describe.skipIf(skipReason !== null)(
       });
     }
 
+    /**
+     * A whole tool call: the assistant's `tool_use` block and then the `tool_result` that settles
+     * it, because the plugin acts on the outcome and not the intention (D51). `ok: false` pushes a
+     * call the user declined or that failed, which is the case the plugin must ignore.
+     */
     async function hostTool(
       booted: Booted,
       name: string,
       input: Record<string, unknown>,
+      ok = true,
     ): Promise<void> {
-      await push(booted, {
+      const id = `tool-${Math.random().toString(36).slice(2)}`;
+      const envelope = (message: Record<string, unknown>) => ({
         type: "io_message",
         channelId: "harness-tool-channel",
         message: {
-          type: "assistant",
           uuid: `tool-msg-${Math.random().toString(36).slice(2)}`,
           timestamp: new Date().toISOString(),
-          message: {
-            role: "assistant",
-            content: [
-              { type: "tool_use", id: `tool-${Math.random().toString(36).slice(2)}`, name, input },
-            ],
-          },
+          ...message,
         },
       });
+      await push(
+        booted,
+        envelope({
+          type: "assistant",
+          message: { role: "assistant", content: [{ type: "tool_use", id, name, input }] },
+        }),
+      );
+      await push(
+        booted,
+        envelope({
+          type: "user",
+          message: {
+            role: "user",
+            content: [
+              {
+                type: "tool_result",
+                tool_use_id: id,
+                content: ok ? "done" : "The user doesn't want to proceed",
+                is_error: !ok,
+              },
+            ],
+          },
+        }),
+      );
     }
 
     /** Every `rename_tab` title actually sent, in order. */
@@ -279,13 +304,10 @@ describe.skipIf(skipReason !== null)(
         ]);
         await pulse(booted);
         await waitForRenameCount(booted, 2);
-        // "spike-ne", not "spike-new": SHORT_LENGTH is 8 (verified three times over in
-        // src/index.test.ts's own unit tests — "TD-12345", "ABCD-123", "prototype-w" are each
-        // exactly 8 characters), and the inventory's own integration-list prose gives "spike-new"
-        // for this same case, which is 9. Trusted as a transcription slip in the loosely-paraphrased
-        // integration section rather than a real behaviour to reproduce, since it contradicts the
-        // rule the inventory states and demonstrates correctly everywhere else.
-        expect((await titles(booted)).at(-1)).toBe(`spike-ne - ${bare}`);
+        // "spike": eight characters is a budget, and the cut lands on the word boundary inside it
+        // rather than mid-token. The 0.x prototype's blind slice gave "spike-ne", which is how a
+        // name that happens to be ticket-shaped became a different, plausible ticket number.
+        expect((await titles(booted)).at(-1)).toBe(`spike - ${bare}`);
       } finally {
         await booted.close();
       }
@@ -363,6 +385,36 @@ describe.skipIf(skipReason !== null)(
         await hostTool(booted, "ExitWorktree", {});
         await waitForRenameCount(booted, 3);
         expect((await titles(booted)).at(-1)).toBe(bare);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
+    it("ignores a worktree move that was declined or failed, and is not confused by it afterwards", async () => {
+      // The reason this plugin reads results rather than calls (D51). A declined EnterWorktree is
+      // a call the assistant made and the session did not complete: acting on it renames a real
+      // VS Code tab after a move that never happened, and nothing on screen says otherwise.
+      const booted = await boot({ plugins: [worktreePrefixPlugin, pulsePlugin] });
+      try {
+        await waitForRenameCount(booted, 1);
+        const bare = (await titles(booted)).at(-1) as string;
+        await hostSession(booted, "s-declined");
+
+        await hostTool(booted, "EnterWorktree", { name: WORKTREE_NAME }, false);
+        await pulse(booted);
+        await waitForRenameCount(booted, 2);
+        expect((await titles(booted)).at(-1)).toBe(bare);
+
+        // And the failure left nothing behind: the next attempt, which does succeed, still lands.
+        await hostTool(booted, "EnterWorktree", { name: WORKTREE_NAME });
+        await waitForRenameCount(booted, 3);
+        expect((await titles(booted)).at(-1)).toBe(`TD-1234 - ${bare}`);
+
+        // A failed exit is refused the same way, and does not strip a prefix that still holds.
+        await hostTool(booted, "ExitWorktree", {}, false);
+        await pulse(booted);
+        await waitForRenameCount(booted, 4);
+        expect((await titles(booted)).at(-1)).toBe(`TD-1234 - ${bare}`);
       } finally {
         await booted.close();
       }

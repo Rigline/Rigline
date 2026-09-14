@@ -197,6 +197,14 @@ export function buildEntries(address: Identity | null, sessionId: string | null)
   return entries;
 }
 
+/**
+ * Whether the badge has anything real to show yet, which is what its dimming means: full-ish while
+ * it is labelling something, fainter while it is only holding its place.
+ */
+export function known(address: Identity | null, sessionId: string | null): boolean {
+  return address !== null || sessionId !== null;
+}
+
 /** The hint appended to the badge's tooltip once there is something to alt-click for. */
 export function copyHint(address: Identity | null, sessionId: string | null): string | null {
   if (address !== null) return "Click for all - Alt-click to copy the address";
@@ -305,8 +313,11 @@ export default definePlugin({
       if (!badge || !label) return;
       const address = currentIdentity();
       label.textContent = headlineText(address, sessionId);
-      const known = address !== null || sessionId !== null;
-      badge.style.opacity = known ? "0.65" : "0.35";
+      // On the label, never on the badge. `opacity` applies to a whole subtree, and the pop-up is
+      // mounted as the badge's other child, so dimming the badge dims the pop-up with it and the
+      // transcript shows through the text. Holding the headline in its own element is the entire
+      // reason that element exists; setting this one property on the wrong one of the two undoes it.
+      label.style.opacity = known(address, sessionId) ? "0.65" : "0.35";
       badge.title = buildTooltip(buildEntries(address, sessionId), address, sessionId);
       if (popupBody) renderRows(popupBody, address, sessionId);
     }

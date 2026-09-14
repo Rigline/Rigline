@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { toolUses } from "./stream.ts";
+import { toolResults, toolUses } from "./stream.ts";
 
 /** The real wire shape the extension host forwards for one assistant record. */
 const streamed = (...content: unknown[]) => ({
@@ -82,5 +82,69 @@ describe("toolUses", () => {
     expect(toolUses(streamed({ type: "tool_use", id: "toolu_03", name: "Glob" }))).toEqual([
       { id: "toolu_03", name: "Glob", input: {} },
     ]);
+  });
+});
+
+describe("toolResults", () => {
+  const result = (blocks: unknown[]) => ({
+    type: "io_message",
+    message: { type: "user", message: { role: "user", content: blocks } },
+  });
+
+  it("reads a settled outcome and its id", () => {
+    expect(
+      toolResults(
+        result([{ type: "tool_result", tool_use_id: "t1", content: "done", is_error: false }]),
+      ),
+    ).toEqual([{ id: "t1", ok: true, content: "done" }]);
+  });
+
+  it("reads a missing is_error as success, because a block only exists once it has settled", () => {
+    expect(toolResults(result([{ type: "tool_result", tool_use_id: "t1", content: "x" }]))).toEqual(
+      [{ id: "t1", ok: true, content: "x" }],
+    );
+  });
+
+  it("reads is_error true as failure, which is also how a declined permission arrives", () => {
+    const blocks = [
+      {
+        type: "tool_result",
+        tool_use_id: "t1",
+        content: "The user doesn't want to",
+        is_error: true,
+      },
+    ];
+    expect(toolResults(result(blocks))[0]?.ok).toBe(false);
+  });
+
+  it("ignores an assistant record, which is where calls live rather than outcomes", () => {
+    const assistant = {
+      type: "io_message",
+      message: {
+        type: "assistant",
+        message: { role: "assistant", content: [{ type: "tool_result", tool_use_id: "t1" }] },
+      },
+    };
+    expect(toolResults(assistant)).toEqual([]);
+  });
+
+  it("ignores an ordinary typed message, which is a user record too", () => {
+    expect(toolResults(result([{ type: "text", text: "tool_result" }]))).toEqual([]);
+  });
+
+  it("ignores anything malformed rather than throwing inside a handler", () => {
+    for (const value of [
+      null,
+      undefined,
+      1,
+      "x",
+      {},
+      { type: "io_message" },
+      result("no" as never),
+    ]) {
+      expect(toolResults(value)).toEqual([]);
+    }
+    expect(toolResults(result([{ type: "tool_result" }]))).toEqual([]);
+    expect(toolResults(result([{ type: "tool_result", tool_use_id: 7 }]))).toEqual([]);
   });
 });

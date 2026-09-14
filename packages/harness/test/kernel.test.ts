@@ -14,6 +14,14 @@ import { harnessSkipReason, register } from "../src/suite.ts";
 
 const VERSION = "2.1.270";
 
+interface ToolsWindow {
+  readonly __harness?: { readonly push: (message: unknown) => void };
+  readonly __tools?: {
+    readonly uses: readonly string[];
+    readonly results: readonly Record<string, unknown>[];
+  };
+}
+
 interface SurvivorWindow {
   readonly __survivor?: {
     readonly sessions: number;
@@ -329,6 +337,80 @@ export default { setup() {} };`,
 
         const d = await booted.diagnostics();
         expect(d.plugins.find((p) => p.name === "survivor")?.status).toBe("loaded");
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
+    it("joins a tool result back to the call it answers, and drops one it cannot name", async () => {
+      // D51. A tool_result block carries a tool_use_id, the output and is_error, and no tool name
+      // at all, so the join is the whole value: without it a plugin knows something finished but
+      // not what, and acting on the call instead means acting on an intention the user may have
+      // declined.
+      const watcher: FixturePlugin = {
+        name: "watcher",
+        manifest: { uses: { tools: true } },
+        source: `export default { setup(ctx) {
+    const seen = { uses: [], results: [] };
+    window.__tools = seen;
+    ctx.onToolUse((t) => seen.uses.push(t.name + ":" + t.id));
+    ctx.onToolResult((r) => seen.results.push({
+      id: r.id, name: r.name, ok: r.ok, input: r.input, content: r.content,
+    }));
+  } };`,
+      };
+      const booted = await boot({ plugins: [watcher] });
+      try {
+        await booted.page.evaluate(() => {
+          const push = (window as unknown as ToolsWindow).__harness?.push;
+          if (!push) throw new Error("harness push missing");
+          const call = (id: string, name: string, input: unknown) => ({
+            type: "io_message",
+            message: {
+              type: "assistant",
+              message: { role: "assistant", content: [{ type: "tool_use", id, name, input }] },
+            },
+          });
+          const answer = (id: string, content: unknown, isError?: boolean) => ({
+            type: "io_message",
+            message: {
+              type: "user",
+              message: {
+                role: "user",
+                content: [{ type: "tool_result", tool_use_id: id, content, is_error: isError }],
+              },
+            },
+          });
+          push(call("t1", "EnterWorktree", { name: "TD-9" }));
+          push(answer("t1", "Entered", false));
+          push(call("t2", "EnterWorktree", { name: "TD-10" }));
+          push(answer("t2", "The user doesn't want to proceed", true));
+          // No call was ever seen for t3: it belongs to a conversation that predates this panel.
+          push(answer("t3", "orphan", false));
+        });
+
+        const seen = await booted.page.evaluate(() => (window as unknown as ToolsWindow).__tools);
+        expect(seen?.uses).toEqual(["EnterWorktree:t1", "EnterWorktree:t2"]);
+        expect(seen?.results).toEqual([
+          {
+            id: "t1",
+            name: "EnterWorktree",
+            ok: true,
+            input: { name: "TD-9" },
+            content: "Entered",
+          },
+          {
+            id: "t2",
+            name: "EnterWorktree",
+            ok: false,
+            input: { name: "TD-10" },
+            content: "The user doesn't want to proceed",
+          },
+        ]);
+
+        const d = await booted.diagnostics();
+        expect(d.plugins.find((p) => p.name === "watcher")?.status).toBe("loaded");
+        expect(booted.consoleErrors).toEqual([]);
       } finally {
         await booted.close();
       }
