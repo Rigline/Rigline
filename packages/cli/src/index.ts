@@ -20,6 +20,7 @@ import {
   formatDiff,
   formatDoctor,
   formatFlow,
+  type Generated,
   generate,
   harvestAll,
   hostVerdict,
@@ -44,7 +45,9 @@ const USAGE = `rigline ${CORE_VERSION}
   rigline codegen [DIR] [--check] [--out FILE]
       Harvest the installed extension (or DIR) and write ./generated.ts: the identifier
       augmentation your plugins compile against, and the baseline that update diffs. Commit it.
-      --check compares instead of writing and exits 1 when the file is out of date.
+      --check compares instead of writing and exits 1 when the file is out of date. Either
+      way it exits 1 if a curated anchor claims to name one element and this version
+      applies its class in more than one place.
 
   rigline diff DIR_A DIR_B
       Compare the identifier layers of two extension directories.
@@ -238,15 +241,23 @@ function codegen(args: string[]): number {
 
   const generated = generate(harvestAll(readBundles(ext)));
   const label = relative(process.cwd(), out) || out;
+
+  // Asked before the `--check` branch and again after the write, because it is a verdict about the
+  // anchor table and not about the file. Asking it only on the writing path let the one invocation
+  // that runs unattended go green over it: codegen writes `generated.ts` and *then* fails, so a
+  // maintainer who commits the file it just wrote leaves `--check` comparing equal and saying so.
+  const ambiguous = reportAmbiguousAnchors(generated);
+
   if (values.check) {
     const current = existsSync(out) ? readFileSync(out, "utf8") : "";
-    if (current === generated.source) {
-      console.log(`${label} is up to date for ${generated.tables.version}: ${generated.counts}`);
-      return 0;
+    if (current !== generated.source) {
+      console.log(`${label} is out of date for ${generated.tables.version}. Run: rigline codegen`);
+      return 1;
     }
-    console.log(`${label} is out of date for ${generated.tables.version}. Run: rigline codegen`);
-    return 1;
+    console.log(`${label} is up to date for ${generated.tables.version}: ${generated.counts}`);
+    return ambiguous ? 1 : 0;
   }
+
   writeFileSync(out, generated.source);
   console.log(`source: ${ext}`);
   console.log(`${generated.tables.version}: ${generated.counts}`);
@@ -257,25 +268,30 @@ function codegen(args: string[]): number {
     console.log(`  unverified anchor: ${name} (its module's class map was never counted)`);
   }
   console.log(`wrote: ${label}`);
+  return ambiguous ? 1 : 0;
+}
 
-  // The one thing codegen fails over that is not a broken harvest, and it fails here rather than
-  // at install for a reason (D7): an ambiguous singleton means this repo's anchor table is wrong,
-  // the repair is a refinement somebody can write today, and a maintainer is standing here reading
-  // this. On a user's machine the same verdict is an attention line and a refusal of the plugins
-  // that declared the anchor, because an upstream release that starts reusing a class is not a
-  // reason to leave every other plugin uninjected.
-  if (generated.anchors.ambiguous.length > 0) {
-    for (const { name, sites } of generated.anchors.ambiguous) {
-      console.error(
-        `  ambiguous anchor: ${name} names one element, and ${generated.tables.version} applies its class at ${sites} places`,
-      );
-    }
+/**
+ * Name every anchor that claims to be one element and is not, and say whether there were any.
+ *
+ * The one thing codegen fails over that is not a broken harvest, and it fails *here* rather than at
+ * install for a reason (D7): an ambiguous singleton means this repo's anchor table is wrong, the
+ * repair is a refinement somebody can write today, and a maintainer is standing here reading this.
+ * On a user's machine the same verdict is an attention line and a refusal of the plugins that
+ * declared the anchor, because an upstream release that starts reusing a class is not a reason to
+ * leave every other plugin uninjected.
+ */
+function reportAmbiguousAnchors(generated: Generated): boolean {
+  if (generated.anchors.ambiguous.length === 0) return false;
+  for (const { name, sites } of generated.anchors.ambiguous) {
     console.error(
-      "Refine each in packages/plugin-api/src/anchors.ts, or change its kind to collection if it was never one element.",
+      `  ambiguous anchor: ${name} names one element, and ${generated.tables.version} applies its class at ${sites} places`,
     );
-    return 1;
   }
-  return 0;
+  console.error(
+    "Refine each in packages/plugin-api/src/anchors.ts, or change its kind to collection if it was never one element.",
+  );
+  return true;
 }
 
 function diff(args: string[]): number {

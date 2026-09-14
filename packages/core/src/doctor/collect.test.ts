@@ -233,6 +233,14 @@ describe("launchActivityMs", () => {
     const dir = tempDir("rigline-doctor-activity-");
     write(join(dir, "main.log"), "x", NOW - 10 * HOUR);
     write(join(dir, "window1", "exthost", "exthost.log"), "x", NOW - HOUR);
+    // Every directory `launchActivityMs` reads has to be stamped too, and stamped last, or this
+    // asserts against the wall clock: a temp directory made now carries now, and `launchActivityMs`
+    // seeds from the launch directory's own mtime so that a launch whose logs cannot be read still
+    // has an activity time. Left unstamped this passed only while real time was behind `NOW`, which
+    // it stopped being a few hours after the test was written.
+    stamp(join(dir, "window1", "exthost"), NOW - HOUR);
+    stamp(join(dir, "window1"), NOW - HOUR);
+    stamp(dir, NOW - 10 * HOUR);
     // The directory's own mtime does not move when a log inside it is appended to, which is why
     // "newest launch directory" cannot be answered from the directory alone.
     expect(launchActivityMs(dir)).toBe(NOW - HOUR);
