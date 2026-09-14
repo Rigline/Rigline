@@ -333,7 +333,11 @@ done.
   design and wired to nothing today (`permissionSummary` is written, tested and called by no one;
   `applyPatches` takes every enabled plugin's declared patch regardless of origin), and `add` is what
   turns a third-party host patch from a hand-copied directory into a one-liner.
-- The fetch path itself (D47, D48, D49): tarball and integrity only, never a package manager; the
+- The fetch path itself (D47, D48, D49). D47's premise is already true rather than aspirational:
+  `rigline build` bundles everything the entry imports, `@rigline/plugin-api` included, so a
+  published plugin has no runtime dependency to install. The template must keep plugin-api a
+  *devDependency* for the same reason, as the first-party plugins do. What is left to build: tarball
+  and integrity only, never a package manager; the
   minimum release age with `--now` and a report naming what was withheld and why; the source record
   with its kind discriminator and declaration fingerprint, and `update` re-gating on a fingerprint
   change.
@@ -342,7 +346,12 @@ done.
   and `@rigline/plugin-api`, proven on a real release before it is handed to anyone else. One
   `pnpm stage publish -r` stages all three; each is approved on its own. The workflow emits the
   stage ids into the run summary rather than relying on npm to notify anybody.
-- Authoring guide and the `create-rigline-plugin` template (D50): a pnpm workspace with `plugins/*`,
+- Authoring guide and the `create-rigline-plugin` template (D50). Ordering dependency worth knowing
+  now: the template puts one `generated.ts` at the workspace root for every plugin in the repo,
+  which rests on D40's augmentation working from a file outside the plugin's own directory. Module
+  augmentation is per-program, so each plugin's tsconfig has to pull the shared file in — workable
+  through a shared base config, and worth proving once when D40 lands in phase 3 rather than
+  discovering it here. The template itself: a pnpm workspace with `plugins/*`,
   one member scaffolded and a documented way to add the next, `rigline codegen --out` run once at
   the root on first use, and the same staged-publish workflow we run ourselves. The manifest JSON
   schema ships with plugin-api.
@@ -409,6 +418,13 @@ contract is the output, and a plugin built with any other toolchain is treated i
   evidence an entry needs, and how a local `anchors.json` override is promoted into the shipped
   table once it is confirmed.
 - Whether `ctx.style` refuses a selector naming a class the plugin did not declare, or only lints.
+- Whether `pnpm stage publish` completes the OIDC exchange. D46 and D50 lean on one `pnpm stage
+  publish -r` staging the whole workspace, but pnpm's support for trusted publishing is reported
+  inconsistently: some accounts say `pnpm publish` delegates to npm and inherits OIDC for free, and
+  at least one reports the exchange failing under pnpm and succeeding with npm directly. Verify
+  before the workflow is written, not after. The fallback costs little — call `npm stage publish`
+  per package and lose the `-r` convenience — but it changes what the template ships, so settle it
+  first.
 - Whether a provenance attestation survives a staged approval. npm documents provenance for trusted
   publishing and documents staging, but nowhere documents the two together; `npm stage publish`
   accepts `--provenance`, which is suggestive and not proof. Settle it by looking at our own first
@@ -424,6 +440,11 @@ contract is the output, and a plugin built with any other toolchain is treated i
 Start here. Phase 2 is closed and verified live; phase 3 has not begun. The direction was validated
 and adjusted on 2026-09-14 — read "Surviving an extension update" above and D40 to D45 before
 starting, because they change work that was already scheduled.
+
+Distribution was settled the same day as D46 to D50, and none of it blocks phase 3: it is all phase
+4, it changes no interface phase 3 builds against, and no code was written for it. The one thread
+that reaches back is D40's augmentation, which phase 3 lands and which the template later depends on
+working from a file outside the plugin's own directory — so prove that once while D40 is fresh.
 
 1. **Phase 3, in this order:** `uses.optional` and the augmentable identifier types first, since both
    change what a plugin compiles against; then the three first-party plugins in TypeScript against
@@ -444,8 +465,10 @@ starting, because they change work that was already scheduled.
    `blockExoticSubdeps` do not).
 3. **Two camp-site fixes found on 2026-09-14, neither urgent:** `packages/core/src/plugins/discover.ts`
    calls the user config `rigline.config.json` in two doc comments while `riglinePaths().config` is
-   `~/.rigline/config.json`; and `packages/plugin-api/package.json` lists `schema` under `files`,
-   which does not exist yet and which the probe's `$schema` already points at.
+   `~/.rigline/config.json` — settle it when D49 lands, which widens that same file from
+   `{disabled: []}` to a per-plugin source record and would otherwise bake the inconsistency deeper;
+   and `packages/plugin-api/package.json` lists `schema` under `files`, which does not exist yet and
+   which the probe's `$schema` already points at.
 
 ## Status log
 
