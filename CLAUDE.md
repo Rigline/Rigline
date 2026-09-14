@@ -28,7 +28,13 @@ from. Update the plan before writing code; log status there, not here.
   unminified property names only because codegen asserts every anchor and fails loudly.
 - **Never put third-party code in the static import.** A throw there blanks the panel with no
   attribution. Plugins load after boot, dynamically, each in its own try/catch.
-- **Look classes up module-scoped.** Local names are reused across modules.
+- **Look classes up module-scoped, and remember a class still is not an identity.** Local names are
+  reused across modules, which is what module-scoping fixes. It does not fix the other half: one
+  module-scoped class can be applied to several different controls, because a class names a look and
+  sharing a look is what a style is for. `modelPill_gGYT1w` is on the model picker *and* the
+  agent-map button, and resolving it to `[0]` put three decorations on the wrong one for an
+  afternoon while every check reported green. Five of fifteen identity anchors have this property
+  (D7).
 - **Bound any regex you run over a stringified record.** `JSON.stringify` output is one line;
   `.*` and `(.+?)` cross into unrelated fields. Exclude `"` and `\` and cap the length.
 - **Patch bundles byte-faithfully.** Read and write bytes; text-mode I/O rewrites every line
