@@ -391,6 +391,16 @@ done.
   listeners, two plugins failing differently at one seam, which is a hazard in the capability
   rather than two bugs in the plugins.
 
+- The mount service moves off its document-wide mutation observer and onto the React commit signal
+  the pre hook already provides (D52), with re-placement counted rather than assumed. The observer
+  stays only as the no-React fallback. `place()` indexes its peers by anchor instead of filtering
+  every active mount per node, which is what made the old callback O(N²) at one mount per transcript
+  row. Acceptance: the probe reports a re-placement count, and the panel stays correct across a
+  session switch, a pane close and a webview reload with the count visible.
+- The probe panel gets a copy button, as the 0.x prototype had: the report text is built from the
+  check map rather than read back out of the DOM, so what is copied is current whatever the panel
+  happens to be showing.
+
 ### Phase 4: the community layer
 
 - `~/.rigline` install model, `rigline add` from npm and from a path. **The permission summary and

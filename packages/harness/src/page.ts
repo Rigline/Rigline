@@ -90,9 +90,21 @@ const FAKE_HOST = `
     });
   }
 
+  // The channel the app opened, so a test can push down it after boot. Remembered rather than
+  // passed around because rerender is called from a fixture plugin, which has no way to know it.
+  // No backticks anywhere in this script: it is a template literal, and one would end it here.
+  let lastChannelId = null;
+
   window.__harness = {
     sent: [],
     push: sendFromExtension,
+    // Make the app actually re-render, which is the only thing that detaches a host-placed mount in
+    // practice and the signal the mount service re-places on (D52). Two more transcript rows is the
+    // cheapest commit the real bundle will do on demand; a test that only needs *a* commit should
+    // not have to care which message produces one.
+    rerender() {
+      if (lastChannelId !== null) pushSyntheticTranscript(lastChannelId);
+    },
   };
 
   window.acquireVsCodeApi = function () {
@@ -122,6 +134,7 @@ const FAKE_HOST = `
       if (!make) console.warn("[harness host] no scripted reply, sending {} for", reqType, m);
       sendFromExtension({ type: "response", requestId: m.requestId, response });
     } else if (m.type === "launch_claude") {
+      lastChannelId = m.channelId;
       setTimeout(() => pushSyntheticTranscript(m.channelId), 50);
     }
   }

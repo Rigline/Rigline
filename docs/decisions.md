@@ -229,7 +229,7 @@ attribution.
 **D19. Initial capabilities:** `classes` (`cls`), `anchors` (`anchor`), `messages` (`onMessage`),
 `mount` (`mount`, `mountAfter`, `watch`), `style`, `rewrites` (`rewrite`, `resend`), `tools`
 (`onToolUse`), `session` (`onSessionId`), `transcript` (`decorateTranscript`), and `surface`.
-`watch` is host-managed re-anchoring on the shared mutation observer, so no plugin polls for an
+`watch` is host-managed re-anchoring on the shared re-render signal (D52), so no plugin polls for an
 element; `style` is a host-managed stylesheet removed on teardown; `surface` names the full editor,
 the sidebar or the session list.
 
@@ -276,6 +276,32 @@ noticing.
 **D23. Mounts sharing an anchor are ordered by the host in registry order, and every host-placed
 node is stamped `data-rigline-mount`.** The naive insert gives the slot to whichever plugin mounted
 last, which is invisible to authors and was observed to displace a decoration.
+
+**D52. Re-placement and re-anchoring run on the React commit signal, never on a document-wide
+mutation observer.** Every mutation the mount service cares about — an anchor element swapped for a
+new one, a foreign child detached by a parent whose whole child list was replaced — is a React
+commit, and the pre hook already taps the devtools hook and notifies commit handlers once per frame.
+So the commit notice is the signal itself rather than a proxy for it, and it arrives coalesced.
+
+What it replaces was a `MutationObserver` over `document.body` with `subtree: true`, which carried
+two costs and one hazard. Its callback took no records argument, so a record was allocated for every
+childList change in the document and thrown away unread. It scanned every active mount and ran a
+`getElementsByClassName` per watch on every mutation batch, through token streaming, with one mount
+per transcript row and a measured session 319 rows deep. And it mutated the DOM from inside its own
+callback: a MutationObserver callback is a microtask, so insertions that never stick re-queue it
+without the event loop ever getting a turn.
+
+An observer stays as the fallback for a webview where the hook never injected, routed through the
+same per-frame coalescing rather than working in its own callback. `requestAnimationFrame` pauses in
+a hidden webview, so re-placement defers until the panel is on screen again, which is right —
+nothing needs re-placing while nothing is visible, and becoming visible is itself a commit.
+
+**Re-placement is on probation, and counted so the question can be settled with numbers.** The 0.x
+prototype measured a node appended to a React-owned container surviving *zero* removals on all three
+surfaces, and kept its re-mount anyway because at one observer per anchor it was nearly free; at one
+document-wide observer and 319 mounts it is not. So the host counts re-placements and the probe
+reports the count. If it stays zero on the live panel, `replaceLost` goes, and `place()` loses its
+per-node scan of every peer with it.
 
 **D24. A row's own timestamp is never read.** It is `Date.now()` from when the row object was
 built, so every row in a reopened session claims to be from just now. Real times come from the bus

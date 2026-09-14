@@ -12,6 +12,7 @@ import {
   immutabilityVerdict,
   leakVerdict,
   mountOrderVerdict,
+  mountReplacementVerdict,
   mountSurvivesVerdict,
   pluginStatusVerdict,
   preHookOrderVerdict,
@@ -309,5 +310,27 @@ describe("stylesheetVerdict", () => {
   it("reflects whether the host-managed stylesheet is present", () => {
     expect(stylesheetVerdict(true).verdict).toBe("pass");
     expect(stylesheetVerdict(false).verdict).toBe("fail");
+  });
+});
+
+describe("mountReplacementVerdict", () => {
+  it("is n/a when nothing has had to be put back", () => {
+    const { verdict, detail } = mountReplacementVerdict("commit", 12, 0, 0);
+    expect(verdict).toBe("n/a");
+    expect(detail).toContain("12 active");
+  });
+
+  it("passes when a re-placement happened, because that is the mechanism working", () => {
+    const { verdict, detail } = mountReplacementVerdict("commit", 12, 3, 0);
+    expect(verdict).toBe("pass");
+    expect(detail).toContain("3 re-placed");
+  });
+
+  it("fails on a mount left detached from an anchor that is still there", () => {
+    expect(mountReplacementVerdict("commit", 12, 3, 1).verdict).toBe("fail");
+  });
+
+  it("names the driver, so the observer fallback is never silent", () => {
+    expect(mountReplacementVerdict("observer", 1, 0, 0).detail).toContain("observer");
   });
 });

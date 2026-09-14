@@ -297,3 +297,28 @@ export function transcriptVerdict(
 export function stylesheetVerdict(present: boolean): { verdict: Verdict; detail: string } {
   return { verdict: present ? "pass" : "fail", detail: present ? "present" : "missing" };
 }
+
+/**
+ * Check 22: what the mount service is doing about re-placement, and the number D52 turns on.
+ *
+ * `lost` is the only failure here — a node detached from an anchor still in the document, retried
+ * every frame and visible to nobody. A non-zero `replaced` is the opposite of a failure: it is the
+ * mechanism working, and the only evidence that will keep it in the codebase. Both at zero is the
+ * quiet state the 0.x prototype measured across all three surfaces, and `n/a` reports it as what it
+ * is rather than claiming a pass for something that never had to happen.
+ *
+ * `driver` rides along because the fallback is otherwise silent: "observer" against the real
+ * extension means no React renderer injected, which is a much larger problem than re-placement and
+ * would otherwise only show up as an empty transcript two lines further down the panel.
+ */
+export function mountReplacementVerdict(
+  driver: string,
+  active: number,
+  replaced: number,
+  lost: number,
+): { verdict: Verdict; detail: string } {
+  const where = `${active} active, on ${driver}`;
+  if (lost > 0) return { verdict: "fail", detail: `${lost} still detached, ${where}` };
+  if (replaced > 0) return { verdict: "pass", detail: `${replaced} re-placed, ${where}` };
+  return { verdict: "n/a", detail: `nothing detached yet, ${where}` };
+}

@@ -163,7 +163,7 @@ async function main(): Promise<void> {
     diagnostics.errors.push(`registry: ${message(e)}`);
   }
 
-  const mounts = createMountService(message);
+  const mounts = createMountService(message, react, diagnostics.mounts);
   const kernel: Kernel = {
     tables,
     surface: detectSurface(),

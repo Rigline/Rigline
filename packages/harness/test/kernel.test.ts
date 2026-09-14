@@ -304,6 +304,11 @@ export default { setup() {} };`,
     window.__detach = () => {
       const badge = document.getElementsByClassName("harness-badge")[0];
       badge.remove();
+      // A re-render is what takes a mount away and what puts it back (D52), so the detach has to be
+      // one. Removing the node alone proved nothing once the host stopped watching every mutation
+      // in the document: it would have sat there until the app happened to commit for its own
+      // reasons, which is a race dressed up as a test.
+      window.__harness.rerender();
     };
   } };`,
       };
@@ -318,7 +323,7 @@ export default { setup() {} };`,
         expect(before?.sessions).toBeGreaterThan(0);
         expect(before?.builds).toBe(1);
 
-        // Detach it the way a re-render does, and let the shared observer put it back.
+        // Detach it in a re-render, and let the shared per-commit pass put it back.
         await booted.page.evaluate(() => (window as unknown as SurvivorWindow).__detach?.());
         await booted.page.waitForSelector(".harness-badge");
         await booted.page.click(".harness-badge");
@@ -337,6 +342,13 @@ export default { setup() {} };`,
 
         const d = await booted.diagnostics();
         expect(d.plugins.find((p) => p.name === "survivor")?.status).toBe("loaded");
+        // The instrument D52 is waiting on, asserted against the real bundle: commits are driving
+        // this, the re-placement above was counted, and nothing is stuck detached from a live
+        // anchor. `replaced` is the number that decides whether replaceLost survives at all.
+        expect(d.mounts.driver).toBe("commit");
+        expect(d.mounts.replaced).toBeGreaterThan(0);
+        expect(d.mounts.lost).toBe(0);
+        expect(d.mounts.active).toBeGreaterThan(0);
       } finally {
         await booted.close();
       }

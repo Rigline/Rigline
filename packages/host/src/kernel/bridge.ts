@@ -72,6 +72,12 @@ export interface Diagnostics {
     notified: number;
   };
   readonly transcript: { entries: number; timed: number; sweeps: number; rebuilds: number };
+  readonly mounts: {
+    driver: "commit" | "observer";
+    active: number;
+    replaced: number;
+    lost: number;
+  };
   readonly errors: string[];
 }
 

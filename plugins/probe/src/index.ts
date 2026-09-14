@@ -27,6 +27,7 @@ import {
   immutabilityVerdict,
   leakVerdict,
   mountOrderVerdict,
+  mountReplacementVerdict,
   mountSurvivesVerdict,
   type PluginStatusLike,
   pluginStatusVerdict,
@@ -69,6 +70,7 @@ const ORDER = [
   "session id observed",
   "transcript rows identified and timed",
   "stylesheet applied",
+  "mounts re-placed after a re-render",
 ] as const;
 
 /** The fields of `globalThis.__rigline.diagnostics` this plugin reads. See bridge.ts for the full shape. */
@@ -92,6 +94,12 @@ interface ProbeDiagnostics {
     readonly notified: number;
   };
   readonly transcript: { readonly entries: number; readonly timed: number };
+  readonly mounts: {
+    readonly driver: "commit" | "observer";
+    readonly active: number;
+    readonly replaced: number;
+    readonly lost: number;
+  };
 }
 
 function readDiagnostics(): ProbeDiagnostics | null {
@@ -144,7 +152,58 @@ const CSS = `
   white-space: pre-wrap;
   user-select: text;
 }
+.rigline-probe-panel-controls {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 4px;
+  user-select: none;
+}
+.rigline-probe-panel-copy {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 10px;
+  color: #8ab4f8;
+  cursor: pointer;
+}
 `;
+
+/** How long "copied"/"copy failed" sits in place of the button's own label before reverting. */
+const COPY_FLASH_MS = 1200;
+
+/**
+ * Copy `text` with `document.execCommand("copy")` over a detached, invisible textarea, rather than
+ * the async Clipboard API, which needs a permission a webview does not necessarily hold and rejects
+ * its promise rather than throwing when denied — a failed copy would then be silent. Deprecated but
+ * unconditional: it either copies or returns false, never a permission prompt this panel cannot show.
+ *
+ * The same fifteen lines as session-id's, deliberately. A plugin is a self-contained ES module and
+ * `@rigline/plugin-api` is the contract between a plugin and the host, not a utility library; two
+ * plugins sharing a clipboard helper through it would make the API surface grow by whatever any
+ * first-party plugin happened to need. If a third plugin wants this, that is the argument for a
+ * `ctx.copy` capability, which is a decision rather than a refactor.
+ */
+function copyToClipboard(text: string): boolean {
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  textarea.style.pointerEvents = "none";
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  let ok = false;
+  try {
+    ok = document.execCommand("copy");
+  } catch {
+    ok = false;
+  }
+  textarea.remove();
+  return ok;
+}
 
 export default definePlugin({
   setup(ctx) {
@@ -166,9 +225,34 @@ export default definePlugin({
       currentBadge.title = `${state} — click to ${action} diagnostics`;
     }
 
+    /**
+     * The whole report as text: what the panel renders, and what the copy button hands over.
+     *
+     * Built from the check map both times rather than read back out of the DOM. The panel is only
+     * written to while it is open and only when the text has actually changed, so the DOM is not the
+     * record — copying from it would hand over whatever the last render happened to leave there.
+     * The 0.x prototype learned this from the other end, keeping a `reportCache` beside a panel
+     * whose writes it skipped mid-selection.
+     */
+    function reportText(): string {
+      return ORDER.map((name) => formatLine(checks.get(name) as CheckResult)).join("\n");
+    }
+
     function renderPanelBody(): void {
-      const text = ORDER.map((name) => formatLine(checks.get(name) as CheckResult)).join("\n");
+      const text = reportText();
       if (panelBody.textContent !== text) panelBody.textContent = text;
+    }
+
+    let copyFlashTimer: ReturnType<typeof setTimeout> | null = null;
+
+    function onCopyClick(): void {
+      const ok = copyToClipboard(reportText());
+      if (copyFlashTimer !== null) clearTimeout(copyFlashTimer);
+      copyButton.textContent = ok ? "copied" : "copy failed";
+      copyFlashTimer = setTimeout(() => {
+        copyFlashTimer = null;
+        copyButton.textContent = "copy";
+      }, COPY_FLASH_MS);
     }
 
     function report(name: (typeof ORDER)[number], verdict: Verdict, detail: string): void {
@@ -201,9 +285,18 @@ export default definePlugin({
     const panel = document.createElement("div");
     panel.className = "rigline-probe-panel";
     panel.hidden = true;
+    const controls = document.createElement("div");
+    controls.className = "rigline-probe-panel-controls";
+    const copyButton = document.createElement("button");
+    copyButton.type = "button";
+    copyButton.className = "rigline-probe-panel-copy";
+    copyButton.textContent = "copy";
+    copyButton.title = "Copy the whole report to the clipboard";
+    copyButton.addEventListener("click", onCopyClick);
+    controls.appendChild(copyButton);
     const panelBody = document.createElement("pre");
     panelBody.className = "rigline-probe-panel-body";
-    panel.appendChild(panelBody);
+    panel.append(controls, panelBody);
     document.body.appendChild(panel);
 
     function onKeydown(e: KeyboardEvent): void {
@@ -365,6 +458,10 @@ export default definePlugin({
       const survives = mountSurvivesVerdict(badgeMounted, currentBadge?.isConnected ?? false);
       report("mount survives re-render", survives.verdict, survives.detail);
 
+      const { driver, active, replaced, lost } = diag.mounts;
+      const replacement = mountReplacementVerdict(driver, active, replaced, lost);
+      report("mounts re-placed after a re-render", replacement.verdict, replacement.detail);
+
       if (ctx.surface === "sessionList") {
         report(
           "mounts sharing an anchor keep registry order",
@@ -409,6 +506,7 @@ export default definePlugin({
     return () => {
       clearTimeout(firstPoll);
       clearInterval(interval);
+      if (copyFlashTimer !== null) clearTimeout(copyFlashTimer);
       document.removeEventListener("keydown", onKeydown);
       document.removeEventListener("mousedown", onPointerDown);
       panel.remove();

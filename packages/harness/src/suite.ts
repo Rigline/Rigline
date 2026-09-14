@@ -51,6 +51,12 @@ export interface HarnessDiagnostics {
   readonly plugins: readonly PluginStatus[];
   readonly rewrites: readonly RewriteRecord[];
   readonly transcript: { readonly timed: number };
+  readonly mounts: {
+    readonly driver: "commit" | "observer";
+    readonly active: number;
+    readonly replaced: number;
+    readonly lost: number;
+  };
 }
 
 /** One message as the fake host recorded it arriving: the envelope, with the inner request. */

@@ -160,6 +160,25 @@ interface RiglineBridge {
       sweeps: number;
       rebuilds: number;
     };
+    /**
+     * What the mount service is doing, and the one number D52 is waiting on. `replaced` counts
+     * mounts a re-render detached and the host put back; `lost` counts the ones it could not, which
+     * is a real failure because the node stays out of the document and is retried forever. The 0.x
+     * prototype measured zero detachments and kept its re-mount anyway on the grounds that it was
+     * nearly free; if `replaced` and `lost` both stay at zero here, that machinery goes. `active` is
+     * the denominator, and the scale the per-frame pass runs at.
+     */
+    mounts: {
+      /**
+       * Which signal is driving re-placement: React commits, or the observer fallback for a webview
+       * no renderer injected into. Reported rather than assumed, because "observer" against the real
+       * extension means the React anchors have gone and the transcript capability is empty too.
+       */
+      driver: "commit" | "observer";
+      active: number;
+      replaced: number;
+      lost: number;
+    };
     readonly errors: string[];
   };
   /**
@@ -539,6 +558,7 @@ try {
       identifiersFor: null,
       react: { hook: "installed", version: null, commits: 0, notified: 0 },
       transcript: { entries: 0, timed: 0, sweeps: 0, rebuilds: 0 },
+      mounts: { driver: "commit", active: 0, replaced: 0, lost: 0 },
       errors: [],
     },
     bus: {
