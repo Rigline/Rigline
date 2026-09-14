@@ -193,6 +193,28 @@ pin. A companion VS Code extension wrapping core for hands-off updates, a reload
 settings UI is a later phase; core is designed so it can be that consumer. Publishing anything is
 Leo's step.
 
+**How a version gets published** (D46). CI stages, a human approves. A GitHub Actions workflow
+authenticates to npm over OIDC — no token in the repository — and runs `npm stage publish`, which
+needs no 2FA and does not make the version installable. The owner reviews the queue (`npm stage
+list`, `npm stage view <id>`, `npm stage download <id>` for the tarball itself) and promotes with
+`npm stage approve <id>`, which does prompt for 2FA. The published tarball carries a provenance
+attestation binding it to the commit and workflow that built it. Rigline's own three packages
+publish through this pipeline, and `create-rigline-plugin` ships the same workflow, so an author
+gets it by generating a repository rather than by reading a guide. The one-time steps that cannot be
+automated are Leo's: the npm organisation, 2FA on the account that approves, a first publish of each
+package under a temporary token (a trusted publisher and a stage both need the package to exist),
+then the trusted-publisher entry naming the repo, workflow file and environment. Provenance needs
+the source repo public.
+
+**What `add` does on the way in** (D47, D48, D49). It resolves the version against the registry,
+refuses anything younger than the minimum release age unless `--now` is passed, fetches and
+integrity-checks the tarball, and extracts it — no package manager runs, no `node_modules` exists
+and no lifecycle script is available to run, because a plugin is one bundled ES module and a
+manifest. The manifest is then read as data and gated: permission summary, and D26's per-patch
+opt-in for any declared host patch. `config.json` records the source by kind, pinned version,
+integrity and a fingerprint of the declarations, so `update` re-gates when a new version widens what
+the plugin may do and stays quiet when it does not.
+
 ### Trust model
 
 Plugins run in the app's realm with full DOM access and can read every message on the bus, which
@@ -306,12 +328,21 @@ done.
   design and wired to nothing today (`permissionSummary` is written, tested and called by no one;
   `applyPatches` takes every enabled plugin's declared patch regardless of origin), and `add` is what
   turns a third-party host patch from a hand-copied directory into a one-liner.
+- The fetch path itself (D47, D48, D49): tarball and integrity only, never a package manager; the
+  minimum release age with `--now` and a report naming what was withheld and why; the source record
+  with its kind discriminator and declaration fingerprint, and `update` re-gating on a fingerprint
+  change.
 - `~/.rigline/anchors.json`, the local anchor override (D44), reported by name at install.
+- Our own release pipeline first (D46): the staged-publish workflow for `@rigline/core`, `rigline`
+  and `@rigline/plugin-api`, proven on a real release before it is handed to anyone else. It emits
+  the stage id into the run summary rather than relying on npm to notify anybody.
 - Authoring guide, a `create-rigline-plugin` template that runs `rigline codegen --out` on first
-  use, the manifest JSON schema shipped with plugin-api.
+  use and carries the same publish workflow, the manifest JSON schema shipped with plugin-api.
 - Topic docs: architecture, identifier layers, the bus, host patches, the transcript, verification,
-  surviving an update.
-- Publish prep: package metadata, changelog, CI. Leo publishes.
+  surviving an update, publishing a plugin.
+- Publish prep: package metadata, changelog, CI. The one-time npm setup is Leo's (organisation, 2FA,
+  the bootstrap publish of each package, the trusted-publisher entries), and every release after
+  that is approve-with-2FA.
 
 ### Phase 5, later: companion VS Code extension
 
@@ -342,6 +373,18 @@ be absent; per-version plugin builds rejected outright rather than deferred; the
 wired into the Node install; the anchor table named as the repair path and made overridable from
 `~/.rigline/anchors.json`; successor suggestions in the diff.
 
+Later the same day, distribution was reopened and closed the other way, as D46 to D49 with D33
+amended. A git-repo source with `git pull` updates was proposed, argued for on cadence, and rejected
+by Leo in favour of npm with a supply-chain pipeline: CI stages over OIDC, a human approves with
+2FA, provenance comes free, and the plugin template ships the workflow so the good path is the
+default one. The cadence argument did not survive scrutiny — it belonged to the anchor table, which
+is a separate and faster tier — and a committed `dist/` proved a weaker version of exactly
+what provenance provides. Leo's own framing: encourage CI and 2FA rather than route around them.
+Added on top: `add` runs no package manager at all rather than merely disabling lifecycle scripts,
+and the minimum release age is 1440 minutes to match pnpm's default rather than the few hours first
+suggested, since the urgent repair path is the anchor override and not a republish. Git stays
+available as a later source kind, which is why a source is recorded by kind from the first entry.
+
 ## Open questions, not blocking
 
 - Per-plugin settings: schema in the manifest, values in `~/.rigline/config.json`, delivered as
@@ -350,6 +393,11 @@ wired into the Node install; the anchor table named as the repair path and made 
   evidence an entry needs, and how a local `anchors.json` override is promoted into the shipped
   table once it is confirmed.
 - Whether `ctx.style` refuses a selector naming a class the plugin did not declare, or only lints.
+- How a maintainer learns a stage is waiting. npm documents discovery by `npm stage list` and the
+  Staged Packages tab on npmjs.com; no email or push notification is documented, and none was found.
+  Our workflow therefore prints the stage id and the approve command into the Actions run summary,
+  which is enough for us. If a plugin author's release sits unapproved for a week, revisit — the
+  template may need to open an issue or post to the repo instead.
 
 ## Next session
 
@@ -370,7 +418,10 @@ starting, because they change work that was already scheduled.
    `.local/spike/` in the checkout is scratch from the spike and can be deleted; the compile-time
    proof test (a `tsc` run over a fixture plugin showing wrong pairs fail to compile) is still
    deferred; the harness's `page.ts` could generate its reply table from the same anchors codegen
-   reads, which was noted and not tried.
+   reads, which was noted and not tried; and this repo's own supply-chain settings deserve a
+   deliberate choice rather than a default, since D46 to D48 ask the same of everyone else
+   (`minimumReleaseAge` already defaults to 1440 on pnpm 12, but `allowBuilds` and
+   `blockExoticSubdeps` do not).
 3. **Two camp-site fixes found on 2026-09-14, neither urgent:** `packages/core/src/plugins/discover.ts`
    calls the user config `rigline.config.json` in two doc comments while `riglinePaths().config` is
    `~/.rigline/config.json`; and `packages/plugin-api/package.json` lists `schema` under `files`,
@@ -424,3 +475,18 @@ starting, because they change work that was already scheduled.
   extension-version pin, which now has D40. Leo's reframe set the priority and is recorded above
   under Decided 2026-09-14. Six decisions added, D40 to D45; the plan's phase 3 and phase 4 lists
   and its "Surviving an extension update" section follow from them. No code changed.
+- 2026-09-14: Plugin distribution settled properly, after a git-repo channel was proposed and
+  rejected. The argument for git was publish cadence; it did not survive, because the cadence
+  problem it borrowed from D44 belongs to the anchor table, which is the tier that already repairs
+  in an hour without an author. The counter-proposal was Leo's and is now the plan: npm, with the
+  supply-chain pipeline that makes npm the safer channel rather than merely the conventional one.
+  Verified against current npm documentation rather than assumed — staged publishing is GA, `npm
+  stage publish` takes no 2FA and composes with OIDC trusted publishing, `npm stage approve` does
+  take 2FA, provenance is automatic on a trusted publish from a public repo, and the floors are npm
+  CLI 11.15.0 and Node 22.14. Both the trusted publisher and the stage need the package to exist
+  first, so a bootstrap publish under a temporary token is unavoidable and is Leo's. Two additions
+  beyond the proposal: `add` runs no package manager at all, since a bundled ES module has nothing
+  to install and declining the surface beats defending it; and the minimum release age is pnpm's
+  1440-minute default rather than a few hours, affordable precisely because D44 carries the urgent
+  case. Four decisions added, D46 to D49, D33 amended to record git as deferred with its reason and
+  its re-entry point. No code changed.

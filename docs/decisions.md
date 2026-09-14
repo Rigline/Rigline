@@ -315,7 +315,59 @@ as a later phase; core is designed so either can be its consumer.** Confirmed by
 for using it.
 
 **D33. Plugins are distributed as npm packages carrying `rigline.json` and a built entry, or as a
-local directory for development.**
+local directory for development.** Amended 2026-09-14: a git-repo source was weighed against npm and
+deferred, rather than never considered. The case for git was cadence, borrowed from D44's
+observation that the extension updates weekly and npm does not — but that belongs to the
+anchor table, which is the repair path needing no author at all. Plugin republishing is the other
+tier, slower and reviewed on purpose, and collapsing the two argued for degrading the slow tier to
+buy a speed the fast tier already supplies. What git costs is concrete: a repo holds source, so
+installing from one means either running an author's build on a user's machine or requiring a
+committed `dist/`, and an artifact committed to git has no verifiable link to the commit that
+produced it, which is precisely the link a provenance attestation gives (D46). Nothing here
+forecloses git later; a source is recorded by kind from the first entry (D49) so a second kind is an
+adapter, not a migration.
+
+**D46. Publishing is trusted publishing plus staged publishing, and the plugin template ships the
+workflow that does both.** CI holds no npm token: GitHub Actions authenticates over OIDC, npm
+accepts the publish from the workflow the package owner has named, and the resulting tarball carries
+a provenance attestation binding it to the commit and the workflow that built it. The workflow runs
+`npm stage publish`, which needs no 2FA and does not make the version installable; the owner reviews
+the queue with `npm stage list` and `npm stage view <id>`, and promotes with `npm stage approve
+<id>`, which does require 2FA. The automated half therefore holds no credential worth stealing, and
+the half that makes a version installable is a person on a trusted device. Rigline's own packages
+publish the same way — we ask no more of a plugin author than of ourselves, and the template is
+lifted from a workflow we run. Two steps cannot be automated and are Leo's: the npm organisation,
+and the first publish of each package, because neither a trusted publisher nor a stage can be
+configured against a package that does not yet exist, so version one goes up under a temporary token
+and everything after it goes through the workflow. Provenance additionally requires the source
+repository to be public. Floors: npm CLI 11.15.0 and Node 22.14, both below our own (D34).
+
+**D47. `rigline add` never runs a package manager.** A plugin's distributed form is one browser ES
+module plus a manifest (P6), and the webview cannot resolve a bare specifier, so a plugin is already
+bundled by the time it is published and has no runtime dependency to install. `add` fetches the
+tarball, checks it against the registry's integrity hash, extracts it and validates the manifest as
+data (D12). There is no `node_modules`, no dependency resolution and no lifecycle script — a
+stronger position than passing `--ignore-scripts`, because the surface is declined rather than
+defended. A plugin that cannot be installed this way is a plugin we do not install.
+
+**D48. A published version must reach a minimum age before `add` or `update` will take it: 1440
+minutes by default, `--now` to override.** The number matches pnpm's `minimumReleaseAge` default and
+rests on the same evidence — a compromised publish is generally caught within a day, and a day of
+latency costs a plugin user nothing they can perceive. The delay is affordable here for a specific
+reason: the urgent repair does not route through it. When an extension update retires a curated
+anchor, the fix is a two-line pair in `~/.rigline/anchors.json` (D44), which reaches a user the hour
+it is written with no publish at all. What the delay does hold back is a fix to a plugin's own logic
+or its raw `cls()` use, so a withheld version is reported rather than hidden (P8): `update` names the
+version, its age, and the flag that takes it early.
+
+**D49. A source is recorded by kind, pinned identity and declaration fingerprint, and `update`
+re-gates when the fingerprint moves.** `~/.rigline/config.json` holds `{kind: "npm", name, version,
+integrity, declarations}` per installed plugin. The kind discriminator is present from the first
+entry so the git source deferred in D33 arrives as an adapter. The fingerprint covers declared
+capabilities and declared host patches — exactly what the install gates on — so an update that
+widens a plugin's reach re-runs the permission summary and D26's per-patch opt-in instead of
+inheriting consent given to a narrower version. An update that only changes code does not re-prompt,
+which keeps the gate honest about what it governs: declared reach, not trust in a particular build.
 
 ### Toolchain and verification
 
