@@ -1,4 +1,4 @@
-import { CONTRACTS } from "@prototype/plugin-api";
+import { CONTRACTS } from "@rigline/plugin-api";
 import type { CapabilityModule } from "../kernel/types.ts";
 
 /** `ctx.cls(module, local)`: a raw module-scoped class, for UI the anchor table does not curate. */
@@ -12,7 +12,7 @@ export const classesModule: CapabilityModule<"classes"> = {
       cls(module, local) {
         if (!declared.has(`${module}:${local}`)) {
           throw new Error(
-            `cls("${module}", "${local}") was never declared under uses.classes in this plugin's prototype.json`,
+            `cls("${module}", "${local}") was never declared under uses.classes in this plugin's rigline.json`,
           );
         }
         const resolved = kernel.tables.moduleClasses[module]?.[local];

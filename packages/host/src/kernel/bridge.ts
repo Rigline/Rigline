@@ -1,5 +1,5 @@
 /**
- * The bridge the pre hook publishes on `globalThis.__prototype`, as the post hook reads it.
+ * The bridge the pre hook publishes on `globalThis.__rigline`, as the post hook reads it.
  *
  * Restated here rather than imported: pre.ts is a side-effecting module with no exports, built to
  * its own file, and the two files share nothing at build time by design (a shared chunk would be a
@@ -93,6 +93,6 @@ export interface Bridge {
 
 /** The bridge, or null when the pre hook did not run, in which case nothing can be loaded. */
 export function bridge(): Bridge | null {
-  const found = (globalThis as { __prototype?: Bridge }).__prototype;
+  const found = (globalThis as { __rigline?: Bridge }).__rigline;
   return found ?? null;
 }

@@ -1,5 +1,5 @@
 /**
- * @prototype/core: everything that runs in Node on behalf of Prototype.
+ * @rigline/core: everything that runs in Node on behalf of Rigline.
  *
  * Locating installed extensions, harvesting identifier layers, generating types and runtime
  * tables, injecting and restoring the loader, discovering plugins and baking the registry, the
@@ -58,8 +58,8 @@ export {
 export type { Harvest } from "./layers/index.ts";
 export * from "./layers/index.ts";
 export { harvestAll, LAYERS, scanOf } from "./layers/index.ts";
-export type { PrototypePaths } from "./paths.ts";
-export { PROTOTYPE_HOME_VARIABLE, prototypeHome, prototypePaths } from "./paths.ts";
+export type { RiglinePaths } from "./paths.ts";
+export { RIGLINE_HOME_VARIABLE, riglineHome, riglinePaths } from "./paths.ts";
 export type { DiscoveredPlugin, PluginsConfig } from "./plugins/discover.ts";
 export {
   bakeRegistry,

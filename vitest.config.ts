@@ -14,10 +14,10 @@ export default defineConfig({
     // Tests read the workspace packages from source, so a test never runs against a stale dist/.
     // Builds and typechecks resolve through each package's exports as a consumer would.
     alias: {
-      "@prototype/plugin-api": fileURLToPath(
+      "@rigline/plugin-api": fileURLToPath(
         new URL("./packages/plugin-api/src/index.ts", import.meta.url),
       ),
-      "@prototype/core": fileURLToPath(new URL("./packages/core/src/index.ts", import.meta.url)),
+      "@rigline/core": fileURLToPath(new URL("./packages/core/src/index.ts", import.meta.url)),
     },
   },
 });

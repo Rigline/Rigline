@@ -10,10 +10,10 @@
  * whichever plugin mounted last, which is decided by load timing and invisible to an author. So a
  * node is positioned against its sibling mounts by registry order, which makes the result the
  * same however the mounts were timed and puts a re-placed node back in the same slot. Every node
- * the host places is stamped `data-prototype-mount="<plugin>"`: attribution in devtools, and what
+ * the host places is stamped `data-rigline-mount="<plugin>"`: attribution in devtools, and what
  * lets the probe assert the ordering without knowing which plugins exist.
  */
-import type { Teardown } from "@prototype/plugin-api";
+import type { Teardown } from "@rigline/plugin-api";
 
 export type Placement = "inside" | "after";
 
@@ -60,7 +60,7 @@ export function createMountService(message: (e: unknown) => string): MountServic
   const watches: Watch[] = [];
 
   function place(mount: ActiveMount, node: Element): void {
-    node.setAttribute("data-prototype-mount", mount.owner);
+    node.setAttribute("data-rigline-mount", mount.owner);
     const peers = active
       .filter(
         (m) =>

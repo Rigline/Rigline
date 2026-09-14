@@ -1,4 +1,4 @@
-import { CONTRACTS, toolUses } from "@prototype/plugin-api";
+import { CONTRACTS, toolUses } from "@rigline/plugin-api";
 import { type CapabilityModule, undeclared } from "../kernel/types.ts";
 
 /**

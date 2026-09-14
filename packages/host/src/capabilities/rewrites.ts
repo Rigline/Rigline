@@ -1,4 +1,4 @@
-import { CONTRACTS, type Payload, patchViolation } from "@prototype/plugin-api";
+import { CONTRACTS, type Payload, patchViolation } from "@rigline/plugin-api";
 import type { RewriteRecord } from "../kernel/bridge.ts";
 import type { CapabilityModule } from "../kernel/types.ts";
 
@@ -20,7 +20,7 @@ export const rewritesModule: CapabilityModule<"rewrites"> = {
         const fields = fieldsFor(type);
         if (!fields) {
           throw new Error(
-            `rewrite("${type}") was never declared under uses.rewrites in this plugin's prototype.json`,
+            `rewrite("${type}") was never declared under uses.rewrites in this plugin's rigline.json`,
           );
         }
         const record: RewriteRecord = {
@@ -57,7 +57,7 @@ export const rewritesModule: CapabilityModule<"rewrites"> = {
       resend(type) {
         if (!fieldsFor(type)) {
           throw new Error(
-            `resend("${type}") needs a declared rewrite of it under uses.rewrites in this plugin's prototype.json`,
+            `resend("${type}") needs a declared rewrite of it under uses.rewrites in this plugin's rigline.json`,
           );
         }
         return kernel.bus.rewriters.resend(type);

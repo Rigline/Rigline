@@ -12,7 +12,7 @@ const BUILT = fileURLToPath(new URL("../dist/post.js", import.meta.url));
 
 describe("the built post hook", () => {
   it("exists", () => {
-    expect(existsSync(BUILT), `${BUILT} is missing; run pnpm --filter @prototype/host build`).toBe(
+    expect(existsSync(BUILT), `${BUILT} is missing; run pnpm --filter @rigline/host build`).toBe(
       true,
     );
   });

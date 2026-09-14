@@ -1,5 +1,5 @@
 {
-  "name": "prototype",
+  "name": "rigline",
   "version": "1.0.0-alpha.0",
   "description": "Install, update and develop plugins for the Claude Code VS Code extension",
   "type": "module",
@@ -8,14 +8,14 @@
     "dist"
   ],
   "bin": {
-    "prototype": "./dist/index.js"
+    "rigline": "./dist/index.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@prototype/core": "workspace:*",
+    "@rigline/core": "workspace:*",
     "rolldown": "^1.2.8"
   }
 }

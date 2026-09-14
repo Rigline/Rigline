@@ -61,8 +61,8 @@ interface OutboundEnvelope {
   readonly request?: { readonly type: string; readonly title?: unknown };
 }
 
-interface PrototypeWindow {
-  readonly __prototype?: { readonly diagnostics: HarnessDiagnostics };
+interface RiglineWindow {
+  readonly __rigline?: { readonly diagnostics: HarnessDiagnostics };
   readonly __harness?: { readonly sent: readonly OutboundEnvelope[] };
   readonly __staleImported?: boolean;
 }
@@ -106,7 +106,7 @@ describe.skipIf(!!corpusReason || !!chromiumReason)(
 
     /** Prepare a fresh payload with exactly `plugins`, start a server for it, and navigate a fresh page to the boot goal state. */
     async function boot(plugins: readonly FixturePlugin[]): Promise<Booted> {
-      const dir = mkdtempSync(join(tmpdir(), "prototype-harness-"));
+      const dir = mkdtempSync(join(tmpdir(), "rigline-harness-"));
       preparePayload(dir, { version: VERSION, plugins });
       const harness: Harness = await startHarness({
         bundleDir: join(versionDir(VERSION), "webview"),
@@ -138,7 +138,7 @@ describe.skipIf(!!corpusReason || !!chromiumReason)(
 
     function diagnostics(page: Page): Promise<HarnessDiagnostics> {
       return page.evaluate(
-        () => (window as unknown as PrototypeWindow).__prototype?.diagnostics as HarnessDiagnostics,
+        () => (window as unknown as RiglineWindow).__rigline?.diagnostics as HarnessDiagnostics,
       );
     }
 
@@ -170,7 +170,7 @@ describe.skipIf(!!corpusReason || !!chromiumReason)(
           const badge = document.getElementsByClassName("harness-badge")[0] ?? null;
           const pill = document.getElementsByClassName("modelPill_gGYT1w")[0] ?? null;
           return {
-            mountAttr: badge?.getAttribute("data-prototype-mount") ?? null,
+            mountAttr: badge?.getAttribute("data-rigline-mount") ?? null,
             isNextSibling: pill !== null && pill.nextElementSibling === badge,
           };
         });
@@ -219,7 +219,7 @@ export default { setup() {} };`,
         expect(status?.status).toBe("refused");
         expect(status?.reason).toBe('unknown module "ZZZZZZ"');
         const imported = await booted.page.evaluate(
-          () => (window as unknown as PrototypeWindow).__staleImported,
+          () => (window as unknown as RiglineWindow).__staleImported,
         );
         expect(imported).toBeUndefined();
       } finally {
@@ -296,7 +296,7 @@ export default { setup() {} };`,
       try {
         await booted.page.waitForFunction(
           () => {
-            const sent = (window as unknown as PrototypeWindow).__harness?.sent ?? [];
+            const sent = (window as unknown as RiglineWindow).__harness?.sent ?? [];
             return sent.some(
               (m) =>
                 m.request?.type === "rename_tab" &&
@@ -308,7 +308,7 @@ export default { setup() {} };`,
         );
 
         const sent = await booted.page.evaluate(
-          () => (window as unknown as PrototypeWindow).__harness?.sent ?? [],
+          () => (window as unknown as RiglineWindow).__harness?.sent ?? [],
         );
         const renameTabs = sent.filter((m) => m.request?.type === "rename_tab");
         const last = renameTabs.at(-1);

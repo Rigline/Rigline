@@ -79,7 +79,7 @@ describe("validateManifest", () => {
 
   it("rejects a non-object outright", () => {
     expect(validateManifest("nope", "demo").problems).toEqual([
-      "prototype.json must be a JSON object",
+      "rigline.json must be a JSON object",
     ]);
   });
 });

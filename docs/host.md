@@ -12,28 +12,28 @@ For every installed extension directory `anthropic.claude-code-<version>-<platfo
     webview/index.js.orig       the app bundle as the extension shipped it
     extension.js                the host bundle, rebuilt from its backup plus declared patches
     extension.js.orig           only once any enabled plugin declares a patch
-    webview/prototype/pre.js       the pre hook, one prebuilt file
-    webview/prototype/post.js      the post hook, one prebuilt file
-    webview/prototype/generated.js the identifier tables harvested from this directory's bundles
-    webview/prototype/registry.js  the enabled plugins, their declarations, and patch outcomes
-    webview/prototype/plugins/<name>/…   each enabled plugin's directory, tests excluded
+    webview/rigline/pre.js       the pre hook, one prebuilt file
+    webview/rigline/post.js      the post hook, one prebuilt file
+    webview/rigline/generated.js the identifier tables harvested from this directory's bundles
+    webview/rigline/registry.js  the enabled plugins, their declarations, and patch outcomes
+    webview/rigline/plugins/<name>/…   each enabled plugin's directory, tests excluded
 
 The two lines:
 
-    import"./prototype/pre.js";/*PROTOTYPE-PRE*/
+    import"./rigline/pre.js";/*RIGLINE-PRE*/
     …the bundle, byte for byte…
-    /*PROTOTYPE-POST*/import("./prototype/post.js").catch((e)=>console.error("[prototype] post-hook",e));
+    /*RIGLINE-POST*/import("./rigline/post.js").catch((e)=>console.error("[rigline] post-hook",e));
 
 The static import at the head evaluates before the bundle body, which is the only way to wrap
 `acquireVsCodeApi` before the app's single call to it. The dynamic import at the tail runs after
 `createRoot().render()`, and its `catch` is what stops a post-hook failure reaching the app.
 Neither line names anything from the bundle. Relative specifiers resolve against the bundle's own
-resource URI, so `webview/prototype/` sits inside `localResourceRoots` without touching the host
+resource URI, so `webview/rigline/` sits inside `localResourceRoots` without touching the host
 bundle, and module scripts pass their nonce to what they import, which is what the CSP admits.
 
 The backup file, never the marker comment, decides whether a bundle is patched (D38). Status
 compares live bytes against the backup and answers `unknown` rather than guessing when there is no
-backup. Restore copies backups back, removes `webview/prototype/`, and re-reads to confirm.
+backup. Restore copies backups back, removes `webview/rigline/`, and re-reads to confirm.
 
 ## pre.js
 
@@ -60,7 +60,7 @@ harvested identifier and reads no generated table. What it does:
   it missed.
 - Installs or chains the React devtools hook, records the renderer's version and its
   `findFiberByHostInstance`, and coalesces commit notices to one per animation frame.
-- Publishes all of this on `globalThis.__prototype` as the bridge the post hook drives, with a
+- Publishes all of this on `globalThis.__rigline` as the bridge the post hook drives, with a
   `diagnostics` object the probe reads. The bridge is host-internal; no plugin sees it.
 
 ## post.js: the kernel
@@ -89,7 +89,7 @@ registered and the one it returned.
 
 The kernel knows no capability by name. It owns the plugin lifecycle, the shared mutation observer,
 the mount arbitration (host-placed nodes ordered by registry order and stamped
-`data-prototype-mount`), and the diagnostics object. Everything a plugin can do comes from a
+`data-rigline-mount`), and the diagnostics object. Everything a plugin can do comes from a
 capability module.
 
 ## The capability module contract
@@ -166,11 +166,11 @@ fallback: register the rewrite, and once the app has sent the type, resend it. T
 resent request's fresh id with a console warning that no handler matched, and drops it; nothing
 else happens.
 
-## The manifest, `prototype.json`
+## The manifest, `rigline.json`
 
 ```json
 {
-  "$schema": "node_modules/@prototype/plugin-api/schema/manifest.json",
+  "$schema": "node_modules/@rigline/plugin-api/schema/manifest.json",
   "api": 1,
   "name": "session-id",
   "description": "The panel's session id, beside the model pill.",
@@ -223,7 +223,7 @@ rewriters compose in.
 
 ## Diagnostics
 
-`globalThis.__prototype.diagnostics` carries what the probe reports: timing of the two hooks, whether
+`globalThis.__rigline.diagnostics` carries what the probe reports: timing of the two hooks, whether
 the wrapper was installed and called, inbound and outbound counts, buffer size and sealed state,
 clone counts and the worst clone by type, resend count, the per-plugin status list, the rewrite
 log (plugin, type, fields, ran, applied, missed), the recorded patch outcomes, the version the
@@ -239,7 +239,7 @@ built `pre.js` against a stubbed `acquireVsCodeApi` (immutability, unwrapping, b
 resend, counts); every contract's `violation` and `summary`.
 
 The probe plugin, live: one check per capability, contributed by its module, plus the kernel's
-own; `n/a` where a check cannot apply on a surface; the `GRO` badge green or red with a count.
+own; `n/a` where a check cannot apply on a surface; the `RIG` badge green or red with a count.
 Leo reloads webviews and reads the badge on the full editor, the sidebar and the session list.
 
 The Playwright spike, if it boots the real bundle: a third tier for host and plugin DOM behaviour

@@ -30,9 +30,9 @@ import {
 
 // Mirrors docs/host.md's two lines exactly, so a test failure here means the documented contract
 // moved, not just this module's internals.
-const PRE_LINE = 'import"./prototype/pre.js";/*PROTOTYPE-PRE*/\n';
+const PRE_LINE = 'import"./rigline/pre.js";/*RIGLINE-PRE*/\n';
 const POST_LINE =
-  '\n/*PROTOTYPE-POST*/import("./prototype/post.js").catch((e)=>console.error("[prototype] post-hook",e));\n';
+  '\n/*RIGLINE-POST*/import("./rigline/post.js").catch((e)=>console.error("[rigline] post-hook",e));\n';
 
 const HOST_ANCHOR = "{dir:this.cwd,includeWorktrees:!1}";
 const PATCHED_ANCHOR = "{dir:this.cwd,includeWorktrees:!0}";
@@ -57,7 +57,7 @@ function hostBundleText(): string {
 
 /** A disposable extension directory: webview bundle (CRLF, Latin1), host bundle, package.json. */
 function fixture(options: { readonly version?: string } = {}): string {
-  const ext = tempDir("prototype-inject-");
+  const ext = tempDir("rigline-inject-");
   const version = options.version ?? "2.1.263";
   const { js, css } = harvestableWebview();
   // CRLF line endings, encoded Latin1, so byte-mode I/O is observable rather than assumed.
@@ -84,11 +84,11 @@ function hostBackupPath(ext: string): string {
   return join(ext, "extension.js.orig");
 }
 function payloadOutDir(ext: string): string {
-  return join(ext, "webview", "prototype");
+  return join(ext, "webview", "rigline");
 }
 
 function payload(preContent = "export default 1;\n", postContent = "export default 2;\n"): string {
-  const dir = tempDir("prototype-payload-");
+  const dir = tempDir("rigline-payload-");
   writeFileSync(join(dir, "pre.js"), preContent);
   writeFileSync(join(dir, "post.js"), postContent);
   return dir;
@@ -103,7 +103,7 @@ function writePlugin(
   const dir = join(root, name);
   mkdirSync(dir, { recursive: true });
   writeFileSync(
-    join(dir, "prototype.json"),
+    join(dir, "rigline.json"),
     JSON.stringify({ api: 1, name, entry: "index.js", ...overrides }),
   );
   writeFileSync(join(dir, "index.js"), entrySource);
@@ -111,7 +111,7 @@ function writePlugin(
 }
 
 function writeConfig(disabled: readonly string[]): string {
-  const path = join(tempDir("prototype-config-"), "prototype.config.json");
+  const path = join(tempDir("rigline-config-"), "rigline.config.json");
   writeFileSync(path, JSON.stringify({ disabled }));
   return path;
 }
@@ -156,13 +156,13 @@ describe("install", () => {
     install(ext, { payloadDir: payload() });
 
     const live = readFileSync(bundlePath(ext)).toString("latin1");
-    expect(live.startsWith('import"./prototype/pre.js";/*PROTOTYPE-PRE*/')).toBe(true);
-    expect(live).toMatch(/\/\*PROTOTYPE-POST\*\/import\("\.\/prototype\/post\.js"\)\.catch/);
-    expect(live.indexOf('import"./prototype/pre.js"')).toBeLessThan(live.indexOf("PROTOTYPE-POST"));
-    expect(live.trimEnd().endsWith('console.error("[prototype] post-hook",e));')).toBe(true);
+    expect(live.startsWith('import"./rigline/pre.js";/*RIGLINE-PRE*/')).toBe(true);
+    expect(live).toMatch(/\/\*RIGLINE-POST\*\/import\("\.\/rigline\/post\.js"\)\.catch/);
+    expect(live.indexOf('import"./rigline/pre.js"')).toBeLessThan(live.indexOf("RIGLINE-POST"));
+    expect(live.trimEnd().endsWith('console.error("[rigline] post-hook",e));')).toBe(true);
   });
 
-  it("copies the payload files into webview/prototype/", () => {
+  it("copies the payload files into webview/rigline/", () => {
     const ext = fixture();
     install(ext, { payloadDir: payload("PRE_MARKER", "POST_MARKER") });
 
@@ -185,7 +185,7 @@ describe("install", () => {
   it("refuses a payload directory missing a hook, and touches nothing", () => {
     const ext = fixture();
     const original = readFileSync(bundlePath(ext));
-    const badPayload = tempDir("prototype-bad-payload-");
+    const badPayload = tempDir("rigline-bad-payload-");
     writeFileSync(join(badPayload, "pre.js"), "x");
 
     expect(() => install(ext, { payloadDir: badPayload })).toThrow(/payload is missing post\.js/);
@@ -235,7 +235,7 @@ describe("install", () => {
 });
 
 describe("restore", () => {
-  it("round-trips exactly back to the original bytes and removes webview/prototype/", () => {
+  it("round-trips exactly back to the original bytes and removes webview/rigline/", () => {
     const ext = fixture();
     const original = readFileSync(bundlePath(ext));
     install(ext, { payloadDir: payload() });
@@ -288,7 +288,7 @@ describe("verdict", () => {
 
     const withoutMarker = readFileSync(bundlePath(ext))
       .toString("latin1")
-      .replace("/*PROTOTYPE-PRE*/", "");
+      .replace("/*RIGLINE-PRE*/", "");
     writeFileSync(bundlePath(ext), Buffer.from(withoutMarker, "latin1"));
 
     expect(verdict(inspect(ext))).toBe("patched");
@@ -335,7 +335,7 @@ describe("plugins", () => {
     const ext = fixture();
     const report = install(ext, {
       payloadDir: payload(),
-      plugins: withPlugins([join(tempDir("prototype-empty-"), "does-not-exist")]),
+      plugins: withPlugins([join(tempDir("rigline-empty-"), "does-not-exist")]),
     });
 
     expect(report.enabled).toEqual([]);
@@ -346,7 +346,7 @@ describe("plugins", () => {
 
   it("bakes discovered plugins into the registry and moves `last` names to the end", () => {
     const ext = fixture();
-    const root = tempDir("prototype-plugins-");
+    const root = tempDir("rigline-plugins-");
     writePlugin(root, "zeta");
     writePlugin(root, "probe");
 
@@ -362,7 +362,7 @@ describe("plugins", () => {
 
   it("excludes a plugin's own test files from the copy", () => {
     const ext = fixture();
-    const root = tempDir("prototype-plugins-");
+    const root = tempDir("rigline-plugins-");
     const dir = writePlugin(root, "sample");
     writeFileSync(join(dir, "index.test.js"), "should not ship");
 
@@ -375,7 +375,7 @@ describe("plugins", () => {
 
   it("removes a disabled plugin's copy on the next install", () => {
     const ext = fixture();
-    const root = tempDir("prototype-plugins-");
+    const root = tempDir("rigline-plugins-");
     writePlugin(root, "sample");
     install(ext, { payloadDir: payload(), plugins: withPlugins([root]) });
     expect(existsSync(join(payloadOutDir(ext), "plugins", "sample"))).toBe(true);
@@ -390,7 +390,7 @@ describe("plugins", () => {
 
   it("drops a plugin's copy once its directory is deleted from disk", () => {
     const ext = fixture();
-    const root = tempDir("prototype-plugins-");
+    const root = tempDir("rigline-plugins-");
     const dir = writePlugin(root, "sample");
     install(ext, { payloadDir: payload(), plugins: withPlugins([root]) });
     expect(existsSync(join(payloadOutDir(ext), "plugins", "sample"))).toBe(true);
@@ -403,7 +403,7 @@ describe("plugins", () => {
 
   it("reports capability-use notes in both directions, only over shipped source", () => {
     const ext = fixture();
-    const root = tempDir("prototype-plugins-");
+    const root = tempDir("rigline-plugins-");
     writePlugin(
       root,
       "agrees",
@@ -424,7 +424,7 @@ describe("plugins", () => {
 
   it("notes a field two plugins both rewrite, in registry order", () => {
     const ext = fixture();
-    const root = tempDir("prototype-plugins-");
+    const root = tempDir("rigline-plugins-");
     writePlugin(root, "first", { uses: { rewrites: { req_0: ["field_0"] } } });
     writePlugin(root, "second", { uses: { rewrites: { req_0: ["field_0"] } } });
 
@@ -459,7 +459,7 @@ describe("host patches", () => {
   it("applies a declared patch without resizing the host bundle, keeping the pristine backup", () => {
     const ext = fixture();
     const originalHost = readFileSync(hostPath(ext));
-    const root = tempDir("prototype-plugins-");
+    const root = tempDir("rigline-plugins-");
     patchPlugin(root, "worktree-toggle");
 
     install(ext, { payloadDir: payload(), plugins: withPlugins([root]) });
@@ -473,7 +473,7 @@ describe("host patches", () => {
   it("creates no backup and touches nothing when no plugin declares a patch", () => {
     const ext = fixture();
     const originalHost = readFileSync(hostPath(ext));
-    const root = tempDir("prototype-plugins-");
+    const root = tempDir("rigline-plugins-");
     writePlugin(root, "no-patches");
 
     install(ext, { payloadDir: payload(), plugins: withPlugins([root]) });
@@ -484,7 +484,7 @@ describe("host patches", () => {
 
   it("does not rewrite extension.js when the patch set is unchanged", () => {
     const ext = fixture();
-    const root = tempDir("prototype-plugins-");
+    const root = tempDir("rigline-plugins-");
     patchPlugin(root, "worktree-toggle");
     install(ext, { payloadDir: payload(), plugins: withPlugins([root]) });
     const past = new Date(2000, 0, 1);
@@ -498,7 +498,7 @@ describe("host patches", () => {
   it("puts the host bytes back when the plugin declaring the patch is disabled", () => {
     const ext = fixture();
     const originalHost = readFileSync(hostPath(ext));
-    const root = tempDir("prototype-plugins-");
+    const root = tempDir("rigline-plugins-");
     patchPlugin(root, "worktree-toggle");
     install(ext, { payloadDir: payload(), plugins: withPlugins([root]) });
 
@@ -513,7 +513,7 @@ describe("host patches", () => {
   it("applies the patch exactly once across three installs", () => {
     const ext = fixture();
     const originalHost = readFileSync(hostPath(ext));
-    const root = tempDir("prototype-plugins-");
+    const root = tempDir("rigline-plugins-");
     patchPlugin(root, "worktree-toggle");
 
     for (let i = 0; i < 3; i++) {
@@ -528,7 +528,7 @@ describe("host patches", () => {
   it("reverts the host bundle on restore", () => {
     const ext = fixture();
     const originalHost = readFileSync(hostPath(ext));
-    const root = tempDir("prototype-plugins-");
+    const root = tempDir("rigline-plugins-");
     patchPlugin(root, "worktree-toggle");
     install(ext, { payloadDir: payload(), plugins: withPlugins([root]) });
 
@@ -541,7 +541,7 @@ describe("host patches", () => {
   it("recovers the host bundle even when the webview backup is gone", () => {
     const ext = fixture();
     const originalHost = readFileSync(hostPath(ext));
-    const root = tempDir("prototype-plugins-");
+    const root = tempDir("rigline-plugins-");
     patchPlugin(root, "worktree-toggle");
     install(ext, { payloadDir: payload(), plugins: withPlugins([root]) });
     rmSync(backupPath(ext));
@@ -555,7 +555,7 @@ describe("host patches", () => {
   it("leaves an optional patch's plugin loadable when its anchor cannot apply", () => {
     const ext = fixture();
     const originalHost = readFileSync(hostPath(ext));
-    const root = tempDir("prototype-plugins-");
+    const root = tempDir("rigline-plugins-");
     patchPlugin(root, "hopeful", { find: "[NOWHERE TO BE FOUND]", required: false });
 
     install(ext, { payloadDir: payload(), plugins: withPlugins([root]) });
@@ -567,7 +567,7 @@ describe("host patches", () => {
 
   it("records a refusal when a required patch's anchor cannot apply", () => {
     const ext = fixture();
-    const root = tempDir("prototype-plugins-");
+    const root = tempDir("rigline-plugins-");
     patchPlugin(root, "essential", { find: "[NOWHERE TO BE FOUND]", required: true });
 
     install(ext, { payloadDir: payload(), plugins: withPlugins([root]) });
@@ -582,7 +582,7 @@ describe("host patches", () => {
     const ext = fixture();
     const originalHost = readFileSync(hostPath(ext));
     writeFileSync(hostBackupPath(ext), Buffer.from("a stale backup, shorter", "utf8"));
-    const root = tempDir("prototype-plugins-");
+    const root = tempDir("rigline-plugins-");
     patchPlugin(root, "worktree-toggle");
 
     install(ext, { payloadDir: payload(), plugins: withPlugins([root]) });

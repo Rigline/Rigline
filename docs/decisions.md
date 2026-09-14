@@ -26,7 +26,7 @@ refuses the plugin instead of leaving a handler that never fires.
 
 **P3. One plugin's failure never costs another plugin, or the loader.** Refusal at load, isolation
 at runtime, and an install that reports a plugin problem and injects around it. What blocks an
-install is only what makes injecting itself wrong: a collapsed harvest, or a failure in Prototype's
+install is only what makes injecting itself wrong: a collapsed harvest, or a failure in Rigline's
 own build.
 
 **P4. Reads are immutable; writes are declared, patch-shaped, outbound and synchronous.** A tap is
@@ -58,7 +58,7 @@ head, which runs before the app boots, and a dynamic `import()` at the tail, whi
 `createRoot().render()`. Neither names a minified identifier, so the patch is version-independent.
 Module scripts propagate their nonce to imported descendants, which is what lets the CSP admit it.
 
-**D2. Only Prototype's own pre hook is in the static import.** A throw there fails the module graph
+**D2. Only Rigline's own pre hook is in the static import.** A throw there fails the module graph
 and the panel renders blank with no attribution. Plugins load after boot, dynamically, each in its
 own try/catch.
 
@@ -112,13 +112,13 @@ leave the transcript capability silently empty cannot produce generated tables a
 
 ### Plugins and the manifest
 
-**D12. A plugin is a `prototype.json` manifest plus one browser ES module whose default export has
+**D12. A plugin is a `rigline.json` manifest plus one browser ES module whose default export has
 `setup(ctx)` returning an optional teardown.** The manifest is JSON, `api: 1`, schema-validated,
 with every dependency under `uses` and host patches under `patches`. JSON rather than a JS export
 so the host can report what an update broke without evaluating the plugin, module evaluation
 being exactly where a broken plugin throws.
 
-**D13. Plugins are authored in TypeScript and built to one file by `prototype build`.** The output
+**D13. Plugins are authored in TypeScript and built to one file by `rigline build`.** The output
 contract (P6) is unchanged; the preset is a convenience. First-party plugins are packages with
 `src/`, tests and a README.
 
@@ -178,7 +178,7 @@ identity is the host's problem, and keeping it there lets the mechanism change w
 noticing.
 
 **D23. Mounts sharing an anchor are ordered by the host in registry order, and every host-placed
-node is stamped `data-prototype-mount`.** The naive insert gives the slot to whichever plugin mounted
+node is stamped `data-rigline-mount`.** The naive insert gives the slot to whichever plugin mounted
 last, which is invisible to authors and was observed to displace a decoration.
 
 **D24. A row's own timestamp is never read.** It is `Date.now()` from when the row object was
@@ -204,7 +204,7 @@ review that stood in for scoping stops existing when the author is not us.
 **D27. The update flow never blocks on a plugin's problem.** It reports the plugin by name, injects
 around it, and the post hook refuses it at load. An update has already removed the loader, so
 blocking to report one plugin would cost every working plugin and the probe badge that names the
-broken one. What blocks: the class harvest falling under its floor, or a failure in Prototype's own
+broken one. What blocks: the class harvest falling under its floor, or a failure in Rigline's own
 build or typecheck. The exit code is non-zero whenever a human is needed, including from `check`
 and `watch`.
 
@@ -217,7 +217,7 @@ the second run having been satisfied by its own side effect. The one threshold, 
 is a smoke alarm for our own regex and not a judgement about the extension.
 
 **D29. The baseline for "what changed" is the committed `generated.ts` for this repo, and
-`~/.prototype/baseline.json` on a user's machine.** The old extension directory is gone by the time
+`~/.rigline/baseline.json` on a user's machine.** The old extension directory is gone by the time
 anything notices an update, and "what moved since the version my plugins were compiled against" is
 the more useful question anyway.
 
@@ -226,13 +226,13 @@ the more useful question anyway.
 
 ### Distribution and state
 
-**D31. Distribution is `@prototype/core` plus the `prototype` CLI now, with a companion VS Code extension
+**D31. Distribution is `@rigline/core` plus the `rigline` CLI now, with a companion VS Code extension
 as a later phase; core is designed so either can be its consumer.** Confirmed by Leo 2026-09-13.
 
-**D32. User state lives under `~/.prototype`**: config, installed plugins, harvest baseline, class-map
-snapshots. A clone of this repo is for developing Prototype, not for using it.
+**D32. User state lives under `~/.rigline`**: config, installed plugins, harvest baseline, class-map
+snapshots. A clone of this repo is for developing Rigline, not for using it.
 
-**D33. Plugins are distributed as npm packages carrying `prototype.json` and a built entry, or as a
+**D33. Plugins are distributed as npm packages carrying `rigline.json` and a built entry, or as a
 local directory for development.**
 
 ### Toolchain and verification

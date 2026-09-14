@@ -1,4 +1,4 @@
-import { CONTRACTS } from "@prototype/plugin-api";
+import { CONTRACTS } from "@rigline/plugin-api";
 import { type CapabilityModule, undeclared } from "../kernel/types.ts";
 
 /** `ctx.style(css)`: a host-managed stylesheet, stamped with its owner and removed on teardown. */
@@ -9,7 +9,7 @@ export const styleModule: CapabilityModule<"style"> = {
     return {
       style(css) {
         const element = document.createElement("style");
-        element.setAttribute("data-prototype-style", plugin.name);
+        element.setAttribute("data-rigline-style", plugin.name);
         element.textContent = css;
         document.head.appendChild(element);
         return own(() => element.remove());

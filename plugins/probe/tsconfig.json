@@ -6,7 +6,7 @@
     "noEmit": true,
     "allowImportingTsExtensions": true,
     "paths": {
-      "@prototype/plugin-api": ["../../packages/plugin-api/src/index.ts"]
+      "@rigline/plugin-api": ["../../packages/plugin-api/src/index.ts"]
     }
   },
   "include": ["src/**/*.ts"],

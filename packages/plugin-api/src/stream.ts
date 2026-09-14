@@ -4,7 +4,7 @@
  * `io_message` is a protocol nested inside ours: `{ type: "io_message", channelId, done, message }`
  * carries the Claude Code CLI's own record, `{ type: "assistant", sessionId, message }`, which in
  * turn carries the Anthropic message format, `{ role: "assistant", content: [blocks] }`. None of
- * those names are Prototype message types and none of them are harvested; what this module does is
+ * those names are Rigline message types and none of them are harvested; what this module does is
  * make the shape the host's problem rather than every plugin's, so a plugin that wants to react to
  * a tool call writes `ctx.onToolUse(...)` and matches a name, instead of learning three layers of
  * envelope.

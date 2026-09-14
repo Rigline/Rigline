@@ -2,7 +2,7 @@
  * Plugin discovery, manifest reading and registry baking (D12, D14).
  *
  * Discovery runs in Node at install time, never in the webview: the webview's CSP has no
- * `connect-src`, so the post hook can neither fetch a `prototype.json` nor list a directory to find
+ * `connect-src`, so the post hook can neither fetch a `rigline.json` nor list a directory to find
  * one by. A manifest is read here as data, through `validateManifest`, and the plugin's own module
  * is never imported — module evaluation is exactly where a broken plugin throws, and this code's
  * job is to say what broke, by name, before anything runs.
@@ -15,7 +15,7 @@ import {
   type Uses,
   type ValidManifest,
   validateManifest,
-} from "@prototype/plugin-api";
+} from "@rigline/plugin-api";
 import { UserError } from "../errors.ts";
 import { type DeclaredPatch, type PatchOutcome, patchRefusal } from "../inject/hostpatch.ts";
 
@@ -26,21 +26,21 @@ export interface DiscoveredPlugin {
   readonly manifest: ValidManifest;
 }
 
-/** `prototype.config.json`: the one thing a person, not a plugin author, controls at install time. */
+/** `rigline.config.json`: the one thing a person, not a plugin author, controls at install time. */
 export interface PluginsConfig {
   readonly disabled: readonly string[];
 }
 
 /**
- * Reads and validates `<dir>/prototype.json`. Every shape problem is collected into one throw, and a
+ * Reads and validates `<dir>/rigline.json`. Every shape problem is collected into one throw, and a
  * `name`/directory mismatch or a missing capability is treated the same way as a missing entry
  * file: an authoring mistake, not version skew, so it fails the install loudly rather than being
  * silently dropped.
  */
 export function readManifest(dir: string): ValidManifest {
-  const manifestPath = join(dir, "prototype.json");
+  const manifestPath = join(dir, "rigline.json");
   if (!existsSync(manifestPath)) {
-    throw new UserError(`${dir} has no prototype.json`);
+    throw new UserError(`${dir} has no rigline.json`);
   }
   let value: unknown;
   try {
@@ -63,7 +63,7 @@ export function readManifest(dir: string): ValidManifest {
 
 /**
  * Every plugin discoverable under `roots`: each root's immediate subdirectories that contain a
- * `prototype.json`, sorted by name, roots taken in the order given. A root that does not exist yields
+ * `rigline.json`, sorted by name, roots taken in the order given. A root that does not exist yields
  * nothing rather than throwing, since a fresh checkout with no first-party plugins yet is a normal
  * state. `last` moves the named plugins to the end, in the order given, regardless of which root
  * found them — the probe plugin wants to run after everything a person installed.
@@ -78,7 +78,7 @@ export function discoverPlugins(
     const names = readdirSync(root, { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
-      .filter((name) => existsSync(join(root, name, "prototype.json")))
+      .filter((name) => existsSync(join(root, name, "rigline.json")))
       .sort();
     for (const name of names) {
       const dir = join(root, name);
@@ -97,7 +97,7 @@ export function discoverPlugins(
   return ordered;
 }
 
-/** `prototype.config.json`. Absent means nothing is disabled; malformed is a person's mistake, loud. */
+/** `rigline.config.json`. Absent means nothing is disabled; malformed is a person's mistake, loud. */
 export function readConfig(path: string): PluginsConfig {
   if (!existsSync(path)) {
     return { disabled: [] };
@@ -132,7 +132,7 @@ export function enabledPlugins(
   for (const name of config.disabled) {
     if (!names.has(name)) {
       log(
-        `prototype.config.json disables "${name}", which was not found among the discovered plugins`,
+        `rigline.config.json disables "${name}", which was not found among the discovered plugins`,
       );
     }
   }
@@ -168,7 +168,7 @@ export function bakeRegistry(
     }),
   );
   const body = entries.map((e) => `  ${e},`).join("\n");
-  return `// Baked by prototype at install time. Do not edit; it is overwritten on every install.
+  return `// Baked by rigline at install time. Do not edit; it is overwritten on every install.
 export const plugins = [
 ${body}
 ];

@@ -1,4 +1,7 @@
-# Prototype — agent notes
+# Rigline — agent notes
+
+*Renamed from Prototype on 2026-09-14 — nothing was published under the old name; see the status log
+in [docs/plan.md](docs/plan.md).*
 
 A plugin layer for the Claude Code VS Code extension: a loader injected into the installed
 extension's webview bundle, a capability-scoped context plugins are written against, and the
@@ -11,7 +14,7 @@ from. Update the plan before writing code; log status there, not here.
 
 ## Knowledge base
 
-- [docs/plan.md](docs/plan.md): what Prototype is, the physics that shape it, the architecture,
+- [docs/plan.md](docs/plan.md): what Rigline is, the physics that shape it, the architecture,
   phases with acceptance criteria, status log.
 - [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D39.
 - [docs/archive/0.x/](docs/archive/0.x/README.md): the 0.x prototype's design record and source
@@ -34,7 +37,7 @@ from. Update the plan before writing code; log status there, not here.
   panel or a broken extension host.
 - **Never point a test at the live extension directory.** Copies only.
 - **A plugin's problem never blocks the install.** Report it by name, inject around it, refuse it
-  at load. Only a collapsed harvest or Prototype's own build failure blocks.
+  at load. Only a collapsed harvest or Rigline's own build failure blocks.
 
 ## Working on the live extension
 

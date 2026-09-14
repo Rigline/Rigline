@@ -127,7 +127,7 @@ importers:
 
   packages/cli:
     dependencies:
-      '@prototype/core':
+      '@rigline/core':
         specifier: workspace:*
         version: link:../core
       rolldown:
@@ -136,13 +136,13 @@ importers:
 
   packages/core:
     dependencies:
-      '@prototype/plugin-api':
+      '@rigline/plugin-api':
         specifier: workspace:*
         version: link:../plugin-api
 
   packages/harness:
     devDependencies:
-      '@prototype/core':
+      '@rigline/core':
         specifier: workspace:*
         version: link:../core
       playwright:
@@ -151,7 +151,7 @@ importers:
 
   packages/host:
     dependencies:
-      '@prototype/plugin-api':
+      '@rigline/plugin-api':
         specifier: workspace:*
         version: link:../plugin-api
 
@@ -159,10 +159,10 @@ importers:
 
   plugins/probe:
     devDependencies:
-      '@prototype/plugin-api':
+      '@rigline/plugin-api':
         specifier: workspace:*
         version: link:../../packages/plugin-api
-      prototype:
+      rigline:
         specifier: workspace:*
         version: link:../../packages/cli
 

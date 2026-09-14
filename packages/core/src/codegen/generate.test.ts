@@ -1,4 +1,4 @@
-import { ANCHORS } from "@prototype/plugin-api";
+import { ANCHORS } from "@rigline/plugin-api";
 import { describe, expect, it } from "vitest";
 import type { Harvest } from "../layers/index.ts";
 import { generate } from "./generate.ts";
@@ -83,7 +83,7 @@ describe("generate", () => {
 
   it("renders the runtime tables as one plain ES module with the same data", async () => {
     const { runtime, tables } = generate(harvest());
-    expect(runtime.startsWith("// Written by prototype")).toBe(true);
+    expect(runtime.startsWith("// Written by rigline")).toBe(true);
     const url = `data:text/javascript;base64,${Buffer.from(runtime).toString("base64")}`;
     const mod = (await import(url)) as { TABLES: unknown };
     expect(mod.TABLES).toEqual(JSON.parse(JSON.stringify(tables)));

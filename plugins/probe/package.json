@@ -1,14 +1,14 @@
 {
-  "name": "prototype-probe",
+  "name": "rigline-probe",
   "version": "1.0.0-alpha.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "prototype build",
+    "build": "rigline build",
     "typecheck": "tsc -p tsconfig.json"
   },
   "devDependencies": {
-    "@prototype/plugin-api": "workspace:*",
-    "prototype": "workspace:*"
+    "@rigline/plugin-api": "workspace:*",
+    "rigline": "workspace:*"
   }
 }

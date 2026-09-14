@@ -8,7 +8,7 @@
  * Subscribing late costs nothing, since `bus.on` replays the buffer and plugins register before it
  * is sealed.
  */
-import { nextSessionId } from "@prototype/plugin-api";
+import { nextSessionId } from "@rigline/plugin-api";
 import type { Bus } from "./bridge.ts";
 
 export interface SessionService {

@@ -1,22 +1,22 @@
 /**
- * Where Prototype keeps a user's state (decisions.md, D30, D32).
+ * Where Rigline keeps a user's state (decisions.md, D30, D32).
  *
- * A clone of this repo is for developing Prototype; using it leaves nothing in the clone. Config,
+ * A clone of this repo is for developing Rigline; using it leaves nothing in the clone. Config,
  * installed plugins, the harvest baseline and class-map snapshots live under one directory in the
  * user's home, overridable for tests and for anyone who keeps dotfiles elsewhere.
  */
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-export const PROTOTYPE_HOME_VARIABLE = "PROTOTYPE_HOME";
+export const RIGLINE_HOME_VARIABLE = "RIGLINE_HOME";
 
-/** `$PROTOTYPE_HOME`, else `~/.prototype`. */
-export function prototypeHome(env: NodeJS.ProcessEnv = process.env): string {
-  const override = env[PROTOTYPE_HOME_VARIABLE];
-  return override && override.length > 0 ? override : join(homedir(), ".prototype");
+/** `$RIGLINE_HOME`, else `~/.rigline`. */
+export function riglineHome(env: NodeJS.ProcessEnv = process.env): string {
+  const override = env[RIGLINE_HOME_VARIABLE];
+  return override && override.length > 0 ? override : join(homedir(), ".rigline");
 }
 
-export interface PrototypePaths {
+export interface RiglinePaths {
   readonly home: string;
   /** Enabled and disabled plugins, per-plugin settings. */
   readonly config: string;
@@ -28,7 +28,7 @@ export interface PrototypePaths {
   readonly snapshots: string;
 }
 
-export function prototypePaths(home = prototypeHome()): PrototypePaths {
+export function riglinePaths(home = riglineHome()): RiglinePaths {
   return {
     home,
     config: join(home, "config.json"),

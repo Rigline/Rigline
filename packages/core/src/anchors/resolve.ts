@@ -11,7 +11,7 @@
  * or behind the extension; what it may not do is resolve to the wrong element, which the module
  * scoping prevents.
  */
-import { ANCHORS, type AnchorName } from "@prototype/plugin-api";
+import { ANCHORS, type AnchorName } from "@rigline/plugin-api";
 
 /** module hash -> local name -> full hashed class, as the class layer harvests it. */
 type ClassMapLike = Readonly<Record<string, Readonly<Record<string, string>> | undefined>>;

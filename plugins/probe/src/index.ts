@@ -1,9 +1,9 @@
 /**
- * Prototype's own integration harness: proves every capability the host grants through the same
+ * Rigline's own integration harness: proves every capability the host grants through the same
  * `ctx` any plugin gets, plus the kernel's own bookkeeping, and shows the result as a small badge
  * in the composer footer (or fixed to a corner on the session list, which has no composer).
  *
- * `globalThis.__prototype.diagnostics` is read directly below, which nothing else may do: this plugin
+ * `globalThis.__rigline.diagnostics` is read directly below, which nothing else may do: this plugin
  * exists to diagnose the host, and the diagnostics it needs (pre/post timing, raw tap counts,
  * every plugin's load status, rewrite and patch bookkeeping) is not a capability a manifest could
  * sanely declare. Everything else here goes through `ctx` like any third-party plugin, which is
@@ -12,7 +12,7 @@
  * Every verdict passes through `report()`, so the badge's failing count and the panel's lines are
  * always built from the same map and cannot disagree.
  */
-import { definePlugin } from "@prototype/plugin-api";
+import { definePlugin } from "@rigline/plugin-api";
 import {
   acquireVerdict,
   anchorResolvesVerdict,
@@ -43,7 +43,7 @@ import {
 } from "./checks.ts";
 
 /** The mark the first rewriter adds and the second strips, so the net effect on the wire is nothing. */
-const MARK = "[prototype-probe] ";
+const MARK = "[rigline-probe] ";
 
 /** The check names, in report order. Seeded up front so the panel's line order never depends on
  * which event happens to fire first. */
@@ -71,7 +71,7 @@ const ORDER = [
   "stylesheet applied",
 ] as const;
 
-/** The fields of `globalThis.__prototype.diagnostics` this plugin reads. See bridge.ts for the full shape. */
+/** The fields of `globalThis.__rigline.diagnostics` this plugin reads. See bridge.ts for the full shape. */
 interface ProbeDiagnostics {
   readonly rootChildrenAtPre: number;
   readonly rootChildrenAtPost: number | null;
@@ -95,12 +95,12 @@ interface ProbeDiagnostics {
 }
 
 function readDiagnostics(): ProbeDiagnostics | null {
-  const bridge = (globalThis as { __prototype?: { diagnostics: ProbeDiagnostics } }).__prototype;
+  const bridge = (globalThis as { __rigline?: { diagnostics: ProbeDiagnostics } }).__rigline;
   return bridge ? bridge.diagnostics : null;
 }
 
 const CSS = `
-.prototype-probe-badge {
+.rigline-probe-badge {
   display: inline-flex;
   align-items: center;
   margin-left: 4px;
@@ -113,17 +113,17 @@ const CSS = `
   vertical-align: middle;
   user-select: none;
 }
-.prototype-probe-badge.prototype-probe-failing {
+.rigline-probe-badge.rigline-probe-failing {
   background: #a3352f;
 }
-.prototype-probe-badge-fixed {
+.rigline-probe-badge-fixed {
   position: fixed;
   right: 8px;
   bottom: 8px;
   z-index: 2147483647;
   margin-left: 0;
 }
-.prototype-probe-panel {
+.rigline-probe-panel {
   position: fixed;
   right: 8px;
   bottom: 32px;
@@ -139,7 +139,7 @@ const CSS = `
   padding: 8px 10px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
 }
-.prototype-probe-panel-body {
+.rigline-probe-panel-body {
   margin: 0;
   white-space: pre-wrap;
   user-select: text;
@@ -159,8 +159,8 @@ export default definePlugin({
     function applyBadgeState(): void {
       if (!currentBadge) return;
       const failing = failingCount([...checks.values()]);
-      currentBadge.textContent = failing > 0 ? `GRO ${failing}` : "GRO";
-      currentBadge.classList.toggle("prototype-probe-failing", failing > 0);
+      currentBadge.textContent = failing > 0 ? `RIG ${failing}` : "RIG";
+      currentBadge.classList.toggle("rigline-probe-failing", failing > 0);
       const state = failing > 0 ? `${failing} failing` : "all checks pass";
       const action = panelVisible ? "hide" : "show";
       currentBadge.title = `${state} — click to ${action} diagnostics`;
@@ -189,8 +189,8 @@ export default definePlugin({
 
     function buildBadge(): HTMLElement {
       const span = document.createElement("span");
-      span.className = "prototype-probe-badge";
-      if (ctx.surface === "sessionList") span.classList.add("prototype-probe-badge-fixed");
+      span.className = "rigline-probe-badge";
+      if (ctx.surface === "sessionList") span.classList.add("rigline-probe-badge-fixed");
       span.addEventListener("click", () => togglePanel(!panelVisible));
       currentBadge = span;
       badgeMounted = true;
@@ -199,10 +199,10 @@ export default definePlugin({
     }
 
     const panel = document.createElement("div");
-    panel.className = "prototype-probe-panel";
+    panel.className = "rigline-probe-panel";
     panel.hidden = true;
     const panelBody = document.createElement("pre");
-    panelBody.className = "prototype-probe-panel-body";
+    panelBody.className = "rigline-probe-panel-body";
     panel.appendChild(panelBody);
     document.body.appendChild(panel);
 
@@ -225,7 +225,7 @@ export default definePlugin({
 
     // Check 21: the stylesheet is applied synchronously, so this is stable for the plugin's life.
     ctx.style(CSS);
-    const styled = document.head.querySelector('style[data-prototype-style="probe"]') !== null;
+    const styled = document.head.querySelector('style[data-rigline-style="probe"]') !== null;
     const stylesheet = stylesheetVerdict(styled);
     report("stylesheet applied", stylesheet.verdict, stylesheet.detail);
 
@@ -376,8 +376,8 @@ export default definePlugin({
       } else {
         const indices: number[] = [];
         let sibling = anchorEl.nextElementSibling;
-        while (sibling?.hasAttribute("data-prototype-mount")) {
-          const owner = sibling.getAttribute("data-prototype-mount");
+        while (sibling?.hasAttribute("data-rigline-mount")) {
+          const owner = sibling.getAttribute("data-rigline-mount");
           const index = diag.plugins.findIndex((p) => p.name === owner);
           if (index !== -1) indices.push(index);
           sibling = sibling.nextElementSibling;

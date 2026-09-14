@@ -1,4 +1,4 @@
-import { CONTRACTS } from "@prototype/plugin-api";
+import { CONTRACTS } from "@rigline/plugin-api";
 import type { CapabilityModule } from "../kernel/types.ts";
 
 /** `ctx.anchor(name)`: the class a curated anchor resolves to in this extension. */
@@ -10,7 +10,7 @@ export const anchorsModule: CapabilityModule<"anchors"> = {
       anchor(name) {
         if (!declared.has(name)) {
           throw new Error(
-            `anchor("${name}") was never declared under uses.anchors in this plugin's prototype.json`,
+            `anchor("${name}") was never declared under uses.anchors in this plugin's rigline.json`,
           );
         }
         const resolved = kernel.tables.anchors[name];

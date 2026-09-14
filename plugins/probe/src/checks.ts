@@ -3,7 +3,7 @@
  *
  * Every function here takes the raw state (diagnostics fields, ctx-observed values, DOM facts
  * already reduced to plain data) and returns a verdict and a one-line detail. Nothing here touches
- * the DOM, `ctx`, or `globalThis.__prototype`: that wiring lives in index.ts, which calls these and
+ * the DOM, `ctx`, or `globalThis.__rigline`: that wiring lives in index.ts, which calls these and
  * feeds the result through one `report()` path, so the badge count and the panel text cannot
  * disagree about what a check found.
  *
@@ -179,7 +179,7 @@ export function mountSurvivesVerdict(
 }
 
 /**
- * Check 14: whether a shared anchor's `data-prototype-mount` siblings, read in DOM order and mapped to
+ * Check 14: whether a shared anchor's `data-rigline-mount` siblings, read in DOM order and mapped to
  * their registry index, come out non-decreasing (D23). `n/a` with fewer than two nodes: nothing
  * about ordering is proven by one node sharing an anchor with itself, which is the ordinary case
  * until another plugin decorates the same anchor.

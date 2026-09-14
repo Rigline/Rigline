@@ -6,8 +6,8 @@
 import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { generate, harvestAll } from "@prototype/core";
-import { EMPTY_USES, SURFACES, type Surface, type Uses } from "@prototype/plugin-api";
+import { generate, harvestAll } from "@rigline/core";
+import { EMPTY_USES, SURFACES, type Surface, type Uses } from "@rigline/plugin-api";
 import { corpusBundles } from "../../core/test/corpus.ts";
 
 /** packages/host/dist, resolved from this file rather than assumed relative to the cwd. */
@@ -45,7 +45,7 @@ export function preparePayload(dir: string, options: PreparePayloadOptions): voi
     uses: { ...EMPTY_USES, ...plugin.manifest.uses },
     patchRefusal: null,
   }));
-  const registrySource = `// Written by @prototype/harness's preparePayload for one test run. Do not edit.
+  const registrySource = `// Written by @rigline/harness's preparePayload for one test run. Do not edit.
 export const plugins = ${JSON.stringify(plugins, null, 2)};
 export const patches = [];
 `;

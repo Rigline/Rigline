@@ -1,7 +1,7 @@
 {
-  "name": "@prototype/plugin-api",
+  "name": "@rigline/plugin-api",
   "version": "1.0.0-alpha.0",
-  "description": "The context, manifest and identifier types a Prototype plugin is written against",
+  "description": "The context, manifest and identifier types a Rigline plugin is written against",
   "type": "module",
   "license": "MIT",
   "sideEffects": false,

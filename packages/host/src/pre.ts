@@ -45,10 +45,10 @@ type Handler = (payload: unknown) => void;
  */
 type Rewriter = (payload: Readonly<Record<string, unknown>>) => Record<string, unknown> | null;
 
-interface PrototypeBridge {
+interface RiglineBridge {
   readonly diagnostics: {
     /** An explicit version tag on the bridge shape, so a consumer can tell what it is reading. */
-    readonly version: "prototype-1";
+    readonly version: "rigline-1";
     /** `performance.now()` when this module ran, rounded — the earliest instant it can measure. */
     preAt: number;
     /** When post.ts finished loading plugins, or null before that has happened. */
@@ -239,7 +239,7 @@ interface PrototypeBridge {
 
 declare global {
   // eslint-disable-next-line no-var
-  var __prototype: PrototypeBridge | undefined;
+  var __rigline: RiglineBridge | undefined;
   // eslint-disable-next-line no-var
   var acquireVsCodeApi: (() => VsCodeApi) | undefined;
 }
@@ -515,9 +515,9 @@ try {
     }
   }
 
-  const bridge: PrototypeBridge = {
+  const bridge: RiglineBridge = {
     diagnostics: {
-      version: "prototype-1",
+      version: "rigline-1",
       preAt: Math.round(performance.now()),
       postAt: null,
       rootChildrenAtPre: document.querySelector("#root")?.childElementCount ?? -1,
@@ -630,7 +630,7 @@ try {
       },
     },
   };
-  globalThis.__prototype = bridge;
+  globalThis.__rigline = bridge;
 
   /**
    * Install the devtools hook, or wrap one that is already there.

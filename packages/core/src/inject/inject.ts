@@ -10,7 +10,7 @@
  */
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import { sharedFields } from "@prototype/plugin-api";
+import { sharedFields } from "@rigline/plugin-api";
 import { generate } from "../codegen/generate.ts";
 import { UserError } from "../errors.ts";
 import {
@@ -34,15 +34,15 @@ import {
 } from "../plugins/discover.ts";
 import { applyPatches, type PatchOutcome } from "./hostpatch.ts";
 
-const DIRNAME = "prototype";
+const DIRNAME = "rigline";
 
 /** The comment that marks the static import. Never trusted on its own (D38) — see `verdict`. */
-const MARKER = "/*PROTOTYPE-PRE*/";
+const MARKER = "/*RIGLINE-PRE*/";
 
 /** Evaluates before the bundle body, so it can wrap `acquireVsCodeApi` before the app's one call to it. */
 const PRE_LINE = `import"./${DIRNAME}/pre.js";${MARKER}\n`;
 /** Runs after `createRoot().render()`; its own `catch` is what stops a post-hook failure reaching the app. */
-const POST_LINE = `\n/*PROTOTYPE-POST*/import("./${DIRNAME}/post.js").catch((e)=>console.error("[prototype] post-hook",e));\n`;
+const POST_LINE = `\n/*RIGLINE-POST*/import("./${DIRNAME}/post.js").catch((e)=>console.error("[rigline] post-hook",e));\n`;
 
 const PRE_BYTES = Buffer.from(PRE_LINE, "utf8");
 const POST_BYTES = Buffer.from(POST_LINE, "utf8");

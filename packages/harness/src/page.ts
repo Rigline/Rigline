@@ -11,7 +11,7 @@
  * this is what turns "the app naturally renames its tab once a session exists" from a dead branch
  * into the thing a rewrite test can observe.
  */
-import type { Surface } from "@prototype/plugin-api";
+import type { Surface } from "@rigline/plugin-api";
 
 export interface FixturePageOptions {
   readonly surface: Surface;

@@ -1,4 +1,4 @@
-import { ANCHORS } from "@prototype/plugin-api";
+import { ANCHORS } from "@rigline/plugin-api";
 import { describe, expect, it } from "vitest";
 import { anchorViolation, resolveAnchors } from "./resolve.ts";
 

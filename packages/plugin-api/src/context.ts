@@ -58,7 +58,7 @@ export interface PluginContext {
   /**
    * Keep `build()`'s result inside `target`, re-placing it if a re-render removes it. Mounts from
    * several plugins on one target appear in registry order, and every host-placed node is stamped
-   * `data-prototype-mount`. Requires `uses.mount`.
+   * `data-rigline-mount`. Requires `uses.mount`.
    */
   mount(target: Element, build: () => Element): Teardown;
 
@@ -128,12 +128,12 @@ export interface PluginContext {
 }
 
 /** The default export of a plugin's entry module. */
-export interface PrototypePlugin {
+export interface RiglinePlugin {
   // biome-ignore lint/suspicious/noConfusingVoidType: a plugin with nothing to tear down simply returns; `undefined` would force an explicit return
   setup(ctx: PluginContext): void | Teardown;
 }
 
 /** Identity with a type: `export default definePlugin({ setup(ctx) { ... } })`. */
-export function definePlugin(plugin: PrototypePlugin): PrototypePlugin {
+export function definePlugin(plugin: RiglinePlugin): RiglinePlugin {
   return plugin;
 }

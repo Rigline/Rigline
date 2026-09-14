@@ -1,4 +1,4 @@
-import { CONTRACTS } from "@prototype/plugin-api";
+import { CONTRACTS } from "@rigline/plugin-api";
 import { type CapabilityModule, undeclared } from "../kernel/types.ts";
 
 /** `ctx.mount`, `ctx.mountAfter` and `ctx.watch`: DOM placement the host keeps in place. */
@@ -41,7 +41,7 @@ export const mountModule: CapabilityModule<"mount"> = {
       watch(name, onFound) {
         if (!declaredAnchors.has(name)) {
           throw new Error(
-            `watch("${name}") needs the anchor under uses.anchors in this plugin's prototype.json`,
+            `watch("${name}") needs the anchor under uses.anchors in this plugin's rigline.json`,
           );
         }
         const className = kernel.tables.anchors[name];

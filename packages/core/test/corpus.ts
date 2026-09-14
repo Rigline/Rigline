@@ -9,7 +9,7 @@
  *
  * Tests that need a version skip with a reason when it is absent rather than failing, so a fresh
  * clone is not blocked on a download; the corpus is nonetheless the only guard against a harvest
- * regex drifting, so a machine that develops Prototype should have it.
+ * regex drifting, so a machine that develops Rigline should have it.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";

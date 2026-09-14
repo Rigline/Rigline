@@ -1,7 +1,7 @@
 /**
- * @prototype/plugin-api: what a Prototype plugin is written against.
+ * @rigline/plugin-api: what a Rigline plugin is written against.
  *
- * A plugin ships a prototype.json manifest and one browser-target ES module whose default export
+ * A plugin ships a rigline.json manifest and one browser-target ES module whose default export
  * has setup(ctx). This package holds the PluginContext type, the manifest type and schema, the
  * identifier unions generated from the installed extension, the curated anchor table, and the
  * pure helpers the host and core share so that a rule checked in Node and a rule checked in the
@@ -23,11 +23,11 @@ export {
   sharedFields,
 } from "./capabilities/index.ts";
 export type {
-  PrototypePlugin,
   Payload,
   PluginContext,
   RewritableType,
   RewritePatch,
+  RiglinePlugin,
   Teardown,
 } from "./context.ts";
 export { definePlugin } from "./context.ts";

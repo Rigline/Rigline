@@ -11,11 +11,11 @@
  */
 import {
   capabilityViolation,
-  type PrototypePlugin,
   type IdentifierTables,
   type PluginContext,
+  type RiglinePlugin,
   type Teardown,
-} from "@prototype/plugin-api";
+} from "@rigline/plugin-api";
 import { MODULES } from "./capabilities/index.ts";
 import { type Bridge, bridge as findBridge, type PluginStatus } from "./kernel/bridge.ts";
 import { createMountService } from "./kernel/mounts.ts";
@@ -50,9 +50,11 @@ async function loadPlugin(plugin: PluginRecord, kernel: Kernel): Promise<PluginS
     });
   }
 
-  let mod: { default?: PrototypePlugin };
+  let mod: { default?: RiglinePlugin };
   try {
-    mod = (await import(new URL(plugin.entry, import.meta.url).href)) as { default?: PrototypePlugin };
+    mod = (await import(new URL(plugin.entry, import.meta.url).href)) as {
+      default?: RiglinePlugin;
+    };
   } catch (e) {
     return Object.assign(status, { status: "error", reason: `import failed: ${message(e)}` });
   }
@@ -73,7 +75,7 @@ async function loadPlugin(plugin: PluginRecord, kernel: Kernel): Promise<PluginS
         // Already disabling; a teardown failing too is not actionable.
       }
     }
-    console.error(`[prototype] plugin "${plugin.name}" disabled: ${reason}`);
+    console.error(`[rigline] plugin "${plugin.name}" disabled: ${reason}`);
   };
   const grant: Grant = {
     plugin,
@@ -110,7 +112,7 @@ async function loadPlugin(plugin: PluginRecord, kernel: Kernel): Promise<PluginS
 async function main(): Promise<void> {
   const bridge = findBridge();
   if (!bridge) {
-    console.error("[prototype] the pre hook did not run; no plugins can be loaded");
+    console.error("[rigline] the pre hook did not run; no plugins can be loaded");
     return;
   }
   const { diagnostics, bus, react } = bridge;
@@ -129,7 +131,7 @@ async function main(): Promise<void> {
     diagnostics.identifiersFor = tables.version;
   } catch (e) {
     diagnostics.errors.push(`generated: ${message(e)}`);
-    console.error("[prototype] could not load ./generated.js; no plugins will be loaded", e);
+    console.error("[rigline] could not load ./generated.js; no plugins will be loaded", e);
     bus.sealBuffer();
     return;
   }
@@ -169,7 +171,7 @@ async function main(): Promise<void> {
       const status = await loadPlugin(plugin, kernel);
       diagnostics.plugins.push(status);
       if (status.status !== "loaded" && status.status !== "inactive") {
-        console.error(`[prototype] plugin "${plugin.name}" ${status.status}: ${status.reason}`);
+        console.error(`[rigline] plugin "${plugin.name}" ${status.status}: ${status.reason}`);
       }
     }
   } finally {
@@ -179,4 +181,4 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((e) => console.error("[prototype] post-hook", e));
+main().catch((e) => console.error("[rigline] post-hook", e));

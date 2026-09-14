@@ -7,16 +7,16 @@
 import { readFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { extname, join, normalize, sep } from "node:path";
-import type { Surface } from "@prototype/plugin-api";
+import type { Surface } from "@rigline/plugin-api";
 import { fixturePage } from "./page.ts";
 
 /** The exact two lines docs/host.md records the injector adding around the bundle's bytes. */
-const PRE_LINE = 'import"./prototype/pre.js";/*PROTOTYPE-PRE*/\n';
+const PRE_LINE = 'import"./rigline/pre.js";/*RIGLINE-PRE*/\n';
 const POST_LINE =
-  '\n/*PROTOTYPE-POST*/import("./prototype/post.js").catch((e)=>console.error("[prototype] post-hook",e));\n';
+  '\n/*RIGLINE-POST*/import("./rigline/post.js").catch((e)=>console.error("[rigline] post-hook",e));\n';
 
 /** The nonce baked into the fixture page's CSP and its script tags. Fixed: nothing here reads it back. */
-const NONCE = "prototypeharness";
+const NONCE = "riglineharness";
 
 const CONTENT_TYPES: Readonly<Record<string, string>> = {
   ".js": "application/javascript",
@@ -78,10 +78,10 @@ async function handle(
     await send(res, 200, injected, "application/javascript");
     return;
   }
-  if (path.startsWith("/prototype/")) {
+  if (path.startsWith("/rigline/")) {
     // Confined to payloadDir: a leading ".." in the normalized tail cannot climb out of it,
     // because a join with a "../" prefix still resolves under payloadDir's own parent check below.
-    const rel = normalize(path.slice("/prototype/".length)).replace(/^([.][.][/\\])+/, "");
+    const rel = normalize(path.slice("/rigline/".length)).replace(/^([.][.][/\\])+/, "");
     const file = join(options.payloadDir, rel);
     if (!file.startsWith(options.payloadDir + sep) && file !== options.payloadDir) {
       await send(res, 403, "forbidden", "text/plain");

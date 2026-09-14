@@ -1,11 +1,11 @@
-# Prototype 1.0 plan
+# Rigline 1.0 plan
 
 The working document: what is being built, in what order, and where it stands. Durable rules live
 in [decisions.md](decisions.md); this file is about getting to 1.0.
 
 Started 2026-09-13. Phase 0 in progress.
 
-## What Prototype is
+## What Rigline is
 
 A plugin layer for the Claude Code VS Code extension. A small loader is injected into the installed
 extension's webview bundle; plugins are written against a capability-scoped context the loader
@@ -56,7 +56,7 @@ Four facts about the host force the shape of everything else, and each was re-co
 - The extension host has required `extension.js` before any webview code runs, so a change to the
   host bundle can only happen at install time, and only takes effect after a window reload.
 - A throw in a statically imported module fails the whole module graph and the panel renders blank
-  with no attribution. Only Prototype's own pre hook may be static; everything else loads dynamically
+  with no attribution. Only Rigline's own pre hook may be static; everything else loads dynamically
   in its own try/catch.
 
 ## Architecture
@@ -67,19 +67,19 @@ pnpm workspace, TypeScript throughout, every package a real package with its own
 
 | path | package | what it is |
 | --- | --- | --- |
-| `packages/core` | `@prototype/core` | Node library: locate installed extensions, harvest identifier layers, generate types and runtime tables, inject and restore, discover plugins and bake the registry, run the update flow, watch for updates, hold the curated anchor table. The CLI and a future companion extension both consume it. |
-| `packages/cli` | `prototype` | Thin command surface over core: `install`, `update`, `check`, `status`, `restore`, `watch`, `add`, `remove`, `list`, `build`, `dev`. |
-| `packages/host` | `@prototype/host` (private) | The injected runtime: `pre.js` (bus tap, buffer, rewrite chain, React devtools hook) and `post.js` (kernel plus capability modules). Built to exactly two files. |
-| `packages/plugin-api` | `@prototype/plugin-api` | What a plugin is written against: `PluginContext`, the manifest type and JSON schema, `definePlugin`, the generated identifier unions, and the pure helpers shared by host and core (capability contracts, session rule, stream shape, transcript derivations). |
+| `packages/core` | `@rigline/core` | Node library: locate installed extensions, harvest identifier layers, generate types and runtime tables, inject and restore, discover plugins and bake the registry, run the update flow, watch for updates, hold the curated anchor table. The CLI and a future companion extension both consume it. |
+| `packages/cli` | `rigline` | Thin command surface over core: `install`, `update`, `check`, `status`, `restore`, `watch`, `add`, `remove`, `list`, `build`, `dev`. |
+| `packages/host` | `@rigline/host` (private) | The injected runtime: `pre.js` (bus tap, buffer, rewrite chain, React devtools hook) and `post.js` (kernel plus capability modules). Built to exactly two files. |
+| `packages/plugin-api` | `@rigline/plugin-api` | What a plugin is written against: `PluginContext`, the manifest type and JSON schema, `definePlugin`, the generated identifier unions, and the pure helpers shared by host and core (capability contracts, session rule, stream shape, transcript derivations). |
 | `plugins/session-id` | first-party plugin | Session id and inter-agent messaging address beside the model pill. |
 | `plugins/worktree-prefix` | first-party plugin | Worktree prefix on the session tab label; declares the worktree-list host patch. |
 | `plugins/time-marks` | first-party plugin | Clock times and pause dividers on transcript rows. |
-| `plugins/probe` | first-party plugin | The live integration harness: a check per capability and the `GRO` badge in the composer footer. |
+| `plugins/probe` | first-party plugin | The live integration harness: a check per capability and the `RIG` badge in the composer footer. |
 | `fixtures/plugins/*` | test fixtures | Plugins that must be refused (unknown class, unknown field, failed required patch). Test-only. |
 | `docs/` | | Plan, decisions, topic docs, authoring guide, archive. |
 
-Each first-party plugin: `prototype.json`, `package.json`, `src/index.ts`, `src/*.test.ts`,
-`README.md`, built by `prototype build` to `dist/index.js`. The distributed form of any plugin is one
+Each first-party plugin: `rigline.json`, `package.json`, `src/index.ts`, `src/*.test.ts`,
+`README.md`, built by `rigline build` to `dist/index.js`. The distributed form of any plugin is one
 browser ES module plus its manifest; the TypeScript and the preset are conveniences.
 
 ### Three registries
@@ -111,17 +111,17 @@ and isolates failures. Initial capabilities: `classes` (raw `cls`), `anchors` (c
 **Anchors** (core table; types flow to plugin-api). The curated map from a stable name to a
 module-scoped class: `modelPill` is `{ module: "gGYT1w", local: "modelPill" }`. Plugins declare
 and use names; the update flow validates the table once per extension version; a retired anchor
-is reported against the table and refuses only the plugins that use it. This is Prototype's mappings
+is reported against the table and refuses only the plugins that use it. This is Rigline's mappings
 file, in the Forge sense. Raw `cls(module, local)` stays available as the escape hatch, so nobody
 is blocked on curation.
 
 ### The manifest
 
-`prototype.json`, `api: 1`. Sketch, to be fixed in phase 2 when the capability modules exist:
+`rigline.json`, `api: 1`. Sketch, to be fixed in phase 2 when the capability modules exist:
 
 ```json
 {
-  "$schema": "node_modules/@prototype/plugin-api/schema/manifest.json",
+  "$schema": "node_modules/@rigline/plugin-api/schema/manifest.json",
   "api": 1,
   "name": "session-id",
   "description": "The panel's session id, beside the model pill.",
@@ -148,15 +148,15 @@ manifest carries only what the installer needs without executing anything.
 ### Where state lives
 
 The repo commits `packages/plugin-api/src/generated.ts` as the baseline the first-party code
-compiles against. A user's machine keeps its own state under `~/.prototype/`: `config.json` (enabled
+compiles against. A user's machine keeps its own state under `~/.rigline/`: `config.json` (enabled
 plugins, per-plugin settings), `plugins/` (installed third-party plugins), `baseline.json` (the
 last harvest, for "what changed" after an update) and `snapshots/` (class maps per version). A
-clone of this repo is for developing Prototype, not for using it.
+clone of this repo is for developing Rigline, not for using it.
 
 ### Distribution
 
-`@prototype/core` and the `prototype` CLI are published to npm; plugins are npm packages carrying a
-`prototype.json` and a built entry, installed with `prototype add <spec>`, or a local directory during
+`@rigline/core` and the `rigline` CLI are published to npm; plugins are npm packages carrying a
+`rigline.json` and a built entry, installed with `rigline add <spec>`, or a local directory during
 development. The version-specific half (identifier tables, registry, resolved anchors) is derived
 on the installing machine from the bundle in front of it, so there is no version matrix to ship. A
 companion VS Code extension wrapping core for hands-off updates, a reload prompt and a settings UI
@@ -189,13 +189,13 @@ done.
 - The identifier-layer registry and its five initial layers, every regex derived against the
   2.1.270 bundle and pinned by synthetic fixtures plus the corpus (skip when missing). Done.
 - Codegen: `generated.ts` (types plus the tables as data) and the runtime rendering the injector
-  will write per extension directory. Done; `prototype codegen --check` is byte-stable.
+  will write per extension directory. Done; `rigline codegen --check` is byte-stable.
 - The extension locator (version-sorted, oldest first), the pristine-bundle rules, the stability
   diff. Done.
 - The anchor table, seeded with twenty-six names covering every class the first-party plugins and
   the probe use, every one verified against 2.1.270. Done.
 - Drift 2.1.268 to 2.1.270 measured; see the status log. Done.
-- Not done, deferred: `prototype corpus fetch <version>` for Marketplace VSIXs; and the compile-time
+- Not done, deferred: `rigline corpus fetch <version>` for Marketplace VSIXs; and the compile-time
   proof (a test that drives `tsc` over a fixture plugin to show a wrong module/class pair and an
   unknown message type fail to compile) waits for `PluginContext` in phase 2, since that is the
   type it exercises.
@@ -219,24 +219,24 @@ done.
 - Status 2026-09-13: everything above is built and merged; the spike succeeded and the harness
   is committed as `packages/harness` with six tests that drive the real 2.1.270 bundle (boot,
   mount ordering, error isolation, refusal by name without import, transcript timing, rewrite).
-  `prototype install` has injected 2.1.268, 2.1.269 and 2.1.270 on this machine with the probe
+  `rigline install` has injected 2.1.268, 2.1.269 and 2.1.270 on this machine with the probe
   enabled. Awaiting the live reload and the badge on all three surfaces.
 
 ### Phase 3: plugins, build preset, update flow, CLI
 
-- `prototype build` (Rolldown preset) and `prototype dev` (rebuild, re-inject, remind to reload).
+- `rigline build` (Rolldown preset) and `rigline dev` (rebuild, re-inject, remind to reload).
 - The three plugins in TypeScript against the new `ctx`, tests included.
 - The update flow and watcher: report and inject around a plugin problem; block only on the
-  harvest floor or Prototype's own build.
+  harvest floor or Rigline's own build.
 - The CLI complete.
 - Acceptance: all three plugins verified live; a simulated update (a copied extension directory
   with an identifier removed) refuses the right plugin by name and injects the rest.
 
 ### Phase 4: the community layer
 
-- `~/.prototype` install model, `prototype add` from npm and from a path, permission summary, host-patch
+- `~/.rigline` install model, `rigline add` from npm and from a path, permission summary, host-patch
   opt-in.
-- Authoring guide, a `create-prototype-plugin` template, the manifest JSON schema shipped with
+- Authoring guide, a `create-rigline-plugin` template, the manifest JSON schema shipped with
   plugin-api.
 - Topic docs: architecture, identifier layers, the bus, host patches, the transcript, verification.
 - Publish prep: package metadata, changelog, CI. Leo publishes.
@@ -256,13 +256,11 @@ class access as the escape hatch; the Playwright harness gets a time-boxed spike
 Decided without asking because the direction was clear, and open to challenge: TypeScript plugins
 built by a preset over an unchanged output contract; capabilities and identifier layers as
 registries; refusal fixtures kept out of the live install; Vitest and Biome; user state under
-`~/.prototype`; the 0.x material archived rather than repaired, and 1.x written from first principles.
+`~/.rigline`; the 0.x material archived rather than repaired, and 1.x written from first principles.
 
 ## Open questions, not blocking
 
-- The npm scope. `@prototype/*` may be taken; the CLI name `prototype` likewise. Leo's call and
-  registration.
-- Per-plugin settings: schema in the manifest, values in `~/.prototype/config.json`, delivered as
+- Per-plugin settings: schema in the manifest, values in `~/.rigline/config.json`, delivered as
   `ctx.settings`. Design in phase 3, ship in phase 4 unless a first-party plugin needs it sooner.
 - Anchor governance: who may add to the table, and what evidence an entry needs.
 - Whether `ctx.style` refuses a selector naming a class the plugin did not declare, or only lints.
@@ -271,8 +269,8 @@ registries; refusal fixtures kept out of the live install; Vitest and Biome; use
 
 Start here. The seam is the end of phase 2 with one thing outstanding and phase 3 not begun.
 
-1. **Live verification is pending.** `prototype install` has injected 2.1.268 to 2.1.270 with the
-   probe enabled. Leo runs Developer: Reload Webviews and reads the `GRO` badge on the full
+1. **Live verification is pending.** `rigline install` has injected 2.1.268 to 2.1.270 with the
+   probe enabled. Leo runs Developer: Reload Webviews and reads the `RIG` badge on the full
    editor, the sidebar and the session-list window; the panel behind it lists twenty-one checks.
    A blank panel means the static import failed: `node packages/cli/dist/index.js restore`,
    reload the window, and read the webview developer tools console. Fix whatever it says, rerun
@@ -281,8 +279,8 @@ Start here. The seam is the end of phase 2 with one thing outstanding and phase 
 2. **Phase 3, in this order:** the three first-party plugins in TypeScript against the new ctx
    (`session-id`, `worktree-prefix`, `time-marks`; the 0.x inventory of each is in
    [archive/0.x/inventory-plugins.md](archive/0.x/inventory-plugins.md) and holds the rules, the
-   CSS that must not narrow the content, and the tests to reproduce), then `prototype dev`, then the
-   update flow and watcher, then `prototype check`. Each plugin should be added as a harness test as
+   CSS that must not narrow the content, and the tests to reproduce), then `rigline dev`, then the
+   update flow and watcher, then `rigline check`. Each plugin should be added as a harness test as
    well as a live check, since `packages/harness` can now drive the real bundle.
 3. **Small items carried over:** a helper or documented pattern for a mount whose `build()` runs
    again on re-placement (the probe had to track its current node by hand); `ctx.watch` on the
@@ -291,9 +289,11 @@ Start here. The seam is the end of phase 2 with one thing outstanding and phase 
    proof test (a `tsc` run over a fixture plugin showing wrong pairs fail to compile) is still
    deferred; the harness's `page.ts` could generate its reply table from the same anchors codegen
    reads, which was noted and not tried.
-4. **Held decision:** the npm scope. `@prototype` is taken; `@prototypejs`, `@prototype-dev` and
-   `@prototype-plugins` were free on 2026-09-13; bare `prototype` and `prototype-cli` are taken. Leo will
-   decide; nothing is published, so the rename is a sweep.
+4. **Live state predates the rename.** The 2.1.268-2.1.270 injections mentioned above were made by
+   a build whose marker comment reads `PROTOTYPE-PRE`, not `RIGLINE-PRE`. The vanilla/patched verdict
+   is a byte-diff against `.orig`, unaffected by this; only the `(marker present)` annotation in
+   `status` output will be missing for these three until they're restored and reinjected with a
+   build made after this rename.
 
 ## Status log
 
@@ -301,7 +301,7 @@ Start here. The seam is the end of phase 2 with one thing outstanding and phase 
   Three design forks settled with Leo. Plan and decisions written. Workspace scaffolded; phase 0
   done.
 - 2026-09-13: Phase 1 done. Five layers, the registry, the diff, the anchor table, codegen and the
-  first two `prototype` commands (`codegen`, `diff`). Harvest of 2.1.270: 104 modules, 1009 classes,
+  first two `rigline` commands (`codegen`, `diff`). Harvest of 2.1.270: 104 modules, 1009 classes,
   108 outbound requests, 9 notifications, 9 inbound pushes, 22 inbound requests, 105 replies, 151
   payload fields; three requests have no reply by convention (`authenticate_mcp_server`,
   `clear_mcp_server_auth`, `submit_mcp_oauth_callback_url`); two stylesheet modules are unreachable
@@ -309,3 +309,13 @@ Start here. The seam is the end of phase 2 with one thing outstanding and phase 
   confirm dialog; seven added), classes 98.2%, local names 99.6%, message types 99.3% (one retired,
   `exec`, with its two fields and its reply; eight added), React anchors 100%. Next: phase 2, the
   injector, the host kernel and the probe.
+- 2026-09-14: Renamed Prototype to Rigline. `@prototype` turned out to already be a registered npm
+  organization (empty, no packages published, owner unconfirmed) and bare `prototype` collides with an
+  unrelated published package; Gizmo and the shortlisted Cadget/Cogsmith/etc. alternatives all had
+  real collisions too (a live company at `cadget.net`, an active org at `cogsmith.com`, or a taken
+  npm/GitHub name). `rigline` came back clear on npm (scoped and bare), npm org, and GitHub org.
+  Nothing was published under the old name, so the rename is a full sweep per the held decision
+  above: package names, the CLI binary, the manifest filename (`prototype.json` to `rigline.json`),
+  `~/.prototype` to `~/.rigline`, the injected marker comments, the `__prototype` bridge global, and the
+  `GRO` probe badge (now `RIG`). `docs/archive/0.x/` is untouched: it is the historical prototype's
+  own record and genuinely was called Prototype at the time.

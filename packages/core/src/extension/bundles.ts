@@ -1,7 +1,7 @@
 /**
  * Reading the bundles an identifier layer harvests from, and choosing between an extension's own
  * bytes and the backup we made of them: a harvest must read the extension's own code, never the
- * loader Prototype added, so it does not learn a substitution as if it were the extension's.
+ * loader Rigline added, so it does not learn a substitution as if it were the extension's.
  */
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";

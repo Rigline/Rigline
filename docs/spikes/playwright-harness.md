@@ -192,7 +192,7 @@ A **fixture page plus a scripted fake host**, not a recorded-bus replay:
   session to record from, couples every test to whatever that recording happened to contain,
   and hides which fields a test actually depends on — the explicit reply table makes that
   legible and is what a future extension-version diff should react against.
-- **Prototype's own pieces on top**: once this fixture exists, `pre.js` and `post.js` (or a built
+- **Rigline's own pieces on top**: once this fixture exists, `pre.js` and `post.js` (or a built
   plugin) load into the page the same way the real injector's two lines would — a static import
   before the module script, a dynamic import after — so host and plugin DOM tests are "navigate
   to the fixture, wait for the goal-state selector, assert" against the same Playwright surface
@@ -234,14 +234,14 @@ once, and never touches `extension.js`.
     window.IS_FULL_EDITOR = true;
     window.IS_SESSION_LIST_ONLY = false;
 
-    window.__prototypeSpike = { sent: [] };
+    window.__riglineSpike = { sent: [] };
 
     window.acquireVsCodeApi = function () {
       return {
         postMessage(m) {
-          window.__prototypeSpike.sent.push(m);
+          window.__riglineSpike.sent.push(m);
           try {
-            if (window.__prototypeHost) window.__prototypeHost(m);
+            if (window.__riglineHost) window.__riglineHost(m);
           } catch (e) {
             console.error("[spike host] handler threw", e);
           }
@@ -341,8 +341,8 @@ server.listen(8934, "127.0.0.1", () => {
     });
   }
 
-  window.__prototypeHost = function (m) {
-    window.__prototypeSpike.sent.push({ seen: m });
+  window.__riglineHost = function (m) {
+    window.__riglineSpike.sent.push({ seen: m });
     if (m.type === "request") {
       const reqType = m.request?.type;
       const make = replyTable[reqType];

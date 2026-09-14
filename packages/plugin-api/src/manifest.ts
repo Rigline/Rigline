@@ -1,5 +1,5 @@
 /**
- * The manifest, `prototype.json`: what a plugin depends on, as data.
+ * The manifest, `rigline.json`: what a plugin depends on, as data.
  *
  * Read by the installer and by the loader without evaluating the plugin, which is why it is JSON
  * rather than a JS export: module evaluation is exactly where a broken plugin throws, and the
@@ -113,7 +113,7 @@ export function validateManifest(
     } {
   const problems: string[] = [];
   if (!isRecord(value)) {
-    return { manifest: null, problems: ["prototype.json must be a JSON object"] };
+    return { manifest: null, problems: ["rigline.json must be a JSON object"] };
   }
 
   if (value.api !== 1) problems.push(`"api" must be 1, got ${JSON.stringify(value.api)}`);

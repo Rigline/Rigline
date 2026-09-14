@@ -240,9 +240,9 @@ describe("leakVerdict", () => {
   });
 
   it("fails and names the leaked title when the mark reached the wire", () => {
-    const result = leakVerdict(true, true, "[prototype-probe] My Session");
+    const result = leakVerdict(true, true, "[rigline-probe] My Session");
     expect(result.verdict).toBe("fail");
-    expect(result.detail).toContain("[prototype-probe] My Session");
+    expect(result.detail).toContain("[rigline-probe] My Session");
   });
 });
 

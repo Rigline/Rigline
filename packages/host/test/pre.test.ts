@@ -6,7 +6,7 @@
  * tap that cannot until something rewrites protocol. So this gets a Node test, driven against the
  * BUILT dist/pre.js rather than the source: that is what the injector copies into the extension,
  * so a build that dropped or reshaped something is in scope. It is also a plain .js file, which is
- * what lets a Node-side .ts test import browser-target code at all. Run `pnpm --filter @prototype/host
+ * what lets a Node-side .ts test import browser-target code at all. Run `pnpm --filter @rigline/host
  * build` first.
  */
 
@@ -75,7 +75,7 @@ interface Harness {
 
 type MessageListener = (event: { data: unknown }) => void;
 
-const TOUCHED_GLOBALS = ["document", "addEventListener", "acquireVsCodeApi", "__prototype"] as const;
+const TOUCHED_GLOBALS = ["document", "addEventListener", "acquireVsCodeApi", "__rigline"] as const;
 
 function globalRecord(): Record<string, unknown> {
   return globalThis as unknown as Record<string, unknown>;
@@ -85,7 +85,7 @@ let savedGlobals: Map<string, unknown>;
 
 beforeAll(() => {
   if (!existsSync(BUILT)) {
-    throw new Error(`${BUILT} is missing — run 'pnpm --filter @prototype/host build'`);
+    throw new Error(`${BUILT} is missing — run 'pnpm --filter @rigline/host build'`);
   }
   const g = globalRecord();
   savedGlobals = new Map();
@@ -125,7 +125,7 @@ async function boot(): Promise<Harness> {
     getState: () => undefined,
     setState: () => {},
   })) as unknown;
-  delete g.__prototype;
+  delete g.__rigline;
 
   await import(`${pathToFileURL(BUILT).href}?case=${Math.random()}`);
 
@@ -137,7 +137,7 @@ async function boot(): Promise<Harness> {
   };
   (g.addEventListener as (type: string, listener: MessageListener) => void)("message", appListener);
 
-  const bridge = g.__prototype as Bridge;
+  const bridge = g.__rigline as Bridge;
   const api = (g.acquireVsCodeApi as () => Api)();
 
   return {
@@ -171,7 +171,7 @@ function renameTab(): RenameTabEnvelope {
 describe("the wrapper itself", () => {
   it("tags the bridge with an explicit version", async () => {
     const h = await boot();
-    expect(h.bridge.diagnostics.version).toBe("prototype-1");
+    expect(h.bridge.diagnostics.version).toBe("rigline-1");
   });
 
   it("reports the wrapper installed and called", async () => {

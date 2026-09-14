@@ -8,7 +8,7 @@
  * stands: the live file may already carry a previous install's substitutions, and locating an
  * anchor inside output this module produced itself would not be idempotent.
  */
-import type { HostPatch } from "@prototype/plugin-api";
+import type { HostPatch } from "@rigline/plugin-api";
 
 /** One plugin's declared substitution, named by the plugin that declared it. */
 export interface DeclaredPatch {

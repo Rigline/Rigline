@@ -14,7 +14,7 @@ import {
 const dirs: string[] = [];
 
 function tempDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), "prototype-locate-"));
+  const dir = mkdtempSync(join(tmpdir(), "rigline-locate-"));
   dirs.push(dir);
   return dir;
 }

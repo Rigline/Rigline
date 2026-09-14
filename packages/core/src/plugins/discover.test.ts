@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { EMPTY_USES } from "@prototype/plugin-api";
+import { EMPTY_USES } from "@rigline/plugin-api";
 import { afterEach, describe, expect, it } from "vitest";
 import { UserError } from "../errors.ts";
 import type { DiscoveredPlugin } from "./discover.ts";
@@ -20,7 +20,7 @@ import {
 const dirs: string[] = [];
 
 function tempDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), "prototype-plugins-"));
+  const dir = mkdtempSync(join(tmpdir(), "rigline-plugins-"));
   dirs.push(dir);
   return dir;
 }
@@ -31,7 +31,7 @@ afterEach(() => {
   }
 });
 
-/** Writes a minimal, valid plugin directory: prototype.json plus its entry file. */
+/** Writes a minimal, valid plugin directory: rigline.json plus its entry file. */
 function writePlugin(
   root: string,
   name: string,
@@ -46,7 +46,7 @@ function writePlugin(
     entry: "index.js",
     ...overrides,
   };
-  writeFileSync(join(dir, "prototype.json"), JSON.stringify(manifest));
+  writeFileSync(join(dir, "rigline.json"), JSON.stringify(manifest));
   const entryPath = join(dir, (manifest.entry as string) ?? "index.js");
   mkdirSync(dirname(entryPath), { recursive: true });
   writeFileSync(entryPath, entrySource);
@@ -63,17 +63,17 @@ describe("readManifest", () => {
     expect(manifest.uses).toEqual(EMPTY_USES);
   });
 
-  it("throws when the directory has no prototype.json", () => {
+  it("throws when the directory has no rigline.json", () => {
     const root = tempDir();
     mkdirSync(join(root, "bare"));
-    expect(() => readManifest(join(root, "bare"))).toThrow(/no prototype\.json/);
+    expect(() => readManifest(join(root, "bare"))).toThrow(/no rigline\.json/);
   });
 
   it("throws UserError on malformed JSON", () => {
     const root = tempDir();
     const dir = join(root, "broken");
     mkdirSync(dir);
-    writeFileSync(join(dir, "prototype.json"), "{not json");
+    writeFileSync(join(dir, "rigline.json"), "{not json");
     expect(() => readManifest(dir)).toThrow(UserError);
   });
 
@@ -88,7 +88,7 @@ describe("readManifest", () => {
     const dir = join(root, "sample");
     mkdirSync(dir);
     writeFileSync(
-      join(dir, "prototype.json"),
+      join(dir, "rigline.json"),
       JSON.stringify({ api: 1, name: "sample", entry: "dist/index.js" }),
     );
     expect(() => readManifest(dir)).toThrow(/does not exist/);
@@ -134,18 +134,18 @@ describe("discoverPlugins", () => {
 
 describe("readConfig", () => {
   it("returns an empty disabled list when the file is absent", () => {
-    const path = join(tempDir(), "prototype.config.json");
+    const path = join(tempDir(), "rigline.config.json");
     expect(readConfig(path)).toEqual({ disabled: [] });
   });
 
   it("reads a real disable list", () => {
-    const path = join(tempDir(), "prototype.config.json");
+    const path = join(tempDir(), "rigline.config.json");
     writeFileSync(path, JSON.stringify({ disabled: ["a", "b"] }));
     expect(readConfig(path)).toEqual({ disabled: ["a", "b"] });
   });
 
   it("rejects a disabled value that is not an array of strings", () => {
-    const path = join(tempDir(), "prototype.config.json");
+    const path = join(tempDir(), "rigline.config.json");
     writeFileSync(path, JSON.stringify({ disabled: "a" }));
     expect(() => readConfig(path)).toThrow(/must be an array/);
   });
@@ -172,7 +172,7 @@ describe("enabledPlugins", () => {
     enabledPlugins(discovered, { disabled: ["ghost"] }, (line) => lines.push(line));
 
     expect(lines).toEqual([
-      'prototype.config.json disables "ghost", which was not found among the discovered plugins',
+      'rigline.config.json disables "ghost", which was not found among the discovered plugins',
     ]);
   });
 });

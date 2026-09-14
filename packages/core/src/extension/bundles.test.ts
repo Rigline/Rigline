@@ -15,7 +15,7 @@ import {
 const dirs: string[] = [];
 
 function tempExtension(): string {
-  const dir = mkdtempSync(join(tmpdir(), "prototype-bundles-"));
+  const dir = mkdtempSync(join(tmpdir(), "rigline-bundles-"));
   dirs.push(dir);
   mkdirSync(join(dir, "webview"), { recursive: true });
   writeFileSync(join(dir, "package.json"), JSON.stringify({ version: "2.1.270" }));

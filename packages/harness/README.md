@@ -1,4 +1,4 @@
-# @prototype/harness
+# @rigline/harness
 
 The third verification tier docs/host.md names: host and plugin DOM behaviour tested against the
 **real** webview bundle from the corpus, headless, in Vitest, with Playwright driving Chromium. No
@@ -13,8 +13,8 @@ Three pieces:
   a test read every outbound message and push an inbound one.
 - `src/server.ts`: `startHarness()`, a `node:http` server on an ephemeral port serving the fixture
   page, the bundle's own CSS untouched, the bundle wrapped in the two lines the injector adds
-  (`import"./prototype/pre.js"...` / `...import("./prototype/post.js")...`), and the payload directory
-  under `/prototype/`.
+  (`import"./rigline/pre.js"...` / `...import("./rigline/post.js")...`), and the payload directory
+  under `/rigline/`.
 - `src/payload.ts`: `preparePayload()`, which writes pre.js and post.js from the host build,
   `generated.js` harvested fresh from one corpus version, and a `registry.js` baking whichever
   fixture plugins one test wants active — plain JS strings, no build step.
@@ -30,12 +30,12 @@ launchable Chromium is absent — a fresh clone with neither still passes. Chrom
 devDependency; after `pnpm install`, run once:
 
 ```
-pnpm --filter @prototype/harness exec playwright install chromium
+pnpm --filter @rigline/harness exec playwright install chromium
 ```
 
 `test/kernel.test.ts` boots the real bundle once per test (each with only the fixture plugins that
 test needs, so a plugin deliberately made to fail cannot leak its expected `console.error` into an
-unrelated assertion) and checks: the pre/post hooks wire up and `__prototype.diagnostics` reports a
+unrelated assertion) and checks: the pre/post hooks wire up and `__rigline.diagnostics` reports a
 clean boot; a mount lands after its anchor, attributed and ordered; an undeclared anchor use
 disables just that plugin, not a sibling's mount; a plugin naming a gone identifier is refused
 before it is ever imported; transcript rows pick up a real time once pushed `io_message`s land; and

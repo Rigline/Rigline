@@ -7,7 +7,7 @@
  * The real times arrive on the bus in two carriers, `get_session_response` (the transcript as it
  * was on disk) and `io_message` (everything since). And the DOM carries no identity, so a row is
  * matched to its message through React's own fiber for the element, handed over by the devtools
- * hook the pre hook installed. `@prototype/plugin-api` owns the three derivations; this owns the
+ * hook the pre hook installed. `@rigline/plugin-api` owns the three derivations; this owns the
  * plumbing and the cost.
  *
  * Rows are keyed by index upstream, so React reuses one element for a different message when the
@@ -21,7 +21,7 @@ import {
   rowIdentity,
   type Teardown,
   type TranscriptEntry,
-} from "@prototype/plugin-api";
+} from "@rigline/plugin-api";
 import type { Bus, Diagnostics, ReactBridge } from "./bridge.ts";
 import type { MountService } from "./mounts.ts";
 

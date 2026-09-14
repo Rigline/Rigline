@@ -1,4 +1,4 @@
-import { CONTRACTS } from "@prototype/plugin-api";
+import { CONTRACTS } from "@rigline/plugin-api";
 import { type CapabilityModule, undeclared } from "../kernel/types.ts";
 
 /** `ctx.onSessionId(handler)`: the panel's session, derived once by the kernel's session service. */

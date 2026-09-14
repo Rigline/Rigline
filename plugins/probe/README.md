@@ -1,6 +1,6 @@
 # probe
 
-Prototype's own integration harness. It is loaded as an ordinary plugin — same manifest, same `ctx`,
+Rigline's own integration harness. It is loaded as an ordinary plugin — same manifest, same `ctx`,
 same capability enforcement as any third-party plugin — so that "the probe passes" is proof the
 host's plugin machinery works end to end, not a special case exempted from the rules it checks.
 
@@ -8,7 +8,7 @@ host's plugin machinery works end to end, not a special case exempted from the r
 
 One named check per capability the manifest declares (anchors, classes via `cls`'s escape hatch is
 not exercised here but `anchor` is, messages, rewrites, mount, style, tools, session, transcript),
-plus checks read directly off `globalThis.__prototype.diagnostics` — pre/post hook timing, raw bus
+plus checks read directly off `globalThis.__rigline.diagnostics` — pre/post hook timing, raw bus
 counts, the buffer's seal state, every installed plugin's load status, rewrite bookkeeping, and the
 React renderer hook the transcript capability rests on. The probe is the one plugin allowed to read
 that global directly: it exists to diagnose the host, and none of it is something a manifest could
@@ -22,7 +22,7 @@ run, no tab has been renamed).
 
 ## The badge
 
-A small `GRO` badge sits beside the model pill in the composer footer on the full editor and the
+A small `RIG` badge sits beside the model pill in the composer footer on the full editor and the
 sidebar, or fixed to the bottom-right corner on the session list, which has no composer. Green means
 every check is `pass` or `n/a`; red means at least one is `fail`, with the failing count shown on
 the badge and as its tooltip.

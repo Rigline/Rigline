@@ -14,7 +14,7 @@ import type {
   Teardown,
   Uses,
   UsesKey,
-} from "@prototype/plugin-api";
+} from "@rigline/plugin-api";
 import type { Bus, Diagnostics, ReactBridge } from "./bridge.ts";
 import type { MountService } from "./mounts.ts";
 import type { SessionService } from "./session.ts";
@@ -64,6 +64,6 @@ export interface CapabilityModule<K extends UsesKey = UsesKey> {
 /** A method the plugin did not declare for: it throws, and the kernel's guard turns that into a disable. */
 export function undeclared(method: string, key: UsesKey, detail = ""): () => never {
   return () => {
-    throw new Error(`${method}() needs "${key}" in this plugin's prototype.json${detail}`);
+    throw new Error(`${method}() needs "${key}" in this plugin's rigline.json${detail}`);
   };
 }

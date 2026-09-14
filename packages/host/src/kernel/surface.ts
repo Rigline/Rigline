@@ -6,7 +6,7 @@
  * a fact about these three surfaces and not a guarantee: a surface added later would read as the
  * full editor too.
  */
-import type { Surface } from "@prototype/plugin-api";
+import type { Surface } from "@rigline/plugin-api";
 
 export function detectSurface(): Surface {
   const w = globalThis as { IS_SIDEBAR?: unknown; IS_SESSION_LIST_ONLY?: unknown };

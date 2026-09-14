@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * The prototype command: a thin surface over @prototype/core.
+ * The rigline command: a thin surface over @rigline/core.
  *
  * Commands land here as core grows. Every command throws UserError for a problem a person must
  * fix and lets anything else propagate with its stack, so a bug is never dressed up as advice.
@@ -16,7 +16,6 @@ import {
   findExtension,
   formatDiff,
   generate,
-  prototypePaths,
   harvestAll,
   hostVerdict,
   inspect,
@@ -24,32 +23,33 @@ import {
   installedExtensions,
   readBundles,
   restoreAll,
+  riglinePaths,
   scanOf,
   UserError,
   verdict,
-} from "@prototype/core";
+} from "@rigline/core";
 import { buildPlugin } from "./build.ts";
 
-const USAGE = `prototype ${CORE_VERSION}
+const USAGE = `rigline ${CORE_VERSION}
 
-  prototype codegen [DIR] [--check] [--out FILE]
+  rigline codegen [DIR] [--check] [--out FILE]
       Harvest the installed extension (or DIR) and write plugin-api's generated.ts.
       --check compares instead of writing and exits 1 when the file is out of date.
 
-  prototype diff DIR_A DIR_B
+  rigline diff DIR_A DIR_B
       Compare the identifier layers of two extension directories.
 
-  prototype build [DIR] [--source FILE]
-      Bundle a plugin's src/index.ts (or --source) into the entry its prototype.json names.
+  rigline build [DIR] [--source FILE]
+      Bundle a plugin's src/index.ts (or --source) into the entry its rigline.json names.
 
-  prototype install [--ext DIR] [--payload DIR]
+  rigline install [--ext DIR] [--payload DIR]
       Inject the loader into every installed extension version (or DIR), harvesting each
       version's tables and baking the enabled plugins. Reload webviews afterwards.
 
-  prototype status
+  rigline status
       Per installed version: is each bundle vanilla or patched, judged against its backup.
 
-  prototype restore
+  rigline restore
       Every installed version back to the extension's own bytes. Needs neither VS Code nor
       the extension to be working.
 `;
@@ -60,7 +60,7 @@ function defaultPayloadDir(): string {
   return resolve(here, "..", "..", "host", "dist");
 }
 
-/** The first-party plugins in this checkout. Plugins a person installs live under ~/.prototype. */
+/** The first-party plugins in this checkout. Plugins a person installs live under ~/.rigline. */
 function repoPluginsDir(): string {
   const here = dirname(fileURLToPath(import.meta.url));
   return resolve(here, "..", "..", "..", "plugins");
@@ -74,7 +74,7 @@ function installCommand(args: string[]): number {
   });
   const targets = values.ext ? [values.ext] : installedExtensions();
   if (targets.length === 0) throw new UserError("no Claude Code extension is installed");
-  const paths = prototypePaths();
+  const paths = riglinePaths();
   let hostChanged = false;
   for (const ext of targets) {
     const report = install(ext, {
@@ -158,7 +158,7 @@ function codegen(args: string[]): number {
       console.log(`${label} is up to date for ${generated.tables.version}: ${generated.counts}`);
       return 0;
     }
-    console.log(`${label} is out of date for ${generated.tables.version}. Run: prototype codegen`);
+    console.log(`${label} is out of date for ${generated.tables.version}. Run: rigline codegen`);
     return 1;
   }
   writeFileSync(out, generated.source);
@@ -223,7 +223,7 @@ main(process.argv.slice(2)).then(
   },
   (error: unknown) => {
     if (error instanceof UserError) {
-      console.error(`prototype: ${error.message}`);
+      console.error(`rigline: ${error.message}`);
       process.exitCode = 1;
       return;
     }
