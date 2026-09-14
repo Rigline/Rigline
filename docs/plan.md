@@ -334,8 +334,9 @@ done.
   change.
 - `~/.rigline/anchors.json`, the local anchor override (D44), reported by name at install.
 - Our own release pipeline first (D46): the staged-publish workflow for `@rigline/core`, `rigline`
-  and `@rigline/plugin-api`, proven on a real release before it is handed to anyone else. It emits
-  the stage id into the run summary rather than relying on npm to notify anybody.
+  and `@rigline/plugin-api`, proven on a real release before it is handed to anyone else. One
+  `pnpm stage publish -r` stages all three; each is approved on its own. The workflow emits the
+  stage ids into the run summary rather than relying on npm to notify anybody.
 - Authoring guide, a `create-rigline-plugin` template that runs `rigline codegen --out` on first
   use and carries the same publish workflow, the manifest JSON schema shipped with plugin-api.
 - Topic docs: architecture, identifier layers, the bus, host patches, the transcript, verification,

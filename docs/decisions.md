@@ -340,7 +340,10 @@ lifted from a workflow we run. Two steps cannot be automated and are Leo's: the 
 and the first publish of each package, because neither a trusted publisher nor a stage can be
 configured against a package that does not yet exist, so version one goes up under a temporary token
 and everything after it goes through the workflow. Provenance additionally requires the source
-repository to be public. Floors: npm CLI 11.15.0 and Node 22.14, both below our own (D34).
+repository to be public. Floors: npm CLI 11.15.0 and Node 22.14, both below our own (D34). pnpm
+wraps the same registry workflow as `pnpm stage publish` (since 11.3), and `-r` stages every
+publishable package in the workspace, so our three go up as one CI step and are approved
+individually; a single-package plugin repo needs no flag at all.
 
 **D47. `rigline add` never runs a package manager.** A plugin's distributed form is one browser ES
 module plus a manifest (P6), and the webview cannot resolve a bare specifier, so a plugin is already
