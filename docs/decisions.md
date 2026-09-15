@@ -448,6 +448,16 @@ that ends every session in the window.
 at install.** The mechanism can verify an anchor but cannot scope what the substitution does; the
 review that stood in for scoping stops existing when the author is not us.
 
+**Checked at install, granted elsewhere (amended 2026-09-15).** `install` is what the watcher and
+the update flow call, so it can read an approval but must never ask for one. `rigline approve
+<plugin>` takes the approvals, one patch at a time, against the patch's `find`, `replace` and `why`
+together — `why` is the claim the approval was given against, so a sentence that stays put while the
+substitution moves re-asks. `add` runs the same code, being interactive and already there. What
+`install` does with an unapproved patch is exactly what it does with one whose anchor has gone
+(D25): required refuses the plugin by name on that version, optional loads without it. "Outside this
+repo" is decided by the root a plugin was discovered under, not by its name, so a fork of this repo
+and the plugin template both get the exemption for their own `plugins/` without being told.
+
 ### Update flow
 
 **D27. The update flow never blocks on a plugin's problem.** It reports the plugin by name, injects
@@ -597,14 +607,29 @@ it is written with no publish at all. What the delay does hold back is a fix to 
 or its raw `cls()` use, so a withheld version is reported rather than hidden (P8): `update` names the
 version, its age, and the flag that takes it early.
 
-**D49. A source is recorded by kind, pinned identity and declaration fingerprint, and `update`
-re-gates when the fingerprint moves.** `~/.rigline/config.json` holds `{kind: "npm", name, version,
-integrity, declarations}` per installed plugin. The kind discriminator is present from the first
-entry so the git source deferred in D33 arrives as an adapter. The fingerprint covers declared
-capabilities and declared host patches — exactly what the install gates on — so an update that
-widens a plugin's reach re-runs the permission summary and D26's per-patch opt-in instead of
-inheriting consent given to a narrower version. An update that only changes code does not re-prompt,
-which keeps the gate honest about what it governs: declared reach, not trust in a particular build.
+**D49. A source is recorded by kind, pinned identity and declaration fingerprint, and fetching a
+newer version re-gates when the fingerprint moves.** `~/.rigline/config.json` holds `{kind: "npm",
+name, version, integrity, declarations}` per installed plugin. The kind discriminator is present
+from the first entry so the git source deferred in D33 arrives as an adapter. The fingerprint covers
+declared capabilities and declared host patches, so taking a version that widens a plugin's reach
+re-runs the permission summary and D26's per-patch opt-in instead of inheriting consent given to a
+narrower version. A version that only changes code does not re-prompt, which keeps the gate honest
+about what it governs: declared reach, not trust in a particular build.
+
+**The verb is `upgrade`, not `update` (amended 2026-09-15).** This was written as `update` re-gating,
+which cannot work: `update` already means *the extension moved; harvest it and put the loader back*,
+it is what the watcher calls, and a prompt inside it is a background process blocked on a terminal
+nobody is watching. Fetching newer plugin versions is a separate act on a separate cadence and is
+the one place the re-gate can reasonably prompt, because a person typed it. `rigline upgrade
+[plugin]` owns that; `update` keeps its meaning. A declined prompt keeps the version already
+installed, so nothing is left half-applied.
+
+**What the fingerprint is not (clarified 2026-09-15).** It is a line in a source record, not a
+grant, and the install gate does not read it. A plugin the user placed in `~/.rigline/plugins/` by
+hand has no source record, loads on the next inject, and is not gated on its capabilities: placement
+is consent to run in the webview, which is the trust a VS Code extension asks for. What placement
+never buys is the host bundle — D26's per-patch approval is checked on every install, for every
+plugin outside a first-party root, however the plugin arrived.
 
 **D50. The plugin template is a pnpm workspace holding many plugins; one plugin is that workspace
 with one member.** The multi-plugin shape is a superset — it scaffolds correctly for one plugin,
