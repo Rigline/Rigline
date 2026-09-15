@@ -37,6 +37,14 @@ from. Update the plan before writing code; log status there, not here.
   (D7). So an anchor resolves to a *selector* and the host queries with `querySelector`: never add a
   `kind: "singleton"` entry without checking what else wears its class, and never reach for a class
   where a selector is what you want.
+- **Never decorate a container whose owner measures its children.** The composer footer sums the
+  widths of its own element children to pick one of three fit stages and resets that measurement,
+  through `flushSync`, on any foreign mutation inside it — so a decoration there is part of the
+  layout decision *and* a trigger for it. Anchoring one to the model pill, which the widest stage
+  moves out of the footer, oscillates at one cycle per frame and makes the composer unclickable.
+  Footer decorations anchor to `footerSpacer`, which renders in every stage, via `mountBefore`
+  (D54). The general rule the anchor table now carries: before mounting, ask what the parent does
+  about its children.
 - **Bound any regex you run over a stringified record.** `JSON.stringify` output is one line;
   `.*` and `(.+?)` cross into unrelated fields. Exclude `"` and `\` and cap the length.
 - **Patch bundles byte-faithfully.** Read and write bytes; text-mode I/O rewrites every line

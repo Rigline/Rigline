@@ -308,7 +308,7 @@ Plugins never import the host; a module singleton would defeat both the scoping 
 attribution.
 
 **D19. Initial capabilities:** `classes` (`cls`), `anchors` (`anchor`), `messages` (`onMessage`),
-`mount` (`mount`, `mountAfter`, `watch`), `style`, `rewrites` (`rewrite`, `resend`), `tools`
+`mount` (`mount`, `mountAfter`, `mountBefore`, `watch`), `style`, `rewrites` (`rewrite`, `resend`), `tools`
 (`onToolUse`), `session` (`onSessionId`), `transcript` (`decorateTranscript`), and `surface`.
 `watch` is host-managed re-anchoring on the shared re-render signal (D52), so no plugin polls for an
 element; `style` is a host-managed stylesheet removed on teardown; `surface` names the full editor,

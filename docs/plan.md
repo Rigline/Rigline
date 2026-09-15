@@ -104,7 +104,7 @@ the permission-summary sentence shown at install; the runtime grant that builds 
 for one plugin; its diagnostics; and its probe check. The `post.js` kernel loads the registry,
 checks declarations, builds each plugin's `ctx` by asking every capability module for its slice,
 and isolates failures. Initial capabilities: `classes` (raw `cls`), `anchors` (curated),
-`messages` (`onMessage`), `mount` (`mount`, `mountAfter`, `watch`), `style`, `rewrites`
+`messages` (`onMessage`), `mount` (`mount`, `mountAfter`, `mountBefore`, `watch`), `style`, `rewrites`
 (`rewrite`, `resend`), `tools` (`onToolUse`), `session` (`onSessionId`), `transcript`
 (`decorateTranscript`), and `surface`.
 

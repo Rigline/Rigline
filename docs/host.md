@@ -87,9 +87,9 @@ Per-plugin status is `loaded`, `refused`, `error` or `inactive`, each with a rea
 `diagnostics.plugins` in registry order. Disabling a plugin at runtime runs every teardown it
 registered and the one it returned.
 
-The kernel knows no capability by name. It owns the plugin lifecycle, the shared mutation observer,
-the mount arbitration (host-placed nodes ordered by registry order and stamped
-`data-rigline-mount`), and the diagnostics object. Everything a plugin can do comes from a
+The kernel knows no capability by name. It owns the plugin lifecycle, the per-React-commit pass
+that re-places mounts and re-anchors watches (D52), the mount arbitration (host-placed nodes ordered
+by registry order and stamped `data-rigline-mount`), and the diagnostics object. Everything a plugin can do comes from a
 capability module.
 
 ## The capability module contract
@@ -141,7 +141,7 @@ asks the kernel for a shared service the kernel owns.
 | `classes` | `{ [module]: local[] }` | `cls(module, local)` | those classes |
 | `messages` | `MessageType[]` | `onMessage(type, handler)` | those message types |
 | `rewrites` | `{ [type]: field[] }` | `rewrite(type, transform)`, `resend(type)` | those outbound fields |
-| `mount` | `true` | `mount`, `mountAfter`, `watch` | nothing |
+| `mount` | `true` | `mount`, `mountAfter`, `mountBefore`, `watch` | nothing |
 | `style` | `true` | `style(css)` | nothing |
 | `tools` | `true` | `onToolUse(handler)` | `io_message` |
 | `session` | `true` | `onSessionId(handler)` | `update_session_state` |
@@ -152,8 +152,21 @@ are on grants nothing.
 
 `watch(anchor, onFound)`: the host calls `onFound(element)` when an element for the anchor is
 present and again whenever the element it last handed over leaves the document and a new one
-appears, returning that call's teardown before the next; the plugin polls nothing. It is built on
-the same mutation observer as mount re-placement.
+appears, returning that call's teardown before the next; the plugin polls nothing. It runs on the
+same per-React-commit pass as mount re-placement (D52), not on a mutation observer.
+
+`mount`, `mountAfter`, `mountBefore`: inside the target, immediately after a sibling, immediately
+before one. Mounts sharing an anchor are ordered by the host in registry order, which for both
+sibling placements reads left to right — so the *highest* order ends up nearest a `before` anchor.
+Choosing between them is not only about where a decoration looks right: a container whose owner
+measures its element children makes every child part of that owner's layout decision, and a
+decoration that enters and leaves such a container fights the measurement it is part of. The
+composer footer is one, which is what `footerSpacer` and `mountBefore` exist for (D54).
+
+Both re-placement and re-anchoring stop after a bounded run of corrections that never settles. The
+mount or the watch is abandoned by name in `diagnostics.mounts.abandoned`, its node is removed, and
+the plugin is disabled through its own error path — a decoration is never worth a panel flickering
+at frame rate.
 
 `style(css)`: a host-managed `<style>` element, removed on teardown, its text checked by the
 install-time scan for a raw six-character hash outside a resolved class (advisory).
@@ -227,8 +240,15 @@ rewriters compose in.
 the wrapper was installed and called, inbound and outbound counts, buffer size and sealed state,
 clone counts and the worst clone by type, resend count, the per-plugin status list, the rewrite
 log (plugin, type, fields, ran, applied, missed), the recorded patch outcomes, the version the
-tables were harvested from, the React hook state and commit and notice counts, and the transcript
-sweep counters. It is read by the probe and by nothing a plugin can declare.
+tables were harvested from, the React hook state and commit and notice counts, the transcript
+sweep counters, the mount counters, a per-second peak for every hot path (D53), and the storage
+ring's own state. It is read by the probe and by nothing a plugin can declare.
+
+Two of those are findings rather than numbers to weigh, and both are empty in the ordinary case.
+`mounts.multiple` names an anchor declared to mean one element whose selector matched several, so a
+decoration may be on the wrong control (D7). `mounts.abandoned` names a mount or a watch the host
+gave up on, so a decoration is gone and the panel was flickering before it went (D54); the `rebind`
+meter's peak is the early warning for the same condition.
 
 ## Verification
 

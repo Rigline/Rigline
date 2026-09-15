@@ -7,4 +7,8 @@
 # Harvested from the extension bundle, not written by hand. Marked generated so review tools
 # collapse them by default, but NOT -diff: these exist to be diffed across extension versions, and
 # -diff makes git treat them as binary, which is the one thing they must not be.
-packages/plugin-api/src/generated.ts linguist-generated
+#
+# At the repo root, not under packages/plugin-api: the table is a consumer's own harvest that
+# augments the published package rather than anything the package ships (D40). A path under the
+# package would name nothing, which is what this rule did until it was noticed.
+generated.ts linguist-generated
