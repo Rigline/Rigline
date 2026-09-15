@@ -796,6 +796,59 @@ but it cannot close the loop on its own, and it is a claim about width that the 
 `copy failed` is wider than eight hex characters. Revisit if the footer is seen refitting on a
 badge's own text.
 
+## The two gates `add` cannot ship without
+
+**Today every enabled plugin's declared host patch is written into `extension.js` with nothing
+asked and nothing shown, and `permissionSummary` is written, tested and called by nobody.** That is
+correct for a plugin in this repo and exactly what D26 refuses for anybody else's, and `add` is what
+turns a third-party host patch from a hand-copied directory into a one-liner. So the gates land
+before or with it. Specified; none of it is built.
+
+**Origin has to survive discovery.** `discoverPlugins` flattens its roots, so a `DiscoveredPlugin`
+cannot say whether it came from this repo's `plugins/` or from `~/.rigline/plugins/` — and that
+distinction is the whole gate. Each discovered plugin carries the root it was found under, and the
+caller marks which roots are first-party; `inject` already passes the roots in, so it is the one
+that knows. The exemption is by root rather than by name, which is what makes it "code you are
+standing in" rather than "code we wrote": a fork of this repo, or the phase 4 template, gets the
+same exemption for its own `plugins/` without being told about it.
+
+**The gate refuses; it never prompts.** `install` is called by `update` and by the watcher, so a
+prompt inside it is a background process blocked on a terminal nobody is watching. Consent is
+therefore recorded ahead of time, by `add`, and `install` only reads it: a third-party plugin whose
+declarations have no matching consent is refused by name, the rest of the install proceeds, and the
+line names the command that would grant it. This is the standing rule that a plugin's problem never
+blocks the install, applied to a plugin that has not been approved rather than one that is broken.
+It also settles the hand-drop path — a directory copied into `~/.rigline/plugins/` by hand is
+refused until `rigline add <path>` has been run over it, which makes `add` the only way in rather
+than a convenience over one.
+
+**Consent is keyed to what it governs, and the two gates key differently.** D49 fixes the capability
+half: `config.json` records a fingerprint over the plugin's declared `uses`, so a version that
+widens what the plugin may do re-gates and one that only changes code does not. The patch half
+cannot share that key, because D26 asks for *per-patch* opt-in: the record holds a fingerprint per
+approved patch, over its `find`, `replace` and `why` together, so a new patch arriving in a version
+whose capabilities did not move still stops. Declining is not a third state — a declined patch is
+simply one that was never approved, and the existing `required` machinery decides what that costs:
+required refuses the plugin, optional loads without it (D25). Both fingerprints canonicalise the
+JSON before hashing, since key order in a manifest is the author's whitespace and not a change of
+reach.
+
+The work, in order:
+
+1. **Origin on `DiscoveredPlugin`**, and `firstParty` on the roots `inject` passes. Nothing else
+   changes shape.
+2. **The fingerprints and the consent record** in `@rigline/plugin-api`, beside the manifest type
+   that defines what they cover, with `config.json` growing a `consent` member that `readConfig`
+   validates as strictly as it validates `disabled` today.
+3. **The gate in `inject`**, between `enabledPlugins` and `declaredPatches`: an un-consented
+   third-party plugin is dropped from the enabled set with a refusal line, and its patches never
+   reach `applyPatches`. Pinned by a test that drops a plugin declaring a patch into a fake user
+   root and asserts the bytes of `extension.js` did not move.
+4. **`rigline add`**, from a path first and from npm second, since the path form is what the gate
+   needs and the fetch path (D47, D48, D49) is a separate piece of work with its own risks. It
+   prints the permission summary, then each declared patch with its bytes and its `why`, takes the
+   approvals, and writes the record.
+
 ## Next session
 
 Start here. Phase 3 is built, merged and verified live; the anchor-ambiguity work above is done;
@@ -807,11 +860,8 @@ Window*, which ends every Claude session in that window, so do it at a moment yo
 `pnpm rigline restore` puts all three back to the extension's own bytes and needs neither VS Code nor
 the extension to be working.
 
-1. **Phase 4**, which is written up above and unblocked. Start with the two gates that must land
-   before or with `rigline add` — the permission summary and D26's per-patch host-patch opt-in. The
-   reason is concrete rather than theoretical: `applyPatches` takes every enabled plugin's declared
-   patch and writes it into `extension.js` with nothing asked and nothing shown, which is correct for
-   a first-party plugin in this repo and exactly what D26 refuses for anybody else's.
+1. **Phase 4**, unblocked. Start with the two gates, in the four steps "The two gates `add` cannot
+   ship without" ends with.
 2. **Read the live panel's own numbers off the probe**, after a few days of real use. Two questions,
    one act — the probe's copied report carries both.
 
