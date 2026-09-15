@@ -54,6 +54,13 @@ export interface VersionReport {
   readonly action: "injected" | "refreshed" | null;
   /** Whether `extension.js` changed, which needs a window reload rather than a webview reload. */
   readonly hostChanged: boolean;
+  /**
+   * Plugins not switched off in `config.json`, and those that are. Both, because "enabled" alone
+   * cannot say why a plugin a person expected is absent from the panel, and that is the one
+   * question this output exists to answer.
+   */
+  readonly enabled: readonly string[];
+  readonly disabled: readonly string[];
   /** Every line the installer logged, so a caller can print them under this version's heading. */
   readonly log: readonly string[];
 }
@@ -130,12 +137,14 @@ function anchorReport(
  */
 export function check(options: FlowOptions = {}): FlowReport {
   const exts = options.exts ?? installedExtensions();
-  const plugins = options.plugins
-    ? enabledPlugins(
-        discoverPlugins(options.plugins.roots, { last: options.plugins.last }),
-        readConfig(options.plugins.configPath),
-      )
+  const discovered = options.plugins
+    ? discoverPlugins(options.plugins.roots, { last: options.plugins.last })
     : [];
+  const plugins = options.plugins
+    ? enabledPlugins(discovered, readConfig(options.plugins.configPath))
+    : [];
+  const enabled = plugins.map((p) => p.name);
+  const disabled = discovered.filter((p) => !enabled.includes(p.name)).map((p) => p.name);
 
   const harvested = exts.map(harvestOne);
   const versions: VersionReport[] = harvested.map((h) => ({
@@ -145,6 +154,8 @@ export function check(options: FlowOptions = {}): FlowReport {
     ...anchorReport(h.generated),
     action: null,
     hostChanged: false,
+    enabled,
+    disabled,
     log: [],
   }));
 
@@ -183,6 +194,8 @@ export function update(options: UpdateOptions): FlowReport {
       ...anchorReport(h.generated),
       action: report.action,
       hostChanged: report.hostChanged,
+      enabled: report.enabled,
+      disabled: report.disabled,
       log,
     });
   }
@@ -311,10 +324,12 @@ export function formatFlow(report: FlowReport): string {
     }
     // Said even when nothing is wrong. "Silence means fine" is something a person has to be taught
     // to read; a count is something anyone can read.
-    const refused = version.verdicts.filter((v) => v.refusal !== null).length;
+    const refusedNames = version.verdicts.filter((v) => v.refusal !== null).map((v) => v.plugin);
     lines.push(
       `  ${count(version.verdicts.length, "plugin", "plugins")} checked` +
-        (refused === 0 ? ", every declaration holds" : `, ${refused} refused`) +
+        (refusedNames.length === 0
+          ? ", every declaration holds"
+          : `, ${refusedNames.length} refused`) +
         (version.anchorsMissing.length === 0
           ? ""
           : `; ${count(version.anchorsMissing.length, "curated anchor", "curated anchors")} unresolved`) +
@@ -322,6 +337,14 @@ export function formatFlow(report: FlowReport): string {
           ? ""
           : `; ${count(version.anchorsAmbiguous.length, "curated anchor", "curated anchors")} ambiguous`),
     );
+    // Three states, not two. `enabled` means "not switched off in config", so folding it together
+    // with the verdict listed a plugin this version refuses as loading, two lines under its own
+    // REFUSED line — on the one output a person reads when a plugin vanishes from their panel.
+    const loading = version.enabled.filter((name) => !refusedNames.includes(name));
+    lines.push(`  loading: ${loading.join(", ") || "none"}`);
+    if (version.disabled.length > 0) {
+      lines.push(`  switched off in config: ${version.disabled.join(", ")}`);
+    }
   }
 
   for (const path of report.wrote) lines.push(`\nwrote: ${path}`);

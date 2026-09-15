@@ -71,14 +71,25 @@ function pluginRoot(name: string, uses: Record<string, unknown>): string {
   return root;
 }
 
-function configPath(): string {
+/** Another plugin in a root `pluginRoot` already made; discovery sorts by name. */
+function addPlugin(root: string, name: string, uses: Record<string, unknown>): void {
+  const dir = join(root, name);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(
+    join(dir, "rigline.json"),
+    JSON.stringify({ api: 1, name, entry: "index.js", uses }),
+  );
+  writeFileSync(join(dir, "index.js"), "export default { setup() {} };\n");
+}
+
+function configWith(disabled: readonly string[]): string {
   const path = join(tempDir("rigline-config-"), "config.json");
-  writeFileSync(path, JSON.stringify({ disabled: [] }));
+  writeFileSync(path, JSON.stringify({ disabled }));
   return path;
 }
 
 function plugins(root: string): { roots: string[]; configPath: string } {
-  return { roots: [root], configPath: configPath() };
+  return { roots: [root], configPath: configWith([]) };
 }
 
 describe("check", () => {
@@ -146,6 +157,66 @@ describe("check", () => {
     // The synthetic bundle carries none of the curated anchors, so the anchor table is expected to
     // be missing every one of them; that is the only thing here that should want a person.
     expect(report.attention.filter((line) => !line.includes("anchor table"))).toEqual([]);
+  });
+});
+
+/**
+ * The lines somebody reads when a plugin is missing from their panel. There are three reasons it
+ * can be, and the report has to tell them apart: this version refuses it, they switched it off, or
+ * it is loading and the problem is elsewhere.
+ */
+describe("the report a person reads", () => {
+  /** The one `loading:` line, so an assertion is about the whole list and not a substring of it. */
+  function loadingLine(text: string): string {
+    const line = text.split("\n").find((l) => l.trim().startsWith("loading:"));
+    return line?.trim() ?? "no loading line";
+  }
+
+  it("leaves a refused plugin out of the ones it says are loading", () => {
+    const ext = fixture({ drop: "local3" });
+    const root = pluginRoot("fine", { classes: { f00000: ["local1"] } });
+    addPlugin(root, "needy", { classes: { f00000: ["local3"] } });
+    const text = formatFlow(
+      check({
+        exts: [ext],
+        dir: tempDir("rigline-cwd-"),
+        baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+        plugins: { roots: [root], configPath: configWith([]) },
+      }),
+    );
+    // Enabled means "not switched off", so the two were once folded together and a plugin was
+    // listed as loading two lines under its own REFUSED line.
+    expect(text).toContain("REFUSED needy");
+    expect(loadingLine(text)).toBe("loading: fine");
+  });
+
+  it("names a plugin switched off in config, which nothing else accounts for", () => {
+    const ext = fixture();
+    const root = pluginRoot("fine", { classes: { f00000: ["local1"] } });
+    addPlugin(root, "quiet", { classes: { f00000: ["local1"] } });
+    const text = formatFlow(
+      check({
+        exts: [ext],
+        dir: tempDir("rigline-cwd-"),
+        baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+        plugins: { roots: [root], configPath: configWith(["quiet"]) },
+      }),
+    );
+    expect(text).toContain("switched off in config: quiet");
+    expect(loadingLine(text)).toBe("loading: fine");
+  });
+
+  it("says loading: none rather than going quiet when nothing will load", () => {
+    const ext = fixture({ drop: "local3" });
+    const text = formatFlow(
+      check({
+        exts: [ext],
+        dir: tempDir("rigline-cwd-"),
+        baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+        plugins: plugins(pluginRoot("needy", { classes: { f00000: ["local3"] } })),
+      }),
+    );
+    expect(loadingLine(text)).toBe("loading: none");
   });
 });
 

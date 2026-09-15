@@ -62,7 +62,8 @@ from. Update the plan before writing code; log status there, not here.
 ## Working on the live extension
 
     pnpm build              # host, core, cli, and the first-party plugins
-    pnpm rigline install    # inject every installed version; bake plugins
+    pnpm rigline install    # inject every version, bake plugins, report drift, record the baseline
+    pnpm rigline check      # the same report, writing nothing
     pnpm rigline status     # per version: vanilla or patched, by backup
     pnpm rigline restore    # every version back to the extension's bytes
     pnpm rigline codegen    # regenerate plugin-api's generated.ts
@@ -77,6 +78,10 @@ is equivalent, if `pnpm <command>` ever collides with a real pnpm subcommand.
 Rebuilding the payload or a plugin and running `install` again refreshes the files in place
 without rewriting the bundle. `restore` is the undo and the recovery from a blank panel; it needs
 only Node and this checkout.
+
+`install` is the one write command and `check` is its read-only half: there is no `rigline update`,
+because in phase 4 that word means *update my plugins*, which is what every package manager and
+`claude update` have already taught people it means (D55). Typing it says so.
 
 An update installs a new versioned directory and deletes the old one, so it silently reverts the
 injection. A window that was open keeps running the old directory until *Developer: Reload Window*.

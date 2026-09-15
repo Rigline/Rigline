@@ -57,20 +57,19 @@ const USAGE = `rigline ${CORE_VERSION}
 
   rigline install [--ext DIR] [--payload DIR]
       Inject the loader into every installed extension version (or DIR), harvesting each
-      version's tables and baking the enabled plugins. Reload webviews afterwards.
+      version's tables and baking the enabled plugins. Reports what moved since the
+      baseline and which plugins each version refuses, rewrites ./generated.ts when the
+      directory has one, and records the new baseline. Tells you to commit; never commits.
+      Run it after an extension update. Reload webviews afterwards. Exits 1 when a person
+      is needed.
 
   rigline check [--ext DIR]
       Read-only. Per installed version (or DIR): what moved since the baseline, which
       plugins this version would refuse and by which identifier, and which curated anchors
       it lacks. Exits 1 when a person is needed.
 
-  rigline update [--ext DIR]
-      check, and put the loader back in every installed version (or DIR). Rewrites
-      ./generated.ts when the directory has one, records the new baseline, and tells you to
-      commit. Never commits. Exits 1 when a person is needed.
-
   rigline watch [--interval SECONDS]
-      update, and again whenever the set of installed extension directories changes,
+      install, and again whenever the set of installed extension directories changes,
       which is what an extension update looks like from outside VS Code.
 
   rigline dev [DIR...]
@@ -111,6 +110,14 @@ function pluginOptions(): NonNullable<InstallOptions["plugins"]> {
   return { roots: [repoPluginsDir(), paths.plugins], last: ["probe"], configPath: paths.config };
 }
 
+/**
+ * The one write command (D55): inject into every installed version, say what moved since the
+ * baseline, record the new one.
+ *
+ * It absorbed `rigline update`, which was this plus the report and the baseline write — a report
+ * and a recorded harvest, not a different act — and whose name every package manager gives to
+ * updating what you installed. That sense is `update`'s in phase 4.
+ */
 function installCommand(args: string[]): number {
   const { values } = parseArgs({
     args,
@@ -119,32 +126,38 @@ function installCommand(args: string[]): number {
   });
   const targets = values.ext ? [values.ext] : installedExtensions();
   if (targets.length === 0) throw new UserError("no Claude Code extension is installed");
-  let hostChanged = false;
-  for (const ext of targets) {
-    const report = install(ext, {
-      payloadDir: values.payload ?? defaultPayloadDir(),
-      plugins: pluginOptions(),
-      log: (line) => console.log(`  ${line}`),
-    });
-    hostChanged ||= report.hostChanged;
-    // Three states, not two, and the summary used to fold the first two together: `enabled` means
-    // "not switched off in config", so a plugin this version refuses was listed as enabled two
-    // lines under its own REFUSED line. The two lines a person actually reads contradicted each
-    // other, on the one output a consumer sees when a plugin disappears from their panel.
-    const refused = report.verdicts.filter((v) => v.refusal !== null).map((v) => v.plugin);
-    const loading = report.enabled.filter((name) => !refused.includes(name));
-    console.log(
-      `${report.version}: ${report.action}; plugins: ${loading.join(", ") || "none"}` +
-        (refused.length > 0 ? `; refused by ${report.version}: ${refused.join(", ")}` : "") +
-        (report.disabled.length > 0 ? `; switched off: ${report.disabled.join(", ")}` : ""),
-    );
-  }
+
+  const report = update({
+    exts: targets,
+    payloadDir: values.payload ?? defaultPayloadDir(),
+    plugins: pluginOptions(),
+    // Only where the directory already has one; this never creates a harvest for somebody who has
+    // not asked for one, and it never commits what it rewrites (D30).
+    codegen: true,
+  });
+  console.log(formatFlow(report));
   console.log(
-    hostChanged
+    report.versions.some((v) => v.hostChanged)
       ? "\nA host patch changed: run Developer: Reload Window (this ends the window's sessions)."
       : "\nReload with Developer: Reload Webviews (current window only).",
   );
-  return 0;
+  return report.attention.length > 0 ? 1 : 0;
+}
+
+/**
+ * `update` no longer re-injects, and says so rather than doing something adjacent.
+ *
+ * It could have been carried as an alias, and should not be: in phase 4 the word means *update my
+ * plugins*, which is what `npm update` and `claude update` have already taught everyone it means,
+ * and a verb that quietly changes meaning under somebody is worse than one that is briefly absent.
+ */
+function updateCommand(): number {
+  throw new UserError(
+    "rigline update no longer re-injects the loader — run rigline install, which now reports " +
+      "what moved and records the baseline as well.\n\n" +
+      "(To update Rigline itself, use your package manager. To update installed plugins, " +
+      "update is the command, and it arrives in phase 4.)",
+  );
 }
 
 function statusCommand(): number {
@@ -334,19 +347,6 @@ function checkCommand(args: string[]): number {
   return report.attention.length > 0 ? 1 : 0;
 }
 
-function updateCommand(args: string[]): number {
-  const report = update({
-    exts: extOption(args),
-    payloadDir: defaultPayloadDir(),
-    plugins: pluginOptions(),
-    // Only where the directory already has one; `update` never creates a harvest for somebody who
-    // has not asked for one, and it never commits what it rewrites (D30).
-    codegen: true,
-  });
-  console.log(formatFlow(report));
-  return report.attention.length > 0 ? 1 : 0;
-}
-
 /**
  * Runs until interrupted. Its exit code is the last report's, so a watcher stopped after an update
  * that needs a person still says so, and `rigline watch; echo $?` from a script is meaningful.
@@ -487,7 +487,7 @@ async function main(argv: string[]): Promise<number> {
     case "check":
       return checkCommand(rest);
     case "update":
-      return updateCommand(rest);
+      return updateCommand();
     case "watch":
       return watchCommand(rest);
     case "dev":

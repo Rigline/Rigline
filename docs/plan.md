@@ -68,7 +68,7 @@ pnpm workspace, TypeScript throughout, every package a real package with its own
 | path | package | what it is |
 | --- | --- | --- |
 | `packages/core` | `@rigline/core` | Node library: locate installed extensions, harvest identifier layers, generate types and runtime tables, inject and restore, discover plugins and bake the registry, run the update flow, watch for updates, hold the curated anchor table. The CLI and a future companion extension both consume it. |
-| `packages/cli` | `rigline` | Thin command surface over core: `install`, `update`, `check`, `status`, `restore`, `watch`, `doctor`, `codegen`, `diff`, `build`, `dev`, and in phase 4 `add`, `remove`, `list`, `upgrade`. |
+| `packages/cli` | `rigline` | Thin command surface over core: `install`, `check`, `status`, `restore`, `watch`, `doctor`, `codegen`, `diff`, `build`, `dev`, and in phase 4 `add`, `remove`, `list`, `update` (D55). |
 | `packages/host` | `@rigline/host` (private) | The injected runtime: `pre.js` (bus tap, buffer, rewrite chain, React devtools hook) and `post.js` (kernel plus capability modules). Built to exactly two files. |
 | `packages/plugin-api` | `@rigline/plugin-api` | What a plugin is written against: `PluginContext`, the manifest type and JSON schema, `definePlugin`, the generated identifier unions, and the pure helpers shared by host and core (capability contracts, session rule, stream shape, transcript derivations). |
 | `plugins/session-id` | first-party plugin | Session id and inter-agent messaging address in the composer footer. |
@@ -618,7 +618,7 @@ The work, in order, and the first three belong together:
    verdict is data — the anchor resolves to null, with its reason carried beside it — and the two
    consumers read it differently. `rigline codegen` exits non-zero and names the anchor, because in
    this repo an ambiguous singleton is the table being wrong and a maintainer is standing there.
-   `check` and `update` report it for attention and let the existing per-plugin refusal do the rest,
+   `check` and `install` report it for attention and let the existing per-plugin refusal do the rest,
    so a plugin that never declared the anchor is untouched. Nulling the anchor rather than handing
    over a class that names two controls is P8: absent beats wrong.
 
@@ -819,25 +819,53 @@ of that asks a user to have predicted the problem, which is the thing an approva
 cannot do.
 
 What survives from the fetch design is the source record itself — kind, name, pinned version,
-integrity — because that is what makes `add` and `upgrade` work at all, and an integrity check is
+integrity — because that is what makes `add` and `update` work at all, and an integrity check is
 supply-chain hygiene rather than a permission. D49's `declarations` member goes with the rest: it
 had no consumer but the re-gate.
 
 **Deferred, not discarded** (D26, amended). Per-patch opt-in and re-gating on widened declarations
-return as an **opt-in** setting for people who want them, well down the priority list. Two things to
-know when that day comes, since they are why this was written twice: the gate must read approvals
-and never prompt, because `install` is what the watcher calls; and `update` already means *the
-extension moved, put the loader back*, so the verb for fetching newer plugin versions is `upgrade`.
-That naming split is independent of any gate and stands.
+return as an **opt-in** setting for people who want them, well down the priority list. One thing to
+know when that day comes, since it is why this was written twice: the gate must read approvals and
+never prompt, because `install` is what the watcher calls.
+
+### `update` is the wrong name for re-injecting, and the right one for plugins
+
+**`rigline update` today means *the extension moved, put the loader back*, and that is a name nobody
+will read correctly** (Leo 2026-09-15). `npm update`, `pnpm update` and `cargo update` all mean
+*update the things I installed*, and users of this extension also type `claude update` to get a new
+version of Claude Code. Two readings are therefore already in their hands, and re-injection is
+neither.
+
+It is also barely its own command. `update` runs `install` over every version and then `settle`,
+which is `check`'s report plus advancing the baseline; the difference between the two commands is a
+report and a recorded harvest, not a different act. So:
+
+- **`install`** is the one write command: inject the loader everywhere, say what moved since the
+  baseline, record the new one. What you run after an extension update, which is also what its name
+  says.
+- **`check`** stays exactly as it is, the read-only half. Its non-differential rule is unchanged: it
+  asks the installed bundle, never the last answer, because a differential gate passes on its second
+  run satisfied by its own side effect.
+- **`update`** is freed for plugins, where every package manager already points it, and is built in
+  phase 4. There is no `upgrade`.
+- **`watch`** loops `install` and says so.
+
+`rigline update` stops working as re-injection *now*, with an error naming `install`, rather than
+being carried as an alias — a verb that quietly changes meaning under somebody in phase 4 is worse
+than one that is briefly absent. Its error also names what updating Rigline itself is, since that is
+the other thing a person typing it may have meant, and the answer is their package manager.
 
 ### The work, in order
 
-1. **`permissionSummary` into `install`'s report.** Once per plugin per run, after the per-version
+1. **The rename**: `install` absorbs the flow, `update` refuses with a pointer, `watch` and the
+   help text follow. Before anything in phase 4, because every command below is described in terms
+   of it.
+2. **`permissionSummary` into `install`'s report.** Once per plugin per run, after the per-version
    work — `install` walks every installed extension version, and printing every plugin's
    capabilities three times over is how output stops being read.
-2. **`rigline add`** from a path, then `remove` and `list`. The path form needs no network and is
+3. **`rigline add`** from a path, then `remove` and `list`. The path form needs no network and is
    what makes `~/.rigline/plugins/` a managed directory rather than one people copy into.
-3. **`rigline add` from npm and `rigline upgrade`**: the fetch, the integrity check, the minimum
+4. **`rigline add` from npm and `rigline update`**: the fetch, the integrity check, the minimum
    release age with `--now`, the source record (D47, D48, D49). Separable work with its own risks,
    and last.
 
@@ -1085,6 +1113,18 @@ the extension to be working.
   `permissionSummary` becomes install output, `add` records a source so `upgrade` can fetch a newer
   one, and a plugin dropped into `~/.rigline/plugins/` by hand loads on the next inject with
   everything it declares. Two things survive from the cut work because they are independent of it:
-  `update` cannot prompt, since the watcher calls it, so the verb for fetching plugin versions is
-  `upgrade`; and D44's anchor override is now the only thing that genuinely has to land before
-  somebody else installs a plugin. No code changed.
+  a gate must never prompt from `install`, since the watcher calls it; and D44's anchor override is
+  now the only thing that genuinely has to land before somebody else installs a plugin. No code
+  changed.
+- 2026-09-15: `rigline update` renamed out of existence, Leo's call, and the reason generalises
+  (D55). It meant *the extension moved, put the loader back*, which nobody reads that way: `npm
+  update`, `pnpm update` and `cargo update` all mean *update the things I installed*, and this
+  extension's own users type `claude update` to get a new version of Claude Code. It was also barely
+  a command — it ran `install` over every version and then the reporting half `check` already owns.
+  So `install` absorbs it and is the one write command, `update` is freed for plugins in phase 4,
+  and there is no `upgrade`. Typing `update` now errors and names `install`, rather than being
+  carried as an alias that would change meaning under somebody later. The merge would have dropped
+  two lines of output that only the old `install` printed — which plugins are loading, and which are
+  switched off in config — so `VersionReport` carries them and `formatFlow` prints them, with the
+  three-reasons-a-plugin-is-missing case pinned by its own tests. `install` can now exit 1, which it
+  could not before and should always have.

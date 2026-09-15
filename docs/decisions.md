@@ -134,7 +134,7 @@ the app queries itself, and the assistant row `[data-testid="assistant-message"]
 anchor resolves to null, with its reason carried beside it — and the two consumers read it
 differently. `rigline codegen` exits non-zero and names the anchor, because in this repo an
 ambiguous singleton is the table being wrong and a maintainer is standing there. `check` and
-`update` report it for attention and let the per-plugin refusal do the rest, because an upstream
+`install` report it for attention and let the per-plugin refusal do the rest, because an upstream
 release that starts reusing a class is neither a collapsed harvest nor a failure of our own build,
 and those are the only two things that may cost every other plugin its injection (P3). A module
 whose class-map variable the harvest cannot find is *uncounted*, which is not zero: its anchors
@@ -460,10 +460,9 @@ This is deferred rather than discarded, and returns as a setting for people who 
 deferral rests on, and would have to change to reopen it: the patch is reversible without foresight
 — `extension.js.orig` is written before the first patch lands, every install rebuilds from it,
 disabling a plugin removes its patch, and `restore` needs neither VS Code nor a working extension.
-An approval prompt asks a user to predict a problem; the backup does not. Two things to carry into
+An approval prompt asks a user to predict a problem; the backup does not. One thing to carry into
 any future implementation, learned by specifying it twice: the gate must *read* approvals and never
-prompt, because `install` is what the watcher calls; and the verb for fetching newer plugin versions
-is `upgrade`, because `update` already means *the extension moved, put the loader back*.
+prompt, because `install` is what the watcher calls.
 
 ### Update flow
 
@@ -489,6 +488,18 @@ the more useful question anyway.
 
 **D30. The update flow writes its artefacts and tells you to commit them; it never commits.** From
 `watch` it runs unattended, and the diff is the most useful thing an update produces.
+
+**D55. The flow is spelled `install`; `update` means plugins (2026-09-15, Leo).** The flow keeps its
+name in the code and loses it on the command line. `rigline update` meant *the extension moved;
+harvest it and put the loader back*, which no user will read correctly: `npm update`, `pnpm update`
+and `cargo update` all mean *update the things I installed*, and this extension's users also type
+`claude update` to get a new version of Claude Code. It was barely a separate command in any case —
+it ran `install` over every version and then the reporting half `check` already owns, so the
+difference between the two was a report and a recorded baseline, not a different act. So `install`
+absorbs the flow and is the one write command, `check` stays its read-only half, `update` is freed
+for the plugin sense every package manager already gives it, and there is no `upgrade`. Re-injection
+stops answering to `update` immediately, with an error naming `install`: a verb that silently
+changes meaning under somebody later is worse than one that is briefly absent.
 
 **D43. The declaration check runs in Node at install, per extension directory, and names what it
 refused.** The same `capabilityViolation` the kernel asks at load is asked of every enabled plugin
@@ -620,17 +631,14 @@ brought in. The kind discriminator is present from the first entry so the git so
 arrives as an adapter. The integrity hash is supply-chain hygiene — it says the bytes are the ones
 the registry served — and not a permission.
 
-**The declaration fingerprint is cut, and the verb is `upgrade` (amended 2026-09-15, Leo).** This
-was written as a `declarations` member that `update` compared, so that a version widening a plugin's
-reach re-ran the permission summary and D26's opt-in. Both halves fail. The re-gate itself is the
-prompt D26 now defers: a user who installed a plugin should not be re-asked because its author
-shipped a feature, and an upgrade that stops on a widened declaration is exactly the silent failure
-that makes people stop upgrading. And the verb could not have been `update` in any case — that means
-*the extension moved; harvest it and put the loader back*, it is what the watcher calls, and a
-prompt inside it is a background process blocked on a terminal nobody is watching. So `declarations`
-goes, having had no other consumer, and `rigline upgrade [plugin]` is the verb for fetching newer
-plugin versions. That naming split is independent of any gate and holds whatever is decided about
-approval later.
+**The declaration fingerprint is cut (amended 2026-09-15, Leo).** This was written as a
+`declarations` member compared on every fetch, so that a version widening a plugin's reach re-ran
+the permission summary and D26's opt-in. It goes with the prompt D26 now defers: a user who
+installed a plugin should not be re-asked because its author shipped a feature, and a fetch that
+stops on a widened declaration is exactly the failure that makes people stop fetching. The member
+had no other consumer.
+
+The verb `update` belongs to plugins rather than to this flow; see D55.
 
 A plugin the user placed in `~/.rigline/plugins/` by hand has no source record at all. It loads on
 the next inject with everything it declares, and it cannot be upgraded, which is the honest cost of
