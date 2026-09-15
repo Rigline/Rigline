@@ -1022,3 +1022,13 @@ the extension to be working.
   resolves on all three installed versions, so the anchor is not new to 2.1.270. Deferred until
   there is evidence it is needed: `data-footer-fixed-width`, which would stop a badge's own text
   changes resetting the ladder but cannot close the loop and is a width claim the copy flash breaks.
+- 2026-09-15: A harness test failed once in a full run and passed on its own, which is the shape
+  worth chasing rather than re-running. `boot()` waited for the app's own first render and returned,
+  but the pre hook is static while `post.js` loads dynamically, so a test could read what a plugin's
+  `setup()` installed before any plugin had loaded. A test waiting on a node its plugin placed got
+  the wait for free; the tool-result test waits on neither, since it pushes messages and reads a
+  `window` field, so it lost the race whenever the machine was loaded enough to widen the window —
+  which is the whole suite and never the file alone. `boot()` now also waits for
+  `diagnostics.bufferSealed`, which `post.js` sets in the `finally` of its plugin loop and therefore
+  means "every plugin has had its chance", refusals included. The window is measured rather than
+  assumed and printed on every run: 18ms, after a 277ms boot, on an idle single-file run.

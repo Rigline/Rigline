@@ -83,6 +83,12 @@ export interface Booted {
   /** Everything the page logged at error level, plus any uncaught page error. */
   readonly consoleErrors: readonly string[];
   readonly bootMs: number;
+  /**
+   * How long after the app's own first render the kernel finished loading plugins. The window a
+   * test racing the payload falls into, printed rather than assumed: it is small on an idle
+   * machine and widens under a full suite, which is why the race only ever showed up there.
+   */
+  readonly kernelMs: number;
   diagnostics(): Promise<HarnessDiagnostics>;
   /** Every message the app sent the fake host, in order. */
   sent(): Promise<readonly OutboundEnvelope[]>;
@@ -164,11 +170,26 @@ export function register(version: string): (options?: BootOptions) => Promise<Bo
       { timeout: 15000 },
     );
     const bootMs = performance.now() - started;
+    // And then for the kernel, which is a separate event: the pre hook is static but post.js loads
+    // dynamically, so the app's own markup can be on screen before a single plugin's setup() has
+    // run. A test that waits on a node its plugin placed gets this for free; one that reads what
+    // setup() installed on `window`, or pushes a message expecting a tap to be listening, does not
+    // — and it fails only when the machine is loaded enough to widen the window, which is the whole
+    // suite and never the test on its own. `bufferSealed` is the signal because post.js sets it in
+    // the `finally` of the plugin-loading loop, so it means "every plugin has had its chance",
+    // including the ones that were refused.
+    await page.waitForFunction(
+      () => (window as unknown as HarnessWindow).__rigline?.diagnostics?.bufferSealed === true,
+      undefined,
+      { timeout: 15000 },
+    );
+    const kernelMs = performance.now() - started - bootMs;
 
     return {
       page,
       consoleErrors,
       bootMs,
+      kernelMs,
       diagnostics: () =>
         page.evaluate(
           () => (window as unknown as HarnessWindow).__rigline?.diagnostics as HarnessDiagnostics,

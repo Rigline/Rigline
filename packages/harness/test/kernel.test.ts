@@ -66,7 +66,10 @@ describe.skipIf(skipReason !== null)(
     it("boots the real bundle with the pre and post hooks wired", async () => {
       const booted = await boot();
       try {
-        console.log(`[harness] boot to .modelPill_gGYT1w: ${booted.bootMs.toFixed(0)}ms`);
+        console.log(
+          `[harness] boot to .modelPill_gGYT1w: ${booted.bootMs.toFixed(0)}ms, ` +
+            `then to the kernel's seal: ${booted.kernelMs.toFixed(0)}ms`,
+        );
         const d = await booted.diagnostics();
         expect(d.acquireWrapped).toBe(true);
         expect(d.acquireCalled).toBe(true);
