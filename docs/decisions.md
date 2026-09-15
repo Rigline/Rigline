@@ -448,15 +448,22 @@ that ends every session in the window.
 at install.** The mechanism can verify an anchor but cannot scope what the substitution does; the
 review that stood in for scoping stops existing when the author is not us.
 
-**Checked at install, granted elsewhere (amended 2026-09-15).** `install` is what the watcher and
-the update flow call, so it can read an approval but must never ask for one. `rigline approve
-<plugin>` takes the approvals, one patch at a time, against the patch's `find`, `replace` and `why`
-together — `why` is the claim the approval was given against, so a sentence that stays put while the
-substitution moves re-asks. `add` runs the same code, being interactive and already there. What
-`install` does with an unapproved patch is exactly what it does with one whose anchor has gone
-(D25): required refuses the plugin by name on that version, optional loads without it. "Outside this
-repo" is decided by the root a plugin was discovered under, not by its name, so a fork of this repo
-and the plugin template both get the exemption for their own `plugins/` without being told.
+**Deferred to an opt-in setting, and not built for 1.0 (amended 2026-09-15, Leo).** Installing a
+plugin is the consent act. A per-patch approval prompt is a permission system stronger than the
+host's own — VS Code has no granular permissions and never re-approves an extension whose new
+version does more — and it charges every user a prompt for a feature most of them do not want. A
+user who installed a plugin trusts its author and wants updates to work. So for 1.0 a plugin's
+declared patch applies because the plugin is enabled, and the install reports what it applied and
+why (P8: say it, do not ask it).
+
+This is deferred rather than discarded, and returns as a setting for people who want it. What the
+deferral rests on, and would have to change to reopen it: the patch is reversible without foresight
+— `extension.js.orig` is written before the first patch lands, every install rebuilds from it,
+disabling a plugin removes its patch, and `restore` needs neither VS Code nor a working extension.
+An approval prompt asks a user to predict a problem; the backup does not. Two things to carry into
+any future implementation, learned by specifying it twice: the gate must *read* approvals and never
+prompt, because `install` is what the watcher calls; and the verb for fetching newer plugin versions
+is `upgrade`, because `update` already means *the extension moved, put the loader back*.
 
 ### Update flow
 
@@ -513,8 +520,8 @@ load-bearing rather than incidental: an ambiguous or retired anchor refuses the 
 declared it, and with no override the only repair is a Rigline release — npm, plus D48's minimum
 age, so days, against an extension that updates weekly. That is survivable while the only consumer
 is also the maintainer and can edit the table in the repo. It stops being survivable the moment
-somebody else installs a plugin, so this gates `rigline add` alongside the permission summary and
-D26's per-patch opt-in.
+somebody else installs a plugin, so this has to land before `rigline add` puts one in anybody
+else's hands — and now that D26's opt-in is deferred, it is the only thing that does.
 
 **D45. A retired identifier is reported with its likely successor, and never remapped.** A rename
 usually shows in the diff as one local name gone from a module and one new name arrived in the same
@@ -607,29 +614,28 @@ it is written with no publish at all. What the delay does hold back is a fix to 
 or its raw `cls()` use, so a withheld version is reported rather than hidden (P8): `update` names the
 version, its age, and the flag that takes it early.
 
-**D49. A source is recorded by kind, pinned identity and declaration fingerprint, and fetching a
-newer version re-gates when the fingerprint moves.** `~/.rigline/config.json` holds `{kind: "npm",
-name, version, integrity, declarations}` per installed plugin. The kind discriminator is present
-from the first entry so the git source deferred in D33 arrives as an adapter. The fingerprint covers
-declared capabilities and declared host patches, so taking a version that widens a plugin's reach
-re-runs the permission summary and D26's per-patch opt-in instead of inheriting consent given to a
-narrower version. A version that only changes code does not re-prompt, which keeps the gate honest
-about what it governs: declared reach, not trust in a particular build.
+**D49. A source is recorded by kind and pinned identity, and `upgrade` reads it.**
+`~/.rigline/config.json` holds `{kind: "npm", name, version, integrity}` per plugin that `add`
+brought in. The kind discriminator is present from the first entry so the git source deferred in D33
+arrives as an adapter. The integrity hash is supply-chain hygiene — it says the bytes are the ones
+the registry served — and not a permission.
 
-**The verb is `upgrade`, not `update` (amended 2026-09-15).** This was written as `update` re-gating,
-which cannot work: `update` already means *the extension moved; harvest it and put the loader back*,
-it is what the watcher calls, and a prompt inside it is a background process blocked on a terminal
-nobody is watching. Fetching newer plugin versions is a separate act on a separate cadence and is
-the one place the re-gate can reasonably prompt, because a person typed it. `rigline upgrade
-[plugin]` owns that; `update` keeps its meaning. A declined prompt keeps the version already
-installed, so nothing is left half-applied.
+**The declaration fingerprint is cut, and the verb is `upgrade` (amended 2026-09-15, Leo).** This
+was written as a `declarations` member that `update` compared, so that a version widening a plugin's
+reach re-ran the permission summary and D26's opt-in. Both halves fail. The re-gate itself is the
+prompt D26 now defers: a user who installed a plugin should not be re-asked because its author
+shipped a feature, and an upgrade that stops on a widened declaration is exactly the silent failure
+that makes people stop upgrading. And the verb could not have been `update` in any case — that means
+*the extension moved; harvest it and put the loader back*, it is what the watcher calls, and a
+prompt inside it is a background process blocked on a terminal nobody is watching. So `declarations`
+goes, having had no other consumer, and `rigline upgrade [plugin]` is the verb for fetching newer
+plugin versions. That naming split is independent of any gate and holds whatever is decided about
+approval later.
 
-**What the fingerprint is not (clarified 2026-09-15).** It is a line in a source record, not a
-grant, and the install gate does not read it. A plugin the user placed in `~/.rigline/plugins/` by
-hand has no source record, loads on the next inject, and is not gated on its capabilities: placement
-is consent to run in the webview, which is the trust a VS Code extension asks for. What placement
-never buys is the host bundle — D26's per-patch approval is checked on every install, for every
-plugin outside a first-party root, however the plugin arrived.
+A plugin the user placed in `~/.rigline/plugins/` by hand has no source record at all. It loads on
+the next inject with everything it declares, and it cannot be upgraded, which is the honest cost of
+dropping a directory in: the user owns the version because the user owns the provenance. `list`
+reports that rather than leaving it to be inferred from silence.
 
 **D50. The plugin template is a pnpm workspace holding many plugins; one plugin is that workspace
 with one member.** The multi-plugin shape is a superset — it scaffolds correctly for one plugin,
