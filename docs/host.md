@@ -108,7 +108,7 @@ interface CapabilityContract<K extends UsesKey> {
   shape(value: unknown): string | null;
   /** The identifiers this declaration depends on, checked against the tables. A string is the first violation. */
   violation(declared: Uses[K], tables: IdentifierTables): string | null;
-  /** One sentence per thing granted, for the install-time permission summary. */
+  /** One sentence per thing this declaration does, for `describeUses`. */
   summary(declared: Uses[K]): readonly string[];
 }
 ```

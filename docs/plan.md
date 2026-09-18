@@ -448,7 +448,7 @@ done.
 ### Phase 4: the community layer
 
 - `~/.rigline` install model, `rigline add` from a path and from npm, with `remove` and `list`.
-  `permissionSummary` is written, tested and called by no one; it becomes install output. See
+  `describeUses` says what a plugin does, and `list` is what prints it. See
   "Disclosure, not permission" for what was specified here and then cut.
 - The fetch path itself (D47, D48, D49). D47's premise is already true rather than aspirational:
   `rigline build` bundles everything the entry imports, `@rigline/plugin-api` included, so a
@@ -809,7 +809,7 @@ per-patch opt-in and the declaration fingerprint were both making.
 So there is no approval record, no patch fingerprint, no declaration fingerprint, no `rigline
 approve`, and no re-gate on upgrade. A plugin's host patch applies because the plugin is enabled,
 exactly as it does today, and a directory dropped into `~/.rigline/plugins/` loads on the next
-inject with everything it declares. **`permissionSummary` becomes output rather than a prompt.**
+inject with everything it declares. **What a plugin does is output, not a prompt** — `describeUses`.
 
 Not `install`'s output, though, which is where this was first filed. `install` runs unattended under
 `watch` and again after every extension update, so a capability summary there is the same paragraph
@@ -866,7 +866,7 @@ output that narrates its own past is output nobody has trimmed.
 
 1. **The rename**: `install` absorbs the flow, `update` goes, `watch` and the help text follow.
    Before anything in phase 4, because every command below is described in terms of it.
-2. **`rigline list`**, which is where `permissionSummary` finally has a caller: every discovered
+2. **`rigline list`**, which is where `describeUses` finally has a caller: every discovered
    plugin, where it came from, whether it is enabled, and what it can do. Needs a plugin to carry
    the root it was discovered under, which is also how `list` tells a plugin of yours from one
    somebody installed.
@@ -1139,11 +1139,12 @@ Code nor the extension to be working.
   explains what it used to do, so `update` simply falls through to unknown-command and the usage.
   The same rule took the host patch's `why` out of the install log, where it was a paragraph of the
   author's rationale repeated identically per installed version.
-- 2026-09-18: `rigline list`, and the permission summary finally has a caller. The plan had it going
-  into `install`'s report; that does not survive the trim above, because `install` runs unattended
-  under `watch` and after every extension update, so a capability summary there is the same
-  paragraph about the same plugins on a loop. Disclosure belongs where somebody asked a question, so
-  it is `list` now and `add` when it lands. `DiscoveredPlugin` carries the root it was found under,
+- 2026-09-18: `rigline list`, and `describeUses` — renamed from `permissionSummary`, since there are
+  no permissions and so nothing summarises them — finally has a caller. The plan had it going into
+  `install`'s report; that does not survive the trim above, because `install` runs unattended under
+  `watch` and after every extension update, so a description of every plugin there is the same
+  paragraph on a loop. It belongs where somebody asked a question, so it is `list` now and `add`
+  when it lands. `DiscoveredPlugin` carries the root it was found under,
   which is the only record of whether a plugin is yours or one somebody installed; `list` shows it,
   in load order rather than a second ordering of its own, so it and the baked registry cannot
   disagree about what loads first. Building it turned up the same noise problem one level down: the

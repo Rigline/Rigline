@@ -21,9 +21,9 @@ export {
   capabilityDrift,
   capabilityUse,
   capabilityViolation,
+  describeUses,
   optionalGaps,
   patchViolation,
-  permissionSummary,
   sharedFields,
 } from "./capabilities/index.ts";
 export type {

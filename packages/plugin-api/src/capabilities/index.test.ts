@@ -5,9 +5,9 @@ import {
   capabilityDrift,
   capabilityUse,
   capabilityViolation,
+  describeUses,
   optionalGaps,
   patchViolation,
-  permissionSummary,
   sharedFields,
 } from "./index.ts";
 import type { Declarations, Uses } from "./types.ts";
@@ -144,7 +144,7 @@ describe("patchViolation", () => {
 
 describe("summaries and the advisory scan", () => {
   it("lists what a plugin will be able to do", () => {
-    const lines = permissionSummary(
+    const lines = describeUses(
       uses({ anchors: ["modelPill"], rewrites: { rename_tab: ["title"] }, tools: true }),
     );
     expect(lines).toEqual([
@@ -157,7 +157,7 @@ describe("summaries and the advisory scan", () => {
   it("groups anchors by what the plugin does with them, rather than one line each", () => {
     // A plugin borrowing a pop-up's look declares ten style anchors, and a line apiece buries the
     // one that says where it will actually appear.
-    const lines = permissionSummary(
+    const lines = describeUses(
       uses({ anchors: ["footerSpacer", "footerMenuPopup", "transcriptRow", "footerMenuItem"] }),
     );
     expect(lines).toEqual([
@@ -247,9 +247,9 @@ describe("optionalGaps", () => {
   });
 });
 
-describe("permissionSummary with optional declarations", () => {
+describe("describeUses with optional declarations", () => {
   it("marks the conditional lines so a reader can tell a promise from a maybe", () => {
-    const lines = permissionSummary(
+    const lines = describeUses(
       uses({ anchors: ["modelPill"], optional: { ...EMPTY_USES, anchors: ["worktreePill"] } }),
     );
     expect(lines.some((l) => l.startsWith("attaches to modelPill"))).toBe(true);

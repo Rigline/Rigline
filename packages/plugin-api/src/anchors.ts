@@ -52,7 +52,7 @@ export interface AnchorSpec {
   readonly local: string;
   /** One element, many elements, or a look a plugin borrows for its own markup. */
   readonly kind: AnchorKind;
-  /** What it is and where it renders, for authors and for the install-time permission summary. */
+  /** What it is and where it renders, for authors and for anything describing a plugin. */
   readonly description: string;
   /**
    * The rest of the selector, appended to the resolved class: `[role="combobox"]`, `:not(...)`,

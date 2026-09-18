@@ -61,8 +61,13 @@ export function optionalGaps(uses: Uses, tables: IdentifierTables): string[] {
   return gapsOf(uses.optional, tables);
 }
 
-/** What a plugin will be able to do, one line each, for the install-time summary. */
-export function permissionSummary(uses: Uses): string[] {
+/**
+ * What a plugin does, one sentence per thing its manifest declares.
+ *
+ * Nothing here is a permission: a plugin's declarations are not granted, refused or approved, and
+ * `rigline list` prints these so a person can read what they installed.
+ */
+export function describeUses(uses: Uses): string[] {
   return [
     ...CONTRACTS.flatMap((contract) => contract.summary(uses[contract.key] as never)),
     ...CONTRACTS.flatMap((contract) =>

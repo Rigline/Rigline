@@ -1,17 +1,16 @@
 /**
  * What is installed, where it came from, and what it can do.
  *
- * This is where `permissionSummary` has a caller (docs/plan.md, "Disclosure, not permission").
- * Deliberately not `install`: that runs unattended under `watch` and again after every extension
- * update, so a capability summary there is the same paragraph about the same plugins on a loop,
- * which is the shape of output people stop reading. Here somebody asked the question.
+ * Deliberately not part of `install`, which runs unattended under `watch` and again after every
+ * extension update: a description of every plugin there is the same paragraph on a loop, which is
+ * the shape of output people stop reading. Here somebody asked the question.
  *
  * Listing order is discovery order, `last` included, so this and the baked registry can never
  * disagree about which plugin loads first — the thing mount ordering and rewrite composition both
  * rest on. Whether a plugin's declarations hold against an installed version is a different
  * question, and `check` owns it; nothing here reads an extension directory.
  */
-import { permissionSummary, type Uses } from "@rigline/plugin-api";
+import { describeUses, type Uses } from "@rigline/plugin-api";
 import { type DiscoveredPlugin, discoverPlugins, readConfig } from "./discover.ts";
 
 /** A discovery root and what to call it in the report. */
@@ -34,7 +33,7 @@ export interface PluginListing {
   /** False when `config.json` switched it off, which is the one state a person chose. */
   readonly enabled: boolean;
   readonly description: string | null;
-  /** `permissionSummary`: one sentence per thing the manifest declares. */
+  /** One sentence per thing the manifest declares. */
   readonly can: readonly string[];
   readonly patches: readonly PatchListing[];
 }
@@ -60,7 +59,7 @@ export function listPlugins(options: ListOptions): PluginListing[] {
     origin: label.get(plugin.root) ?? plugin.root,
     enabled: !disabled.has(plugin.name),
     description: plugin.manifest.description,
-    can: permissionSummary(plugin.manifest.uses as Uses),
+    can: describeUses(plugin.manifest.uses as Uses),
     patches: plugin.manifest.patches.map((patch) => ({
       why: patch.why,
       required: patch.required === true,
