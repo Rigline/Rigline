@@ -76,6 +76,18 @@ no such message; it just stops doing something, and the person running it has no
 
 Run `pnpm rigline check` to ask the question without installing anything.
 
+### Surfaces
+
+`surfaces` names the webviews your plugin is for, and absent means all of them. There are three:
+`editor` (the full panel), `sidebar` (the same panel, narrow), and `sessionList` (the list of
+sessions). `ctx.surface` tells you which one you are in.
+
+They are not the same page. The session list has no composer, so no composer footer and no
+`footerSpacer` to hang anything from: a plugin that wants a badge there mounts on `document.body`
+and positions it itself. A plugin that decorates the transcript belongs in `editor` and `sidebar`
+and should say so, rather than loading into a surface with no transcript and watching for something
+that will never appear.
+
 ### Optional dependencies
 
 A dependency you can do without goes under `uses.optional`, which mirrors `uses` key for key:

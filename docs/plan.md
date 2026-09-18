@@ -350,10 +350,10 @@ stopped refining), and so should `mounts.abandoned` (a name in it means the host
 over a position and the host conceded, so a decoration is gone and the panel flickered before it
 went). `rebind`'s peak is the early warning for the same thing.
 
-**Small items still carried.** `ctx.watch` on the session list has no composer footer, so a plugin
-wanting a badge there mounts on `document.body` — a sentence in the authoring guide, not an API
-change. The harness's `page.ts` could generate its reply table from the same anchors codegen reads;
-a wrong reply type sat in that table until a plugin needed the message.
+**Small items still carried.** The harness's `page.ts` hard-codes the reply *type* for each request
+in its table, and a wrong one sat there until a plugin needed the message. The bodies are
+hand-found and cannot be derived, but the types can: lifting the table out of the page's template
+string into real TypeScript would let a test check each against the harvested replies layer.
 
 ## Status log
 
