@@ -44,7 +44,7 @@ const USAGE = `rigline ${CORE_VERSION}
 
   rigline codegen [DIR] [--check] [--out FILE]
       Harvest the installed extension (or DIR) and write ./generated.ts: the identifier
-      augmentation your plugins compile against, and the baseline that update diffs. Commit it.
+      augmentation your plugins compile against, and the baseline install diffs. Commit it.
       --check compares instead of writing and exits 1 when the file is out of date. Either
       way it exits 1 if a curated anchor claims to name one element and this version
       applies its class in more than one place.
@@ -56,12 +56,11 @@ const USAGE = `rigline ${CORE_VERSION}
       Bundle a plugin's src/index.ts (or --source) into the entry its rigline.json names.
 
   rigline install [--ext DIR] [--payload DIR]
-      Inject the loader into every installed extension version (or DIR), harvesting each
-      version's tables and baking the enabled plugins. Reports what moved since the
-      baseline and which plugins each version refuses, rewrites ./generated.ts when the
-      directory has one, and records the new baseline. Tells you to commit; never commits.
-      Run it after an extension update. Reload webviews afterwards. Exits 1 when a person
-      is needed.
+      Inject the loader into every installed extension version (or DIR), baking the enabled
+      plugins, and report what moved since the baseline and which plugins each version
+      refuses. Rewrites ./generated.ts when the directory has one and records the new
+      baseline; never commits either. Run it after an extension update, and reload webviews
+      afterwards. Exits 1 when a person is needed.
 
   rigline check [--ext DIR]
       Read-only. Per installed version (or DIR): what moved since the baseline, which
@@ -111,12 +110,8 @@ function pluginOptions(): NonNullable<InstallOptions["plugins"]> {
 }
 
 /**
- * The one write command (D55): inject into every installed version, say what moved since the
- * baseline, record the new one.
- *
- * It absorbed `rigline update`, which was this plus the report and the baseline write — a report
- * and a recorded harvest, not a different act — and whose name every package manager gives to
- * updating what you installed. That sense is `update`'s in phase 4.
+ * The one write command: inject into every installed version, say what moved since the baseline,
+ * record the new one. `check` is its read-only half. `update` means plugins, in phase 4 (D55).
  */
 function installCommand(args: string[]): number {
   const { values } = parseArgs({
@@ -142,22 +137,6 @@ function installCommand(args: string[]): number {
       : "\nReload with Developer: Reload Webviews (current window only).",
   );
   return report.attention.length > 0 ? 1 : 0;
-}
-
-/**
- * `update` no longer re-injects, and says so rather than doing something adjacent.
- *
- * It could have been carried as an alias, and should not be: in phase 4 the word means *update my
- * plugins*, which is what `npm update` and `claude update` have already taught everyone it means,
- * and a verb that quietly changes meaning under somebody is worse than one that is briefly absent.
- */
-function updateCommand(): number {
-  throw new UserError(
-    "rigline update no longer re-injects the loader — run rigline install, which now reports " +
-      "what moved and records the baseline as well.\n\n" +
-      "(To update Rigline itself, use your package manager. To update installed plugins, " +
-      "update is the command, and it arrives in phase 4.)",
-  );
 }
 
 function statusCommand(): number {
@@ -486,8 +465,6 @@ async function main(argv: string[]): Promise<number> {
       return installCommand(rest);
     case "check":
       return checkCommand(rest);
-    case "update":
-      return updateCommand();
     case "watch":
       return watchCommand(rest);
     case "dev":

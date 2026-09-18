@@ -497,9 +497,16 @@ and `cargo update` all mean *update the things I installed*, and this extension'
 it ran `install` over every version and then the reporting half `check` already owns, so the
 difference between the two was a report and a recorded baseline, not a different act. So `install`
 absorbs the flow and is the one write command, `check` stays its read-only half, `update` is freed
-for the plugin sense every package manager already gives it, and there is no `upgrade`. Re-injection
-stops answering to `update` immediately, with an error naming `install`: a verb that silently
-changes meaning under somebody later is worse than one that is briefly absent.
+for the plugin sense every package manager already gives it, and there is no `upgrade`. `update`
+goes now rather than becoming an alias, because a verb that silently changes meaning under somebody
+later is worse than one briefly absent; typing it gets the usage.
+
+**A command never explains what it used to do.** The retirement was first written as an error
+narrating the old behaviour, which is a history lesson nobody needed: the project is weeks old, it
+has no users with habits to unlearn, and output that recounts its own past is output nobody has
+trimmed. The same rule retired the host patch's `why` from the install log — a paragraph of an
+author's rationale, repeated identically for every installed version, where the plugin's name was
+the whole of what a reader needed. `doctor` carries the full text, for the one case that wants it.
 
 **D43. The declaration check runs in Node at install, per extension directory, and names what it
 refused.** The same `capabilityViolation` the kernel asks at load is asked of every enabled plugin

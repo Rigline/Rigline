@@ -314,11 +314,14 @@ export function install(ext: string, options: InstallOptions): InstallReport {
         'extension.js changed: run "Developer: Reload Window" (this ends the window\'s sessions)',
       );
     }
+    // The plugin's name, not its `why`: the rationale is a paragraph, it is the same paragraph on
+    // every installed version, and `doctor` already carries it in full for the one case — a panel
+    // behaving oddly — where somebody wants to read it.
     for (const outcome of outcomes) {
       log(
         outcome.applied
-          ? `patched extension.js — ${outcome.why}`
-          : `patch NOT applied (${outcome.reason}) — ${outcome.why}`,
+          ? `patched extension.js for ${outcome.plugin}`
+          : `patch NOT applied for ${outcome.plugin}: ${outcome.reason}`,
       );
     }
 

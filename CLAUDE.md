@@ -79,9 +79,8 @@ Rebuilding the payload or a plugin and running `install` again refreshes the fil
 without rewriting the bundle. `restore` is the undo and the recovery from a blank panel; it needs
 only Node and this checkout.
 
-`install` is the one write command and `check` is its read-only half: there is no `rigline update`,
-because in phase 4 that word means *update my plugins*, which is what every package manager and
-`claude update` have already taught people it means (D55). Typing it says so.
+`install` is the one write command and `check` is its read-only half. There is no `rigline update`:
+in phase 4 that word means *update my plugins*, as it does in every package manager (D55).
 
 An update installs a new versioned directory and deletes the old one, so it silently reverts the
 injection. A window that was open keeps running the old directory until *Developer: Reload Window*.

@@ -850,16 +850,16 @@ report and a recorded harvest, not a different act. So:
   phase 4. There is no `upgrade`.
 - **`watch`** loops `install` and says so.
 
-`rigline update` stops working as re-injection *now*, with an error naming `install`, rather than
-being carried as an alias — a verb that quietly changes meaning under somebody in phase 4 is worse
-than one that is briefly absent. Its error also names what updating Rigline itself is, since that is
-the other thing a person typing it may have meant, and the answer is their package manager.
+`update` is simply gone until phase 4 gives it the plugin sense, rather than carried as an alias to
+`install`: a verb that quietly changes meaning under somebody is worse than one briefly absent.
+Typing it gets the usage, which names `install`, and no more than that — **a command never explains
+what it used to do.** This project has nothing to reminisce about, nobody has habits to unlearn, and
+output that narrates its own past is output nobody has trimmed.
 
 ### The work, in order
 
-1. **The rename**: `install` absorbs the flow, `update` refuses with a pointer, `watch` and the
-   help text follow. Before anything in phase 4, because every command below is described in terms
-   of it.
+1. **The rename**: `install` absorbs the flow, `update` goes, `watch` and the help text follow.
+   Before anything in phase 4, because every command below is described in terms of it.
 2. **`permissionSummary` into `install`'s report.** Once per plugin per run, after the per-version
    work — `install` walks every installed extension version, and printing every plugin's
    capabilities three times over is how output stops being read.
@@ -874,11 +874,12 @@ the other thing a person typing it may have meant, and the answer is their packa
 Start here. Phase 3 is built, merged and verified live; the anchor-ambiguity work above is done;
 phase 4 has not begun.
 
-**About this machine.** `extension.js` is patched on 2.1.268, 2.1.269 and 2.1.270 — worktree-prefix
-is the first plugin to declare a host patch. A host patch takes effect only after *Developer: Reload
-Window*, which ends every Claude session in that window, so do it at a moment you choose.
-`pnpm rigline restore` puts all three back to the extension's own bytes and needs neither VS Code nor
-the extension to be working.
+**About this machine.** Only 2.1.270 is installed — VS Code deleted 2.1.268 and 2.1.269 once
+nothing was serving them, which is the behaviour D4 exists for; both are still in the corpus. Its
+`extension.js` is patched, worktree-prefix being the one plugin that declares a host patch, and a
+host patch takes effect only after *Developer: Reload Window*, which ends every Claude session in
+that window. `pnpm rigline restore` puts it back to the extension's own bytes and needs neither VS
+Code nor the extension to be working.
 
 1. **Phase 4**, unblocked, and smaller than it was: see "Disclosure, not permission" and the three
    steps it ends with.
