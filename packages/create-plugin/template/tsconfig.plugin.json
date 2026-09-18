@@ -1,0 +1,11 @@
+{
+  "//": "The base every plugin here extends. `files` names the committed harvest so that its module augmentation is in each plugin's own program: augmentation is per-program, so a plugin whose tsconfig does not pull generated.ts in compiles with every extension identifier widened to `string`. Relative paths in an extended config resolve against the config that declared them, so this one entry serves every plugin however deep it sits. A plugin's own tsconfig overrides `include` and leaves `files` alone. That augmentation resolves `@rigline/plugin-api` from this directory rather than from the plugin's, which is why the workspace root depends on it too.",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["esnext", "dom"],
+    "types": [],
+    "noEmit": true,
+    "allowImportingTsExtensions": true
+  },
+  "files": ["generated.ts"]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "rigline-plugin-__NAME__",
+  "version": "0.1.0",
+  "description": "__DESCRIPTION__",
+  "type": "module",
+  "license": "MIT",
+  "files": ["dist", "rigline.json"],
+  "scripts": {
+    "build": "rigline build",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@rigline/plugin-api": "^1.0.0",
+    "rigline": "^1.0.0"
+  }
+}

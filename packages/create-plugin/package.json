@@ -1,0 +1,21 @@
+{
+  "name": "create-rigline-plugin",
+  "version": "1.0.0-alpha.0",
+  "description": "Scaffold a workspace for Claude Code VS Code extension plugins",
+  "type": "module",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "template"
+  ],
+  "bin": {
+    "create-rigline-plugin": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@rigline/plugin-api": "workspace:*"
+  }
+}

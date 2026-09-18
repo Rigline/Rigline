@@ -12,6 +12,7 @@
       "!**/node_modules",
       "!docs/archive",
       "!**/generated.ts",
+      "!packages/create-plugin/template",
       "!packages/plugin-api/schema"
     ]
   },

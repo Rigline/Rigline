@@ -143,6 +143,12 @@ importers:
         specifier: workspace:*
         version: link:../plugin-api
 
+  packages/create-plugin:
+    devDependencies:
+      '@rigline/plugin-api':
+        specifier: workspace:*
+        version: link:../plugin-api
+
   packages/harness:
     devDependencies:
       '@rigline/core':

@@ -1,0 +1,21 @@
+packages:
+  - plugins/*
+
+# Supply-chain settings, written down rather than inherited.
+#
+# Three of these are pnpm's own defaults today. They are stated anyway, because a default is not a
+# position: a fresh clone on a different pnpm, or a default that moves, would quietly change what
+# this repository is willing to install without anyone deciding to.
+#
+# minimumReleaseAge is the rule rigline applies to plugins, applied here to your own dependencies:
+# a day is where a compromised publish is usually caught, and a day of latency costs nothing.
+minimumReleaseAge: 1440
+
+# Only a direct dependency may come from a git repository or a tarball URL. A transitive dependency
+# that resolves outside the registry is the shape of a supply-chain problem rather than of an
+# ordinary package.
+blockExoticSubdeps: true
+
+# No dependency may run an install script. Empty because nothing here needs one; the day something
+# does, a person decides about it by name, here.
+allowBuilds: {}

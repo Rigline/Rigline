@@ -55,6 +55,7 @@ pnpm workspace, TypeScript throughout, every package a real package with its own
 | `packages/cli` | `rigline` | Thin command surface over core: `install`, `check`, `status`, `restore`, `add`, `remove`, `update`, `list`, `watch`, `doctor`, `codegen`, `diff`, `build`, `dev`. |
 | `packages/host` | `@rigline/host` (private) | The injected runtime: `pre.js` (bus tap, buffer, rewrite chain, React devtools hook, meters) and `post.js` (kernel plus capability modules). Built to exactly two files. |
 | `packages/plugin-api` | `@rigline/plugin-api` | What a plugin is written against: `PluginContext`, the manifest type and JSON schema, `definePlugin`, the anchor names, and the pure helpers shared by host and core (capability contracts, session rule, stream shape, transcript derivations). |
+| `packages/create-plugin` | `create-rigline-plugin` | The scaffold: `template/` as real files, copied and substituted. Published, and the only package here whose payload is not code. |
 | `packages/harness` | (private) | The Playwright tier: boots the real webview bundle from the corpus with a faked `acquireVsCodeApi` and a replayed bus. |
 | `plugins/session-id` | first-party plugin | Session id and inter-agent messaging address in the composer footer. |
 | `plugins/worktree-prefix` | first-party plugin | Worktree prefix on the session tab label; declares the worktree-list host patch. |
@@ -268,14 +269,23 @@ In order.
    with the fetch injectable, because no test here touches the network. `add <name>` in front of
    what `add <path>` already does, and `update` over the recorded sources. Exact versions and tags
    only, no ranges (D58).
-4. **The authoring guide and the `create-rigline-plugin` template** (D50). A pnpm workspace with
+4. **The authoring guide and the `create-rigline-plugin` template** (D50) — done 2026-09-18.
+   [authoring.md](authoring.md) is the guide. A pnpm workspace with
    `plugins/*`, one member scaffolded, `rigline codegen --out` run once at the root, and the
    manifest JSON schema from plugin-api. One ordering dependency, proved when D40 landed: module
    augmentation is per-program, so each plugin's tsconfig must pull the shared root harvest in,
    which a shared base config does.
+
+   The template is real files under `packages/create-plugin/template/`, copied and substituted
+   rather than rendered from strings, so it stays readable and reviewable; the scaffold writes a
+   placeholder `generated.ts` so a fresh clone typechecks before `codegen` has ever run, which is
+   D40's own promise made true at the one moment it is easiest to break. It ships without the
+   publish workflow: D50 has the template carry it, and item 6 is where it is proven before it is
+   handed to anybody.
 5. **Topic docs**: architecture, identifier layers, the bus, host patches, the transcript,
-   verification, surviving an update, publishing a plugin. [anchors.md](anchors.md) already covers
-   the anchor half of surviving an update.
+   verification. [anchors.md](anchors.md) covers the anchor half of surviving an update and
+   [authoring.md](authoring.md) covers publishing a plugin, so what is left is the internals a
+   contributor to Rigline itself reads.
 6. **Our own release pipeline** (D46), which is a separate track and gates none of the above. The
    staged-publish workflow for the three packages, proven on a real release before the template
    hands it to anyone else. One `pnpm stage publish -r` stages all three; each is approved on its
@@ -314,9 +324,9 @@ known risk to weigh when this phase starts.
 
 ## Next session
 
-Phase 4 item 4: the authoring guide and the `create-rigline-plugin` template (D50). Nothing blocks
-it. One ordering dependency, proved when D40 landed: module augmentation is per-program, so each
-plugin's tsconfig must pull the shared root harvest in, which a shared base config does.
+Phase 4 item 5, the topic docs, then item 6, the release pipeline. Item 6 needs Leo: the one-time
+npm setup is his, and `pnpm stage publish` and OIDC is an open question to verify before the
+workflow is written. The template ships without the publish workflow until that is proven.
 
 **About this machine.** Only 2.1.270 is installed — VS Code deleted 2.1.268 and 2.1.269 once nothing
 was serving them, which is the behaviour D4 exists for; both are still in the corpus. Its
@@ -405,6 +415,11 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
 - 2026-09-18: Trimmed the register and this plan to what is true now, and cut `doctor` back to
   Rigline's own install state (D53 amended), dropping about 1,600 lines of VS Code log parsing and
   the redaction machinery that existed to make reading those logs safe.
+- 2026-09-18: The template and the authoring guide landed. Scaffolding one and running it end to
+  end — install, typecheck, test, codegen, build, add, load — found two faults nothing else would
+  have: the template pinned TypeScript 5 and vitest 3 rather than the versions this repo tests
+  against, and with `allowBuilds: {}` that pnpm fails the very first install over an ignored
+  esbuild build script.
 - 2026-09-18: `add` from npm and `update` landed, with a tar reader of our own (D57) and no version
   ranges (D58). Two things the design got wrong and the work corrected: the release-age gate was
   written as a walk back to the newest version old enough, which would install a patch to an old

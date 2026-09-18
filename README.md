@@ -16,12 +16,16 @@ something new without touching the rigging itself.
 1.0 is under construction. [docs/plan.md](docs/plan.md) has the architecture, the phases and where
 things stand; [docs/decisions.md](docs/decisions.md) has the principles and decisions behind them.
 
+Writing a plugin: [docs/authoring.md](docs/authoring.md). Repairing one an extension update broke:
+[docs/anchors.md](docs/anchors.md).
+
 ## Layout
 
     packages/core         @rigline/core: harvest, codegen, inject, plugin discovery, update flow
     packages/cli          rigline: the command-line surface over core
     packages/host         the injected loader, pre.js and post.js
     packages/plugin-api   @rigline/plugin-api: what a plugin is written against
+    packages/create-plugin create-rigline-plugin: the scaffold a plugin author starts from
     plugins/              first-party plugins
     fixtures/             plugins that exist to be refused, used by tests only
     docs/                 plan, decisions, topic docs, archive

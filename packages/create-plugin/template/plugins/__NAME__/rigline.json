@@ -1,0 +1,14 @@
+{
+  "$schema": "../../node_modules/@rigline/plugin-api/schema/manifest.json",
+  "api": 1,
+  "name": "__NAME__",
+  "description": "__DESCRIPTION__",
+  "entry": "dist/index.js",
+  "surfaces": ["editor", "sidebar"],
+  "uses": {
+    "anchors": ["footerSpacer"],
+    "mount": true,
+    "style": true,
+    "tools": true
+  }
+}
