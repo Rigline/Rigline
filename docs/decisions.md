@@ -302,8 +302,9 @@ check with no mechanism of its own.
 ### The context
 
 **D18. `ctx` is built per plugin, scoped to its manifest, by a registry of capability modules.**
-A capability module carries its declaration schema, its layer expansion, its permission summary,
-its runtime grant, its diagnostics and its probe check. The kernel knows none of them by name.
+A capability module carries its declaration schema, its layer expansion, the sentence
+`describeUses` prints, its runtime grant, its diagnostics and its probe check. The kernel knows
+none of them by name.
 Plugins never import the host; a module singleton would defeat both the scoping and the
 attribution.
 
@@ -444,25 +445,15 @@ naming each other. `required` refuses the plugin when the patch cannot apply; op
 without. The file is written only when the bytes change, because a change needs a window reload
 that ends every session in the window.
 
-**D26. A host patch declared by a plugin from outside this repo requires explicit per-patch opt-in
-at install.** The mechanism can verify an anchor but cannot scope what the substitution does; the
-review that stood in for scoping stops existing when the author is not us.
+**D26. A plugin's declared host patch applies because the plugin is enabled.** Installing a plugin
+is the act that says yes, and nothing after it asks again — the same bargain VS Code strikes with an
+extension. The install names the plugins whose patches it applied; the author's `why` lives in
+`doctor` rather than being repeated per version in a log nobody reads (D55).
 
-**Deferred to an opt-in setting, and not built for 1.0 (amended 2026-09-15, Leo).** Installing a
-plugin is the consent act. A per-patch approval prompt is a permission system stronger than the
-host's own — VS Code has no granular permissions and never re-approves an extension whose new
-version does more — and it charges every user a prompt for a feature most of them do not want. A
-user who installed a plugin trusts its author and wants updates to work. So for 1.0 a plugin's
-declared patch applies because the plugin is enabled, and the install reports what it applied and
-why (P8: say it, do not ask it).
-
-This is deferred rather than discarded, and returns as a setting for people who want it. What the
-deferral rests on, and would have to change to reopen it: the patch is reversible without foresight
-— `extension.js.orig` is written before the first patch lands, every install rebuilds from it,
-disabling a plugin removes its patch, and `restore` needs neither VS Code nor a working extension.
-An approval prompt asks a user to predict a problem; the backup does not. One thing to carry into
-any future implementation, learned by specifying it twice: the gate must *read* approvals and never
-prompt, because `install` is what the watcher calls.
+The safety net is a backup, not a question put to the user. `extension.js.orig` is written before
+the first patch lands, every install rebuilds the host bundle from it, disabling a plugin removes
+its patch, and `restore` needs neither VS Code nor a working extension. That asks nobody to have
+predicted a problem, which is the one thing a prompt cannot do.
 
 ### Update flow
 
@@ -490,23 +481,17 @@ the more useful question anyway.
 `watch` it runs unattended, and the diff is the most useful thing an update produces.
 
 **D55. The flow is spelled `install`; `update` means plugins (2026-09-15, Leo).** The flow keeps its
-name in the code and loses it on the command line. `rigline update` meant *the extension moved;
-harvest it and put the loader back*, which no user will read correctly: `npm update`, `pnpm update`
-and `cargo update` all mean *update the things I installed*, and this extension's users also type
-`claude update` to get a new version of Claude Code. It was barely a separate command in any case —
-it ran `install` over every version and then the reporting half `check` already owns, so the
-difference between the two was a report and a recorded baseline, not a different act. So `install`
-absorbs the flow and is the one write command, `check` stays its read-only half, `update` is freed
-for the plugin sense every package manager already gives it, and there is no `upgrade`. `update`
-goes now rather than becoming an alias, because a verb that silently changes meaning under somebody
-later is worse than one briefly absent; typing it gets the usage.
+name in the code and loses it on the command line. `install` is the one write command — inject the
+loader everywhere, say what moved since the baseline, record the new one — `check` is its read-only
+half, `watch` loops `install`, and there is no `upgrade`. `update` is reserved for the sense every
+package manager already gives it: update the things I installed. `npm update`, `pnpm update` and
+`cargo update` all read that way, and this extension's users also type `claude update`.
 
-**A command never explains what it used to do.** The retirement was first written as an error
-narrating the old behaviour, which is a history lesson nobody needed: the project is weeks old, it
-has no users with habits to unlearn, and output that recounts its own past is output nobody has
-trimmed. The same rule retired the host patch's `why` from the install log — a paragraph of an
-author's rationale, repeated identically for every installed version, where the plugin's name was
-the whole of what a reader needed. `doctor` carries the full text, for the one case that wants it.
+**A command never explains what it used to do.** Output that recounts its own past is output nobody
+has trimmed. `update` falls through to the usage rather than to an error narrating a retirement, and
+the host patch's `why` stays out of the install log — a paragraph of an author's rationale, repeated
+per installed version, where the plugin's name is the whole of what a reader needs. `doctor` carries
+the full text, for the one case that wants it.
 
 **D43. The declaration check runs in Node at install, per extension directory, and names what it
 refused.** The same `capabilityViolation` the kernel asks at load is asked of every enabled plugin
@@ -539,7 +524,7 @@ declared it, and with no override the only repair is a Rigline release — npm, 
 age, so days, against an extension that updates weekly. That is survivable while the only consumer
 is also the maintainer and can edit the table in the repo. It stops being survivable the moment
 somebody else installs a plugin, so this has to land before `rigline add` puts one in anybody
-else's hands — and now that D26's opt-in is deferred, it is the only thing that does.
+else's hands.
 
 **D45. A retired identifier is reported with its likely successor, and never remapped.** A rename
 usually shows in the diff as one local name gone from a module and one new name arrived in the same
@@ -554,73 +539,47 @@ can be blamed for, and absent beats wrong.
 as a later phase; core is designed so either can be its consumer.** Confirmed by Leo 2026-09-13.
 
 **D32. User state lives under `~/.rigline`**: config, installed plugins, anchor-table overrides
-(D44), harvest baseline, class-map snapshots. A clone of this repo is for developing Rigline, not
-for using it.
+(D44) and the harvest baseline. A clone of this repo is for developing Rigline, not for using it.
 
 **D33. Plugins are distributed as npm packages carrying `rigline.json` and a built entry, or as a
-local directory for development.** Amended 2026-09-14: a git-repo source was weighed against npm and
-deferred, rather than never considered. The case for git was cadence, borrowed from D44's
-observation that the extension updates weekly and npm does not — but that belongs to the
-anchor table, which is the repair path needing no author at all. Plugin republishing is the other
-tier, slower and reviewed on purpose, and collapsing the two argued for degrading the slow tier to
-buy a speed the fast tier already supplies. What git costs is concrete: a repo holds source, so
+local directory for development.** A git-repo source was weighed and deferred rather than
+overlooked, and why it lost is worth keeping so it is not retried: a repo holds source, so
 installing from one means either running an author's build on a user's machine or requiring a
-committed `dist/`, and an artifact committed to git has no verifiable link to the commit that
-produced it, which is precisely the link a provenance attestation gives (D46). Nothing here
-forecloses git later; a source is recorded by kind from the first entry (D49) so a second kind is an
-adapter, not a migration.
+committed `dist/`. The cadence argument that favoured git belongs to the anchor table instead, which
+is the repair path needing no author at all (D44); plugin republishing is the slower tier on
+purpose. A source is recorded by kind from the first entry (D49), so git arrives later as an adapter
+rather than a migration.
 
-**D46. Publishing is trusted publishing plus staged publishing, and the plugin template ships the
-workflow that does both.** They are two independent mechanisms and are worth holding apart, because
-each closes a hole the other leaves open. Trusted publishing is how CI *authenticates*: GitHub
-Actions presents a short-lived OIDC token, npm accepts it from the workflow the package owner has
-named, and no npm credential exists in the repository to be stolen. Staged publishing is whether a
-publish *goes live*: `npm stage publish` needs no 2FA and produces a version nobody can install, the
-owner reviews the queue with `npm stage list` and `npm stage view <id>`, and `npm stage approve
-<id>` makes it installable and does require 2FA. Either works without the other — you can stage with
-an ordinary token, and you can trusted-publish straight to live. Both are taken because each covers
-the other's blind spot. Trusted publishing removes the standing secret, the credential-theft path
-that dominates real npm compromises, and is the only source of a provenance attestation.
-Staging covers everything an OIDC token does nothing about — a poisoned build dependency, an edited
-workflow, a compromised account with push rights — all of which reach the publish step by a route
-that looks legitimate. Taken alone the trusted half is the weaker one: it hands the workflow ambient
-publish rights with no human anywhere in the path.
+**D46. Our packages publish from CI, and the plugin template ships the same workflow.** GitHub
+Actions authenticates to npm over OIDC, so no npm credential sits in the repository, and `npm stage
+publish` puts a version in a queue that nobody can install until the owner approves it with `npm
+stage approve <id>` — which does require 2FA. That is ordinary release hygiene and nothing more:
+an approved stage says the owner meant to ship, never that the code is safe, and no part of Rigline
+reads a publishing arrangement as evidence about a plugin. The template carries the workflow so an
+author gets the good path by generating a repository rather than by reading a guide, and a plugin
+published any other way installs identically (P6).
 
-The primitive that makes the gate real is stage-only, and it is available on both kinds of
-credential: `Read and write (stage only)` on a granular token, and stage-only permissions on a
-trusted publisher, each refusing `npm publish` while accepting `npm stage publish`. There is no
-org-wide or package-wide switch that requires staging, so the credential inventory is the actual
-control surface: the gate holds exactly as long as *every* credential able to publish that package
-is stage-limited. One forgotten full-rights token silently voids it. The bootstrap token below is
-therefore revoked the moment the trusted publisher is configured, never left in a drawer.
+The one control that matters is the credential inventory: there is no org-wide or package-wide
+switch that requires staging, so the gate holds exactly as long as every credential able to publish
+is stage-limited. Both kinds support it — `Read and write (stage only)` on a granular token,
+stage-only permissions on a trusted publisher — and one forgotten full-rights token silently voids
+it.
 
-Rigline's own packages publish the same way — we ask no more of a plugin author than of ourselves,
-and the template is lifted from a workflow we run. Two steps cannot be automated and are Leo's: the
-npm organisation, and a bootstrap publish of each package under a temporary token. Staging is the
-documented blocker — npm states you cannot stage a brand-new package — and practitioners report the
-same of configuring a trusted publisher, which npm's own page does not state either way. Either
-constraint alone forces the same first step, so version one of each package goes up by hand and
-every version after it goes through the workflow.
+Floors: npm CLI 11.15.0 and Node 22.14, both below our own (D34). `pnpm stage publish -r` stages
+every publishable package whose version is not yet on the registry, so our three go up as one CI
+step and are approved individually; a single-package plugin repo needs no flag.
 
-Provenance belongs to the trusted-publishing half, not the staged half: a trusted publish generates
-an attestation binding the tarball to the commit and workflow that built it, and it requires the
-source repository to be public. Whether that attestation survives a staged approval is documented
-nowhere — `npm stage publish` accepts `--provenance`, which suggests it is produced at stage time
-and carried, but a flag is not evidence. Confirm it on our own first release, and do not let the
-authoring guide claim provenance until someone has seen it on a published package (P8).
+Two steps cannot be automated and are Leo's: the npm organisation, and a bootstrap publish of each
+package under a temporary token, since a brand-new package can be neither staged nor trusted-
+published. Revoke that token once the publisher is configured.
 
-Floors: npm CLI 11.15.0 and Node 22.14, both below our own (D34). pnpm wraps the same registry
-workflow as `pnpm stage publish` (since 11.3), and `-r` stages every publishable package in the
-workspace, so our three go up as one CI step and are approved individually; a single-package plugin
-repo needs no flag at all.
-
-**D47. `rigline add` never runs a package manager.** A plugin's distributed form is one browser ES
-module plus a manifest (P6), and the webview cannot resolve a bare specifier, so a plugin is already
-bundled by the time it is published and has no runtime dependency to install. `add` fetches the
-tarball, checks it against the registry's integrity hash, extracts it and validates the manifest as
-data (D12). There is no `node_modules`, no dependency resolution and no lifecycle script — a
-stronger position than passing `--ignore-scripts`, because the surface is declined rather than
-defended. A plugin that cannot be installed this way is a plugin we do not install.
+**D47. A plugin is distributed built, so `rigline add` never runs a package manager.** The
+distributed form is one browser ES module plus a manifest (P6) and the webview cannot resolve a bare
+specifier, so a published plugin has nothing left to resolve: `add` fetches the tarball, checks it
+against the registry's integrity hash, extracts it, and validates the manifest as data (D12). No
+`node_modules`, no dependency resolution, no lifecycle script — the surface is declined rather than
+defended, which is stronger than passing `--ignore-scripts`. A plugin that cannot be installed this
+way is a plugin we do not install.
 
 **D48. A published version must reach a minimum age before `add` or `update` will take it: 1440
 minutes by default, `--now` to override.** The number matches pnpm's `minimumReleaseAge` default and
@@ -635,17 +594,12 @@ version, its age, and the flag that takes it early.
 **D49. A source is recorded by kind and pinned identity, and `upgrade` reads it.**
 `~/.rigline/config.json` holds `{kind: "npm", name, version, integrity}` per plugin that `add`
 brought in. The kind discriminator is present from the first entry so the git source deferred in D33
-arrives as an adapter. The integrity hash is supply-chain hygiene — it says the bytes are the ones
-the registry served — and not a permission.
+arrives as an adapter. The integrity hash says the bytes are the ones the registry served, which is
+hygiene rather than a judgement about the plugin.
 
-**The declaration fingerprint is cut (amended 2026-09-15, Leo).** This was written as a
-`declarations` member compared on every fetch, so that a version widening a plugin's reach re-ran
-the permission summary and D26's opt-in. It goes with the prompt D26 now defers: a user who
-installed a plugin should not be re-asked because its author shipped a feature, and a fetch that
-stops on a widened declaration is exactly the failure that makes people stop fetching. The member
-had no other consumer.
-
-The verb `update` belongs to plugins rather than to this flow; see D55.
+`update` fetches a newer version and installs it, and never stops to ask about what that version
+declares: a user who installed a plugin should not be re-asked because its author shipped a feature,
+and a fetch that halts on a widened declaration is the failure that makes people stop fetching.
 
 A plugin the user placed in `~/.rigline/plugins/` by hand has no source record at all. It loads on
 the next inject with everything it declares, and it cannot be upgraded, which is the honest cost of
@@ -669,7 +623,7 @@ own bootstrap publish (D46). That is friction on a second plugin, never on a sec
 
 This does not weaken P6. The template is a convenience, exactly as the build preset is: a plugin is
 one browser-target ES module and a manifest however it was produced, and one built with npm, yarn,
-bun or a shell script is discovered, gated and loaded identically. What is published is the output
+bun or a shell script is discovered, checked and loaded identically. What is published is the output
 contract, never the toolchain — the template is how the good path is made the easy one, not a
 requirement we could enforce or would want to. The package name stays singular, because
 `create-rigline-plugin` is what an author types.
@@ -684,9 +638,9 @@ webview we do not own.
 
 **D36. Verification is split three ways.** Node tests for pure functions and file transforms,
 against throwaway copies and the corpus, never the live extension; the probe plugin for the real
-webview, one check per capability, `n/a` where a check cannot apply on a surface; and, if the
-phase 2 spike succeeds, a Playwright tier that boots the real bundle from the corpus with a faked
-`acquireVsCodeApi` and a replayed bus. The spike was confirmed by Leo 2026-09-13.
+webview, one check per capability, `n/a` where a check cannot apply on a surface; and a Playwright
+tier that boots the real bundle from the corpus with a faked `acquireVsCodeApi` and a replayed bus,
+which is `packages/harness`.
 
 **D37. Byte-faithful I/O for every bundle read and write, and LF enforced in the repo.** Text-mode
 I/O on Windows rewrites every line ending and turns a 133-byte patch into a 2.2 KB one.
@@ -718,15 +672,16 @@ webview reload, a window reload and a force-close alike. It is bounded, written 
 rather than per frame, read back at boot, and every access is wrapped: storage that is full,
 disabled or cleared must cost a diagnostic, never a panel.
 
-**`rigline doctor` collects what a webview cannot see, and stops there.** Install state per version,
-patched or vanilla, and the lines in VS Code's own logs that bear on a misbehaving panel —
-unresponsive events with their sample stacks, extension-host and renderer errors. That is where the
-evidence actually lived during the lockup, and no amount of in-webview instrumentation would have
-reached it. It is deliberately not a general VS Code health checker: the test for including a source
-is whether it can speak to a panel that misbehaved, not whether it is interesting.
+**`rigline doctor` reports Rigline's own install state, and nothing else** (amended 2026-09-18,
+Leo). Per installed version: patched or vanilla by backup, the payload directories present, which
+plugins are discovered and enabled, and which this version's tables refuse and by which identifier.
+That plus the probe's copied report is what a bug report needs, and both come from files we wrote.
 
-**It reads timing and error lines only, never message content, and prints what it included.** The
-extension's own log runs to megabytes of prompts, tool commands, file paths and session ids. A
-report meant to be pasted into an issue that scooped that up would be a serious leak, and the person
-pasting it would have no way to know. Redaction is therefore a property of what the collector reads
-rather than a filter applied afterwards, because a filter is a thing that can be forgotten.
+VS Code's own logs are deliberately out of scope, having been in it and cut. Parsing them took more
+code than the harvest that is the reason this project exists, against five formats nobody documents,
+to explain one lockup whose cause was our own superseded payload directories and was found without
+it. It also meant reading files full of prompts, tool commands and file paths into a report people
+are told to paste into an issue, so the redaction machinery that made that safe was itself a
+liability with a way to be forgotten. Declining to read them removes both. If a panel misbehaves in
+a way the install state cannot explain, ask for the log lines rather than shipping a parser for
+them.

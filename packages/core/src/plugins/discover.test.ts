@@ -274,6 +274,7 @@ describe("capabilityUseNotes", () => {
     return {
       name,
       dir,
+      root,
       manifest: {
         api: 1,
         name,

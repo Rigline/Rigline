@@ -2,8 +2,8 @@
  * Where Rigline keeps a user's state (decisions.md, D30, D32).
  *
  * A clone of this repo is for developing Rigline; using it leaves nothing in the clone. Config,
- * installed plugins, the harvest baseline and class-map snapshots live under one directory in the
- * user's home, overridable for tests and for anyone who keeps dotfiles elsewhere.
+ * installed plugins, the anchor-table override and the harvest baseline live under one directory in
+ * the user's home, overridable for tests and for anyone who keeps dotfiles elsewhere.
  */
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -24,8 +24,6 @@ export interface RiglinePaths {
   readonly plugins: string;
   /** The last harvest, as a scan, for "what changed" after an extension update. */
   readonly baseline: string;
-  /** Class-map snapshots per extension version, for cross-version diffing. */
-  readonly snapshots: string;
 }
 
 export function riglinePaths(home = riglineHome()): RiglinePaths {
@@ -34,6 +32,5 @@ export function riglinePaths(home = riglineHome()): RiglinePaths {
     config: join(home, "config.json"),
     plugins: join(home, "plugins"),
     baseline: join(home, "baseline.json"),
-    snapshots: join(home, "snapshots"),
   };
 }

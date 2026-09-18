@@ -16,55 +16,11 @@ export {
 } from "./anchors/resolve.ts";
 export type { Generated } from "./codegen/generate.ts";
 export { generate } from "./codegen/generate.ts";
-export type {
-  DoctorOptions,
-  DoctorReport,
-  LaunchReport,
-  LogRoot,
-  LogRootReport,
-  ReadRecord,
-  SkipRecord,
-  WindowReport,
-} from "./doctor/collect.ts";
-export {
-  collect,
-  DEFAULT_SINCE_MS,
-  launchActivityMs,
-  logRootCandidates,
-  MAX_LOG_BYTES,
-  parseSince,
-  SKIP_REASONS,
-  selectLaunches,
-} from "./doctor/collect.ts";
+export type { DoctorOptions, DoctorReport } from "./doctor/collect.ts";
+export { collect } from "./doctor/collect.ts";
 export type { BakedPlugin, BakedRegistry, FileFact, InstallState } from "./doctor/install.ts";
 export { fileFact, installState, installStates, parseRegistry } from "./doctor/install.ts";
-export type {
-  ErrorGroup,
-  ErrorSummary,
-  ExtensionHostExit,
-  LogEntry,
-  MainLog,
-  SampleBlock,
-  UncaughtException,
-  UnresponsiveEpisode,
-} from "./doctor/logs.ts";
-export {
-  closingExit,
-  DUPLICATE_RECOVERY_MS,
-  errorSummary,
-  hostStarts,
-  parseEntries,
-  parseMainLog,
-  parseStamp,
-  WINDOW_CLOSE_MS,
-} from "./doctor/logs.ts";
-export {
-  formatBytes,
-  formatDoctor,
-  formatDuration,
-  formatTime,
-  formatWindow,
-} from "./doctor/report.ts";
+export { formatBytes, formatDoctor, formatTime } from "./doctor/report.ts";
 export { UserError } from "./errors.ts";
 export {
   HOST_BACKUP,

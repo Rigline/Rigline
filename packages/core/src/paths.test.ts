@@ -17,7 +17,6 @@ describe("riglineHome", () => {
       config: join("/g", "config.json"),
       plugins: join("/g", "plugins"),
       baseline: join("/g", "baseline.json"),
-      snapshots: join("/g", "snapshots"),
     });
   });
 });

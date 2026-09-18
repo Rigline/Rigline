@@ -1,9 +1,8 @@
 # Rigline 1.0 plan
 
 The working document: what is being built, in what order, and where it stands. Durable rules live
-in [decisions.md](decisions.md); this file is about getting to 1.0.
-
-Started 2026-09-13. Phase 0 in progress.
+in [decisions.md](decisions.md); this file is about getting to 1.0. Phases 0 to 3 are done and
+phase 4 is next.
 
 ## What Rigline is
 
@@ -16,37 +15,22 @@ The ambition is a community-maintained system in the spirit of Forge for Minecra
 stable-enough API over a host that changes weekly by design, with the fragile parts owned in one
 place and the extension points curated.
 
+The user's story is short and the design answers to it: find a plugin, install it, keep it updated
+without thinking about it.
+
 ## Inputs
 
-- **The 0.x archive**, [archive/0.x/](archive/0.x/README.md): design documents, measurements and
-  source inventories from the 0.x prototype. It is the evidence behind most of the decisions and
-  most of the numbers cited in them. OCR-recovered, so its numbers are indicative and its regexes
-  are to be re-derived rather than copied.
+- **The 0.x archive**, [archive/0.x/](archive/0.x/README.md): the prototype's design documents,
+  measurements and source inventories, and the evidence behind most of the numbers the decisions
+  cite. OCR-recovered, so re-derive a regex rather than copying it, and re-measure before quoting a
+  number as current.
 - **A bundle corpus** at `c:\dev\kb\vscode-claude-code-versions\<version>\` holding `extension.js`,
-  `webview/index.js`, `webview/index.css` and `package.json` for 2.1.268, 2.1.269 and 2.1.270,
-  snapshotted 2026-09-13. The extension deletes superseded directories on update, so this is the
-  corpus until older VSIXs are fetched from the Marketplace.
-- **Live validation on 2.1.270** (2026-09-13) of every anchor the design rests on:
-
-| anchor | result |
-| --- | --- |
-| `acquireVsCodeApi` in the webview bundle | present once |
-| CSP `default-src 'none'`, `script-src 'nonce-`, no `connect-src` | confirmed |
-| `__REACT_DEVTOOLS_GLOBAL_HOOK__`, `findFiberByHostInstance`, `memoizedProps` | present |
-| `processRequest(` (the inbound-request anchor family) | present |
-| `includeWorktrees:!1` in `extension.js` (the worktree-list host patch) | exactly one match |
-| `modelPill_gGYT1w`, `modelPillRow_gGYT1w` | present; the hash is `gGYT1w` with a digit one |
-| `sessionItem_OOQiHg`, `worktreePill_OOQiHg`, `statusFilterMenuButton_OOQiHg` | present |
-| `message_07S1Yg`, `timelineMessage_07S1Yg`, `userMessageContainer_07S1Yg` | present |
-| `worktreeBannerName_aqhumA` | present |
-| `sendRequest({type:"…"})` outbound request literals | 111 distinct |
-| `data-transcript-message` | present since 2.1.268; not an anchor, too new |
-
-Toolchain on this machine: Node 26.8.1, pnpm 12.3.4.
+  `webview/index.js`, `webview/index.css` and `package.json` per version. The extension deletes
+  superseded directories on update, so snapshot a new version there before it goes.
 
 ## Physics
 
-Four facts about the host force the shape of everything else, and each was re-confirmed above:
+Four facts about the host force the shape of everything else.
 
 - The webview CSP has no `connect-src`, so nothing in the webview can read a file or fetch. Plugin
   discovery therefore happens at install time in Node and is baked into a module the loader imports.
@@ -67,10 +51,11 @@ pnpm workspace, TypeScript throughout, every package a real package with its own
 
 | path | package | what it is |
 | --- | --- | --- |
-| `packages/core` | `@rigline/core` | Node library: locate installed extensions, harvest identifier layers, generate types and runtime tables, inject and restore, discover plugins and bake the registry, run the update flow, watch for updates, hold the curated anchor table. The CLI and a future companion extension both consume it. |
-| `packages/cli` | `rigline` | Thin command surface over core: `install`, `check`, `status`, `restore`, `watch`, `doctor`, `codegen`, `diff`, `build`, `dev`, and in phase 4 `add`, `remove`, `list`, `update` (D55). |
-| `packages/host` | `@rigline/host` (private) | The injected runtime: `pre.js` (bus tap, buffer, rewrite chain, React devtools hook) and `post.js` (kernel plus capability modules). Built to exactly two files. |
-| `packages/plugin-api` | `@rigline/plugin-api` | What a plugin is written against: `PluginContext`, the manifest type and JSON schema, `definePlugin`, the generated identifier unions, and the pure helpers shared by host and core (capability contracts, session rule, stream shape, transcript derivations). |
+| `packages/core` | `@rigline/core` | Node library: locate installed extensions, harvest identifier layers, generate types and runtime tables, inject and restore, discover plugins and bake the registry, run the install flow, watch for updates, hold the curated anchor table. The CLI and a future companion extension both consume it. |
+| `packages/cli` | `rigline` | Thin command surface over core: `install`, `check`, `status`, `restore`, `list`, `watch`, `doctor`, `codegen`, `diff`, `build`, `dev`, and in phase 4 `add`, `remove`, `update` (D55). |
+| `packages/host` | `@rigline/host` (private) | The injected runtime: `pre.js` (bus tap, buffer, rewrite chain, React devtools hook, meters) and `post.js` (kernel plus capability modules). Built to exactly two files. |
+| `packages/plugin-api` | `@rigline/plugin-api` | What a plugin is written against: `PluginContext`, the manifest type and JSON schema, `definePlugin`, the anchor names, and the pure helpers shared by host and core (capability contracts, session rule, stream shape, transcript derivations). |
+| `packages/harness` | (private) | The Playwright tier: boots the real webview bundle from the corpus with a faked `acquireVsCodeApi` and a replayed bus. |
 | `plugins/session-id` | first-party plugin | Session id and inter-agent messaging address in the composer footer. |
 | `plugins/worktree-prefix` | first-party plugin | Worktree prefix on the session tab label; declares the worktree-list host patch. |
 | `plugins/time-marks` | first-party plugin | Clock times and pause dividers on transcript rows. |
@@ -90,34 +75,33 @@ that adding one is a module or a table row.
 
 **Identifier layers** (core). A layer is a module implementing one interface: `harvest(bundles)`,
 a `floor` that guards the harvest's own regex rather than judging the extension, `diff(a, b)`, and
-a declaration check. Initial layers: CSS-module classes (a module-scoped map from the webview
-bundle); the protocol in four directions (outbound request, outbound notification, inbound push,
-inbound request, each from its own dispatch-site anchor); outbound payload fields (one level under
-the request anchors, intersected across send sites, marked partial where a spread hides keys);
-host replies (from `extension.js`, derived from the request side by naming convention); and React
-internals (asserted, not collected). Codegen, the stability diff and the update gate iterate the
-registry; nothing else knows the list.
+a declaration check. The five: CSS-module classes (a module-scoped map, with per-class application
+counts); the protocol in four directions, each from its own dispatch-site anchor; outbound payload
+fields, intersected across send sites and marked partial where a spread hides keys; host replies,
+derived from the request side; and React internals, asserted rather than collected. Codegen, the
+stability diff and the install gate iterate the registry; nothing else knows the list.
 
 **Capabilities** (contract in plugin-api, grant in host, check in core). A capability module
 carries: its manifest key and schema fragment; its expansion into identifier-layer dependencies;
-the permission-summary sentence shown at install; the runtime grant that builds its slice of `ctx`
-for one plugin; its diagnostics; and its probe check. The `post.js` kernel loads the registry,
-checks declarations, builds each plugin's `ctx` by asking every capability module for its slice,
-and isolates failures. Initial capabilities: `classes` (raw `cls`), `anchors` (curated),
-`messages` (`onMessage`), `mount` (`mount`, `mountAfter`, `mountBefore`, `watch`), `style`, `rewrites`
-(`rewrite`, `resend`), `tools` (`onToolUse`), `session` (`onSessionId`), `transcript`
-(`decorateTranscript`), and `surface`.
+the sentence `describeUses` prints; the runtime grant that builds its slice of `ctx` for one plugin;
+its diagnostics; and its probe check. The `post.js` kernel loads the registry, checks declarations,
+builds each plugin's `ctx` by asking every capability module for its slice, and isolates failures.
+The ten: `classes` (raw `cls`), `anchors` (curated), `messages` (`onMessage`), `mount` (`mount`,
+`mountAfter`, `mountBefore`, `watch`), `style`, `rewrites` (`rewrite`, `resend`), `tools`
+(`onToolUse`, `onToolResult`), `session` (`onSessionId`), `transcript` (`decorateTranscript`), and
+`surface`.
 
-**Anchors** (core table; types flow to plugin-api). The curated map from a stable name to a
-module-scoped class: `modelPill` is `{ module: "gGYT1w", local: "modelPill" }`. Plugins declare
-and use names; the update flow validates the table once per extension version; a retired anchor
-is reported against the table and refuses only the plugins that use it. This is Rigline's mappings
+**Anchors** (core table; names flow to plugin-api). The curated map from a stable name to a
+module-scoped class and the selector it resolves to: `modelPill` is `{ module: "gGYT1w", local:
+"modelPill", kind: "singleton", refine: '[role="combobox"]' }`. Plugins declare and use names; the
+install flow validates the table once per extension version; a retired or newly ambiguous anchor is
+reported against the table and refuses only the plugins that use it. This is Rigline's mappings
 file, in the Forge sense. Raw `cls(module, local)` stays available as the escape hatch, so nobody
 is blocked on curation.
 
 ### The manifest
 
-`rigline.json`, `api: 1`. Sketch, to be fixed in phase 2 when the capability modules exist:
+`rigline.json`, `api: 1`.
 
 ```json
 {
@@ -143,12 +127,25 @@ is blocked on curation.
 }
 ```
 
-Everything a plugin depends on sits under `uses`, so the permission summary is a walk over one
-object. `uses.optional` mirrors it key for key and is checked the same way, but a missing optional
-is reported rather than refusing the plugin (D41). `patches` stays top-level because it is not a use
-of the webview; it changes the host. Package metadata (`version`, `homepage`, `repository`,
-`license`) comes from `package.json`; the manifest carries only what the installer needs without
-executing anything.
+**`uses` is a dependency manifest, and that is the whole of its job.** Every key names something
+the plugin needs the installed extension to still have, so that an update which retires one refuses
+the plugin by name (P2) instead of leaving it subtly broken, and so that `describeUses` can say what
+a plugin does when somebody asks. `uses.optional` mirrors it key for key, is checked the same way,
+and reports rather than refuses (D41). `patches` stays top-level because it is not a use
+of the webview; it changes the extension host. Package metadata (`version`, `homepage`,
+`repository`, `license`) comes from `package.json`; the manifest carries only what the installer
+needs without executing anything.
+
+### What a plugin can do
+
+Plugins run in the app's realm with full DOM access and can read every message on the bus. That is
+the same trust a VS Code extension asks for, and it is documented as such rather than dressed up.
+Installing a plugin is the act that says yes and nothing after it asks again (D26).
+
+What the system does add is shape: a read tap is handed a frozen clone and cannot write; a write is
+a patch over declared fields of a message the app already chose to send; the app's message reaches
+the extension host whatever a plugin does (P4); one plugin's failure never costs another (P3); and
+every host patch is reversible from `extension.js.orig` without the user having predicted anything.
 
 ### Surviving an extension update
 
@@ -157,7 +154,7 @@ matters is not a spread of old versions to support: it is the window between an 
 plugin's maintainer catching up. Four mechanisms shorten that window, ranked by what they buy.
 
 - **The anchor table and its local override** (D7, D44). The only repair that works without the
-  plugin's author: one curated pair, fixed once, repairs every plugin that used the name, and
+  plugin's author: one curated entry, fixed once, repairs every plugin that used the name, and
   `~/.rigline/anchors.json` lets that fix reach users the day it is found rather than the day it is
   published. This is the argument for curating aggressively, and for counting a plugin's raw `cls()`
   calls at install, since those are the dependencies no table fix can reach.
@@ -175,314 +172,102 @@ per-version variants ask an author to predict a release that does not exist yet.
 
 The repo commits `generated.ts` **at the workspace root** as the baseline the first-party plugins
 compile against — our own harvest, not something published (D40); a plugin author runs `rigline
-codegen` in their own repo and commits theirs. It sits at the root rather than inside
-`packages/plugin-api/src/` for three reasons, settled in phase 3: keeping a harvest out of the
-published package is then a property of the layout rather than an exclusion rule somebody has to
-remember; one file serves every plugin in the repo, which is the shape the phase 4 template needs
-(D50); and it makes the default `rigline codegen` output the same rule for us as for an author —
-`generated.ts` in the current directory. The file imports nothing, so it is free of any package it
-sits beside. It carries three things: the module augmentation D40 describes, `EXTENSION_VERSION`,
-and `SCAN`, the harvest reduced to its layer views, which is the baseline the update flow diffs
-against (D29). A user's machine keeps its own state under `~/.rigline/`:
-`config.json` (enabled plugins, per-plugin settings), `plugins/` (installed third-party plugins),
-`anchors.json` (local overrides and additions to the curated anchor table), `baseline.json` (the
-last harvest, for "what changed" after an update) and `snapshots/` (class maps per version). A
-clone of this repo is for developing Rigline, not for using it.
+codegen` in their own repo and commits theirs. It sits at the root so that keeping a harvest out of
+the published package is a property of the layout rather than an exclusion rule somebody has to
+remember, so that one file serves every plugin in the repo the way the phase 4 template needs (D50),
+and so that the default `rigline codegen` output is the same rule for us as for an author. The file
+imports nothing. It carries the module augmentation D40 describes, `EXTENSION_VERSION`, and `SCAN`,
+the harvest reduced to its layer views, which is the baseline the install flow diffs against (D29).
+
+A user's machine keeps its own state under `~/.rigline/`: `config.json` (enabled plugins,
+per-plugin settings), `plugins/` (installed third-party plugins), `anchors.json` (local overrides
+and additions to the curated anchor table), and `baseline.json` (the last harvest). A clone of this
+repo is for developing Rigline, not for using it.
 
 ### Distribution
 
-`@rigline/core` and the `rigline` CLI are published to npm; plugins are npm packages carrying a
-`rigline.json` and a built entry, installed with `rigline add <spec>`, or a local directory during
-development. The version-specific half (identifier tables, registry, resolved anchors) is derived
-on the installing machine from the bundle in front of it, so there is no version matrix to ship.
-`@rigline/plugin-api` publishes the anchor names, the manifest type and the context types, and no
-harvested identifier unions (D40), so the published API version never doubles as an extension-version
-pin. A companion VS Code extension wrapping core for hands-off updates, a reload prompt and a
-settings UI is a later phase; core is designed so it can be that consumer. Publishing anything is
-Leo's step.
+`@rigline/core`, `@rigline/plugin-api` and the `rigline` CLI are published to npm; plugins are npm
+packages carrying a `rigline.json` and a built entry, installed with `rigline add <spec>`, or a
+local directory during development. The version-specific half (identifier tables, registry, resolved
+anchors) is derived on the installing machine from the bundle in front of it, so there is no version
+matrix to ship, and no published type union doubles as an extension-version pin (D40).
 
-**How a version gets published** (D46). CI stages, a human approves. A GitHub Actions workflow
-authenticates to npm over OIDC — no token in the repository — and runs `npm stage publish`, which
-needs no 2FA and does not make the version installable. The owner reviews the queue (`npm stage
-list`, `npm stage view <id>`, `npm stage download <id>` for the tarball itself) and promotes with
-`npm stage approve <id>`, which does prompt for 2FA. These are two separate mechanisms doing two
-separate jobs — OIDC decides how CI authenticates, staging decides whether a version goes live — and
-the trusted publisher is configured with stage-only permissions so that CI is *permitted* to stage
-and refused `npm publish`, rather than merely choosing to behave. Rigline's own three packages
-publish through this pipeline, and `create-rigline-plugin` ships the same workflow, so an author
-gets it by generating a repository rather than by reading a guide. The one-time steps that cannot be
-automated are Leo's: the npm organisation, 2FA on the account that approves, a bootstrap publish of
-each package under a temporary token (npm states a brand-new package cannot be staged), then the
-trusted-publisher entry naming the repo, workflow file and environment, set to stage-only, and then
-revoking that bootstrap token. The revocation is not tidying: there is no setting that requires
-staging, so the gate holds only while every credential able to publish the package is stage-limited,
-and one surviving full-rights token quietly reopens the direct path. Provenance comes from the OIDC
-half and needs the source repo public.
+`add` resolves the version, refuses anything younger than the minimum release age unless `--now` is
+passed, fetches and integrity-checks the tarball, and extracts it — no package manager runs, because
+a plugin is one bundled ES module and a manifest (D47, D48). `config.json` records the source by
+kind, pinned version and integrity, which is what lets `update` fetch a newer one later (D49).
 
-**What `add` does on the way in** (D47, D48, D49). It resolves the version against the registry,
-refuses anything younger than the minimum release age unless `--now` is passed, fetches and
-integrity-checks the tarball, and extracts it — no package manager runs, no `node_modules` exists
-and no lifecycle script is available to run, because a plugin is one bundled ES module and a
-manifest. The manifest is then read as data and summarised — what the plugin will be able to do,
-and any host patch it declares, shown rather than asked. `config.json` records the source by kind,
-pinned version and integrity, which is what lets `upgrade` fetch a newer one later.
-
-### Trust model
-
-Plugins run in the app's realm with full DOM access and can read every message on the bus, which
-is the same trust a VS Code extension asks for, and is documented as such. Installing a plugin is
-the consent act, and nothing after it asks again. What the system adds is disclosure and shape
-rather than permission: every dependency is declared and shown as a summary at install, a read tap
-cannot write, a write is limited to declared fields of messages the app already sends, and every
-host patch the install applies is reported with the reason its author gave. Deliberately not added,
-and deferred to an opt-in setting: per-patch approval and re-approval when a new version declares
-more (D26, D49). VS Code itself has neither, and a user who installed a plugin wants its updates to
-work.
+Our own packages publish from CI: OIDC to npm so no credential sits in the repo, `npm stage publish`
+into a queue, a human approving with 2FA (D46). That is release hygiene for our packages and the
+template's default, not a claim about any plugin. Publishing anything is Leo's step.
 
 ## Phases
 
-Each phase ends with a commit and a status-log entry. The acceptance lines are the definition of
-done.
+Each phase ends with a commit and a status-log entry.
 
-### Phase 0: record and scaffold (this session)
+### Phase 0: record and scaffold — done 2026-09-13
 
-- Archive and plan and decisions in `docs/`. Done.
-- Corpus snapshot outside the repo. Done.
-- Workspace scaffold: pnpm workspace, TypeScript 7, Rolldown, Vitest, Biome with semicolons
-  required, `.gitattributes` forcing LF, packages that build empty.
-- Acceptance: `pnpm install`, `pnpm build`, `pnpm test`, `pnpm lint` succeed on the empty
-  workspace; first commit on `main`.
+Archive, plan and decisions in `docs/`; corpus snapshot outside the repo; pnpm workspace with
+TypeScript 7, Rolldown, Vitest, Biome and LF enforced.
 
-### Phase 1: core harvest and codegen (done 2026-09-13)
+### Phase 1: core harvest and codegen — done 2026-09-13
 
-- The identifier-layer registry and its five initial layers, every regex derived against the
-  2.1.270 bundle and pinned by synthetic fixtures plus the corpus (skip when missing). Done.
-- Codegen: `generated.ts` (types plus the tables as data) and the runtime rendering the injector
-  will write per extension directory. Done; `rigline codegen --check` is byte-stable.
-- The extension locator (version-sorted, oldest first), the pristine-bundle rules, the stability
-  diff. Done.
-- The anchor table, seeded with twenty-six names covering every class the first-party plugins and
-  the probe use, every one verified against 2.1.270. Done.
-- Drift 2.1.268 to 2.1.270 measured; see the status log. Done.
-- Not done, deferred: `rigline corpus fetch <version>` for Marketplace VSIXs; and the compile-time
-  proof (a test that drives `tsc` over a fixture plugin to show a wrong module/class pair and an
-  unknown message type fail to compile) waits for `PluginContext` in phase 2, since that is the
-  type it exercises.
-- Acceptance met: `generated.ts` for 2.1.270 committed; every codegen anchor asserted; 174 tests
-  green.
+The identifier-layer registry and its five layers, every regex derived against the 2.1.270 bundle
+and pinned by synthetic fixtures plus the corpus. Codegen (`generated.ts` plus the runtime tables
+written per extension directory), byte-stable under `--check`. The extension locator, the
+pristine-bundle rules, the stability diff, and the anchor table.
 
-### Phase 2: injector, host kernel, probe
+Deferred out of the phase and still open: `rigline corpus fetch <version>` for Marketplace VSIXs.
 
-- Inject, restore and status: byte-faithful I/O, the backup file as the authority on patched
-  state, every installed version patched, host patches rebuilt from `.orig`, tests against
-  throwaway copies only.
-- `pre.js`: wrapper, taps, sealed buffer, clone-and-freeze, rewrite chain, resend, outbound
-  counts, devtools hook. Its Node test drives the built file.
-- `post.js` as kernel plus capability modules, including `anchor`, `watch`, `style` and `surface`.
-- The probe as a first-party plugin whose checks are contributed by the capability modules.
-- The Playwright harness spike, time-boxed: load the 2.1.270 webview bundle in a plain page with a
-  faked `acquireVsCodeApi`, the `IS_*` globals and a replayed bus. If it boots, host and plugin DOM
-  tests gain a real-DOM tier. Record the outcome either way.
-- Acceptance: injected on this machine; Leo reloads webviews and the probe reports every check
-  green on the full editor, the sidebar and the session list; `restore` round-trips.
-- Status 2026-09-13: everything above is built and merged; the spike succeeded and the harness
-  is committed as `packages/harness` with six tests that drive the real 2.1.270 bundle (boot,
-  mount ordering, error isolation, refusal by name without import, transcript timing, rewrite).
-  `rigline install` has injected 2.1.268, 2.1.269 and 2.1.270 on this machine with the probe
-  enabled. Awaiting the live reload and the badge on all three surfaces.
-- Defect found and fixed 2026-09-14, **superseded payload directories**. `install` and `restore`
-  only ever wrote and removed the *current* payload directory, so the rename left
-  `webview/prototype/` sitting beside `webview/rigline/` in all three installed versions. The live
-  bundle no longer referenced it — `settleWebviewBackup` had correctly rolled the old patch back —
-  but a webview opened *before* the reinstall still held `./prototype/pre.js` and `./prototype/post.js`
-  resolved in its module graph, and those files were still on disk, so it went on running the
-  whole superseded loader: a second `MutationObserver`, devtools hook chain, `io_message` tap and
-  transcript sweep, alongside the new generation in any freshly opened surface. The symptom was
-  VS Code locking up with the sidebar and an editor session open together, which is why it
-  presented as a two-surface bug and cleared after a remove and fresh install. Both commands now
-  delete superseded payload directories by name. The deliberate caution at
-  `settleWebviewBackup` — never delete a payload directory on the strength of bytes this installer
-  did not write — is unchanged and still right; a directory *we* named is not foreign.
-- Defect found and fixed 2026-09-14, **the probe's boot-window false negative**. The badge came up
-  `RIG 1` for about a second on a fresh window before turning green. The failing check was
-  "replay buffer sealed", and it could not have been anything else: the probe's first
-  `pollDiagnostics()` ran synchronously inside its own `setup()`, and `setup()` runs inside the
-  kernel's plugin-loading loop, while `bus.sealBuffer()` is deliberately called only once that loop
-  has finished. So the probe asked before the answer could exist. The first poll is now deferred to
-  a macrotask, which is after the kernel's `finally` because everything between is a microtask
-  continuation, and is sound because the probe is pinned last in registry order. That fixes the
-  whole class rather than this one check — every diagnostics-driven check was being read inside the
-  boot window. The host was correct throughout; only the probe's timing was wrong.
-- **Acceptance met 2026-09-14.** `install` round-trips, `status` reads patched with the marker on
-  all three installed versions, and the probe reports every check green on the full editor, the
-  sidebar and the session list. Phase 2 closed.
+### Phase 2: injector, host kernel, probe — done 2026-09-14
 
-### Phase 3: plugins, build preset, update flow, CLI
+Inject, restore and status with byte-faithful I/O and the backup file as the authority. `pre.js`
+and `post.js` as kernel plus capability modules. The probe as a first-party plugin whose checks are
+contributed by the capability modules. The Playwright spike succeeded and is now `packages/harness`.
 
-- `uses.optional` and the `ctx.optional` grants (D41), landed first so the three plugins are its
-  first consumers and can say whether the shape is right. The shape settled: `Uses` splits into
-  `Declarations` (the nine capability keys) and `Uses extends Declarations` with one extra member,
-  `optional: Declarations`, so both verdicts are the same walk over the same contracts. A contract's
-  `violation()` becomes `gaps()`, returning *every* identifier the declaration depends on that the
-  tables lack rather than only the first; `capabilityViolation` is then the first gap over the
-  required half and `optionalGaps` is all of them over the optional half. The runtime half is a
-  second method on a capability module, `grantOptional()`, which only `anchors` and `classes`
-  implement; the kernel assembles `ctx.optional` from those and still names no capability. One
-  addition beyond D41 as written: `ctx.watch` accepts an anchor declared optional and returns a
-  no-op teardown when the class is absent, because "the handler never fires" is what absence already
-  means everywhere else and the alternative is an optional anchor that cannot be watched.
-- The identifier types move to an augmentable interface (D40): plugin-api stops exporting harvested
-  unions directly, `rigline codegen` writes an augmentation, and the first-party plugins prove
-  both halves — that a local harvest narrows, and that its absence still compiles. plugin-api
-  declares `interface RiglineIdentifiers {}` and derives `ModuleId`, `ModuleClasses`, `MessageType`
-  and `OutboundFields` from it by conditional lookup with a `string`-shaped fallback; those four are
-  the only harvested types anything consumed, so the five protocol-direction unions and the
-  `TABLES`/`EXTENSION_VERSION`/`PARTIAL_FIELD_TYPES`/`UNREACHABLE_CSS_MODULES` values leave the
-  published surface with them. Proven by spike before being built, in all three arrangements that
-  matter: the augmentation narrows from a file outside the plugin's own directory, both when
-  `@rigline/plugin-api` resolves through tsconfig `paths` to source and when it resolves through
-  real `node_modules` to the emitted `.d.ts` — merging into the interface even though `index.ts`
-  only re-exports it — and the same plugin compiles unchanged with the file absent. The mechanism
-  the phase 4 template needs is a shared `tsconfig.plugin.json` at the root whose `files` names the
-  harvest and whose `include` each plugin overrides with its own `src`.
-- `rigline build` (Rolldown preset) and `rigline dev` (rebuild, re-inject, remind to reload).
-- The three plugins in TypeScript against the new `ctx`, tests included.
-- The install-time declaration check (D43), reported per extension directory by plugin and by the
-  identifier that is gone. `capabilityViolation` currently runs only in the webview, despite its own
-  doc comment claiming both sides.
-- Successor suggestions in the diff (D45).
-- The update flow and watcher: report and inject around a plugin problem; block only on the
-  harvest floor or Rigline's own build. The baseline rule D29 gives as two sentences is one rule in
-  code: `./generated.ts`'s `SCAN` when the directory has one, `~/.rigline/baseline.json` otherwise,
-  which is the committed harvest for this repo and for an author's repo alike.
-- The CLI complete.
-- Acceptance: all three plugins verified live; a simulated update (a copied extension directory
-  with an identifier removed) refuses the right plugin by name and injects the rest, and the same
-  identifier removed from an *optional* declaration degrades that plugin instead of refusing it.
-- **Status 2026-09-14: everything above is built and merged, and the simulated-update half of the
-  acceptance is met.** The rehearsal was a copy of 2.1.270 with `sessionItem` renamed to
-  `sessionTile` in the bundle and the stylesheet, which is the shape an upstream rename actually
-  takes: `rigline check` names `sessionItem_OOQiHg -> sessionTile_OOQiHg` as the likely successor,
-  refuses the probe by name on that version alone, loads a plugin declaring the same anchor
-  optionally without it, reports the anchor table's own gap against the table, and exits 1. The
-  same two verdicts are pinned at the DOM tier against the real bundle, and at the unit tier
-  against a doctored harvest. `install` has put all four plugins into 2.1.268, 2.1.269 and 2.1.270
-  on this machine, every declaration holding on every version. **Left: the live check**, which
-  needs a person looking at the panel — and a *window* reload rather than a webview one, because
-  worktree-prefix is the first plugin to declare a host patch and `extension.js` is now patched on
-  all three versions. `pnpm rigline restore` is the undo.
-- Found by the live check, and fixed the same day. **session-id's pop-up inherited the badge's
-  dimming**: the badge holds its label in a child element precisely so `opacity` does not reach the
-  pop-up subtree, and then set the opacity on the badge anyway, which is the exact failure the 0.x
-  archive recorded and the child element exists to prevent. **worktree-prefix acted on a tool call
-  rather than its outcome**, so a declined or failed `EnterWorktree` renamed the tab as though it
-  had worked; the outcome is on the same bus and the host now owns the correlation (D51). And **its
-  ticket pattern was too narrow while its fallback was too confident** — a real Jira key of four or
-  more characters fell through to an eight-character truncation, which turns `ABCD-1234` into
-  `ABCD-123`: not a shortened name but a different, valid-looking ticket number, which is precisely
-  what P8 refuses.
-- Found by the plugins, and worth more than the plugins. Building three real consumers against the
-  fresh `ctx` turned up two faults in the capability layer that no amount of reading would have:
-  **a switch or a list declared only under `uses.optional` was not granted at all**, so a plugin
-  that declared `tools` or a message tap optionally threw on its first call and disabled itself on
-  every version, including the ones where the identifier was present. Two of the three plugins hit
-  it independently, from different capabilities, and both designed around it rather than trusting
-  it — which is the tell that it was a real hole and not a misreading. And **a mount was rebuilt
-  rather than re-placed**: React detaching a foreign child does not destroy it, so `build()` now
-  runs exactly once and the node goes back as it was. That closes the open item below rather than
-  answering it — the probe had been tracking its node by hand and session-id leaked two document
-  listeners, two plugins failing differently at one seam, which is a hazard in the capability
-  rather than two bugs in the plugins.
+### Phase 3: plugins, build preset, install flow, CLI — done 2026-09-14
 
-- The mount service runs off the React commit signal the pre hook already provides, not a
-  document-wide mutation observer (D52); the observer remains only as the fallback for a webview no
-  renderer injected into. `place()` indexes its peers by anchor rather than filtering every active
-  mount per node, which is what made a rebuild O(N²) at one mount per transcript row. Re-placement
-  is counted rather than assumed — `mounts.replaced`, `mounts.moved`, `mounts.lost` and the driver in
-  use — and the probe reports them on its own line. A pass re-checks *position* and not only
-  presence, which is what stops a mount being stranded when its anchor is moved rather than replaced
-  (D52, amended); `place` returns early when the node already sits where it belongs, so a commit is
-  not a DOM write, and that half is pinned by its own test. Pinned at the DOM tier against the real bundle, which
-  also needed the harness to be able to force a genuine re-render: a bare `node.remove()` stopped
-  standing in for one the moment the host stopped watching every mutation in the document. **Left:
-  reading `replaced` off the live panel over a few days.** If it stays at zero, `replaceLost` and
-  the peer scan it needs both go; if it does not, the case for keeping it is finally on the record
-  rather than inherited from a measurement taken against an older bundle.
-- The probe panel has the copy button the 0.x prototype had. The report text is built from the check
-  map for both the panel and the clipboard, so what is copied is current whatever the panel happens
-  to be showing — the panel is written only while open and only on a change, which makes the DOM the
-  wrong place to read a report back out of.
+`uses.optional` and the `ctx.optional` grants (D41). The augmentable identifier interface (D40),
+pinned by a test that drives `tsc`. `rigline build` and `rigline dev`. The three plugins in
+TypeScript. The install-time declaration check (D43), successor suggestions (D45), the install flow
+and its watcher, and the CLI.
 
-- Observability, so that "the panel misbehaved" is answerable (D53). Four pieces, and the ordering
-  is by what would have shortened the lockup investigation most:
-  - **Rates and peaks on every hot path** — commit notices, transcript sweeps and rebuilds, mount
-    re-placements, outbound messages, tap clones. Each keeps a per-second rate, its peak, and when it
-    peaked. Cumulative totals alone cannot distinguish an hour of work from four seconds of
-    pathology, which is the whole reason the host had nothing to say for itself.
-  - **A bounded ring in `localStorage`**, snapshotted on a coarse timer and read back at boot, so the
-    probe can open with what the *previous* run was doing when it died. Viable because the webview
-    origin is stable across reloads and restarts; every access wrapped, because storage that is
-    disabled or full must cost a diagnostic and never a panel.
-  - **The probe's copy carries the whole picture** — version, driver, counters, peaks, plugin
-    statuses, host errors, the previous run's tail — rather than the verdict lines alone.
-  - **`rigline doctor`**, which collects what no webview can see: install state per version, and the
-    lines in VS Code's own logs that bear on a misbehaving panel. Timing and error lines only, never
-    message content, and it prints what it included. `--out FILE`, `--since 90m|24h|7d|all`, and
-    `--ext`/`--logs` to point it at a copy. Redaction is one `Ledger`: a path never offered to
-    `open` cannot reach the report, so there is no filter to forget. The load-bearing test writes a
-    sentinel into a per-extension log and asserts it is absent from the rendered markdown while that
-    directory's size is still reported.
+Three bodies of work landed after the phase closed and belong to it: anchor ambiguity (D7 amended —
+`kind` split three ways, application-site counts, selector resolution, runtime multiplicity), the
+composer-footer damper (D54), and observability (D53).
 
-  Five things about VS Code's logs contradicted the plan and are now pinned by tests, because each
-  one produced a plausible wrong answer rather than an obvious failure. The newest launch directory
-  is routinely empty, so a launch is chosen by newest *write* among those with content, never by
-  name or directory mtime. Unresponsive episodes pair newest-first: oldest-first invented a
-  151-minute lockup out of a 09:42 detect and a 12:12 recovery belonging to different windows.
-  Recovery lines are sometimes written twice a millisecond apart, and taking both at face value
-  fabricates a second lockup. The "this recovery is really a window closing" threshold has to be
-  three seconds — observed gaps were 1.5, 1.65, 1.9 and 2.1s, so "a second or two" would have missed
-  one. And a continuation line is defined by having no timestamp, never by its indent: `main.log`
-  uses four spaces, `exthost.log` a tab, some `renderer.log` lines none at all, and an uncaught
-  exception's frames sit on the *following* empty `[error]` line rather than its own.
+### Phase 4: the community layer — next
 
-### Phase 4: the community layer
+In order. The first item gates the rest for a reason that is not tidiness.
 
-- `~/.rigline` install model, `rigline add` from a path and from npm, with `remove` and `list`.
-  `describeUses` says what a plugin does, and `list` is what prints it. See
-  "Disclosure, not permission" for what was specified here and then cut.
-- The fetch path itself (D47, D48, D49). D47's premise is already true rather than aspirational:
-  `rigline build` bundles everything the entry imports, `@rigline/plugin-api` included, so a
-  published plugin has no runtime dependency to install. The template must keep plugin-api a
-  *devDependency* for the same reason, as the first-party plugins do. What is left to build: tarball
-  and integrity only, never a package manager; the minimum release age with `--now` and a report
-  naming what was withheld and why; and the source record with its kind discriminator, which
-  `upgrade` reads.
-- `~/.rigline/anchors.json`, the local anchor override (D44, amended), reported by name at install.
-  **This one does have to land before other people install plugins**, and for a concrete reason
-  rather than tidiness: an anchor that stops resolving refuses the plugins that declared it, and
-  until the override exists the only repair is a Rigline release — npm, plus D48's minimum age, so
-  days against the extension's weekly cadence. That is survivable while the only consumer is also
-  the maintainer and can edit the table. It stops being survivable the moment somebody else installs
-  a plugin. The override must carry a refinement, not only a module-and-local pair, because an
-  ambiguous anchor is now one of the two ways a name stops resolving and a pair cannot repair it.
-- Our own release pipeline first (D46): the staged-publish workflow for `@rigline/core`, `rigline`
-  and `@rigline/plugin-api`, proven on a real release before it is handed to anyone else. One
-  `pnpm stage publish -r` stages all three; each is approved on its own. The workflow emits the
-  stage ids into the run summary rather than relying on npm to notify anybody.
-- Authoring guide and the `create-rigline-plugin` template (D50). Ordering dependency worth knowing
-  now: the template puts one `generated.ts` at the workspace root for every plugin in the repo,
-  which rests on D40's augmentation working from a file outside the plugin's own directory. Module
-  augmentation is per-program, so each plugin's tsconfig has to pull the shared file in — workable
-  through a shared base config, and worth proving once when D40 lands in phase 3 rather than
-  discovering it here. The template itself: a pnpm workspace with `plugins/*`,
-  one member scaffolded and a documented way to add the next, `rigline codegen --out` run once at
-  the root on first use, and the same staged-publish workflow we run ourselves. The manifest JSON
-  schema ships with plugin-api.
-- Topic docs: architecture, identifier layers, the bus, host patches, the transcript, verification,
-  surviving an update, publishing a plugin.
-- Publish prep: package metadata, changelog, CI. The one-time npm setup is Leo's (organisation, 2FA,
-  the bootstrap publish of each package, the trusted-publisher entries), and every release after
-  that is approve-with-2FA.
+1. **`~/.rigline/anchors.json`, the local anchor override** (D44, amended), reported by name at
+   install. This must land before anybody else installs a plugin: an anchor that stops resolving —
+   retired, or newly ambiguous — refuses the plugins that declared it, and until the override exists
+   the only repair is a Rigline release, which is npm plus D48's minimum age, so days against the
+   extension's weekly cadence. Survivable while the only consumer is also the maintainer and can
+   edit the table in the repo; not survivable after that. The override carries a refinement, not
+   only a module-and-local pair, because a pair cannot repair an ambiguity.
+2. **`rigline add` from a path, and `remove`.** No network, and what makes `~/.rigline/plugins/` a
+   managed directory rather than one people copy into. `add` is where `describeUses` says what
+   arrived, at the moment it means something.
+3. **`rigline add` from npm, and `rigline update`** (D47, D48, D49). The tarball fetch and integrity
+   check, the minimum release age with `--now` and a report naming what was withheld and why, and
+   the source record with its kind discriminator. D47's premise already holds: `rigline build`
+   bundles everything the entry imports, `@rigline/plugin-api` included, so a published plugin has
+   no runtime dependency to install and the template must keep plugin-api a *devDependency* as the
+   first-party plugins do.
+4. **The authoring guide and the `create-rigline-plugin` template** (D50). A pnpm workspace with
+   `plugins/*`, one member scaffolded, `rigline codegen --out` run once at the root, and the
+   manifest JSON schema from plugin-api. One ordering dependency, proved when D40 landed: module
+   augmentation is per-program, so each plugin's tsconfig must pull the shared root harvest in,
+   which a shared base config does.
+5. **Topic docs**: architecture, identifier layers, the bus, host patches, the transcript,
+   verification, surviving an update, publishing a plugin.
+6. **Our own release pipeline** (D46), which is a separate track and gates none of the above. The
+   staged-publish workflow for the three packages, proven on a real release before the template
+   hands it to anyone else. One `pnpm stage publish -r` stages all three; each is approved on its
+   own. The workflow prints the stage ids and the approve command into the Actions run summary,
+   because nothing notifies a maintainer that a stage is waiting. The one-time npm setup is Leo's.
 
 ### Phase 5, later: companion VS Code extension
 
@@ -490,665 +275,115 @@ A thin extension over core: re-inject on update, prompt for the webview reload, 
 disable and settings. Marketplace policy for an extension that patches another extension is a
 known risk to weigh when this phase starts.
 
-## Decided 2026-09-13
-
-Confirmed by Leo, with the reasoning in [decisions.md](decisions.md): distribution is core library
-plus CLI now and a companion extension later; plugins target UI through curated anchors with raw
-class access as the escape hatch; the Playwright harness gets a time-boxed spike in phase 2.
-
-Decided without asking because the direction was clear, and open to challenge: TypeScript plugins
-built by a preset over an unchanged output contract; capabilities and identifier layers as
-registries; refusal fixtures kept out of the live install; Vitest and Biome; user state under
-`~/.rigline`; the 0.x material archived rather than repaired, and 1.x written from first principles.
-
-## Decided 2026-09-14
-
-Confirmed by Leo after a validation pass over the third-party and version-spread questions, with the
-reasoning in [decisions.md](decisions.md) as D40 to D45. The reframe that settled the priority is
-his: users take an extension update almost immediately, so the cost to design against is the gap
-between an update landing and a maintainer catching up, not a spread of old versions to support. Out
-of that — no harvested types are published, and an author harvests and commits their own; optional
-declarations with a nullable grant, so the compiler forces the check exactly where a dependency may
-be absent; per-version plugin builds rejected outright rather than deferred; the declaration check
-wired into the Node install; the anchor table named as the repair path and made overridable from
-`~/.rigline/anchors.json`; successor suggestions in the diff.
-
-Later the same day, distribution was reopened and closed the other way, as D46 to D49 with D33
-amended. A git-repo source with `git pull` updates was proposed, argued for on cadence, and rejected
-by Leo in favour of npm with a supply-chain pipeline: CI stages over OIDC, a human approves with
-2FA, provenance comes free, and the plugin template ships the workflow so the good path is the
-default one. The cadence argument did not survive scrutiny — it belonged to the anchor table, which
-is a separate and faster tier — and a committed `dist/` proved a weaker version of exactly
-what provenance provides. Leo's own framing: encourage CI and 2FA rather than route around them.
-Added on top: `add` runs no package manager at all rather than merely disabling lifecycle scripts,
-and the minimum release age is 1440 minutes to match pnpm's default rather than the few hours first
-suggested, since the urgent repair path is the anchor override and not a republish. Git stays
-available as a later source kind, which is why a source is recorded by kind from the first entry.
-
-And the template that carries all of it (D50) is a pnpm workspace holding many plugins, Leo's call
-on the superset argument: it scaffolds correctly for one plugin, a single-plugin template cannot
-grow into a workspace without a restructure, and it is nearly free to write because it is the shape
-of this repo. pnpm for the template too — not for symmetry, but because `minimumReleaseAge` and
-`allowBuilds` defend an author's own machine on the same reasoning D48 applies to that author's
-users. P6 is unchanged and worth restating, since a template is the easiest place to lose it: the
-contract is the output, and a plugin built with any other toolchain is treated identically.
-
 ## Open questions, not blocking
 
-- Per-plugin settings: schema in the manifest, values in `~/.rigline/config.json`, delivered as
-  `ctx.settings`. Design in phase 3, ship in phase 4 unless a first-party plugin needs it sooner.
-- Anchor governance, load-bearing now rather than tidy (D44): who may add to the table, what
-  evidence an entry needs, and how a local `anchors.json` override is promoted into the shipped
-  table once it is confirmed.
-- Whether `ctx.style` refuses a selector naming a class the plugin did not declare, or only lints.
-- Whether `pnpm stage publish` completes the OIDC exchange. D46 and D50 lean on one `pnpm stage
-  publish -r` staging the whole workspace, but pnpm's support for trusted publishing is reported
-  inconsistently: some accounts say `pnpm publish` delegates to npm and inherits OIDC for free, and
-  at least one reports the exchange failing under pnpm and succeeding with npm directly. Verify
-  before the workflow is written, not after. The fallback costs little — call `npm stage publish`
-  per package and lose the `-r` convenience — but it changes what the template ships, so settle it
-  first.
-- Whether a provenance attestation survives a staged approval. npm documents provenance for trusted
-  publishing and documents staging, but nowhere documents the two together; `npm stage publish`
-  accepts `--provenance`, which is suggestive and not proof. Settle it by looking at our own first
-  approved release, and keep the claim out of the authoring guide until then.
-- How a maintainer learns a stage is waiting. npm documents discovery by `npm stage list` and the
-  Staged Packages tab on npmjs.com; no email or push notification is documented, and none was found.
-  Our workflow therefore prints the stage id and the approve command into the Actions run summary,
-  which is enough for us. If a plugin author's release sits unapproved for a week, revisit — the
-  template may need to open an issue or post to the repo instead.
-
-## Anchor ambiguity
-
-**An anchor's class can be on more than one control, and nothing checked it** (P2, D7 amended).
-Built, tested and installed; what follows is the design and the measurements it rests on, and the
-one fork it left open at the end.
-
-Measured on 2.1.270, five of fifteen identity anchors were already ambiguous:
-
-| anchor | pair | application sites |
-| --- | --- | --- |
-| `modelPill` | gGYT1w.modelPill | 3 |
-| `transcriptRow` | 07S1Yg.message | 3 |
-| `assistantRow` | 07S1Yg.timelineMessage | 8 |
-| `userRow` | 07S1Yg.userMessageContainer | 3 |
-| `sessionListItemName` | OOQiHg.sessionName | 2 |
-
-Every `kind: "style"` entry that shares a class is doing so correctly and is out of scope.
-
-**How the count is taken**, since re-deriving it wasted an afternoon once: each CSS module's class
-map is a `NAME={local:"local_hash",...}` object literal in the webview bundle, so the module hash
-gives the minified variable that holds it, and applications are occurrences of `NAME.local`. The
-class harvest already parses those literals; counting the applications is the same pass over the
-same bytes. Two of the five were found by eye first and three only by the count, which is the
-argument for making it a harvested fact rather than a review habit.
-
-The declaration is `NAME={` and not `var NAME={`: four modules of 104 are lazily initialised
-(`var qS;var yf1=L(()=>{qS={copyButton:"copyButton_CEmTFw",…}})`) and a keyword-anchored pattern
-silently leaves them uncounted. With the bare assignment every module in the map has a variable, on
-all three corpus versions.
-
-The count is an upper bound in one direction and a lower bound in the other, and both are named in
-the harvest rather than smoothed over. It counts every `NAME.local`, so a class passed somewhere as
-a value rather than applied is counted — one of `modelPill`'s three is a `MutationObserver` helper
-argument — and a minified name shadowed in an inner scope would over-count. It cannot see a
-destructured read (none in the corpus). Over-counting is the safe direction: it names an anchor for
-a refinement it may not need, loudly.
-
-The work, in order, and the first three belong together:
-
-1. **Split `kind` three ways**: `singleton` (exactly one, a second match is a bug), `collection`
-   (many by design; the question is whether every match is one of them), `style` (borrowed, exempt).
-   Nothing else is expressible until these are told apart. Fifteen `element` entries need sorting
-   into the first two; the table's own `description` on each says which it is.
-2. **Harvest application-site counts** as part of the classes layer, and make a `singleton` with more
-   than one site and no refinement fail codegen by name. Carry the count into the diff so an update
-   that *starts* reusing a class is reported.
-
-   Two details that are not free choices. The diff view is `classes.reused` — the classes applied at
-   more than one site, not a count per class — because a view is a set of identifiers and encoding
-   the count into the member would make every class whose count moved at all a gone/added pair, which
-   over a thousand classes is noise rather than signal. A class crossing from one site to two is
-   exactly the event the view has to report, and it appears as one added member. Measured 2.1.268 to
-   2.1.270 the view moves by +36/-11, nearly all of it modules arriving and leaving.
-
-   And an ambiguous singleton **must not block the install**, which is the same rule that governs
-   every other identifier that stops holding: what blocks is a collapsed harvest or a failure in
-   Rigline's own build, and an upstream release that starts reusing a class is neither. So the
-   verdict is data — the anchor resolves to null, with its reason carried beside it — and the two
-   consumers read it differently. `rigline codegen` exits non-zero and names the anchor, because in
-   this repo an ambiguous singleton is the table being wrong and a maintainer is standing there.
-   `check` and `install` report it for attention and let the existing per-plugin refusal do the rest,
-   so a plugin that never declared the anchor is untouched. Nulling the anchor rather than handing
-   over a class that names two controls is P8: absent beats wrong.
-
-   A module whose variable the harvest cannot find is *uncounted*, which is not zero. The anchors in
-   it keep resolving and are reported as unverified; an unknown that reads as "exactly one site" is
-   the silent pass this whole layer exists to stop.
-
-   And a singleton may carry `knownSites: { count, why }`, which is the escape from the one trap
-   this check sets. The count is an upper bound — the bundle passing a class somewhere as a value
-   reads as a site, which is what one of `modelPill`'s three already is — so a maintainer can meet a
-   count of two with nothing to refine against. Without a way to say "I read these and they are one
-   control", the discharges are an arbitrary refinement or relabelling the anchor `collection`,
-   and under weekly releases the relabel is the cheaper move every time. It is bounded: a count
-   above the acknowledged one is ambiguous again, and the failure names both numbers.
-3. **Resolve to a selector and query with `querySelector`**, rather than resolving to a class and
-   reaching for `getElementsByClassName(...)[0]`. This is the part to get right first, because the
-   class-shaped API is what makes a refinement look like an invented feature: against a selector it
-   is just the rest of the selector (`.modelPill_gGYT1w[role="combobox"]`, plain CSS), `singleton`
-   against `collection` is just which of the two standard calls to make, and a descendant
-   relationship costs nothing — which may be the cleanest reading of `sessionListItemName`.
-   `ctx.anchor()` keeps returning a bare class, because a style anchor is borrowed rather than
-   queried and a plugin passes it to `classList.add`; the resolved selector is an additive field on
-   the generated tables, consumed only by the host. Then give `modelPill` its `[role="combobox"]`
-   and fix the other four.
-
-   Two spec fields, because the five cases need two shapes. `refine` is appended to the class and is
-   the common one; `within` names another anchor and prefixes its selector plus a descendant
-   combinator, which is what `sessionListItemName` wants and what a module-and-local pair can never
-   express. An ancestor that does not itself resolve leaves the descendant unresolved, with that as
-   its reason, rather than quietly falling back to the bare class.
-
-   The refinements, read off the application sites in 2.1.270 and present unchanged in 2.1.268:
-
-   | anchor | kind | refinement | what it excludes |
-   | --- | --- | --- | --- |
-   | `modelPill` | singleton | `[role="combobox"]` | the agent-map button, which is a pill and not a picker |
-   | `transcriptRow` | collection | `[data-transcript-message]` | the focus view's todo item |
-   | `assistantRow` | collection | `[data-testid="assistant-message"]` | five focus-view fold and subagent rows, and the user row that borrows `timelineMessage` when it carries diagnostics |
-   | `userRow` | collection | `[data-transcript-message]` | the two per-block containers nested inside the row |
-   | `sessionListItemName` | collection | within `sessionListItem` | nothing today: its two sites are the view and edit renderings of the same element |
-
-   `data-transcript-message` is the app's own row marker — it queries `[data-transcript-message]`
-   itself to find the last row — which is what makes it a contract rather than a coincidence, the
-   same argument P1 makes for `role="combobox"`.
-
-   One thing to measure rather than assume: `getElementsByClassName` returns a live, cached
-   collection and `querySelectorAll` allocates a static one per call, and the transcript sweep runs
-   over several hundred rows per commit. The `sweep` meter added under D53 is how to tell whether
-   that matters; do not pre-optimise it, and do not hand-wave it either.
-4. **Report multiplicity at runtime**: `watch` says when a class matched more than one element, and
-   the probe asserts one element per declared singleton. Build time counts sites; runtime counts
-   elements, and one site inside a list renders many.
-
-   The two halves catch different failures and neither subsumes the other, which is the argument for
-   keeping both. Build time catches an ambiguity before anything runs, and is blind to a refinement
-   that has stopped refining; runtime catches exactly that, and only for an anchor some plugin on
-   this surface is actually watching. `watch` counts with `querySelectorAll` and takes `[0]`, which
-   is the same one query per watch per pass it already made, and keeps the peak rather than the
-   latest count so that a second control unmounting does not heal the record.
-
-**Status: items 1 to 4 are built, tested and installed on 2.1.268, 2.1.269 and 2.1.270.** Every
-anchor resolves on all three, none is ambiguous, and none is unverified. The harness proves the
-model pill end to end in a browser twice over: a decoy wearing the pill's class ahead of the real
-picker no longer takes the badge, and a decoy that matches the *refined* selector is reported as a
-multiplicity rather than silently obeyed.
-
-Both things the audit implicated turned out to be settled by item 3 rather than to need work of
-their own. **`ctx.style` scoping** was the suspect case and is safe, for a reason worth knowing:
-time-marks scopes its one rule as `.<transcriptRow>:has(> .LEAD)`, and a `.LEAD` child can only get
-there through `decorateTranscript`, which mounts inside a row the sweep found — and the sweep is now
-refined. The hazard is real for a rule that scopes to a bare anchor class with no such guard, which
-no first-party plugin does; see the fork below. **`assistantRow` and `userRow`** are refined rather
-than demoted: both are collections, `[data-testid="assistant-message"]` and
-`[data-transcript-message]` respectively, so a plugin reaching for either now gets rows.
-
-The pattern to carry: **a class proposes, something else disposes.** `decorateTranscript` was
-untouched by all of this because `sweep` reads each candidate's fiber and drops anything without a
-row identity, so a stray match costs it a little work and nothing else. `watch` had no second
-opinion, and that is the difference.
-
-### The one fork this left: whether a plugin may have the selector
-
-`ctx.anchor()` hands back a bare class and the resolved selector is host-only, which is right for
-the two uses D7 names — borrowing a class to put on your own markup, and the host querying for you.
-It leaves a third: a plugin writing CSS *about* the app's own elements. Such a rule can only be
-scoped to the class, so it lands on every control wearing the look, and the plugin has no way to
-say what the host now says perfectly well.
-
-The obvious answer is `ctx.selector(name)`, returning the resolved selector for an element anchor
-and throwing for a style one — which is also the plainest reading of D7's "neither plugin nor author
-ever assembles a selector by hand". It is not free: it is the first plugin-facing API that hands
-over something version-derived and *composable*, so a plugin can build a selector we never modelled
-and scope a rule wherever it likes, and `ctx.style` already trusts plugins not to lay out the app.
-Recommended, but not taken unilaterally, because it widens the contract and nothing first-party
-needs it today. Until it is settled, the authoring guide should say: scope a rule to something you
-placed, never to an anchor's bare class.
-
-## The composer footer measures its own children
-
-**`inputFooter` is a fit-managed container: its owner measures every element child and reflows on
-the total, and any foreign mutation inside it resets that measurement.** A decoration mounted there
-is a participant in the app's layout algorithm and a trigger for it, and three first-party plugins
-were both. Measured on 2.1.270; built and installed.
-
-The mechanism, in the app's own code. A layout effect walks the footer's element children, sums
-`getBoundingClientRect().width` plus horizontal margins plus any clipped overflow, compares the
-total against the container's content width, and escalates one step of a three-stage ladder when it
-does not fit. The stage is on the footer as `data-fit-stage`:
-
-| stage | what changes |
-| --- | --- |
-| 0 | everything at full width |
-| 1 | pills collapse to icon-only — CSS hides their labels on `[data-fit-stage="1"]` |
-| 2 | the model pill leaves the footer and renders in `modelPillRow`, a sibling div below it |
-
-The ladder only ever escalates, so on its own it converges. What resets it to stage 0 is a
-`MutationObserver` on the footer — `childList`, `characterData`, `subtree` — whose callback runs
-the reset through `flushSync`. It carries its own self-trigger guard: a childList record is ignored
-when every added and removed node carries the model pill's class or is the pill's pop-up, which is
-exactly the exemption the pill needs to move between stages without kicking the measurement that
-moved it. A characterData record is ignored inside `[data-footer-fixed-width]`, which is how the
-cache-window timer ticks without doing the same.
-
-**Two stage-invariant facts make this navigable.** The measurement skips children whose computed
-`position` is `absolute`, so an absolutely-positioned decoration contributes nothing to the fit;
-and the `spacer` child — the `flex-grow:1` gap dividing the footer's left cluster from its right —
-is counted as zero width by name. The spacer has exactly one application site, renders in both
-layouts, and is the seam where a decoration belongs, which is what makes it the anchor.
-
-### Why it oscillates, and why only sometimes
-
-Rigline carries none of the guard's exemptions, so a decoration entering or leaving the footer is a
-full reset of the app's ladder. That closes a loop:
-
-1. Stage 0, decorations in the footer and counted. With a selection chip present the row is already
-   near the threshold, so it does not fit: 0 to 1, still does not fit, 1 to 2.
-2. React unmounts the pill from the footer and mounts a new one inside `modelPillRow`. Removing the
-   pill is exempt, so nothing resets.
-3. On the next commit the mount pass sees a different pill, tears the mounts down and re-anchors to
-   it — which removes our nodes from the footer. Not exempt: reset to stage 0.
-4. Stage 0 renders the pill inline again and unmounts `modelPillRow`, taking our nodes out of the
-   document with it. The pass re-anchors, rebuilds and inserts into the footer. Not exempt: reset,
-   does not fit, back to stage 2.
-
-One cycle per frame, with the decoration rebuilt each time, which is why it reads as the pill
-flickering between two lines and the badge blinking in and out. It needs a selection chip because
-the three decorations are together the difference between fitting at stage 1 and not; without the
-chip there is slack, the ladder settles, and nothing moves.
-
-**The instrument for this is not `moved`.** The loop runs through `watch` re-anchoring, which tears
-down one mount and attaches another, so `mounts.replaced` and `mounts.moved` stay flat while the
-panel is unusable. Re-anchoring is metered for that reason.
-
-### The work
-
-1. **`footerSpacer`, a stage-invariant anchor**, and `ctx.mountBefore` to use it. Anchoring to the
-   pill is what makes a decoration's footer membership depend on the stage; anchoring to the spacer
-   makes the width contribution constant, so the ladder converges — at stage 2 while a chip is
-   attached, stably, which is the honest outcome of adding width to a full row. `mountBefore` is
-   what puts a node at the end of the left cluster rather than out beside the send button;
-   `mountAfter` cannot say it, because nothing unconditional sits immediately before the spacer.
-2. **A thrash damper in the mount service.** After a run of consecutive passes in which the host
-   takes the same corrective action on one mount or one watch, it stops taking it, records the
-   plugin and the anchor, and says so once. This is the follow-through on D52's own warning that a
-   rate which never settles means the host and the app are undoing each other every frame: that
-   condition was made visible and then left to run. A decoration is never worth an unusable
-   composer.
-3. **Record the hazard on the anchors themselves.** `modelPill` reads as a plain mount-after target
-   and `modelPillRow` describes the two layouts as a static choice rather than a width-driven one.
-   Both now say what the footer does, because the next author has no other way to find out.
-
-Deferred, pending evidence it is needed: `data-footer-fixed-width` on our footer nodes. It would
-stop a text change inside a decoration resetting the ladder — `paint()` and the copy flash both do —
-but it cannot close the loop on its own, and it is a claim about width that the flash breaks, since
-`copy failed` is wider than eight hex characters. Revisit if the footer is seen refitting on a
-badge's own text.
-
-## Disclosure, not permission
-
-**Installing a plugin is the consent act, and nothing after it asks again** (D26 and D49 amended,
-Leo 2026-09-15). Rigline asks the trust a VS Code extension asks for and says so in the trust model
-above; a grant-and-approve layer on top of that is a permission system stronger than the host's own,
-which has no granular permissions and never re-approves an extension whose new version does more. A
-user who installed a plugin trusts its author and wants updates to work. Charging every one of them
-an approval prompt for a feature most will not want is the wrong trade, and it is the trade the
-per-patch opt-in and the declaration fingerprint were both making.
-
-So there is no approval record, no patch fingerprint, no declaration fingerprint, no `rigline
-approve`, and no re-gate on upgrade. A plugin's host patch applies because the plugin is enabled,
-exactly as it does today, and a directory dropped into `~/.rigline/plugins/` loads on the next
-inject with everything it declares. **What a plugin does is output, not a prompt** — `describeUses`.
-
-Not `install`'s output, though, which is where this was first filed. `install` runs unattended under
-`watch` and again after every extension update, so a capability summary there is the same paragraph
-about the same plugins on a loop — the shape of output people stop reading, and the reason the host
-patch's `why` came out of it. Disclosure belongs where somebody asked a question: `list` says what
-each installed plugin can do, and `add` says it at the moment a plugin arrives, which is the moment
-it means something. `install` keeps saying which plugins load and which this version refuses.
-
-**The safety net for a host patch is not consent, and already exists.** `extension.js.orig` is
-written before the first patch lands, every install rebuilds the host bundle from it, disabling a
-plugin removes its patch, and `restore` needs neither VS Code nor the extension to be working. None
-of that asks a user to have predicted the problem, which is the thing an approval prompt actually
-cannot do.
-
-What survives from the fetch design is the source record itself — kind, name, pinned version,
-integrity — because that is what makes `add` and `update` work at all, and an integrity check is
-supply-chain hygiene rather than a permission. D49's `declarations` member goes with the rest: it
-had no consumer but the re-gate.
-
-**Deferred, not discarded** (D26, amended). Per-patch opt-in and re-gating on widened declarations
-return as an **opt-in** setting for people who want them, well down the priority list. One thing to
-know when that day comes, since it is why this was written twice: the gate must read approvals and
-never prompt, because `install` is what the watcher calls.
-
-### `update` is the wrong name for re-injecting, and the right one for plugins
-
-**`rigline update` today means *the extension moved, put the loader back*, and that is a name nobody
-will read correctly** (Leo 2026-09-15). `npm update`, `pnpm update` and `cargo update` all mean
-*update the things I installed*, and users of this extension also type `claude update` to get a new
-version of Claude Code. Two readings are therefore already in their hands, and re-injection is
-neither.
-
-It is also barely its own command. `update` runs `install` over every version and then `settle`,
-which is `check`'s report plus advancing the baseline; the difference between the two commands is a
-report and a recorded harvest, not a different act. So:
-
-- **`install`** is the one write command: inject the loader everywhere, say what moved since the
-  baseline, record the new one. What you run after an extension update, which is also what its name
-  says.
-- **`check`** stays exactly as it is, the read-only half. Its non-differential rule is unchanged: it
-  asks the installed bundle, never the last answer, because a differential gate passes on its second
-  run satisfied by its own side effect.
-- **`update`** is freed for plugins, where every package manager already points it, and is built in
-  phase 4. There is no `upgrade`.
-- **`watch`** loops `install` and says so.
-
-`update` is simply gone until phase 4 gives it the plugin sense, rather than carried as an alias to
-`install`: a verb that quietly changes meaning under somebody is worse than one briefly absent.
-Typing it gets the usage, which names `install`, and no more than that — **a command never explains
-what it used to do.** This project has nothing to reminisce about, nobody has habits to unlearn, and
-output that narrates its own past is output nobody has trimmed.
-
-### The work, in order
-
-1. **The rename**: `install` absorbs the flow, `update` goes, `watch` and the help text follow.
-   Before anything in phase 4, because every command below is described in terms of it.
-2. **`rigline list`**, which is where `describeUses` finally has a caller: every discovered
-   plugin, where it came from, whether it is enabled, and what it can do. Needs a plugin to carry
-   the root it was discovered under, which is also how `list` tells a plugin of yours from one
-   somebody installed.
-3. **`rigline add`** from a path, and `remove`. The path form needs no network and is what makes
-   `~/.rigline/plugins/` a managed directory rather than one people copy into.
-4. **`rigline add` from npm and `rigline update`**: the fetch, the integrity check, the minimum
-   release age with `--now`, the source record (D47, D48, D49). Separable work with its own risks,
-   and last.
+- **Whether a plugin may have the resolved selector**, as `ctx.selector(name)`. `ctx.anchor()` hands
+  back a bare class, which serves the two uses D7 names — borrowing a class for your own markup, and
+  the host querying for you. It leaves a third: a plugin writing CSS *about* the app's own elements,
+  which can only be scoped to the class and so lands on every control wearing the look. Recommended
+  but not taken, because it is the first plugin-facing API that hands over something version-derived
+  and composable. Until it is settled the authoring guide says: scope a rule to something you
+  placed, never to an anchor's bare class.
+- **Anchor governance** (D44): who may add to the table, what evidence an entry needs, and how a
+  local `anchors.json` override is promoted into the shipped table once confirmed.
+- **Whether `ctx.style` refuses a selector naming a class the plugin did not declare, or only
+  lints.**
+- **Whether `pnpm stage publish` completes the OIDC exchange.** D46 and D50 lean on one `pnpm stage
+  publish -r` for the whole workspace, and pnpm's support for trusted publishing is reported
+  inconsistently. Verify before the workflow is written. The fallback costs little — `npm stage
+  publish` per package, losing `-r` — but it changes what the template ships.
+- **Per-plugin settings** are not needed yet. time-marks persists its toggle in `localStorage` and
+  that is the right answer for a value only the panel cares about. A `ctx.settings` API earns its
+  place when a value must be editable from outside the panel, and not before.
 
 ## Next session
 
-Start here. Phase 3 is built, merged and verified live; the anchor-ambiguity work above is done;
-phase 4 has not begun.
+Phase 4, starting with the anchor override. Nothing blocks it.
 
-**About this machine.** Only 2.1.270 is installed — VS Code deleted 2.1.268 and 2.1.269 once
-nothing was serving them, which is the behaviour D4 exists for; both are still in the corpus. Its
+**About this machine.** Only 2.1.270 is installed — VS Code deleted 2.1.268 and 2.1.269 once nothing
+was serving them, which is the behaviour D4 exists for; both are still in the corpus. Its
 `extension.js` is patched, worktree-prefix being the one plugin that declares a host patch, and a
 host patch takes effect only after *Developer: Reload Window*, which ends every Claude session in
 that window. `pnpm rigline restore` puts it back to the extension's own bytes and needs neither VS
 Code nor the extension to be working.
 
-1. **Phase 4**, unblocked, and smaller than it was: see "Disclosure, not permission" and the three
-   steps it ends with.
-2. **Read the live panel's own numbers off the probe**, after a few days of real use. Two questions,
-   one act — the probe's copied report carries both.
+**Two numbers to read off the live probe** before deciding anything about them. Its copied report
+carries both.
 
-   *Mount re-placement* (D52): the last line carries `replaced`, `lost` and the driver. Zero
-   `replaced` retires `replaceLost`; any `lost` at all is a node nobody can see being retried every
-   frame, and is a bug to chase rather than a number to note.
+- *Mount re-placement* (D52): `replaced`, `lost` and the driver. Zero `replaced` retires
+  `replaceLost` and the peer scan it needs. Any `lost` at all is a node nobody can see being retried
+  every frame, and is a bug to chase.
+- *The sweep meter* (D53): `querySelectorAll` allocates a static collection per call where
+  `getElementsByClassName` returned a live cached one, and the transcript sweep runs over several
+  hundred rows per commit. Read the peak before optimising anything, and do not hand-wave it either.
 
-   *The sweep meter* (D53), which the selector change made worth reading: `getElementsByClassName`
-   returned a live cached collection and `querySelectorAll` allocates a static one per call, and the
-   transcript sweep runs over several hundred rows per commit. The `sweep` meter's peak is the
-   instrument. Read it before deciding anything — do not pre-optimise it, and do not hand-wave it
-   either. Also check `mounts.multiple` is empty while you are there: a name in it is a singleton
-   whose refinement has stopped refining.
+While there, `mounts.multiple` should be empty (a name in it is a singleton whose refinement has
+stopped refining), and so should `mounts.abandoned` (a name in it means the host and the app fought
+over a position and the host conceded, so a decoration is gone and the panel flickered before it
+went). `rebind`'s peak is the early warning for the same thing.
 
-   *`mounts.abandoned` and the `rebind` meter* (D54). `abandoned` empty is the expected state and a
-   name in it is the whole finding — the host and the app were fighting over a position and the host
-   conceded, so a decoration is gone and the panel was flickering before it went. `rebind`'s peak is
-   the early warning for the same thing: a handful over a session is ordinary, a per-second rate
-   that keeps climbing is a watch losing.
-3. **Small items still carried.** `ctx.watch` on the session list has no composer footer, so a plugin
-   wanting a badge there mounts on `document.body` — a sentence in the authoring guide, not an API
-   change. The harness's `page.ts` could generate its reply table from the same anchors codegen
-   reads, which was noted, not tried, and is now more attractive: a wrong reply type sat in that
-   table until a plugin needed the message.
+**Small items still carried.** `ctx.watch` on the session list has no composer footer, so a plugin
+wanting a badge there mounts on `document.body` — a sentence in the authoring guide, not an API
+change. The harness's `page.ts` could generate its reply table from the same anchors codegen reads;
+a wrong reply type sat in that table until a plugin needed the message.
 
 ## Status log
 
-- 2026-09-13: Archive assembled and inventoried. Anchors validated on 2.1.270. Corpus snapshotted.
-  Three design forks settled with Leo. Plan and decisions written. Workspace scaffolded; phase 0
-  done.
-- 2026-09-13: Phase 1 done. Five layers, the registry, the diff, the anchor table, codegen and the
-  first two `rigline` commands (`codegen`, `diff`). Harvest of 2.1.270: 104 modules, 1009 classes,
-  108 outbound requests, 9 notifications, 9 inbound pushes, 22 inbound requests, 105 replies, 151
-  payload fields; three requests have no reply by convention (`authenticate_mcp_server`,
-  `clear_mcp_server_auth`, `submit_mcp_oauth_callback_url`); two stylesheet modules are unreachable
-  (`oblbPg`, `OxFNMA`). Drift 2.1.268 to 2.1.270: modules 99.0% kept (one retired, `ukWSlw`, a
-  confirm dialog; seven added), classes 98.2%, local names 99.6%, message types 99.3% (one retired,
-  `exec`, with its two fields and its reply; eight added), React anchors 100%. Next: phase 2, the
-  injector, the host kernel and the probe.
-- 2026-09-14: Renamed Prototype to Rigline. `@prototype` turned out to already be a registered npm
-  organization (empty, no packages published, owner unconfirmed) and bare `prototype` collides with an
-  unrelated published package; Gizmo and the shortlisted Cadget/Cogsmith/etc. alternatives all had
-  real collisions too (a live company at `cadget.net`, an active org at `cogsmith.com`, or a taken
-  npm/GitHub name). `rigline` came back clear on npm (scoped and bare), npm org, and GitHub org.
-  Nothing was published under the old name, so the rename is a full sweep per the held decision
-  above: package names, the CLI binary, the manifest filename (`prototype.json` to `rigline.json`),
-  `~/.prototype` to `~/.rigline`, the injected marker comments, the `__prototype` bridge global, and the
-  `GRO` probe badge (now `RIG`). `docs/archive/0.x/` is untouched: it is the historical prototype's
-  own record and genuinely was called Prototype at the time.
-- 2026-09-14: Live verification after the rename. All three versions restored and reinjected from a
-  post-rename build, so the marker now reads `RIGLINE-PRE` and `status` annotates all three. Added
-  `CONTRIBUTING.md` (build, install, uninstall, blank-panel recovery) with a pointer from the
-  README, since the install and uninstall route existed only in `CLAUDE.md`, which humans do not
-  read; and made `rigline` a `workspace:*` devDependency of the repo root so the CLI runs as
-  `pnpm rigline <command>` instead of by path. Verification also turned up the superseded-payload
-  defect recorded under phase 2: worth reading before assuming a lockup is a hot-path cost problem,
-  because it presented as one and was not. Recorded rather than waved off — the lockup vanished
-  after a reinstall, which is the shape of a bug that comes back.
-- 2026-09-14: Direction validated before phase 3, against two questions from Leo — how a third-party
-  plugin gets installed alongside the first-party ones, and how a spread of extension versions is
-  handled. The third-party mechanism turned out to be already working: `~/.rigline/plugins` is
-  a discovery root, and a plugin dropped there is validated, copied per version and baked like any
-  other. What is missing is the two gates, not the mechanism — `permissionSummary` is written and
-  tested and called by nothing, and D26's per-patch opt-in does not exist at all, so every enabled
-  plugin's declared host patch currently applies unreviewed. Both now block `rigline add` in phase 4
-  rather than merely sharing a phase with it. The version question separated into four: several
-  versions on one machine (solved, D4, verified live on three); a plugin against whichever version
-  the user has (right mechanism, no reporting — `capabilityViolation` runs only in the webview
-  despite its doc comment claiming both sides); all-or-nothing refusal, which had no answer and now
-  has D41; and the published `generated.ts` quietly making the plugin-api version an
-  extension-version pin, which now has D40. Leo's reframe set the priority and is recorded above
-  under Decided 2026-09-14. Six decisions added, D40 to D45; the plan's phase 3 and phase 4 lists
-  and its "Surviving an extension update" section follow from them. No code changed.
-- 2026-09-14: Plugin distribution settled properly, after a git-repo channel was proposed and
-  rejected. The argument for git was publish cadence; it did not survive, because the cadence
-  problem it borrowed from D44 belongs to the anchor table, which is the tier that already repairs
-  in an hour without an author. The counter-proposal was Leo's and is now the plan: npm, with the
-  supply-chain pipeline that makes npm the safer channel rather than merely the conventional one.
-  Verified against current npm documentation rather than assumed — staged publishing is GA, `npm
-  stage publish` takes no 2FA and composes with OIDC trusted publishing, `npm stage approve` does
-  take 2FA, provenance is automatic on a trusted publish from a public repo, and the floors are npm
-  CLI 11.15.0 and Node 22.14. Both the trusted publisher and the stage need the package to exist
-  first, so a bootstrap publish under a temporary token is unavoidable and is Leo's. Two additions
-  beyond the proposal: `add` runs no package manager at all, since a bundled ES module has nothing
-  to install and declining the surface beats defending it; and the minimum release age is pnpm's
-  1440-minute default rather than a few hours, affordable precisely because D44 carries the urgent
-  case. Four decisions added, D46 to D49, D33 amended to record git as deferred with its reason and
-  its re-entry point. No code changed.
-- 2026-09-14: Template shape settled as D50, Leo's call: a pnpm workspace holding many plugins,
-  because that scaffolds correctly for one while the reverse needs a restructure, and because it is
-  the shape of this repo already. Verified the property it rests on — `pnpm -r publish` publishes
-  only packages whose version is not yet on the registry, so a multi-plugin repo releases
-  incrementally on version bumps with no changeset tooling. pnpm is pushed to authors for its
-  supply-chain defaults rather than for consistency. The entry carries an explicit restatement of P6
-  because a template is the easiest place to let a toolchain leak into a contract, and names the one
-  real cost of the shape: a trusted publisher is per package, so plugin number two needs its own npm
-  setup even though it shares the workflow file. No code changed.
-- 2026-09-14: Phase 3 built and merged. `uses.optional` and `ctx.optional` (D41); the augmentable
-  identifier types (D40), spiked before being built and now pinned by a test that drives `tsc`,
-  proving both halves and proving the augmentation reaches a plugin from a file outside its own
-  directory, through `paths` to source and through `node_modules` to the emitted `.d.ts` — which is
-  the property the phase 4 template rests on. The committed harvest moved to the workspace root,
-  which keeps it out of the published package by layout rather than by an exclusion rule. The three
-  plugins, rebuilt in TypeScript from the OCR'd 0.x inventory, each re-deriving the regexes and
-  literals it damaged rather than transcribing them; worktree-prefix's host-patch anchor turned out
-  to carry a space the real bundle does not. The install-time declaration check (D43), successor
-  suggestions in the diff (D45), the update flow and its watcher, and `check`, `update`, `watch`
-  and `dev`. Also the deferred compile-time proof, the manifest JSON schema every `rigline.json`
-  already pointed at and plugin-api did not ship, and this repo's supply-chain settings written
-  down rather than inherited — which corrected the plan's own note, since `blockExoticSubdeps`
-  already defaults to true and `minimumReleaseAge` has defaulted to 1440 since pnpm 11.
-- 2026-09-14: The three plugins earned their keep twice over, by finding two faults in the layer
-  they were the first real consumers of. **A declaration under `uses.optional` was not granted at
-  all** for anything but the two lookup-shaped capabilities: a plugin declaring `tools`, a message
-  tap or a rewrite optionally threw on its first call and disabled itself, on every version,
-  including the ones where the identifier was present. Two of the three plugins hit it
-  independently, from different capabilities, and both designed around it rather than trusting it.
-  The rule is now in D41: a lookup-shaped capability has two methods and each reads its own half,
-  everything else has one method that reads both. **And a mount was rebuilt rather than re-placed.**
-  React detaching a foreign child does not destroy it, so `build()` now runs once and the node goes
-  back as it was. That closes the plan's open question rather than answering it — the probe was
-  tracking its node by hand and session-id leaked two document listeners, which is two plugins
-  failing differently at one seam, and so a hazard in the capability rather than two bugs in the
-  plugins. A third fault was in the harness: its fake host answered `list_sessions_request` with a
-  type the extension does not have, so a tap on the real reply could never have fired there.
-- 2026-09-14: Phase 3's simulated-update acceptance met, and demonstrated end to end rather than
-  only in tests. A copy of 2.1.270 with `sessionItem` renamed to `sessionTile` in the bundle and the
-  stylesheet: `rigline check` names the successor, refuses the probe by name on that version alone,
-  loads a plugin declaring the same anchor optionally without it, reports the anchor table's own gap
-  against the table, and exits 1. All four plugins are installed on 2.1.268, 2.1.269 and 2.1.270
-  with every declaration holding. The live half is left for Leo, and needs a *window* reload
-  because `extension.js` is now patched for the first time.
-- 2026-09-14: The mount service moved off its document-wide mutation observer and onto the React
-  commit signal (D52), after a VS Code lockup sent us looking. The lockup itself was not Rigline —
-  the workbench renderer saturated while the payload runs in a separate webview process, and the
-  unresponsive samples carry no webview frame — but reading the observer to rule it out turned up
-  that its callback ignored every record it was handed and then mutated the DOM from inside itself,
-  which is a microtask that re-queues on its own insertions. The 0.x archive settled the rest: it
-  measured a node appended to a React-owned container surviving zero removals on all three surfaces
-  and kept its re-mount anyway because it was nearly free, which at one observer per anchor it was
-  and at one document-wide observer with 319 mounts it is not. Re-placement is now counted and on
-  the probe's panel, so the question closes on Rigline's own numbers. The probe also has its copy
-  button back.
-- 2026-09-14: Observability landed, all four pieces (D53). The host carries rates and peaks as well
-  as totals on nine hot paths; a bounded ring in `localStorage` survives a force-close and is read
-  back at boot; the probe's copy button carries the whole picture; and `rigline doctor` collects
-  install state plus the lines in VS Code's own logs that bear on a misbehaving panel. Against this
-  machine's logs, doctor independently reproduces the reading that took a session of hand work: the
-  16:27 "recovery" was the window being closed, not recovering, and it says so with the duration
-  marked as a lower bound. The webview half is confirmed in a real browser against the real bundle —
-  storage available, writes landing, meters peaking on real traffic.
-- 2026-09-14: The drifting-mount gap noted in the morning reproduced by the afternoon and is fixed
-  (D52, amended). An attachment chip in the composer reorders the footer row; the model pill goes to
-  the end of it and every decoration anchored to the pill stays behind, silently and permanently,
-  because a mount was only ever re-placed when its own node was detached. A pass now asks where each
-  mount belongs rather than only whether it is still there, `place` is idempotent so that is
-  affordable at one mount per transcript row, and drift is counted apart from re-placement because a
-  `moved` rate that never settles would mean the host and the app are undoing each other every
-  frame. The probe was blind to this and is not any more: an anchor with no host-placed node beside
-  it, while one of ours is on screen, is a FAIL rather than the N/A it read as when it happened.
-- 2026-09-14: The drifting-mount fix turned out not to be what Leo was seeing, and finding out why
-  was worth more than the fix. Three first-party decorations had been mounted on the agent-map
-  button rather than the model picker, because both carry `modelPill_gGYT1w` and `watch` took the
-  first match. Nothing had drifted; the probe's own ordering check said PASS, correctly, because the
-  mounts were exactly where the anchor they were given put them. An audit of the whole table found
-  five of fifteen identity anchors already ambiguous on 2.1.270. P2 and D7 are amended and the work
-  is specified above; none of it is built.
-- 2026-09-14: Anchor-ambiguity review, after the fact and worth it. Three changes. `knownSites` is
-  the acknowledgement a maintainer needs when the site count over-reads and there is nothing to
-  refine against — without it the cheapest discharge was relabelling the anchor `collection`, a lie
-  that switches the check off for good. `codegen --check` now asks about the anchors and not only
-  about the file, which is the invocation that runs unattended and could go green over an ambiguity
-  a maintainer had committed. And `rigline install`'s summary stopped listing a refused plugin as
-  enabled, two lines under its own REFUSED line. The review also found that D44's override is
-  unimplemented, so an ambiguous anchor currently has no consumer-side repair at all; that is
-  survivable only while the one consumer is also the maintainer, and it now gates `rigline add`.
-  Settled and recorded so it is not reopened: refusal stays whole-plugin rather than per-capability.
-- 2026-09-14: Anchor ambiguity built, items 1 to 4, and installed on all three versions. `kind` is
-  `singleton`/`collection`/`style`; the classes layer counts application sites from the same bytes
-  it reads the map from and carries them into the diff as `classes.reused`; anchors resolve to a CSS
-  selector as well as a class and the host queries with `querySelector`; and `watch` counts the
-  elements a singleton matches, which the probe reports. The five ambiguous anchors are refined —
-  `modelPill` on `[role="combobox"]`, the transcript rows on the app's own `[data-transcript-message]`
-  and `[data-testid="assistant-message"]`, `sessionListItemName` scoped inside its row. The harvest
-  reproduced D7's counts exactly on 2.1.270 and showed `modelPill` at two sites on 2.1.268, so the
-  agent-map button arrived in 2.1.269 and `classes.reused` is what would have said so. Two harness
-  tests pin it in a browser, one of which fails against the previous build. Both loose ends the audit
-  left are closed: `ctx.style` scoping was safe for a reason the plan now records, and `assistantRow`
-  and `userRow` are refined rather than demoted. One fork left open and written up: whether a plugin
-  may have the resolved selector.
-- 2026-09-14: The composer footer turned out to measure its own children, which is what Leo had been
-  seeing as a rapid flicker whenever a file was attached (D54, and the section above). The footer
-  sums the widths of its element children to pick one of three fit stages and resets that
-  measurement through `flushSync` on any foreign mutation inside it, exempting only the one child it
-  moves itself; all three first-party decorations were anchored to that child. So placing them
-  changed the layout decision, the decision moved the anchor, following the anchor left the measured
-  container, and leaving it re-triggered the measurement — one cycle per frame with the badge rebuilt
-  each time. Fixed at the anchor: `footerSpacer` plus a new `ctx.mountBefore` puts the decorations at
-  the end of the footer's left cluster, present in every stage, so the width they contribute is
-  constant and the ladder converges. The ladder converging at stage 2 while a chip is attached is the
-  honest cost and is not a defect. The general half is a damper: a mount re-placed, or a watch
-  re-anchored, on thirty consecutive passes without settling is abandoned by name rather than fought
-  at frame rate, which is the follow-through on D52's own warning that such a rate would mean the
-  host and the app were undoing each other. The instrument that would have named this does not exist
-  before today either — the loop ran through `watch`, which tears one mount down and attaches
-  another, so `moved` and `replaced` both stayed flat; there is now a `rebind` meter. Three harness
-  tests in a real browser: the new placement's ordering, and each half of the damper. `footerSpacer`
-  resolves on all three installed versions, so the anchor is not new to 2.1.270. Deferred until
-  there is evidence it is needed: `data-footer-fixed-width`, which would stop a badge's own text
-  changes resetting the ladder but cannot close the loop and is a width claim the copy flash breaks.
-- 2026-09-15: A harness test failed once in a full run and passed on its own, which is the shape
-  worth chasing rather than re-running. `boot()` waited for the app's own first render and returned,
-  but the pre hook is static while `post.js` loads dynamically, so a test could read what a plugin's
-  `setup()` installed before any plugin had loaded. A test waiting on a node its plugin placed got
-  the wait for free; the tool-result test waits on neither, since it pushes messages and reads a
-  `window` field, so it lost the race whenever the machine was loaded enough to widen the window —
-  which is the whole suite and never the file alone. `boot()` now also waits for
-  `diagnostics.bufferSealed`, which `post.js` sets in the `finally` of its plugin loop and therefore
-  means "every plugin has had its chance", refusals included. The window is measured rather than
-  assumed and printed on every run: 18ms, after a 277ms boot, on an idle single-file run.
-- 2026-09-15: Phase 4's opening specified, then cut back by Leo, and the cut is the decision worth
-  keeping. The spec had grown a grant-and-approve layer — per-patch approval records, a declaration
-  fingerprint, `rigline approve`, an upgrade that stops when a new version declares more — and his
-  objection is the one that settles it: that is a permission system stronger than the host's own.
-  VS Code has no granular permissions and never re-approves an extension whose new version does
-  more, a user who installed a plugin trusts its author and wants updates to work, and the prompt
-  would be charged to every user for something most of them do not want. Deferred to an opt-in
-  setting, well down the list (D26 and D49 amended). What that leaves is smaller and better:
-  `permissionSummary` becomes install output, `add` records a source so `upgrade` can fetch a newer
-  one, and a plugin dropped into `~/.rigline/plugins/` by hand loads on the next inject with
-  everything it declares. Two things survive from the cut work because they are independent of it:
-  a gate must never prompt from `install`, since the watcher calls it; and D44's anchor override is
-  now the only thing that genuinely has to land before somebody else installs a plugin. No code
-  changed.
-- 2026-09-15: `rigline update` renamed out of existence, Leo's call, and the reason generalises
-  (D55). It meant *the extension moved, put the loader back*, which nobody reads that way: `npm
-  update`, `pnpm update` and `cargo update` all mean *update the things I installed*, and this
-  extension's own users type `claude update` to get a new version of Claude Code. It was also barely
-  a command — it ran `install` over every version and then the reporting half `check` already owns.
-  So `install` absorbs it and is the one write command, `update` is freed for plugins in phase 4,
-  and there is no `upgrade`. Typing `update` now errors and names `install`, rather than being
-  carried as an alias that would change meaning under somebody later. The merge would have dropped
-  two lines of output that only the old `install` printed — which plugins are loading, and which are
-  switched off in config — so `VersionReport` carries them and `formatFlow` prints them, with the
-  three-reasons-a-plugin-is-missing case pinned by its own tests. `install` can now exit 1, which it
-  could not before and should always have. Leo then cut the error message itself: a command never
-  explains what it used to do, so `update` simply falls through to unknown-command and the usage.
-  The same rule took the host patch's `why` out of the install log, where it was a paragraph of the
-  author's rationale repeated identically per installed version.
-- 2026-09-18: `rigline list`, and `describeUses` — renamed from `permissionSummary`, since there are
-  no permissions and so nothing summarises them — finally has a caller. The plan had it going into
-  `install`'s report; that does not survive the trim above, because `install` runs unattended under
-  `watch` and after every extension update, so a description of every plugin there is the same
-  paragraph on a loop. It belongs where somebody asked a question, so it is `list` now and `add`
-  when it lands. `DiscoveredPlugin` carries the root it was found under,
-  which is the only record of whether a plugin is yours or one somebody installed; `list` shows it,
-  in load order rather than a second ordering of its own, so it and the baked registry cannot
-  disagree about what loads first. Building it turned up the same noise problem one level down: the
-  anchor summary emitted a line per anchor carrying the table's prose, which for session-id was ten
-  near-identical sentences about a pop-up's look burying the one line saying where it appears. It
-  now groups by what the plugin does with the anchor and drops the descriptions, which live in the
-  anchor table and stay current there. Fifteen lines to five.
+One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs live in git.
+
+- 2026-09-13: Archive assembled, anchors validated on 2.1.270, corpus snapshotted, plan and
+  decisions written, workspace scaffolded. Phase 0 done.
+- 2026-09-13: Phase 1 done. Harvest of 2.1.270: 104 modules, 1009 classes, 108 outbound requests, 9
+  notifications, 9 inbound pushes, 22 inbound requests, 105 replies, 151 payload fields; three
+  requests have no reply by convention; two stylesheet modules are unreachable. Drift 2.1.268 to
+  2.1.270: modules 99.0% kept, classes 98.2%, local names 99.6%, message types 99.3%, React anchors
+  100%.
+- 2026-09-14: Renamed Prototype to Rigline — `@prototype` was a registered npm org and bare `prototype`
+  collides with a published package. Nothing had been published under the old name, so the sweep was
+  total except `docs/archive/0.x/`, which is the prototype's own record.
+- 2026-09-14: Phase 2 done, then two defects found live. **Superseded payload directories**: install
+  and restore only ever wrote and removed the *current* payload directory, so a webview opened
+  before a reinstall went on running a whole superseded loader from disk — a second observer, hook
+  chain, tap and sweep — which is what locked a window up with two surfaces open. Both commands now
+  delete superseded directories by name. **The probe's boot-window false negative**: its first poll
+  ran inside its own `setup()`, before the kernel seals the replay buffer, so every
+  diagnostics-driven check was being read before its answer could exist. Deferred to a macrotask.
+- 2026-09-14: Direction validated against Leo's two questions — third-party install and version
+  spread. The third-party mechanism already worked; the version question split four ways and
+  produced D40 to D45. His reframe set the priority: design against the gap between an update
+  landing and a maintainer catching up, not against a spread of old versions.
+- 2026-09-14: Distribution settled as npm with a CI publish pipeline, after a git-repo channel was
+  proposed and rejected — the cadence argument for git belongs to the anchor table, which repairs in
+  an hour without an author. D46 to D49, D33 amended. Template shape settled as D50.
+- 2026-09-14: Phase 3 built and merged, and the three plugins earned their keep by finding two
+  faults in the layer they were the first consumers of: an optionally-declared switch, tap or
+  rewrite was not granted at all, and a mount was rebuilt rather than re-placed.
+- 2026-09-14: Mount service moved off its document-wide observer onto the React commit signal (D52).
+  Then the drifting-mount gap it left reproduced the same afternoon and was fixed: a pass now asks
+  where a mount *belongs*, not only whether it is still there.
+- 2026-09-14: Three first-party decorations turned out to be mounted on the agent-map button rather
+  than the model picker, because both carry `modelPill_gGYT1w`. An audit found five of fifteen
+  identity anchors already ambiguous on 2.1.270. P2 and D7 amended; the work built the same day —
+  `kind` split three ways, application-site counts carried into the diff as `classes.reused`,
+  selector resolution, runtime multiplicity. The harvest showed `modelPill` at two sites on 2.1.268,
+  so the agent-map button arrived in 2.1.269 and `classes.reused` is what would have said so.
+- 2026-09-14: Observability landed (D53): rates and peaks on nine hot paths, a bounded
+  `localStorage` ring that survives a force-close, and the probe's copy carrying the whole picture.
+- 2026-09-14: The composer footer turned out to measure its own element children and reset that
+  measurement through `flushSync` on any foreign mutation, which is the flicker Leo saw whenever a
+  file was attached (D54). Fixed at the anchor — `footerSpacer` plus `ctx.mountBefore` — and
+  generalised into a damper: a mount or watch corrected on thirty consecutive passes without
+  settling is abandoned by name rather than fought at frame rate.
+- 2026-09-15: A harness test that failed once and passed alone turned out to be `boot()` returning
+  before plugins had loaded. It now waits on `diagnostics.bufferSealed`, which means every plugin
+  has had its chance, refusals included.
+- 2026-09-15: Phase 4's opening cut back by Leo, and `rigline update` renamed out of existence:
+  `install` is the one write command, `check` its read-only half, and `update` belongs to plugins
+  (D55).
+- 2026-09-18: `rigline list` built, and `describeUses` finally has a caller. Building it surfaced the
+  same noise problem one level down — the anchor summary emitted a line per anchor carrying the
+  table's prose, ten near-identical sentences about a pop-up's look burying the one line that said
+  where it appeared. It groups by what the plugin does with the anchor now: fifteen lines to five.
+- 2026-09-18: Trimmed the register and this plan to what is true now, and cut `doctor` back to
+  Rigline's own install state (D53 amended), dropping about 1,600 lines of VS Code log parsing and
+  the redaction machinery that existed to make reading those logs safe.

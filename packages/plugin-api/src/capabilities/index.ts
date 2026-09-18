@@ -62,10 +62,9 @@ export function optionalGaps(uses: Uses, tables: IdentifierTables): string[] {
 }
 
 /**
- * What a plugin does, one sentence per thing its manifest declares.
- *
- * Nothing here is a permission: a plugin's declarations are not granted, refused or approved, and
- * `rigline list` prints these so a person can read what they installed.
+ * What a plugin does, one sentence per thing its manifest declares. `rigline list` prints these, and
+ * `add` will, so a person can read what they installed. A declaration is a dependency, so a line
+ * here says what the plugin reaches for and nothing turns on whether anybody reads it.
  */
 export function describeUses(uses: Uses): string[] {
   return [
