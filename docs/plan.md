@@ -238,15 +238,13 @@ composer-footer damper (D54), and observability (D53).
 
 ### Phase 4: the community layer — next
 
-In order. The first item gates the rest for a reason that is not tidiness.
+In order.
 
-1. **`~/.rigline/anchors.json`, the local anchor override** (D44, amended), reported by name at
-   install. This must land before anybody else installs a plugin: an anchor that stops resolving —
-   retired, or newly ambiguous — refuses the plugins that declared it, and until the override exists
-   the only repair is a Rigline release, which is npm plus D48's minimum age, so days against the
-   extension's weekly cadence. Survivable while the only consumer is also the maintainer and can
-   edit the table in the repo; not survivable after that. The override carries a refinement, not
-   only a module-and-local pair, because a pair cannot repair an ambiguity.
+1. **`~/.rigline/anchors.json`, the local anchor override** (D44, amended) — done 2026-09-18.
+   Merged over the shipped table, reaching the `generated.js` the loader reads, and named per
+   version at install with what that version makes of it. [anchors.md](anchors.md) is its
+   reference, written for a user rather than for us. It came first because it had to be there
+   before anybody else installed a plugin, and that condition is now met.
 2. **`rigline add` from a path, and `remove`.** No network, and what makes `~/.rigline/plugins/` a
    managed directory rather than one people copy into. `add` is where `describeUses` says what
    arrived, at the moment it means something.
@@ -262,7 +260,8 @@ In order. The first item gates the rest for a reason that is not tidiness.
    augmentation is per-program, so each plugin's tsconfig must pull the shared root harvest in,
    which a shared base config does.
 5. **Topic docs**: architecture, identifier layers, the bus, host patches, the transcript,
-   verification, surviving an update, publishing a plugin.
+   verification, surviving an update, publishing a plugin. [anchors.md](anchors.md) already covers
+   the anchor half of surviving an update.
 6. **Our own release pipeline** (D46), which is a separate track and gates none of the above. The
    staged-publish workflow for the three packages, proven on a real release before the template
    hands it to anyone else. One `pnpm stage publish -r` stages all three; each is approved on its
@@ -284,8 +283,11 @@ known risk to weigh when this phase starts.
   but not taken, because it is the first plugin-facing API that hands over something version-derived
   and composable. Until it is settled the authoring guide says: scope a rule to something you
   placed, never to an anchor's bare class.
-- **Anchor governance** (D44): who may add to the table, what evidence an entry needs, and how a
-  local `anchors.json` override is promoted into the shipped table once confirmed.
+- **Anchor governance** (D44): who may add to the table, and what evidence an entry needs. Half of
+  the promotion path exists already: an override whose anchor this version resolves without it is
+  reported as changing nothing, which is the signal that the shipped table has caught up and the
+  entry can go. What is missing is the other end — how an entry gets into the shipped table, and on
+  whose say-so.
 - **Whether `ctx.style` refuses a selector naming a class the plugin did not declare, or only
   lints.**
 - **Whether `pnpm stage publish` completes the OIDC exchange.** D46 and D50 lean on one `pnpm stage
@@ -298,7 +300,7 @@ known risk to weigh when this phase starts.
 
 ## Next session
 
-Phase 4, starting with the anchor override. Nothing blocks it.
+Phase 4 item 2: `rigline add` from a path, and `remove`. Nothing blocks it.
 
 **About this machine.** Only 2.1.270 is installed — VS Code deleted 2.1.268 and 2.1.269 once nothing
 was serving them, which is the behaviour D4 exists for; both are still in the corpus. Its
@@ -387,3 +389,11 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
 - 2026-09-18: Trimmed the register and this plan to what is true now, and cut `doctor` back to
   Rigline's own install state (D53 amended), dropping about 1,600 lines of VS Code log parsing and
   the redaction machinery that existed to make reading those logs safe.
+- 2026-09-18: The local anchor override landed, and phase 4's first item with it (D44 amended).
+  Building it turned up two things the design had not said. The manifest's shape check was refusing
+  any anchor name outside the shipped table, which stops being an answerable question once the table
+  is extensible — it now checks shape only, and a name the installed table has not got is a
+  per-plugin refusal rather than a failed install. And the flow's `--codegen` rewrite was rendering
+  `generated.ts` from the merged table, so one machine's local repair would have been committed into
+  the record every other checkout reads; the write is now the shipped table's answer, byte for byte,
+  and a test holds it there.

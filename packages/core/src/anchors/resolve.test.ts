@@ -2,7 +2,7 @@ import { ANCHOR_NAMES, ANCHORS, type AnchorName, type AnchorSpec } from "@riglin
 import { describe, expect, it } from "vitest";
 import { CORPUS_VERSIONS, corpusBundles, missing } from "../../test/corpus.ts";
 import { type Classes, harvestClasses } from "../layers/classes.ts";
-import { anchorViolation, resolveAnchors, uncountedClasses } from "./resolve.ts";
+import { resolveAnchors, uncountedClasses } from "./resolve.ts";
 
 const mapWith = (...pairs: [module: string, local: string][]) => {
   const map: Record<string, Record<string, string>> = {};
@@ -44,14 +44,13 @@ describe("resolveAnchors", () => {
     expect(resolved.classes.transcriptRow).toBeNull();
   });
 
-  it("names the pair when an anchor is missing, and rejects a name not in the table", () => {
+  it("names the pair in the reason an anchor did not resolve", () => {
     const resolved = resolveAnchors(uncountedClasses({}));
-    expect(anchorViolation("modelPill", resolved)).toBe(
+    expect(resolved.reasons.modelPill).toBe(
       'anchor "modelPill" (gGYT1w.modelPill) is not in this extension',
     );
-    expect(anchorViolation("nonsense", resolved)).toBe('unknown anchor "nonsense"');
     const ok = resolveAnchors(counted(mapWith(["gGYT1w", "modelPill"])));
-    expect(anchorViolation("modelPill", ok)).toBeNull();
+    expect(ok.reasons.modelPill).toBeUndefined();
   });
 
   describe("selectors", () => {
@@ -80,7 +79,7 @@ describe("resolveAnchors", () => {
       const resolved = resolveAnchors(counted(mapWith(["OOQiHg", "sessionName"])));
       expect(resolved.classes.sessionListItemName).toBeNull();
       expect(resolved.selectors.sessionListItemName).toBeNull();
-      expect(anchorViolation("sessionListItemName", resolved)).toBe(
+      expect(resolved.reasons.sessionListItemName).toBe(
         'anchor "sessionListItemName" sits within "sessionListItem", which does not resolve in this extension',
       );
     });
@@ -99,7 +98,7 @@ describe("resolveAnchors", () => {
       expect(resolved.classes.composer).toBeNull();
       expect(resolved.selectors.composer).toBeNull();
       expect(resolved.ambiguous).toEqual([{ name: "composer", sites: 3 }]);
-      expect(anchorViolation("composer", resolved)).toContain("applies its class at 3 places");
+      expect(resolved.reasons.composer).toContain("applies its class at 3 places");
     });
 
     it("exempts a singleton that carries a refinement", () => {

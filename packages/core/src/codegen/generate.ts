@@ -23,7 +23,7 @@
  * diff as one added line rather than a reflowed block.
  */
 import type { IdentifierTables } from "@rigline/plugin-api";
-import { type ResolvedAnchors, resolveAnchors } from "../anchors/resolve.ts";
+import { type AnchorTable, type ResolvedAnchors, resolveAnchors } from "../anchors/resolve.ts";
 import { type ClassMap, collidingLocalNames, unreachableCssClasses } from "../layers/classes.ts";
 import { type Scan, scanToJson } from "../layers/diff.ts";
 import { type Harvest, scanOf } from "../layers/index.ts";
@@ -47,8 +47,15 @@ export interface Generated {
   readonly counts: string;
 }
 
-/** Build the tables and both renderings from a harvest. */
-export function generate(harvest: Harvest): Generated {
+/**
+ * Build the tables and both renderings from a harvest.
+ *
+ * `anchorTable` is what the anchor names resolve against, which is how `~/.rigline/anchors.json` reaches the
+ * `generated.js` the loader reads (D44). It defaults to the shipped table, which is what `rigline
+ * codegen` wants: that command's verdict is about this repository's table, and a local override
+ * would let the one machine that can repair it go green instead.
+ */
+export function generate(harvest: Harvest, anchorTable?: AnchorTable): Generated {
   const gaps = unreachableCssClasses(harvest.classes.map, harvest.css);
   const partial = gaps.filter((gap) => gap.partial);
   if (partial.length > 0) {
@@ -60,7 +67,7 @@ export function generate(harvest: Harvest): Generated {
   }
   const unreachableModules = gaps.map((gap) => gap.module);
 
-  const anchors = resolveAnchors(harvest.classes);
+  const anchors = resolveAnchors(harvest.classes, anchorTable);
   const tables: IdentifierTables = {
     version: harvest.version,
     moduleClasses: sortedClassMap(harvest.classes.map),

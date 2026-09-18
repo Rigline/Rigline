@@ -516,15 +516,45 @@ the install says how many a plugin has.
 written when the only way a name stopped resolving was the class retiring. There are now two, and
 the second — a singleton whose class the version applies in more than one place (D7) — cannot be
 repaired by a pair, because the class is right there and it is the *identity* that has gone. So an
-override may supply `refine` and `within` as well as `module` and `local`.
+override may supply `refine` and `within` as well as `module` and `local`, and `knownSites` too:
+that is the other of exactly the two discharges D7 allows for an ambiguous singleton, and leaving
+it out would send half of those repairs back to a release for no reason anybody could defend.
 
-**Until it exists, refusal is a repair path we do not have.** This is unimplemented, and that is
-load-bearing rather than incidental: an ambiguous or retired anchor refuses the plugins that
-declared it, and with no override the only repair is a Rigline release — npm, plus D48's minimum
-age, so days, against an extension that updates weekly. That is survivable while the only consumer
-is also the maintainer and can edit the table in the repo. It stops being survivable the moment
-somebody else installs a plugin, so this has to land before `rigline add` puts one in anybody
-else's hands.
+**An entry is a partial spec over the shipped one, and carries a `why`.** The file is
+`{ "anchors": { "<name>": { … } } }`. An entry for a curated name merges field by field over the
+table's, so a repair states what moved and nothing else, and `null` takes a field back out — which
+is how a refinement that has stopped refining, or a `within` the markup no longer nests, is undone
+rather than replaced. An entry for a name the table has not got adds one, and must carry what a
+spec requires. `why` is required on every entry for the reason `knownSites.why` and a host patch's
+`why` are: this is the thing that gets pasted into an issue thread and copied by strangers, and the
+next person to read it — usually its author, weeks later — needs to know what it repaired.
+
+**A malformed override never blocks, and never silently wins.** The file is user state, so it is
+neither of the two things allowed to cost every plugin its injection (D27): a file that will not
+parse is reported and ignored, a single bad entry is reported and dropped while the rest apply.
+Against that, every entry that does apply is named in the install report, with what this version
+makes of it — whether it repairs a name this version would not otherwise resolve, adds one, or
+changes nothing because the shipped table already resolves it. An override that *stops* a name
+resolving is an attention line: a local file breaking an anchor that was working is silent
+otherwise, and the plugin refused for it would be blamed on the extension.
+
+**`rigline codegen` reads the shipped table only.** Its verdict is about this repository's table —
+D7 has it exit non-zero on an ambiguous singleton because a maintainer is standing there and the
+repair is a refinement they can write today. A local override would let that maintainer's own
+machine go green over a table that is still wrong, and would put local state into the comments of a
+committed file. `install` and `check` read the merged table, because they are about the machine in
+front of them — with one carve-out that is the same rule again: the `generated.ts` `install`
+rewrites is rendered from the shipped table, because that file is committed and read by every other
+checkout, and one machine's repair belongs in none of them.
+
+**The installed table is the authority on which anchor names exist, so the manifest's shape check
+stops asking `ANCHORS`.** A table that can be extended locally means plugin-api's compiled-in names
+are no longer the full set, and a shape check that says otherwise refuses a manifest this install
+can honour — at the loudest severity there is, since a shape problem fails the whole install. An
+anchor name the installed table has not got is reported by the declaration check instead (D43),
+which refuses that one plugin and names the anchor. The JSON schema keeps its enum of curated
+names: a typo is made while authoring, which is where the schema is read and where the curated set
+is the right answer.
 
 **D45. A retired identifier is reported with its likely successor, and never remapped.** A rename
 usually shows in the diff as one local name gone from a module and one new name arrived in the same

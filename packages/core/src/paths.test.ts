@@ -15,6 +15,7 @@ describe("riglineHome", () => {
     expect(paths).toEqual({
       home: "/g",
       config: join("/g", "config.json"),
+      anchors: join("/g", "anchors.json"),
       plugins: join("/g", "plugins"),
       baseline: join("/g", "baseline.json"),
     });

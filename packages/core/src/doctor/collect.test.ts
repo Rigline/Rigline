@@ -11,7 +11,8 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { RIGLINE_HOME_VARIABLE } from "../paths.ts";
 import { collect } from "./collect.ts";
 import { formatDoctor } from "./report.ts";
 
@@ -24,7 +25,19 @@ function tempDir(prefix: string): string {
   return dir;
 }
 
+/**
+ * Every default path this collector reads points into a temporary home, so that a run on a machine
+ * with a real `~/.rigline` reads that machine's state instead of the fixture's. D39 in miniature:
+ * the live directory is never the thing under test.
+ */
+let home = "";
+beforeEach(() => {
+  home = tempDir("rigline-doctor-home-");
+  process.env[RIGLINE_HOME_VARIABLE] = home;
+});
+
 afterEach(() => {
+  delete process.env[RIGLINE_HOME_VARIABLE];
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
@@ -72,6 +85,22 @@ describe("collect", () => {
     const report = collect({ exts: [], now: NOW, home: "/nowhere" });
     expect(report.problems).toContain("no Claude Code extension directory was found");
     expect(() => formatDoctor(report)).not.toThrow();
+  });
+
+  it("carries the local anchor override, which nothing else in a bug report would show", () => {
+    const none = collect({ exts: [], now: NOW, home: "/nowhere" });
+    expect(none.anchorOverrides.present).toBe(false);
+    expect(formatDoctor(none)).toContain("None: the anchor table is the one Rigline ships.");
+
+    writeFileSync(
+      join(home, "anchors.json"),
+      JSON.stringify({
+        anchors: { composer: { refine: "[data-composer]", why: "two controls wear it now" } },
+      }),
+    );
+    const report = collect({ exts: [], now: NOW, home: "/nowhere" });
+    expect(report.anchorOverrides.names).toEqual(["composer"]);
+    expect(formatDoctor(report)).toContain("`composer`");
   });
 
   it("turns an unreadable directory into a problem line and carries on", () => {

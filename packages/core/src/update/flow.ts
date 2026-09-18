@@ -19,6 +19,12 @@
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import {
+  type AnchorOverrideOutcome,
+  type AnchorOverrides,
+  anchorOverrideOutcomes,
+  readAnchorOverrides,
+} from "../anchors/overrides.ts";
 import { type Generated, generate } from "../codegen/generate.ts";
 import { readBundles } from "../extension/bundles.ts";
 import { extensionVersion, installedExtensions } from "../extension/locate.ts";
@@ -29,7 +35,7 @@ import {
   pluginVerdicts,
 } from "../inject/inject.ts";
 import { diffScans, formatDiff, type Scan, scansDiffer, type ViewDiff } from "../layers/diff.ts";
-import { harvestAll } from "../layers/index.ts";
+import { type Harvest, harvestAll } from "../layers/index.ts";
 import { riglinePaths } from "../paths.ts";
 import { discoverPlugins, enabledPlugins, readConfig } from "../plugins/discover.ts";
 import { type BaselineSource, GENERATED_FILE, readBaseline, writeBaseline } from "./baseline.ts";
@@ -50,6 +56,12 @@ export interface VersionReport {
    */
   readonly anchorsAmbiguous: readonly { readonly name: string; readonly sites: number }[];
   readonly anchorsUnverified: readonly string[];
+  /**
+   * Each entry of `~/.rigline/anchors.json`, and what this version makes of it (D44). Reported by
+   * name because a table repaired on one machine and nowhere else is the one kind of difference
+   * nothing else in a bug report would show.
+   */
+  readonly anchorOverrides: readonly AnchorOverrideOutcome[];
   /** What the install did here, or null from `check`, which installs nothing. */
   readonly action: "injected" | "refreshed" | null;
   /** Whether `extension.js` changed, which needs a window reload rather than a webview reload. */
@@ -68,6 +80,8 @@ export interface VersionReport {
 export interface FlowReport {
   /** What the newest installed version was compared against, or null on a first run. */
   readonly baseline: BaselineSource | null;
+  /** The local anchor table override, as read: the file, and anything wrong with it (D44). */
+  readonly overrides: AnchorOverrides;
   /** The newest installed version's harvest, which is what a written baseline records. */
   readonly scan: Scan;
   readonly diffs: readonly ViewDiff[];
@@ -90,6 +104,8 @@ export interface FlowOptions {
   readonly plugins?: InstallOptions["plugins"];
   /** Where the recorded baseline lives. Defaults to `~/.rigline/baseline.json`. */
   readonly baselinePath?: string;
+  /** Where the anchor override lives. Defaults to `~/.rigline/anchors.json`. */
+  readonly anchorsPath?: string;
 }
 
 export interface UpdateOptions extends FlowOptions {
@@ -106,12 +122,14 @@ export interface UpdateOptions extends FlowOptions {
 interface Harvested {
   readonly ext: string;
   readonly version: string;
+  readonly harvest: Harvest;
   readonly generated: Generated;
 }
 
-function harvestOne(ext: string): Harvested {
-  const generated = generate(harvestAll(readBundles(ext)));
-  return { ext, version: generated.tables.version, generated };
+function harvestOne(ext: string, overrides: AnchorOverrides): Harvested {
+  const harvest = harvestAll(readBundles(ext));
+  const generated = generate(harvest, overrides.table);
+  return { ext, version: generated.tables.version, harvest, generated };
 }
 
 /** How one version answered the anchor table, as a `VersionReport` carries it. */
@@ -137,6 +155,7 @@ function anchorReport(
  */
 export function check(options: FlowOptions = {}): FlowReport {
   const exts = options.exts ?? installedExtensions();
+  const overrides = readAnchorOverrides(options.anchorsPath ?? riglinePaths().anchors);
   const discovered = options.plugins
     ? discoverPlugins(options.plugins.roots, { last: options.plugins.last })
     : [];
@@ -146,12 +165,13 @@ export function check(options: FlowOptions = {}): FlowReport {
   const enabled = plugins.map((p) => p.name);
   const disabled = discovered.filter((p) => !enabled.includes(p.name)).map((p) => p.name);
 
-  const harvested = exts.map(harvestOne);
+  const harvested = exts.map((ext) => harvestOne(ext, overrides));
   const versions: VersionReport[] = harvested.map((h) => ({
     ext: h.ext,
     version: h.version,
     verdicts: pluginVerdicts(plugins, h.generated.tables),
     ...anchorReport(h.generated),
+    anchorOverrides: anchorOverrideOutcomes(h.harvest.classes, overrides),
     action: null,
     hostChanged: false,
     enabled,
@@ -159,7 +179,7 @@ export function check(options: FlowOptions = {}): FlowReport {
     log: [],
   }));
 
-  return settle(options, harvested, versions, null);
+  return settle(options, overrides, harvested, versions, null);
 }
 
 /**
@@ -171,6 +191,7 @@ export function check(options: FlowOptions = {}): FlowReport {
  */
 export function update(options: UpdateOptions): FlowReport {
   const exts = options.exts ?? installedExtensions();
+  const overrides = readAnchorOverrides(options.anchorsPath ?? riglinePaths().anchors);
   const harvested: Harvested[] = [];
   const versions: VersionReport[] = [];
 
@@ -183,15 +204,17 @@ export function update(options: UpdateOptions): FlowReport {
     const report = install(ext, {
       payloadDir: options.payloadDir,
       plugins: options.plugins,
+      anchors: overrides,
       log: (line) => log.push(line),
     });
-    const h = harvestOne(ext);
+    const h = harvestOne(ext, overrides);
     harvested.push(h);
     versions.push({
       ext,
       version: extensionVersion(ext),
       verdicts: report.verdicts,
       ...anchorReport(h.generated),
+      anchorOverrides: report.anchorOverrides,
       action: report.action,
       hostChanged: report.hostChanged,
       enabled: report.enabled,
@@ -200,12 +223,13 @@ export function update(options: UpdateOptions): FlowReport {
     });
   }
 
-  return settle(options, harvested, versions, options);
+  return settle(options, overrides, harvested, versions, options);
 }
 
 /** The half both commands share: diff against the baseline, decide who needs a person, write. */
 function settle(
   options: FlowOptions,
+  overrides: AnchorOverrides,
   harvested: readonly Harvested[],
   versions: readonly VersionReport[],
   writeOptions: UpdateOptions | null,
@@ -216,11 +240,12 @@ function settle(
   if (!newest) {
     return {
       baseline: null,
+      overrides,
       scan: { version: "none", views: {} },
       diffs: [],
       versions,
       wrote: [],
-      attention: ["no Claude Code extension is installed"],
+      attention: ["no Claude Code extension is installed", ...overrides.problems],
     };
   }
 
@@ -228,7 +253,9 @@ function settle(
   const baseline = readBaseline(dir, baselinePath);
   const diffs = baseline ? diffScans(baseline.scan, scan) : [];
   const wrote: string[] = [];
-  const attention: string[] = [];
+  // A malformed override is a person's mistake in a file only they can fix, and it never blocks:
+  // the entries that parsed have already been applied and the rest are simply not there (D44).
+  const attention: string[] = [...overrides.problems];
 
   for (const version of versions) {
     for (const verdict of version.verdicts) {
@@ -267,6 +294,15 @@ function settle(
         `${version.version}: the application-site count could not be taken for ${version.anchorsUnverified.join(", ")}, so nothing checked that each names one element`,
       );
     }
+    for (const override of version.anchorOverrides) {
+      if (override.resolves || !override.resolvedWithout) continue;
+      // The one override outcome nobody would otherwise see: this version resolved the anchor
+      // until a local file said otherwise, and the plugins refused for it would read as the
+      // extension's doing.
+      attention.push(
+        `${version.version}: ${overrides.path} overrides "${override.name}", and this version resolves it without the override but not with it`,
+      );
+    }
     if (version.hostChanged) {
       attention.push(
         `${version.version}: extension.js changed, so run "Developer: Reload Window" (this ends the window's sessions)`,
@@ -277,8 +313,13 @@ function settle(
   if (writeOptions) {
     if (writeOptions.codegen) {
       const path = join(dir, GENERATED_FILE);
-      if (existsSync(path) && readFileSync(path, "utf8") !== newest.generated.source) {
-        writeFileSync(path, newest.generated.source);
+      // Rendered from the shipped anchor table, never the merged one (D44). What goes in here is
+      // committed, and the version's answer to `~/.rigline/anchors.json` is one machine's local
+      // repair: baking it into a repository's record would make the next person's checkout disagree
+      // with their own harvest for a reason nothing in the file could explain.
+      const source = generate(newest.harvest).source;
+      if (existsSync(path) && readFileSync(path, "utf8") !== source) {
+        writeFileSync(path, source);
         wrote.push(path);
         attention.push(
           `${path} was rewritten from ${newest.version}; read the diff, typecheck, and commit it`,
@@ -289,7 +330,30 @@ function settle(
     wrote.push(baselinePath);
   }
 
-  return { baseline, scan, diffs, versions, wrote, attention };
+  return { baseline, overrides, scan, diffs, versions, wrote, attention };
+}
+
+/**
+ * What one override entry did to this version, as the line a person reads (D44).
+ *
+ * The comparison is the whole point of saying anything: an override applied is invisible, and the
+ * question somebody asks after writing one is whether it worked. "Changes nothing" is the answer
+ * worth having too, since an override that the shipped table has caught up with is one to delete.
+ */
+function overrideEffect(override: AnchorOverrideOutcome): string {
+  if (override.added) {
+    return override.resolves
+      ? "adds an anchor the table has not got, and it resolves here"
+      : "adds an anchor the table has not got, and it does not resolve here";
+  }
+  if (override.resolves) {
+    return override.resolvedWithout
+      ? "changes nothing; this version resolves the anchor without it"
+      : "repairs an anchor this version does not otherwise resolve";
+  }
+  return override.resolvedWithout
+    ? "STOPS an anchor resolving that this version resolves without it"
+    : "does not resolve the anchor, which this version does not resolve either";
 }
 
 /** "1 plugin", "3 plugins". A report a person reads should not make them read "(s)". */
@@ -314,6 +378,12 @@ export function formatFlow(report: FlowReport): string {
   for (const version of report.versions) {
     lines.push(`\n${version.version}${version.action ? `: ${version.action}` : ""}`);
     for (const line of version.log) lines.push(`  ${line}`);
+    if (version.anchorOverrides.length > 0) {
+      lines.push(`  anchor overrides, from ${report.overrides.path}:`);
+      for (const override of version.anchorOverrides) {
+        lines.push(`    ${override.name}: ${overrideEffect(override)}`);
+      }
+    }
     for (const verdict of version.verdicts) {
       if (verdict.refusal) lines.push(`  REFUSED ${verdict.plugin}: ${verdict.refusal}`);
       else if (verdict.missingOptional.length > 0) {

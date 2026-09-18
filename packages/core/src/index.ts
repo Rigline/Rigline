@@ -7,13 +7,15 @@
  * over this; a companion VS Code extension would be another.
  */
 
-export type { ResolvedAnchors } from "./anchors/resolve.ts";
+export type { AnchorOverrideOutcome, AnchorOverrides } from "./anchors/overrides.ts";
 export {
-  anchorViolation,
-  missingAnchorReason,
-  resolveAnchors,
-  uncountedClasses,
-} from "./anchors/resolve.ts";
+  anchorOverrideOutcomes,
+  mergeAnchorOverrides,
+  NO_ANCHOR_OVERRIDES,
+  readAnchorOverrides,
+} from "./anchors/overrides.ts";
+export type { AnchorTable, ResolvedAnchors } from "./anchors/resolve.ts";
+export { missingAnchorReason, resolveAnchors, uncountedClasses } from "./anchors/resolve.ts";
 export type { Generated } from "./codegen/generate.ts";
 export { generate } from "./codegen/generate.ts";
 export type { DoctorOptions, DoctorReport } from "./doctor/collect.ts";

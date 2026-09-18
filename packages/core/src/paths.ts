@@ -22,6 +22,8 @@ export interface RiglinePaths {
   readonly config: string;
   /** Plugins installed for this user, one directory each, discovered like any other plugin root. */
   readonly plugins: string;
+  /** Local overrides and additions to the curated anchor table (D44). */
+  readonly anchors: string;
   /** The last harvest, as a scan, for "what changed" after an extension update. */
   readonly baseline: string;
 }
@@ -31,6 +33,7 @@ export function riglinePaths(home = riglineHome()): RiglinePaths {
     home,
     config: join(home, "config.json"),
     plugins: join(home, "plugins"),
+    anchors: join(home, "anchors.json"),
     baseline: join(home, "baseline.json"),
   };
 }

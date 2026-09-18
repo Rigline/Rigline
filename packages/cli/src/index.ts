@@ -30,6 +30,7 @@ import {
   install,
   installedExtensions,
   listPlugins,
+  readAnchorOverrides,
   readBundles,
   restoreAll,
   riglinePaths,
@@ -48,7 +49,8 @@ const USAGE = `rigline ${CORE_VERSION}
       augmentation your plugins compile against, and the baseline install diffs. Commit it.
       --check compares instead of writing and exits 1 when the file is out of date. Either
       way it exits 1 if a curated anchor claims to name one element and this version
-      applies its class in more than one place.
+      applies its class in more than one place. It reads the shipped anchor table, never
+      ~/.rigline/anchors.json: its verdict is about this repository's table.
 
   rigline diff DIR_A DIR_B
       Compare the identifier layers of two extension directories.
@@ -59,14 +61,16 @@ const USAGE = `rigline ${CORE_VERSION}
   rigline install [--ext DIR] [--payload DIR]
       Inject the loader into every installed extension version (or DIR), baking the enabled
       plugins, and report what moved since the baseline and which plugins each version
-      refuses. Rewrites ./generated.ts when the directory has one and records the new
-      baseline; never commits either. Run it after an extension update, and reload webviews
-      afterwards. Exits 1 when a person is needed.
+      refuses. Any entry in ~/.rigline/anchors.json is applied and named, with what this
+      version makes of it. Rewrites ./generated.ts when the directory has one and records
+      the new baseline; never commits either. Run it after an extension update, and reload
+      webviews afterwards. Exits 1 when a person is needed.
 
   rigline check [--ext DIR]
       Read-only. Per installed version (or DIR): what moved since the baseline, which
-      plugins this version would refuse and by which identifier, and which curated anchors
-      it lacks. Exits 1 when a person is needed.
+      plugins this version would refuse and by which identifier, which curated anchors it
+      lacks, and what it makes of each entry in ~/.rigline/anchors.json. Exits 1 when a
+      person is needed.
 
   rigline watch [--interval SECONDS]
       install, and again whenever the set of installed extension directories changes,
@@ -403,6 +407,13 @@ async function dev(args: string[]): Promise<number> {
   const exts = installedExtensions();
   if (exts.length === 0) throw new UserError("no Claude Code extension is installed");
 
+  // `install`, `check` and `watch` read `~/.rigline/anchors.json` through the flow, which owns user
+  // state. `dev` drives the installer directly, so it reads the file here: a development loop
+  // resolving anchors differently from the install it stands in for is a difference nobody would
+  // think to look for (D44).
+  const overrides = readAnchorOverrides();
+  for (const problem of overrides.problems) console.error(`rigline dev: ${problem}`);
+
   async function once(): Promise<void> {
     for (const dir of dirs) {
       const built = await buildPlugin({ dir });
@@ -410,8 +421,15 @@ async function dev(args: string[]): Promise<number> {
     }
     let hostChanged = false;
     for (const ext of exts) {
-      const report = install(ext, { payloadDir: defaultPayloadDir(), plugins: pluginOptions() });
+      const report = install(ext, {
+        payloadDir: defaultPayloadDir(),
+        plugins: pluginOptions(),
+        anchors: overrides,
+      });
       hostChanged ||= report.hostChanged;
+      for (const override of report.anchorOverrides) {
+        console.log(`  anchor override ${override.name}: ${overrides.path}`);
+      }
       for (const verdict of report.verdicts) {
         if (verdict.refusal) console.log(`  REFUSED ${verdict.plugin}: ${verdict.refusal}`);
       }

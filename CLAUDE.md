@@ -17,6 +17,8 @@ from. Update the plan before writing code; log status there, not here.
 - [docs/plan.md](docs/plan.md): what Rigline is, the physics that shape it, the architecture,
   phases with acceptance criteria, status log.
 - [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D39.
+- [docs/anchors.md](docs/anchors.md): what an anchor is, and repairing one through
+  `~/.rigline/anchors.json` without waiting for a release. Written for a user, not for us.
 - [docs/archive/0.x/](docs/archive/0.x/README.md): the 0.x prototype's design record and source
   inventories, the evidence behind the measurements the decisions cite. OCR-recovered; read its
   caveats before quoting a number or a regex from it.

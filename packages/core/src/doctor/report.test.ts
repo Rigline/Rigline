@@ -7,6 +7,7 @@
  * those fixtures on disk instead.
  */
 import { describe, expect, it } from "vitest";
+import { NO_ANCHOR_OVERRIDES } from "../anchors/overrides.ts";
 import type { DoctorReport } from "./collect.ts";
 import { formatBytes, formatDoctor, formatTime } from "./report.ts";
 
@@ -20,6 +21,7 @@ function reportWith(overrides: Partial<DoctorReport> = {}): DoctorReport {
     nodeVersion: "v26.5.0",
     riglineVersion: "1.0.0-alpha.0",
     installs: [],
+    anchorOverrides: NO_ANCHOR_OVERRIDES,
     problems: [],
     ...overrides,
   };

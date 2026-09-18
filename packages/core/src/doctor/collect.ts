@@ -12,6 +12,7 @@
  * Every failure becomes a line in `problems` and the walk continues.
  */
 import { homedir } from "node:os";
+import { type AnchorOverrides, readAnchorOverrides } from "../anchors/overrides.ts";
 import { installedExtensions } from "../extension/locate.ts";
 import { CORE_VERSION } from "../version.ts";
 import { type InstallState, installStates } from "./install.ts";
@@ -23,6 +24,12 @@ export interface DoctorReport {
   readonly nodeVersion: string;
   readonly riglineVersion: string;
   readonly installs: readonly InstallState[];
+  /**
+   * The local anchor table override (D44). In a bug report because it is the one thing that makes
+   * this machine's resolved anchors differ from everybody else's, and nothing else here would show
+   * it: the tables it produced are already baked into the payload by the time anyone looks.
+   */
+  readonly anchorOverrides: AnchorOverrides;
   /** Problems with the collection itself, not with anything it found. */
   readonly problems: readonly string[];
 }
@@ -33,6 +40,8 @@ export interface DoctorOptions {
   readonly now?: number;
   readonly platform?: NodeJS.Platform;
   readonly home?: string;
+  /** Where the anchor override lives. Defaults to `~/.rigline/anchors.json`. */
+  readonly anchorsPath?: string;
 }
 
 export function collect(options: DoctorOptions = {}): DoctorReport {
@@ -58,6 +67,7 @@ export function collect(options: DoctorOptions = {}): DoctorReport {
     nodeVersion: process.version,
     riglineVersion: CORE_VERSION,
     installs,
+    anchorOverrides: readAnchorOverrides(options.anchorsPath),
     problems,
   };
 }

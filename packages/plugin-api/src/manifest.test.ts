@@ -53,7 +53,7 @@ describe("validateManifest", () => {
         name: "Demo",
         entry: "",
         surfaces: ["popup"],
-        uses: { anchors: ["nonsense"], tools: "yes", bogus: true },
+        uses: { anchors: "footerSpacer", tools: "yes", bogus: true },
         patches: [{ find: "abc", replace: "ab", why: "" }],
       },
       "demo",
@@ -65,7 +65,7 @@ describe("validateManifest", () => {
       '"entry" must be a non-empty relative path',
       '"surfaces" contains "popup"; expected editor, sidebar, sessionList',
       '"uses.bogus" is not a capability',
-      '"uses.anchors" names anchors that do not exist: nonsense',
+      '"uses.anchors" must be an array of anchor names',
       '"uses.tools" must be true or false, got "yes"',
       '"patches[0]" needs a non-empty string "why"',
     ]);

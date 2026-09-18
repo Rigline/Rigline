@@ -65,6 +65,12 @@ describe("capabilityViolation", () => {
     expect(capabilityViolation(uses({ anchors: ["worktreePill"] }), tables)).toBe(
       'anchor "worktreePill" (OOQiHg.worktreePill) is not in this extension',
     );
+    // Not in the table at all, which since ~/.rigline/anchors.json can add names is no longer a
+    // shape problem the manifest check can decide (D44): a misspelling and a name from an override
+    // this machine has not got look the same, and neither is the extension's doing.
+    expect(capabilityViolation(uses({ anchors: ["modelPil"] }), tables)).toBe(
+      'anchor "modelPil" is not a name the anchor table has',
+    );
     expect(capabilityViolation(uses({ classes: { ZZZZZZ: ["x"] } }), tables)).toBe(
       'unknown module "ZZZZZZ"',
     );

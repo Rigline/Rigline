@@ -26,21 +26,21 @@ import type { Classes } from "../layers/index.ts";
 
 export interface ResolvedAnchors {
   /** Every anchor name, resolved to its full class or null when this version does not honour it. */
-  readonly classes: Readonly<Record<AnchorName, string | null>>;
+  readonly classes: Readonly<Record<string, string | null>>;
   /** The same names resolved to a CSS selector. Null for a style anchor, which is never queried. */
-  readonly selectors: Readonly<Record<AnchorName, string | null>>;
+  readonly selectors: Readonly<Record<string, string | null>>;
   /** Why each unresolved anchor is unresolved, by name. A refusal quotes this rather than guessing. */
   readonly reasons: Readonly<Record<string, string>>;
   /** The anchors whose class this version has not got, in table order. */
-  readonly missing: readonly AnchorName[];
+  readonly missing: readonly string[];
   /** Singletons refused for naming more than one control, with the site count that says so. */
-  readonly ambiguous: readonly { readonly name: AnchorName; readonly sites: number }[];
+  readonly ambiguous: readonly { readonly name: string; readonly sites: number }[];
   /**
    * Anchors whose uniqueness could not be checked because their module was never counted. They
    * still resolve — an unverified claim is not a disproved one — but the flow says so, because an
    * unknown silently read as "one site" is the pass this whole layer exists to stop.
    */
-  readonly unverified: readonly AnchorName[];
+  readonly unverified: readonly string[];
 }
 
 /**
@@ -52,21 +52,21 @@ export function uncountedClasses(map: Classes["map"]): Classes {
 }
 
 /**
- * A table of anchor specs by name. `ANCHORS` is the one this repo ships; the parameter exists
- * because D44's `~/.rigline/anchors.json` override resolves against a merged table, and because a
- * rule about the table is best tested against a table rather than by editing the real one.
+ * A table of anchor specs by name. `ANCHORS` is the one this repo ships; a caller passes the table
+ * `~/.rigline/anchors.json` merged over it (D44), and a test passes one of its own rather than
+ * editing the real one.
  */
 export type AnchorTable = Readonly<Record<string, AnchorSpec>>;
 
 export function resolveAnchors(classes: Classes, table: AnchorTable = ANCHORS): ResolvedAnchors {
-  const resolvedClasses = {} as Record<AnchorName, string | null>;
-  const selectors = {} as Record<AnchorName, string | null>;
+  const resolvedClasses: Record<string, string | null> = {};
+  const selectors: Record<string, string | null> = {};
   const reasons: Record<string, string> = {};
-  const missing: AnchorName[] = [];
-  const ambiguous: { name: AnchorName; sites: number }[] = [];
-  const unverified: AnchorName[] = [];
+  const missing: string[] = [];
+  const ambiguous: { name: string; sites: number }[] = [];
+  const unverified: string[] = [];
 
-  for (const name of Object.keys(table) as AnchorName[]) {
+  for (const name of Object.keys(table)) {
     const spec = table[name] as AnchorSpec;
     const resolved = classes.map[spec.module]?.[spec.local] ?? null;
     if (resolved === null) {
@@ -179,13 +179,4 @@ function selectorFor(
   }
   const ancestor = selectorFor(spec.within, classes, table, seen);
   return ancestor === null ? null : `${ancestor} ${own}`;
-}
-
-/** The class an anchor resolves to, or a reason it cannot, for a refusal message. */
-export function anchorViolation(name: string, resolved: ResolvedAnchors): string | null {
-  if (!(name in ANCHORS)) return `unknown anchor "${name}"`;
-  if (resolved.classes[name as AnchorName] === null) {
-    return resolved.reasons[name] ?? `anchor "${name}" is not in this extension`;
-  }
-  return null;
 }

@@ -16,6 +16,12 @@ import {
   optionalGaps,
   sharedFields,
 } from "@rigline/plugin-api";
+import {
+  type AnchorOverrideOutcome,
+  type AnchorOverrides,
+  anchorOverrideOutcomes,
+  NO_ANCHOR_OVERRIDES,
+} from "../anchors/overrides.ts";
 import { generate } from "../codegen/generate.ts";
 import { UserError } from "../errors.ts";
 import {
@@ -193,6 +199,12 @@ export interface InstallOptions {
     readonly last?: readonly string[];
     readonly configPath: string;
   };
+  /**
+   * `~/.rigline/anchors.json`, already read (D44). Absent means the shipped table, which is what a
+   * test wants and what any caller with no interest in user state gets. The flow reads the file
+   * once and passes it down here, the way it owns the baseline path.
+   */
+  readonly anchors?: AnchorOverrides;
   readonly log?: (line: string) => void;
 }
 
@@ -218,6 +230,8 @@ export interface InstallReport {
   readonly notes: readonly string[];
   /** Every enabled plugin, checked against this directory's tables before anything was written. */
   readonly verdicts: readonly PluginVerdict[];
+  /** Each local anchor override, and what this version's class map makes of it (D44). */
+  readonly anchorOverrides: readonly AnchorOverrideOutcome[];
 }
 
 /**
@@ -273,7 +287,11 @@ export function install(ext: string, options: InstallOptions): InstallReport {
   for (const file of PAYLOAD_FILES) {
     cpSync(join(options.payloadDir, file), join(state.payloadDir, file));
   }
-  const generated = generate(harvestAll(readBundles(ext)));
+  const overrides = options.anchors ?? NO_ANCHOR_OVERRIDES;
+  const harvest = harvestAll(readBundles(ext));
+  // The merged table, so an override reaches the `generated.js` the loader reads rather than only
+  // the report about it.
+  const generated = generate(harvest, overrides.table);
   writeFileSync(join(state.payloadDir, "generated.js"), generated.runtime);
   log(`${ext}: ${generated.counts}`);
 
@@ -382,6 +400,7 @@ export function install(ext: string, options: InstallOptions): InstallReport {
     disabled: disabledNames,
     notes,
     verdicts,
+    anchorOverrides: anchorOverrideOutcomes(harvest.classes, overrides),
   };
 }
 

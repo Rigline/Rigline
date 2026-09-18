@@ -12,6 +12,7 @@
  * this is about.
  */
 
+import type { AnchorOverrides } from "../anchors/overrides.ts";
 import type { DoctorReport } from "./collect.ts";
 import type { InstallState } from "./install.ts";
 
@@ -126,6 +127,34 @@ function installSection(install: InstallState, home: RegExp | null): string[] {
   return lines;
 }
 
+/**
+ * The local anchor table, where it is not the shipped one (D44).
+ *
+ * A section rather than a line, and present even when the file is absent, because "no overrides"
+ * is the answer a reader of the issue needs as much as a list of them: an anchor resolving
+ * differently here than anywhere else is otherwise invisible by the time anybody looks, the
+ * tables having been baked into the payload at install.
+ */
+function overrideSection(overrides: AnchorOverrides, home: RegExp | null): string[] {
+  const lines: string[] = ["## Anchor overrides", ""];
+  if (!overrides.present) {
+    lines.push("None: the anchor table is the one Rigline ships.", "");
+    return lines;
+  }
+  lines.push(`From \`${abbreviate(overrides.path, home)}\`:`, "");
+  if (overrides.names.length === 0) {
+    lines.push("- the file is there, and no entry in it applied", "");
+  }
+  for (const name of overrides.names) {
+    lines.push(
+      `- \`${name}\`${overrides.added.includes(name) ? " (added, not a curated name)" : ""}`,
+    );
+  }
+  for (const problem of overrides.problems) lines.push(`- problem: ${abbreviate(problem, home)}`);
+  lines.push("");
+  return lines;
+}
+
 /** The whole diagnostic as markdown. */
 export function formatDoctor(report: DoctorReport): string {
   const home = homePattern(report.home);
@@ -149,6 +178,8 @@ export function formatDoctor(report: DoctorReport): string {
   } else {
     for (const install of report.installs) lines.push(...installSection(install, home));
   }
+
+  lines.push(...overrideSection(report.anchorOverrides, home));
 
   lines.push(
     "## What is not here",

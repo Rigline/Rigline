@@ -10,11 +10,13 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { ANCHORS } from "@rigline/plugin-api";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { harvestableHostReplies, harvestableWebview } from "../../test/fixtures.ts";
 import { generate } from "../codegen/generate.ts";
 import { readBundles } from "../extension/bundles.ts";
 import { harvestAll } from "../layers/index.ts";
+import { RIGLINE_HOME_VARIABLE } from "../paths.ts";
 import { readBaseline, readGeneratedScan, writeBaseline } from "./baseline.ts";
 import { check, formatFlow, update } from "./flow.ts";
 
@@ -26,19 +28,57 @@ function tempDir(prefix: string): string {
   return dir;
 }
 
+/**
+ * Every path the flow defaults to points into a temporary home, so a run on a machine that has a
+ * real `~/.rigline/anchors.json` resolves anchors against that file rather than the fixture's. Same
+ * rule as D39, one directory over: what is under test is never what is installed.
+ */
+let home = "";
+beforeEach(() => {
+  home = tempDir("rigline-home-env-");
+  process.env[RIGLINE_HOME_VARIABLE] = home;
+});
+
 afterEach(() => {
+  delete process.env[RIGLINE_HOME_VARIABLE];
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
-/** A disposable extension directory. `drop` removes one class pair from the bundle and its rule. */
-function fixture(options: { readonly version?: string; readonly drop?: string } = {}): string {
+/** `~/.rigline/anchors.json` with these contents, for the temporary home of this test. */
+function anchorsFile(contents: unknown): string {
+  const path = join(home, "anchors.json");
+  writeFileSync(path, typeof contents === "string" ? contents : JSON.stringify(contents));
+  return path;
+}
+
+/**
+ * A disposable extension directory. `drop` removes one class pair from the bundle and its rule;
+ * `carry` adds one, which is how a fixture comes to honour a curated anchor at all — the synthetic
+ * bundle's own modules are named `f00000` upwards and answer none of them.
+ */
+function fixture(
+  options: {
+    readonly version?: string;
+    readonly drop?: string;
+    readonly carry?: { readonly module: string; readonly local: string };
+  } = {},
+): string {
   const ext = tempDir("rigline-flow-");
   const { js, css } = harvestableWebview();
   const local = options.drop;
   // One pair, from one module, removed the way an upstream rename removes it: gone from the map
   // and gone from the stylesheet, so no module reads as partially harvested either.
-  const bundle = local ? js.replace(`${local}:"${local}_f00000",`, "") : js;
-  const styles = local ? css.replace(`.${local}_f00000{}`, "") : css;
+  let bundle = local ? js.replace(`${local}:"${local}_f00000",`, "") : js;
+  let styles = local ? css.replace(`.${local}_f00000{}`, "") : css;
+  if (options.carry) {
+    // Bound to a variable and read back through it, because the site count is harvested from those
+    // accesses and an anchor whose module is never counted reads as unverified rather than unique.
+    const { module, local: name } = options.carry;
+    const value = `${name}_${module}`;
+    bundle += `;
+var carried={${name}:"${value}"};var carriedUse=[carried.${name}]`;
+    styles += `.${value}{}`;
+  }
 
   mkdirSync(join(ext, "webview"), { recursive: true });
   writeFileSync(join(ext, "webview", "index.js"), bundle);
@@ -357,5 +397,126 @@ describe("the baseline", () => {
     expect(
       readBaseline(tempDir("rigline-cwd-"), join(tempDir("rigline-home-"), "b.json")),
     ).toBeNull();
+  });
+});
+
+/**
+ * `~/.rigline/anchors.json` through the flow (D44).
+ *
+ * The unit tests next to the reader cover what an entry may say; what matters here is that the
+ * merged table is the one the loader is given, and that every entry is named in the report with
+ * what this version makes of it — an override applied is otherwise indistinguishable from an
+ * override ignored.
+ */
+describe("the anchor override", () => {
+  /** The pair `composer` names, which a fixture only honours when it is told to carry it. */
+  const composer = ANCHORS.composer;
+
+  it("reaches the tables the loader reads, not just the report about them", () => {
+    const ext = fixture();
+    anchorsFile({
+      anchors: {
+        composer: { module: "f00001", local: "local3", why: "the composer moved module" },
+      },
+    });
+    update({
+      exts: [ext],
+      payloadDir: payload(),
+      dir: tempDir("rigline-cwd-"),
+      baselinePath: join(home, "baseline.json"),
+    });
+    const runtime = readFileSync(join(ext, "webview", "rigline", "generated.js"), "utf8");
+    expect(
+      JSON.parse(runtime.slice(runtime.indexOf("{"), runtime.lastIndexOf("}") + 1)).anchors,
+    ).toMatchObject({ composer: "local3_f00001" });
+  });
+
+  it("names every entry and what this version makes of it", () => {
+    anchorsFile({
+      anchors: {
+        composer: { module: "f00001", local: "local3", why: "the composer moved module" },
+        agentMap: {
+          module: "f00002",
+          local: "local4",
+          kind: "singleton",
+          description: "The agent-map button.",
+          why: "not curated yet",
+        },
+        worktreePill: { module: "f99999", local: "nope", why: "a guess that does not land" },
+      },
+    });
+    const report = check({
+      exts: [fixture()],
+      dir: tempDir("rigline-cwd-"),
+      baselinePath: join(home, "baseline.json"),
+    });
+    expect(report.versions[0]?.anchorOverrides).toEqual([
+      { name: "composer", added: false, resolves: true, resolvedWithout: false },
+      { name: "agentMap", added: true, resolves: true, resolvedWithout: false },
+      { name: "worktreePill", added: false, resolves: false, resolvedWithout: false },
+    ]);
+    const text = formatFlow(report);
+    expect(text).toContain("composer: repairs an anchor this version does not otherwise resolve");
+    expect(text).toContain("agentMap: adds an anchor the table has not got, and it resolves here");
+  });
+
+  it("asks for a person when an override stops an anchor the version resolves without it", () => {
+    const ext = fixture({ carry: composer });
+    const clean = check({
+      exts: [ext],
+      dir: tempDir("rigline-cwd-"),
+      baselinePath: join(home, "baseline.json"),
+    });
+    expect(clean.versions[0]?.anchorsMissing).not.toContain("composer");
+
+    anchorsFile({ anchors: { composer: { module: "f99999", why: "wrong module" } } });
+    const report = check({
+      exts: [ext],
+      dir: tempDir("rigline-cwd-"),
+      baselinePath: join(home, "baseline.json"),
+    });
+    expect(report.versions[0]?.anchorOverrides).toEqual([
+      { name: "composer", added: false, resolves: false, resolvedWithout: true },
+    ]);
+    expect(report.attention.some((line) => line.includes("resolves it without the override"))).toBe(
+      true,
+    );
+  });
+
+  it("keeps itself out of the generated.ts the flow rewrites, which is a committed file", () => {
+    const cwd = tempDir("rigline-cwd-");
+    const ext = fixture({ carry: composer });
+    writeFileSync(
+      join(cwd, "generated.ts"),
+      generate(harvestAll(readBundles(fixture({ version: "2.1.1" })))).source,
+    );
+    anchorsFile({ anchors: { composer: { module: "f99999", why: "a local repair" } } });
+    update({
+      exts: [ext],
+      payloadDir: payload(),
+      dir: cwd,
+      baselinePath: join(home, "baseline.json"),
+      codegen: true,
+    });
+    // The override made `composer` unresolvable on this machine, and the version report says so;
+    // the committed record must still be the shipped table's answer, byte for byte, or the next
+    // checkout disagrees with its own harvest for a reason nothing in the file could explain.
+    expect(readFileSync(join(cwd, "generated.ts"), "utf8")).toBe(
+      generate(harvestAll(readBundles(ext))).source,
+    );
+  });
+
+  it("reports a file that will not parse, and installs anyway", () => {
+    const ext = fixture();
+    anchorsFile("{ not json");
+    const report = update({
+      exts: [ext],
+      payloadDir: payload(),
+      dir: tempDir("rigline-cwd-"),
+      baselinePath: join(home, "baseline.json"),
+    });
+    expect(report.attention.some((line) => line.includes("is not valid JSON"))).toBe(true);
+    expect(report.versions[0]?.action).toBe("injected");
+    expect(readFileSync(join(ext, "webview", "index.js"), "utf8")).toContain("rigline/pre.js");
   });
 });
