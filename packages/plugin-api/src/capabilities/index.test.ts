@@ -148,9 +148,21 @@ describe("summaries and the advisory scan", () => {
       uses({ anchors: ["modelPill"], rewrites: { rename_tab: ["title"] }, tools: true }),
     );
     expect(lines).toEqual([
-      "attaches to modelPill: The model picker pill in the composer footer",
+      "attaches to modelPill",
       "rewrites rename_tab on its way to the extension host: title",
       "watches the tool calls the assistant makes, including their arguments and whether each worked",
+    ]);
+  });
+
+  it("groups anchors by what the plugin does with them, rather than one line each", () => {
+    // A plugin borrowing a pop-up's look declares ten style anchors, and a line apiece buries the
+    // one that says where it will actually appear.
+    const lines = permissionSummary(
+      uses({ anchors: ["footerSpacer", "footerMenuPopup", "transcriptRow", "footerMenuItem"] }),
+    );
+    expect(lines).toEqual([
+      "attaches to footerSpacer, transcriptRow",
+      "borrows the style of footerMenuPopup, footerMenuItem",
     ]);
   });
 

@@ -20,6 +20,7 @@ import {
   formatDiff,
   formatDoctor,
   formatFlow,
+  formatPlugins,
   type Generated,
   generate,
   harvestAll,
@@ -28,6 +29,7 @@ import {
   inspect,
   install,
   installedExtensions,
+  listPlugins,
   parseSince,
   readBundles,
   restoreAll,
@@ -74,6 +76,10 @@ const USAGE = `rigline ${CORE_VERSION}
   rigline dev [DIR...]
       Build the named plugin directories (or every first-party one), re-inject, and rebuild
       on every source change. Reload webviews after each one.
+
+  rigline list
+      Every plugin found, in the order they load: where it came from, whether it is
+      switched off, and what its manifest says it can do.
 
   rigline status
       Per installed version: is each bundle vanilla or patched, judged against its backup.
@@ -137,6 +143,24 @@ function installCommand(args: string[]): number {
       : "\nReload with Developer: Reload Webviews (current window only).",
   );
   return report.attention.length > 0 ? 1 : 0;
+}
+
+/** The same roots `pluginOptions` discovers from, named for a report rather than for a loader. */
+function listCommand(): number {
+  const paths = riglinePaths();
+  console.log(
+    formatPlugins(
+      listPlugins({
+        roots: [
+          { label: "this checkout", path: repoPluginsDir() },
+          { label: paths.plugins, path: paths.plugins },
+        ],
+        last: ["probe"],
+        configPath: paths.config,
+      }),
+    ),
+  );
+  return 0;
 }
 
 function statusCommand(): number {
@@ -469,6 +493,8 @@ async function main(argv: string[]): Promise<number> {
       return watchCommand(rest);
     case "dev":
       return dev(rest);
+    case "list":
+      return listCommand();
     case "status":
       return statusCommand();
     case "restore":

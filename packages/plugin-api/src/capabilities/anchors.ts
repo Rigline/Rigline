@@ -31,11 +31,24 @@ export const anchorsContract: CapabilityContract<"anchors"> = {
     }
     return gaps;
   },
+  /**
+   * Two lines at most, grouped by what the plugin does with the anchor, and no descriptions.
+   *
+   * One line per anchor carrying the table's own prose reads as ten near-identical sentences for a
+   * plugin borrowing a pop-up's look, and buries the one or two lines that say where it will
+   * actually appear. The name is the useful half — a reader wanting to know what `footerSpacer` is
+   * has the anchor table, which is where that sentence lives and stays current.
+   */
   summary(declared) {
-    return declared.map((name) => {
+    const borrowed: string[] = [];
+    const attached: string[] = [];
+    for (const name of declared) {
       const spec = ANCHORS[name as keyof typeof ANCHORS];
-      const what = spec?.kind === "style" ? "borrows the style of" : "attaches to";
-      return `${what} ${name}${spec ? `: ${spec.description.split(". ")[0]}` : ""}`;
-    });
+      (spec?.kind === "style" ? borrowed : attached).push(name);
+    }
+    const lines: string[] = [];
+    if (attached.length > 0) lines.push(`attaches to ${attached.join(", ")}`);
+    if (borrowed.length > 0) lines.push(`borrows the style of ${borrowed.join(", ")}`);
+    return lines;
   },
 };

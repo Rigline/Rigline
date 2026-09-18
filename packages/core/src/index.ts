@@ -125,6 +125,13 @@ export {
   readConfig,
   readManifest,
 } from "./plugins/discover.ts";
+export type {
+  LabelledRoot,
+  ListOptions,
+  PatchListing,
+  PluginListing,
+} from "./plugins/list.ts";
+export { formatPlugins, listPlugins } from "./plugins/list.ts";
 export type { BaselineSource } from "./update/baseline.ts";
 export {
   GENERATED_FILE,

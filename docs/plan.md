@@ -809,8 +809,14 @@ per-patch opt-in and the declaration fingerprint were both making.
 So there is no approval record, no patch fingerprint, no declaration fingerprint, no `rigline
 approve`, and no re-gate on upgrade. A plugin's host patch applies because the plugin is enabled,
 exactly as it does today, and a directory dropped into `~/.rigline/plugins/` loads on the next
-inject with everything it declares. **`permissionSummary` becomes output rather than a prompt**: the
-install says what each plugin can do and which patches it applied and why. That is the whole of it.
+inject with everything it declares. **`permissionSummary` becomes output rather than a prompt.**
+
+Not `install`'s output, though, which is where this was first filed. `install` runs unattended under
+`watch` and again after every extension update, so a capability summary there is the same paragraph
+about the same plugins on a loop — the shape of output people stop reading, and the reason the host
+patch's `why` came out of it. Disclosure belongs where somebody asked a question: `list` says what
+each installed plugin can do, and `add` says it at the moment a plugin arrives, which is the moment
+it means something. `install` keeps saying which plugins load and which this version refuses.
 
 **The safety net for a host patch is not consent, and already exists.** `extension.js.orig` is
 written before the first patch lands, every install rebuilds the host bundle from it, disabling a
@@ -860,11 +866,12 @@ output that narrates its own past is output nobody has trimmed.
 
 1. **The rename**: `install` absorbs the flow, `update` goes, `watch` and the help text follow.
    Before anything in phase 4, because every command below is described in terms of it.
-2. **`permissionSummary` into `install`'s report.** Once per plugin per run, after the per-version
-   work — `install` walks every installed extension version, and printing every plugin's
-   capabilities three times over is how output stops being read.
-3. **`rigline add`** from a path, then `remove` and `list`. The path form needs no network and is
-   what makes `~/.rigline/plugins/` a managed directory rather than one people copy into.
+2. **`rigline list`**, which is where `permissionSummary` finally has a caller: every discovered
+   plugin, where it came from, whether it is enabled, and what it can do. Needs a plugin to carry
+   the root it was discovered under, which is also how `list` tells a plugin of yours from one
+   somebody installed.
+3. **`rigline add`** from a path, and `remove`. The path form needs no network and is what makes
+   `~/.rigline/plugins/` a managed directory rather than one people copy into.
 4. **`rigline add` from npm and `rigline update`**: the fetch, the integrity check, the minimum
    release age with `--now`, the source record (D47, D48, D49). Separable work with its own risks,
    and last.
@@ -1128,4 +1135,19 @@ Code nor the extension to be working.
   two lines of output that only the old `install` printed — which plugins are loading, and which are
   switched off in config — so `VersionReport` carries them and `formatFlow` prints them, with the
   three-reasons-a-plugin-is-missing case pinned by its own tests. `install` can now exit 1, which it
-  could not before and should always have.
+  could not before and should always have. Leo then cut the error message itself: a command never
+  explains what it used to do, so `update` simply falls through to unknown-command and the usage.
+  The same rule took the host patch's `why` out of the install log, where it was a paragraph of the
+  author's rationale repeated identically per installed version.
+- 2026-09-18: `rigline list`, and the permission summary finally has a caller. The plan had it going
+  into `install`'s report; that does not survive the trim above, because `install` runs unattended
+  under `watch` and after every extension update, so a capability summary there is the same
+  paragraph about the same plugins on a loop. Disclosure belongs where somebody asked a question, so
+  it is `list` now and `add` when it lands. `DiscoveredPlugin` carries the root it was found under,
+  which is the only record of whether a plugin is yours or one somebody installed; `list` shows it,
+  in load order rather than a second ordering of its own, so it and the baked registry cannot
+  disagree about what loads first. Building it turned up the same noise problem one level down: the
+  anchor summary emitted a line per anchor carrying the table's prose, which for session-id was ten
+  near-identical sentences about a pop-up's look burying the one line saying where it appears. It
+  now groups by what the plugin does with the anchor and drops the descriptions, which live in the
+  anchor table and stay current there. Fifteen lines to five.

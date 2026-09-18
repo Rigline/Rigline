@@ -64,6 +64,7 @@ from. Update the plan before writing code; log status there, not here.
     pnpm build              # host, core, cli, and the first-party plugins
     pnpm rigline install    # inject every version, bake plugins, report drift, record the baseline
     pnpm rigline check      # the same report, writing nothing
+    pnpm rigline list       # every plugin, in load order: origin, switch, what it can do
     pnpm rigline status     # per version: vanilla or patched, by backup
     pnpm rigline restore    # every version back to the extension's bytes
     pnpm rigline codegen    # regenerate plugin-api's generated.ts

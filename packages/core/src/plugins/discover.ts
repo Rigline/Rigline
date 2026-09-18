@@ -23,6 +23,12 @@ import { type DeclaredPatch, type PatchOutcome, patchRefusal } from "../inject/h
 export interface DiscoveredPlugin {
   readonly name: string;
   readonly dir: string;
+  /**
+   * The root it was discovered under, which is the only thing that distinguishes a plugin of your
+   * own from one somebody installed. Discovery flattens its roots into one ordered list, so without
+   * this the origin is gone by the time anything reports on the result.
+   */
+  readonly root: string;
   readonly manifest: ValidManifest;
 }
 
@@ -84,7 +90,7 @@ export function discoverPlugins(
       .sort();
     for (const name of names) {
       const dir = join(root, name);
-      found.push({ name, dir, manifest: readManifest(dir) });
+      found.push({ name, dir, root, manifest: readManifest(dir) });
     }
   }
 
