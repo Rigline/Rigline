@@ -74,7 +74,7 @@ export function manifestSchema(): JsonObject {
       patches: {
         type: "array",
         description:
-          "Byte substitutions in the extension host's own bundle, applied by the installer. A patch from a plugin outside the Rigline repository needs explicit opt-in at install.",
+          "Byte substitutions in the extension host's own bundle, applied by the installer. The find bytes must occur exactly once and replace must be the same length, so a patch that no longer fits is refused rather than applied somewhere else.",
         items: {
           type: "object",
           required: ["find", "replace", "why"],
