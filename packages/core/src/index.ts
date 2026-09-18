@@ -72,11 +72,20 @@ export * from "./layers/index.ts";
 export { harvestAll, LAYERS, scanOf } from "./layers/index.ts";
 export type { RiglinePaths } from "./paths.ts";
 export { RIGLINE_HOME_VARIABLE, riglineHome, riglinePaths } from "./paths.ts";
-export type { DiscoveredPlugin, PluginSource, PluginsConfig } from "./plugins/discover.ts";
+export type {
+  DiscoveredPlugin,
+  ManifestCheck,
+  NpmSource,
+  PathSource,
+  PluginSource,
+  PluginsConfig,
+} from "./plugins/discover.ts";
 export {
   bakeRegistry,
   capabilityUseNotes,
+  checkManifest,
   declaredPatches,
+  describeSource,
   discoverPlugins,
   enabledPlugins,
   isPluginOutput,
@@ -91,8 +100,41 @@ export type {
   PluginListing,
 } from "./plugins/list.ts";
 export { formatPlugins, listPlugins } from "./plugins/list.ts";
-export type { AddOptions, AddResult, RemoveOptions, RemoveResult } from "./plugins/manage.ts";
-export { addPlugin, removePlugin } from "./plugins/manage.ts";
+export type {
+  AddFromNpmOptions,
+  AddOptions,
+  AddResult,
+  PluginUpdate,
+  RemoveOptions,
+  RemoveResult,
+  UpdatePluginsOptions,
+} from "./plugins/manage.ts";
+export {
+  addFromNpm,
+  addPlugin,
+  formatUpdates,
+  removePlugin,
+  updatePlugins,
+} from "./plugins/manage.ts";
+export type {
+  FetchLike,
+  FetchResponse,
+  PluginSpec,
+  RegistryOptions,
+  ResolvedVersion,
+} from "./plugins/registry.ts";
+export {
+  DEFAULT_REGISTRY,
+  describeAge,
+  fetchTarball,
+  integrityProblem,
+  MINIMUM_RELEASE_AGE_MINUTES,
+  parsePluginSpec,
+  releaseAgeProblem,
+  resolveVersion,
+} from "./plugins/registry.ts";
+export type { TarFile } from "./plugins/tarball.ts";
+export { readPackageTarball } from "./plugins/tarball.ts";
 export type { BaselineSource } from "./update/baseline.ts";
 export {
   GENERATED_FILE,

@@ -52,7 +52,7 @@ pnpm workspace, TypeScript throughout, every package a real package with its own
 | path | package | what it is |
 | --- | --- | --- |
 | `packages/core` | `@rigline/core` | Node library: locate installed extensions, harvest identifier layers, generate types and runtime tables, inject and restore, discover plugins and bake the registry, run the install flow, watch for updates, hold the curated anchor table. The CLI and a future companion extension both consume it. |
-| `packages/cli` | `rigline` | Thin command surface over core: `install`, `check`, `status`, `restore`, `add`, `remove`, `list`, `watch`, `doctor`, `codegen`, `diff`, `build`, `dev`, and later `update` (D55). |
+| `packages/cli` | `rigline` | Thin command surface over core: `install`, `check`, `status`, `restore`, `add`, `remove`, `update`, `list`, `watch`, `doctor`, `codegen`, `diff`, `build`, `dev`. |
 | `packages/host` | `@rigline/host` (private) | The injected runtime: `pre.js` (bus tap, buffer, rewrite chain, React devtools hook, meters) and `post.js` (kernel plus capability modules). Built to exactly two files. |
 | `packages/plugin-api` | `@rigline/plugin-api` | What a plugin is written against: `PluginContext`, the manifest type and JSON schema, `definePlugin`, the anchor names, and the pure helpers shared by host and core (capability contracts, session rule, stream shape, transcript derivations). |
 | `packages/harness` | (private) | The Playwright tier: boots the real webview bundle from the corpus with a faked `acquireVsCodeApi` and a replayed bus. |
@@ -256,12 +256,18 @@ In order.
    in `~/.rigline/plugins/`. `config.json` grows `sources`, written back without losing keys
    nothing here knows about, and `list` says which plugins have no source record and so cannot be
    upgraded. Neither command runs a package manager or evaluates a plugin (D47, D12).
-3. **`rigline add` from npm, and `rigline update`** (D47, D48, D49). The tarball fetch and integrity
-   check, the minimum release age with `--now` and a report naming what was withheld and why, and
+3. **`rigline add` from npm, and `rigline update`** (D47, D48, D49) — done 2026-09-18. The tarball
+   fetch and integrity check, the minimum release age with `--now` and a report naming what was withheld and why, and
    the source record with its kind discriminator. D47's premise already holds: `rigline build`
    bundles everything the entry imports, `@rigline/plugin-api` included, so a published plugin has
    no runtime dependency to install and the template must keep plugin-api a *devDependency* as the
    first-party plugins do.
+
+   Four pieces. A tar reader that refuses rather than reproduces (D57). A registry client: fetch a
+   packument, pick a version by dist-tag and publish time, fetch and integrity-check the tarball —
+   with the fetch injectable, because no test here touches the network. `add <name>` in front of
+   what `add <path>` already does, and `update` over the recorded sources. Exact versions and tags
+   only, no ranges (D58).
 4. **The authoring guide and the `create-rigline-plugin` template** (D50). A pnpm workspace with
    `plugins/*`, one member scaffolded, `rigline codegen --out` run once at the root, and the
    manifest JSON schema from plugin-api. One ordering dependency, proved when D40 landed: module
@@ -308,9 +314,9 @@ known risk to weigh when this phase starts.
 
 ## Next session
 
-Phase 4 item 3: `rigline add` from npm, and `rigline update` (D47, D48, D49). Nothing blocks it —
-the source record's `kind` discriminator and the copy-and-validate path are both in place, so npm
-arrives as a fetch, an integrity check and an unpack in front of what `add` already does.
+Phase 4 item 4: the authoring guide and the `create-rigline-plugin` template (D50). Nothing blocks
+it. One ordering dependency, proved when D40 landed: module augmentation is per-program, so each
+plugin's tsconfig must pull the shared root harvest in, which a shared base config does.
 
 **About this machine.** Only 2.1.270 is installed — VS Code deleted 2.1.268 and 2.1.269 once nothing
 was serving them, which is the behaviour D4 exists for; both are still in the corpus. Its
@@ -399,6 +405,12 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
 - 2026-09-18: Trimmed the register and this plan to what is true now, and cut `doctor` back to
   Rigline's own install state (D53 amended), dropping about 1,600 lines of VS Code log parsing and
   the redaction machinery that existed to make reading those logs safe.
+- 2026-09-18: `add` from npm and `update` landed, with a tar reader of our own (D57) and no version
+  ranges (D58). Two things the design got wrong and the work corrected: the release-age gate was
+  written as a walk back to the newest version old enough, which would install a patch to an old
+  line that no tag points at, and is now a gate that refuses and names the flag; and the reader
+  required every tarball member under `package/`, which the first live fetch disproved — `@types/*`
+  pack under `node/`, and npm's own rule is to strip one leading directory whatever it is called.
 - 2026-09-18: `add` and `remove` landed, and with them the rule that one name is one plugin (D56):
   discovery had been flattening its roots without deduplicating, so two directories of a name baked
   two registry entries and loaded the plugin twice. `add` is what made that reachable, so it refuses

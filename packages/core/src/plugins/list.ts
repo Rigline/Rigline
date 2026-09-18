@@ -13,6 +13,7 @@
 import { describeUses, type Uses } from "@rigline/plugin-api";
 import {
   type DiscoveredPlugin,
+  describeSource,
   discoverPlugins,
   type PluginSource,
   readConfig,
@@ -99,7 +100,7 @@ export function formatPlugins(listings: readonly PluginListing[]): string {
       `${plugin.name} — ${plugin.origin}${plugin.enabled ? "" : ", switched off in config"}`,
     );
     if (plugin.description) lines.push(`  ${plugin.description}`);
-    if (plugin.source !== null) lines.push(`  added from ${plugin.source.from}`);
+    if (plugin.source !== null) lines.push(`  added from ${describeSource(plugin.source)}`);
     else if (plugin.managed) {
       lines.push("  placed here by hand, with no record of where from, so nothing can update it");
     }

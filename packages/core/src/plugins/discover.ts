@@ -41,13 +41,28 @@ export interface DiscoveredPlugin {
  * somebody put in `~/.rigline/plugins/` by hand has no record at all, and that is the honest cost
  * of dropping a directory in: nothing knows where it came from, so nothing can fetch a newer one.
  */
-export type PluginSource = {
+export type PluginSource = PathSource | NpmSource;
+
+export interface PathSource {
   readonly kind: "path";
-  /** The directory it was copied from, absolute. Where a later `update` would look again. */
+  /** The directory it was copied from, absolute. `update` does not follow it; `add` again does. */
   readonly from: string;
   /** When, as an ISO instant. The record is for a person reading it as much as for a command. */
   readonly addedAt: string;
-};
+}
+
+export interface NpmSource {
+  readonly kind: "npm";
+  /** The package name, which need not be the plugin's: the manifest owns that. */
+  readonly name: string;
+  /** Exact, always. There are no ranges (D58). */
+  readonly version: string;
+  /** The dist-tag `update` follows, or null when a person named a version and so pinned it. */
+  readonly tag: string | null;
+  /** What the bytes hashed to, as SRI, checked again on every fetch (D49). */
+  readonly integrity: string;
+  readonly addedAt: string;
+}
 
 /** `~/.rigline/config.json`: the one thing a person, not a plugin author, controls at install time. */
 export interface PluginsConfig {
@@ -74,21 +89,47 @@ export function readManifest(dir: string, expectedName: string = basename(dir)):
   if (!existsSync(manifestPath)) {
     throw new UserError(`${dir} has no rigline.json`);
   }
+  return checkManifest({
+    json: readFileSync(manifestPath, "utf8"),
+    expectedName,
+    label: manifestPath,
+    hasFile: (path) => existsSync(join(dir, path)),
+  });
+}
+
+export interface ManifestCheck {
+  /** The text of `rigline.json`. */
+  readonly json: string;
+  /** The name it must call itself: a directory's, or its own where `add` has not placed it yet. */
+  readonly expectedName: string;
+  /** What to name in a refusal: a path, or a package and version. */
+  readonly label: string;
+  /** Whether the plugin carries this file, relative to its own directory. */
+  readonly hasFile: (path: string) => boolean;
+}
+
+/**
+ * One manifest, validated as data (D12).
+ *
+ * Shared by the directory `readManifest` reads and the tarball `add` unpacks in memory, so that a
+ * plugin fetched from a registry is held to exactly the rules one discovered on disk is — and so
+ * that a tarball whose manifest does not hold up is refused before a byte of it is written.
+ */
+export function checkManifest(check: ManifestCheck): ValidManifest {
   let value: unknown;
   try {
-    value = JSON.parse(readFileSync(manifestPath, "utf8"));
+    value = JSON.parse(check.json);
   } catch (error) {
-    throw new UserError(`${manifestPath} is not valid JSON: ${(error as Error).message}`);
+    throw new UserError(`${check.label} is not valid JSON: ${(error as Error).message}`);
   }
-  const { manifest, problems } = validateManifest(value, expectedName);
+  const { manifest, problems } = validateManifest(value, check.expectedName);
   if (manifest === null) {
     throw new UserError(
-      `${manifestPath} is not a valid manifest:\n${problems.map((p) => `  - ${p}`).join("\n")}`,
+      `${check.label} is not a valid manifest:\n${problems.map((p) => `  - ${p}`).join("\n")}`,
     );
   }
-  const entryPath = join(dir, manifest.entry);
-  if (!existsSync(entryPath)) {
-    throw new UserError(`${manifestPath} names entry "${manifest.entry}", which does not exist`);
+  if (!check.hasFile(manifest.entry)) {
+    throw new UserError(`${check.label} names entry "${manifest.entry}", which does not exist`);
   }
   return manifest;
 }
@@ -201,11 +242,29 @@ function readConfigJson(path: string): Record<string, unknown> | null {
 }
 
 function isPluginSource(value: unknown): value is PluginSource {
+  // Read as a bag of unknowns rather than as a partial of the union: the two members disagree about
+  // `kind`, so their intersection has no value for it and every field reads as never.
   if (typeof value !== "object" || value === null) return false;
-  const source = value as Partial<PluginSource>;
-  return (
-    source.kind === "path" && typeof source.from === "string" && typeof source.addedAt === "string"
-  );
+  const source = value as Record<string, unknown>;
+  if (typeof source.addedAt !== "string") return false;
+  if (source.kind === "path") return typeof source.from === "string";
+  if (source.kind === "npm") {
+    return (
+      typeof source.name === "string" &&
+      typeof source.version === "string" &&
+      typeof source.integrity === "string" &&
+      (source.tag === null || typeof source.tag === "string")
+    );
+  }
+  return false;
+}
+
+/** Where a plugin came from, as one phrase a report can put after "added from". */
+export function describeSource(source: PluginSource): string {
+  return source.kind === "path"
+    ? source.from
+    : `${source.name}@${source.version} on npm` +
+        (source.tag === null ? ", pinned" : `, following ${source.tag}`);
 }
 
 /**

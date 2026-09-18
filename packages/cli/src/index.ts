@@ -10,6 +10,8 @@ import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import {
+  type AddResult,
+  addFromNpm,
   addPlugin,
   CORE_VERSION,
   check,
@@ -22,6 +24,7 @@ import {
   formatDoctor,
   formatFlow,
   formatPlugins,
+  formatUpdates,
   type Generated,
   generate,
   harvestAll,
@@ -39,6 +42,7 @@ import {
   scanOf,
   UserError,
   update,
+  updatePlugins,
   verdict,
   watch,
 } from "@rigline/core";
@@ -82,9 +86,16 @@ const USAGE = `rigline ${CORE_VERSION}
       Build the named plugin directories (or every first-party one), re-inject, and rebuild
       on every source change. Reload webviews after each one.
 
-  rigline add PATH
-      Install the plugin in PATH into ~/.rigline/plugins, say what it can do, and re-inject.
-      Nothing is fetched, nothing is resolved, and none of the plugin's own code is run.
+  rigline add PATH|SPEC [--now]
+      Install a plugin into ~/.rigline/plugins, say what it can do, and re-inject. PATH is a
+      directory; SPEC is an npm package, optionally @version or @tag. A published version
+      must be a day old before it is installed; --now takes it anyway. No package manager
+      runs, nothing is resolved, and none of the plugin's own code is evaluated.
+
+  rigline update [NAME...] [--now]
+      Move each plugin installed from npm to whatever its tag resolves to now, and
+      re-inject. A plugin pinned to a version, added from a directory, or placed by hand is
+      reported and left alone, as is a newer version too young to install.
 
   rigline remove NAME
       Delete a plugin rigline installed, and re-inject. A plugin you did not install this
@@ -175,17 +186,26 @@ function reinject(options: ReinjectOptions = {}): number {
  * plugin is the act that says yes, and nothing after it asks again, so the sentences belong here
  * rather than in a prompt nobody can answer usefully.
  */
-function addCommand(args: string[]): number {
-  const { positionals } = parseArgs({ args, options: {}, allowPositionals: true });
-  if (positionals.length !== 1) throw new UserError("add needs exactly one plugin directory");
+async function addCommand(args: string[]): Promise<number> {
+  const { values, positionals } = parseArgs({
+    args,
+    options: { now: { type: "boolean", default: false } },
+    allowPositionals: true,
+  });
+  if (positionals.length !== 1) {
+    throw new UserError("add needs exactly one plugin directory or npm package");
+  }
 
   const paths = riglinePaths();
-  const result = addPlugin({
-    from: positionals[0] as string,
+  const spec = positionals[0] as string;
+  const common = {
     pluginsDir: paths.plugins,
     configPath: paths.config,
     otherRoots: [repoPluginsDir()],
-  });
+  };
+  const result: AddResult = isPathSpec(spec)
+    ? addPlugin({ from: spec, ...common })
+    : await addFromNpm({ spec, ...common, registry: { ignoreReleaseAge: values.now } });
 
   console.log(`${result.replaced ? "replaced" : "added"} ${result.name} — ${result.dir}`);
   console.log(`  from ${result.from}`);
@@ -203,6 +223,51 @@ function addCommand(args: string[]): number {
   }
   console.log("");
   return reinject();
+}
+
+/**
+ * Whether this is a directory rather than an npm package.
+ *
+ * The same rule every package manager uses, said out loud: a leading dot or a path separator, or a
+ * directory that is simply there. An npm name cannot hold a separator except the one in a scope,
+ * and a scope starts with `@`, so the two vocabularies do not overlap.
+ */
+function isPathSpec(spec: string): boolean {
+  if (spec.startsWith("@")) return false;
+  if (spec.startsWith(".") || spec.includes("/") || spec.includes("\\")) return true;
+  return existsSync(join(resolve(spec), "rigline.json"));
+}
+
+/**
+ * Moves every plugin installed from npm to what its tag resolves to now (D49).
+ *
+ * `update` means plugins, which is the whole reason the injection flow is spelled `install` (D55).
+ */
+async function updateCommand(args: string[]): Promise<number> {
+  const { values, positionals } = parseArgs({
+    args,
+    options: { now: { type: "boolean", default: false } },
+    allowPositionals: true,
+  });
+  const paths = riglinePaths();
+  const updates = await updatePlugins({
+    pluginsDir: paths.plugins,
+    configPath: paths.config,
+    otherRoots: [repoPluginsDir()],
+    names: positionals.length > 0 ? positionals : undefined,
+    registry: { ignoreReleaseAge: values.now },
+  });
+  console.log(formatUpdates(updates));
+
+  const moved = updates.some((u) => u.outcome === "updated");
+  if (!moved) {
+    // Nothing changed on disk, so the payload is already what it should be and re-injecting would
+    // be a paragraph of report about a no-op.
+    return updates.some((u) => u.outcome === "failed") ? 1 : 0;
+  }
+  console.log("");
+  const code = reinject();
+  return updates.some((u) => u.outcome === "failed") ? 1 : code;
 }
 
 function removeCommand(args: string[]): number {
@@ -592,6 +657,8 @@ async function main(argv: string[]): Promise<number> {
       return dev(rest);
     case "add":
       return addCommand(rest);
+    case "update":
+      return updateCommand(rest);
     case "remove":
       return removeCommand(rest);
     case "list":

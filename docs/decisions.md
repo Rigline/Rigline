@@ -656,6 +656,44 @@ added a plugin has to know about a second command before anything appears. `dev`
 installer for the same reason. The reload is still the user's — nothing can avoid that — so the
 report ends where `install`'s does.
 
+**D57. A tarball is read by a reader that refuses, not by an extractor that reproduces.** Node has
+no tar, so this was a fork: depend on `tar`, which is general, battle-tested and streaming, or write
+the reader. The reader, for the reason D47 gives about package managers — what we want from
+extraction is not fidelity but refusal. A published tarball is flat ustar under one leading
+directory, and everything Rigline needs is a list of `if` and `throw`: regular files only, no
+absolute path, no `..` in any segment, no drive letter anywhere, no symlink, hardlink, device or
+anything else with a type byte, a cap on entry size and on entry count, and exactly one root
+directory — stripped, whatever it is called, because `npm pack` writes `package/` while `@types/*`
+write `node/`, and a reader insisting on the first refuses a package the registry serves. That last
+rule was written the other way and corrected by the first live fetch, which is the argument for
+running one. A general extractor's job is
+to put back what somebody put in; ours is to take a small flat set of files and decline the rest,
+and the refusals are the part worth owning and testing. It also keeps `@rigline/core` at zero
+third-party runtime dependencies, which for a package that rewrites an editor's own bundle is worth
+something on its own — though that is the second reason, not the first, and if the reader ever
+starts growing features to accommodate a real archive, that is the signal it was the wrong call.
+
+**D58. A source pins an exact version and records the tag it was following; there are no ranges.**
+`~/.rigline/config.json` already holds one version per plugin (D49), so a range would be a second
+mechanism for deciding what is installed, disagreeing with the first the moment they differ. `add
+<name>` resolves a dist-tag, `latest` unless another is named, and records both the version it took
+and the tag it followed; `add <name>@<version>` records the version and no tag, which is a person
+pinning and is respected — `update` reports it and moves nothing.
+
+So "newer" means "the tag resolves somewhere you are not", never a comparison of version numbers,
+and no semver ordering is computed anywhere. Following a tag backwards is therefore possible, and is
+the right answer — a maintainer who moves `latest` back has un-recommended what it pointed at — so
+`update` says which version it is moving from and to rather than assuming the number went up.
+
+**A version too young is refused, never walked back from.** The obvious alternative — take the
+newest version old enough, ordering by the packument's `time` map — was considered and rejected:
+publish order is not tag order, so a patch published to an old line after the tag moved would be
+installed as though the maintainer were recommending it, and installing a version nobody pointed at
+is a wrong answer arrived at quietly. So the age gate is a gate. `add` refuses and names the
+version, its age and `--now`; `update` leaves the plugin where it is and says the same thing, which
+is what D48 means by a withheld version being reported rather than hidden. Only the resolved
+version's own publish time is ever read.
+
 **D50. The plugin template is a pnpm workspace holding many plugins; one plugin is that workspace
 with one member.** The multi-plugin shape is a superset — it scaffolds correctly for one plugin,
 whereas a single-plugin template cannot grow into a workspace without a restructure, and adding a
