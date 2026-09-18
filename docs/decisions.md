@@ -636,6 +636,26 @@ the next inject with everything it declares, and it cannot be upgraded, which is
 dropping a directory in: the user owns the version because the user owns the provenance. `list`
 reports that rather than leaving it to be inferred from silence.
 
+**D56. A plugin name is unique across discovery roots, first root wins, and `add` refuses to make a
+collision it cannot undo.** Discovery flattens its roots into one ordered list, so two directories
+of the same name baked two registry entries, copied over each other into the payload, and loaded the
+plugin twice — two setups, two mounts, two taps, and one name to blame them on. `add` is what made
+that reachable, so the rule lands with it: discovery keeps the first of a name and reports the one it
+shadowed, and `add` refuses a name already discovered outside `~/.rigline/plugins/` rather than
+shadowing a plugin it does not own. Adding over a name already in `~/.rigline/plugins/` replaces it,
+which is what re-adding a plugin you are working on means.
+
+First root wins rather than last because the root order is also load order, and it is stated by the
+caller: reading it one way for ordering and the other way for precedence would make the same list
+mean two things. The shadowed directory is named rather than silently dropped, since a plugin
+missing from the panel with nothing said about it is the failure P8 exists to refuse.
+
+**`add` and `remove` re-inject.** D55 keeps `install` the one write command about the *injection*;
+these are about the plugin set, and leaving the payload stale behind them would mean a user who
+added a plugin has to know about a second command before anything appears. `dev` already drives the
+installer for the same reason. The reload is still the user's — nothing can avoid that — so the
+report ends where `install`'s does.
+
 **D50. The plugin template is a pnpm workspace holding many plugins; one plugin is that workspace
 with one member.** The multi-plugin shape is a superset — it scaffolds correctly for one plugin,
 whereas a single-plugin template cannot grow into a workspace without a restructure, and adding a

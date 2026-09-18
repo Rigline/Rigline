@@ -304,7 +304,7 @@ export function install(ext: string, options: InstallOptions): InstallReport {
 
   if (options.plugins) {
     const { roots, last, configPath } = options.plugins;
-    const discovered = discoverPlugins(roots, { last });
+    const discovered = discoverPlugins(roots, { last, log });
     const config = readConfig(configPath);
     const enabled = enabledPlugins(discovered, config, log);
     enabledNames = enabled.map((p) => p.name);

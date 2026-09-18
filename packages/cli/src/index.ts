@@ -10,6 +10,7 @@ import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import {
+  addPlugin,
   CORE_VERSION,
   check,
   collect,
@@ -32,6 +33,7 @@ import {
   listPlugins,
   readAnchorOverrides,
   readBundles,
+  removePlugin,
   restoreAll,
   riglinePaths,
   scanOf,
@@ -80,6 +82,14 @@ const USAGE = `rigline ${CORE_VERSION}
       Build the named plugin directories (or every first-party one), re-inject, and rebuild
       on every source change. Reload webviews after each one.
 
+  rigline add PATH
+      Install the plugin in PATH into ~/.rigline/plugins, say what it can do, and re-inject.
+      Nothing is fetched, nothing is resolved, and none of the plugin's own code is run.
+
+  rigline remove NAME
+      Delete a plugin rigline installed, and re-inject. A plugin you did not install this
+      way is switched off in ~/.rigline/config.json instead; this will not delete it.
+
   rigline list
       Every plugin found, in the order they load: where it came from, whether it is
       switched off, and what its manifest says it can do.
@@ -115,6 +125,104 @@ function pluginOptions(): NonNullable<InstallOptions["plugins"]> {
   return { roots: [repoPluginsDir(), paths.plugins], last: ["probe"], configPath: paths.config };
 }
 
+interface ReinjectOptions {
+  readonly exts?: readonly string[];
+  readonly payloadDir?: string;
+  /** Refuse rather than shrug when nothing is installed: what `install`, asked outright, should do. */
+  readonly required?: boolean;
+}
+
+/**
+ * Inject into every installed version and print the report.
+ *
+ * `install` is this and nothing else; `add` and `remove` run it too, because they change the plugin
+ * set and leaving the payload stale behind them would mean a person who added a plugin has to know
+ * about a second command before anything appears (D56).
+ *
+ * No extension installed is not a failure here. `add` has already put the plugin where it belongs,
+ * and saying so and stopping is a better answer than an error about a directory the person may be
+ * about to create by installing the extension.
+ */
+function reinject(options: ReinjectOptions = {}): number {
+  const targets = options.exts ?? installedExtensions();
+  if (targets.length === 0) {
+    if (options.required) throw new UserError("no Claude Code extension is installed");
+    console.log("No Claude Code extension is installed, so nothing was injected.");
+    return 0;
+  }
+  const report = update({
+    exts: targets,
+    payloadDir: options.payloadDir ?? defaultPayloadDir(),
+    plugins: pluginOptions(),
+    // Only where the directory already has one; this never creates a harvest for somebody who has
+    // not asked for one, and it never commits what it rewrites (D30).
+    codegen: true,
+  });
+  console.log(formatFlow(report));
+  console.log(
+    report.versions.some((v) => v.hostChanged)
+      ? `\nA host patch changed: run Developer: Reload Window (this ends the window's sessions).`
+      : `\nReload with Developer: Reload Webviews (current window only).`,
+  );
+  return report.attention.length > 0 ? 1 : 0;
+}
+
+/**
+ * Installs a plugin from a directory. No network and no package manager (D47): a plugin is a
+ * manifest and a built module, and everything `add` does is around the copy rather than inside it.
+ *
+ * What it can do is printed because this is the moment it means something (D26): installing a
+ * plugin is the act that says yes, and nothing after it asks again, so the sentences belong here
+ * rather than in a prompt nobody can answer usefully.
+ */
+function addCommand(args: string[]): number {
+  const { positionals } = parseArgs({ args, options: {}, allowPositionals: true });
+  if (positionals.length !== 1) throw new UserError("add needs exactly one plugin directory");
+
+  const paths = riglinePaths();
+  const result = addPlugin({
+    from: positionals[0] as string,
+    pluginsDir: paths.plugins,
+    configPath: paths.config,
+    otherRoots: [repoPluginsDir()],
+  });
+
+  console.log(`${result.replaced ? "replaced" : "added"} ${result.name} — ${result.dir}`);
+  console.log(`  from ${result.from}`);
+  if (result.manifest.description) console.log(`  ${result.manifest.description}`);
+  for (const sentence of result.can) console.log(`  - ${sentence}`);
+  for (const patch of result.manifest.patches) {
+    // Named apart, and never folded in with the capability sentences: a host patch is the one
+    // declaration that reaches outside the webview, into the extension's own bundle.
+    console.log(`  - patches extension.js${patch.required ? " (required)" : ""}: ${patch.why}`);
+  }
+  if (result.disabled) {
+    console.log(
+      `  "${result.name}" is switched off in ${paths.config}, so it will not load until you remove it from "disabled"`,
+    );
+  }
+  console.log("");
+  return reinject();
+}
+
+function removeCommand(args: string[]): number {
+  const { positionals } = parseArgs({ args, options: {}, allowPositionals: true });
+  if (positionals.length !== 1) throw new UserError("remove needs exactly one plugin name");
+
+  const paths = riglinePaths();
+  const result = removePlugin({
+    name: positionals[0] as string,
+    pluginsDir: paths.plugins,
+    configPath: paths.config,
+    otherRoots: [repoPluginsDir()],
+  });
+  console.log(`removed ${result.name} — ${result.dir}`);
+  if (!result.hadSource) console.log("  it had no source record, so it was placed here by hand");
+  if (result.wasDisabled) console.log(`  and dropped from "disabled" in ${paths.config}`);
+  console.log("");
+  return reinject();
+}
+
 /**
  * The one write command: inject into every installed version, say what moved since the baseline,
  * record the new one. `check` is its read-only half. `update` means plugins, in phase 4 (D55).
@@ -125,24 +233,11 @@ function installCommand(args: string[]): number {
     options: { ext: { type: "string" }, payload: { type: "string" } },
     allowPositionals: false,
   });
-  const targets = values.ext ? [values.ext] : installedExtensions();
-  if (targets.length === 0) throw new UserError("no Claude Code extension is installed");
-
-  const report = update({
-    exts: targets,
-    payloadDir: values.payload ?? defaultPayloadDir(),
-    plugins: pluginOptions(),
-    // Only where the directory already has one; this never creates a harvest for somebody who has
-    // not asked for one, and it never commits what it rewrites (D30).
-    codegen: true,
+  return reinject({
+    exts: values.ext ? [values.ext] : undefined,
+    payloadDir: values.payload,
+    required: true,
   });
-  console.log(formatFlow(report));
-  console.log(
-    report.versions.some((v) => v.hostChanged)
-      ? "\nA host patch changed: run Developer: Reload Window (this ends the window's sessions)."
-      : "\nReload with Developer: Reload Webviews (current window only).",
-  );
-  return report.attention.length > 0 ? 1 : 0;
 }
 
 /** The same roots `pluginOptions` discovers from, named for a report rather than for a loader. */
@@ -153,7 +248,7 @@ function listCommand(): number {
       listPlugins({
         roots: [
           { label: "this checkout", path: repoPluginsDir() },
-          { label: paths.plugins, path: paths.plugins },
+          { label: paths.plugins, path: paths.plugins, managed: true },
         ],
         last: ["probe"],
         configPath: paths.config,
@@ -495,6 +590,10 @@ async function main(argv: string[]): Promise<number> {
       return watchCommand(rest);
     case "dev":
       return dev(rest);
+    case "add":
+      return addCommand(rest);
+    case "remove":
+      return removeCommand(rest);
     case "list":
       return listCommand();
     case "status":

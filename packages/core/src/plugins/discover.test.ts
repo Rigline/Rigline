@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -15,6 +15,7 @@ import {
   isPluginOutput,
   readConfig,
   readManifest,
+  updateConfig,
 } from "./discover.ts";
 
 const dirs: string[] = [];
@@ -130,18 +131,70 @@ describe("discoverPlugins", () => {
     const found = discoverPlugins([root], { last: ["probe"] });
     expect(found.map((p) => p.name)).toEqual(["alpha", "beta", "probe"]);
   });
+
+  it("keeps the first of a name and reports the one it shadowed", () => {
+    // Two of a name baked two registry entries and loaded the plugin twice (D56). First root wins,
+    // because the root order is the caller's and is already load order.
+    const first = tempDir();
+    const second = tempDir();
+    writePlugin(first, "clock");
+    writePlugin(second, "clock");
+    writePlugin(second, "other");
+    const lines: string[] = [];
+
+    const found = discoverPlugins([first, second], { log: (line) => lines.push(line) });
+
+    expect(found.map((p) => p.dir)).toEqual([join(first, "clock"), join(second, "other")]);
+    expect(lines).toEqual([
+      `${join(second, "clock")} is shadowed by ${join(first, "clock")}: a plugin called "clock" is already discovered`,
+    ]);
+  });
 });
 
 describe("readConfig", () => {
   it("returns an empty disabled list when the file is absent, and still says where it looked", () => {
     const path = join(tempDir(), "config.json");
-    expect(readConfig(path)).toEqual({ path, disabled: [] });
+    expect(readConfig(path)).toEqual({ path, disabled: [], sources: {} });
   });
 
   it("reads a real disable list", () => {
     const path = join(tempDir(), "config.json");
     writeFileSync(path, JSON.stringify({ disabled: ["a", "b"] }));
-    expect(readConfig(path)).toEqual({ path, disabled: ["a", "b"] });
+    expect(readConfig(path)).toEqual({ path, disabled: ["a", "b"], sources: {} });
+  });
+
+  it("reads the sources add recorded, and refuses one it cannot", () => {
+    const path = join(tempDir(), "config.json");
+    const source = { kind: "path", from: "/somewhere/clock", addedAt: "2026-09-18T11:00:00.000Z" };
+    writeFileSync(path, JSON.stringify({ sources: { clock: source } }));
+    expect(readConfig(path).sources).toEqual({ clock: source });
+
+    // Dropping it silently would turn a plugin `add` brought in into one that looks hand-placed,
+    // and so cannot be upgraded (D49).
+    writeFileSync(path, JSON.stringify({ sources: { clock: { kind: "carrier pigeon" } } }));
+    expect(() => readConfig(path)).toThrow(/source recorded for "clock"/);
+  });
+
+  it("writes back without losing a key it has never heard of", () => {
+    const path = join(tempDir(), "config.json");
+    writeFileSync(path, JSON.stringify({ disabled: ["a"], settings: { a: { size: 2 } } }));
+
+    updateConfig(path, (config) => {
+      config.disabled = [];
+    });
+
+    expect(JSON.parse(readFileSync(path, "utf8"))).toEqual({
+      disabled: [],
+      settings: { a: { size: 2 } },
+    });
+  });
+
+  it("creates the file when there is none, rather than needing one to exist", () => {
+    const path = join(tempDir(), "config.json");
+    updateConfig(path, (config) => {
+      config.disabled = ["a"];
+    });
+    expect(readConfig(path).disabled).toEqual(["a"]);
   });
 
   it("rejects a disabled value that is not an array of strings", () => {
@@ -159,7 +212,11 @@ describe("enabledPlugins", () => {
     writePlugin(root, "gamma");
     const discovered = discoverPlugins([root]);
 
-    const enabled = enabledPlugins(discovered, { path: "config.json", disabled: ["beta"] });
+    const enabled = enabledPlugins(discovered, {
+      path: "config.json",
+      disabled: ["beta"],
+      sources: {},
+    });
     expect(enabled.map((p) => p.name)).toEqual(["alpha", "gamma"]);
   });
 
@@ -170,7 +227,9 @@ describe("enabledPlugins", () => {
     const lines: string[] = [];
 
     const path = join(tempDir(), "config.json");
-    enabledPlugins(discovered, { path, disabled: ["ghost"] }, (line) => lines.push(line));
+    enabledPlugins(discovered, { path, disabled: ["ghost"], sources: {} }, (line) =>
+      lines.push(line),
+    );
 
     // Names the file a person has to open, not the shape of its name: a message that says
     // "config.json" leaves them looking for which one.
@@ -225,7 +284,11 @@ describe("bakeRegistry", () => {
     writePlugin(root, "alpha");
     writePlugin(root, "beta");
     const discovered = discoverPlugins([root]);
-    const enabled = enabledPlugins(discovered, { path: "config.json", disabled: ["beta"] });
+    const enabled = enabledPlugins(discovered, {
+      path: "config.json",
+      disabled: ["beta"],
+      sources: {},
+    });
 
     const source = bakeRegistry(enabled, []);
     expect(source).toContain('"name":"alpha"');

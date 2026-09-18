@@ -7,8 +7,9 @@
  * is never imported — module evaluation is exactly where a broken plugin throws, and this code's
  * job is to say what broke, by name, before anything runs.
  */
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
+
 import {
   capabilityDrift,
   capabilityUse,
@@ -32,11 +33,29 @@ export interface DiscoveredPlugin {
   readonly manifest: ValidManifest;
 }
 
+/**
+ * Where a plugin came from, recorded by `add` (D49).
+ *
+ * A discriminated union from its first member, so that the npm source and the git source deferred
+ * in D33 arrive as adapters rather than as a migration of everything already written. A plugin
+ * somebody put in `~/.rigline/plugins/` by hand has no record at all, and that is the honest cost
+ * of dropping a directory in: nothing knows where it came from, so nothing can fetch a newer one.
+ */
+export type PluginSource = {
+  readonly kind: "path";
+  /** The directory it was copied from, absolute. Where a later `update` would look again. */
+  readonly from: string;
+  /** When, as an ISO instant. The record is for a person reading it as much as for a command. */
+  readonly addedAt: string;
+};
+
 /** `~/.rigline/config.json`: the one thing a person, not a plugin author, controls at install time. */
 export interface PluginsConfig {
   /** Where it was read from, so a report about it can name the file somebody has to edit. */
   readonly path: string;
   readonly disabled: readonly string[];
+  /** What `add` brought in, by plugin name. A plugin placed by hand is absent rather than null. */
+  readonly sources: Readonly<Record<string, PluginSource>>;
 }
 
 /**
@@ -44,8 +63,13 @@ export interface PluginsConfig {
  * `name`/directory mismatch or a missing capability is treated the same way as a missing entry
  * file: an authoring mistake, not version skew, so it fails the install loudly rather than being
  * silently dropped.
+ *
+ * `expectedName` is the directory's own name everywhere a plugin is discovered, which is what makes
+ * a directory's name and its plugin's name the same fact. `add` passes the manifest's own name
+ * instead: it is reading a source directory that has not been renamed to match yet, and the copy it
+ * is about to make is what settles the two together.
  */
-export function readManifest(dir: string): ValidManifest {
+export function readManifest(dir: string, expectedName: string = basename(dir)): ValidManifest {
   const manifestPath = join(dir, "rigline.json");
   if (!existsSync(manifestPath)) {
     throw new UserError(`${dir} has no rigline.json`);
@@ -56,7 +80,7 @@ export function readManifest(dir: string): ValidManifest {
   } catch (error) {
     throw new UserError(`${manifestPath} is not valid JSON: ${(error as Error).message}`);
   }
-  const { manifest, problems } = validateManifest(value, basename(dir));
+  const { manifest, problems } = validateManifest(value, expectedName);
   if (manifest === null) {
     throw new UserError(
       `${manifestPath} is not a valid manifest:\n${problems.map((p) => `  - ${p}`).join("\n")}`,
@@ -78,9 +102,11 @@ export function readManifest(dir: string): ValidManifest {
  */
 export function discoverPlugins(
   roots: readonly string[],
-  options?: { readonly last?: readonly string[] },
+  options?: { readonly last?: readonly string[]; readonly log?: (line: string) => void },
 ): DiscoveredPlugin[] {
+  const log = options?.log ?? (() => {});
   const found: DiscoveredPlugin[] = [];
+  const seen = new Map<string, string>();
   for (const root of roots) {
     if (!existsSync(root)) continue;
     const names = readdirSync(root, { withFileTypes: true })
@@ -90,6 +116,16 @@ export function discoverPlugins(
       .sort();
     for (const name of names) {
       const dir = join(root, name);
+      const already = seen.get(name);
+      if (already !== undefined) {
+        // One name, one plugin (D56). Two of a name baked two registry entries, copied over each
+        // other into the payload, and loaded the plugin twice. First root wins, because the root
+        // order is the caller's and is already load order; the loser is named, because a plugin
+        // missing from the panel with nothing said about it is the failure P8 refuses.
+        log(`${dir} is shadowed by ${already}: a plugin called "${name}" is already discovered`);
+        continue;
+      }
+      seen.set(name, dir);
       found.push({ name, dir, root, manifest: readManifest(dir) });
     }
   }
@@ -107,9 +143,51 @@ export function discoverPlugins(
 
 /** `~/.rigline/config.json`. Absent means nothing is disabled; malformed is a person's mistake, loud. */
 export function readConfig(path: string): PluginsConfig {
-  if (!existsSync(path)) {
-    return { path, disabled: [] };
+  const value = readConfigJson(path);
+  if (value === null) return { path, disabled: [], sources: {} };
+
+  const disabled = value.disabled ?? [];
+  if (!Array.isArray(disabled) || !disabled.every((d) => typeof d === "string")) {
+    throw new UserError(`${path}: "disabled" must be an array of strings`);
   }
+  const rawSources = value.sources ?? {};
+  if (typeof rawSources !== "object" || rawSources === null || Array.isArray(rawSources)) {
+    throw new UserError(`${path}: "sources" must be an object of plugin name to source`);
+  }
+  const sources: Record<string, PluginSource> = {};
+  for (const [name, source] of Object.entries(rawSources)) {
+    // Unreadable rather than absent, which is a distinction worth keeping: a record nothing can
+    // parse is a file somebody edited, and dropping it silently would turn a plugin `add` brought
+    // in into one that looks hand-placed and so cannot be upgraded (D49).
+    if (!isPluginSource(source)) {
+      throw new UserError(`${path}: the source recorded for "${name}" is not one this can read`);
+    }
+    sources[name] = source;
+  }
+  return { path, disabled, sources };
+}
+
+/**
+ * `config.json` with `mutate` applied, written back with every key this does not know about left
+ * exactly as it was.
+ *
+ * A read-modify-write over the raw JSON rather than a render of `PluginsConfig`, because this file
+ * belongs to the user: per-plugin settings are a thing it will hold one day, a person may have put
+ * something of their own in it, and a command that rewrites it from a narrowed view would delete
+ * both the first time it ran.
+ */
+export function updateConfig(
+  path: string,
+  mutate: (config: Record<string, unknown>) => void,
+): void {
+  const value = readConfigJson(path) ?? {};
+  mutate(value);
+  writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+/** The file as raw JSON, or null when it is not there. Throws for anything that is not an object. */
+function readConfigJson(path: string): Record<string, unknown> | null {
+  if (!existsSync(path)) return null;
   let value: unknown;
   try {
     value = JSON.parse(readFileSync(path, "utf8"));
@@ -119,11 +197,15 @@ export function readConfig(path: string): PluginsConfig {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new UserError(`${path} must be a JSON object`);
   }
-  const disabled = (value as { disabled?: unknown }).disabled ?? [];
-  if (!Array.isArray(disabled) || !disabled.every((d) => typeof d === "string")) {
-    throw new UserError(`${path}: "disabled" must be an array of strings`);
-  }
-  return { path, disabled };
+  return value as Record<string, unknown>;
+}
+
+function isPluginSource(value: unknown): value is PluginSource {
+  if (typeof value !== "object" || value === null) return false;
+  const source = value as Partial<PluginSource>;
+  return (
+    source.kind === "path" && typeof source.from === "string" && typeof source.addedAt === "string"
+  );
 }
 
 /**

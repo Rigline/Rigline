@@ -66,7 +66,9 @@ from. Update the plan before writing code; log status there, not here.
     pnpm build              # host, core, cli, and the first-party plugins
     pnpm rigline install    # inject every version, bake plugins, report drift, record the baseline
     pnpm rigline check      # the same report, writing nothing
-    pnpm rigline list       # every plugin, in load order: origin, switch, what it can do
+    pnpm rigline add DIR    # install a plugin from a directory, name what it can do, re-inject
+    pnpm rigline remove N   # delete a plugin rigline installed, and re-inject
+    pnpm rigline list       # every plugin, in load order: origin, source, switch, what it can do
     pnpm rigline status     # per version: vanilla or patched, by backup
     pnpm rigline restore    # every version back to the extension's bytes
     pnpm rigline codegen    # regenerate plugin-api's generated.ts
@@ -82,8 +84,10 @@ Rebuilding the payload or a plugin and running `install` again refreshes the fil
 without rewriting the bundle. `restore` is the undo and the recovery from a blank panel; it needs
 only Node and this checkout.
 
-`install` is the one write command and `check` is its read-only half. There is no `rigline update`:
-in phase 4 that word means *update my plugins*, as it does in every package manager (D55).
+`install` is the one write command about the injection, and `check` is its read-only half. `add`
+and `remove` change the plugin set and re-inject afterwards, so a plugin is one reload away rather
+than one reload and a command a person has to know about (D56). There is no `rigline update` yet:
+that word means *update my plugins*, as it does in every package manager (D55).
 
 An update installs a new versioned directory and deletes the old one, so it silently reverts the
 injection. A window that was open keeps running the old directory until *Developer: Reload Window*.

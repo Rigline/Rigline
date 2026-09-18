@@ -52,7 +52,7 @@ pnpm workspace, TypeScript throughout, every package a real package with its own
 | path | package | what it is |
 | --- | --- | --- |
 | `packages/core` | `@rigline/core` | Node library: locate installed extensions, harvest identifier layers, generate types and runtime tables, inject and restore, discover plugins and bake the registry, run the install flow, watch for updates, hold the curated anchor table. The CLI and a future companion extension both consume it. |
-| `packages/cli` | `rigline` | Thin command surface over core: `install`, `check`, `status`, `restore`, `list`, `watch`, `doctor`, `codegen`, `diff`, `build`, `dev`, and in phase 4 `add`, `remove`, `update` (D55). |
+| `packages/cli` | `rigline` | Thin command surface over core: `install`, `check`, `status`, `restore`, `add`, `remove`, `list`, `watch`, `doctor`, `codegen`, `diff`, `build`, `dev`, and later `update` (D55). |
 | `packages/host` | `@rigline/host` (private) | The injected runtime: `pre.js` (bus tap, buffer, rewrite chain, React devtools hook, meters) and `post.js` (kernel plus capability modules). Built to exactly two files. |
 | `packages/plugin-api` | `@rigline/plugin-api` | What a plugin is written against: `PluginContext`, the manifest type and JSON schema, `definePlugin`, the anchor names, and the pure helpers shared by host and core (capability contracts, session rule, stream shape, transcript derivations). |
 | `packages/harness` | (private) | The Playwright tier: boots the real webview bundle from the corpus with a faked `acquireVsCodeApi` and a replayed bus. |
@@ -245,9 +245,17 @@ In order.
    version at install with what that version makes of it. [anchors.md](anchors.md) is its
    reference, written for a user rather than for us. It came first because it had to be there
    before anybody else installed a plugin, and that condition is now met.
-2. **`rigline add` from a path, and `remove`.** No network, and what makes `~/.rigline/plugins/` a
-   managed directory rather than one people copy into. `add` is where `describeUses` says what
-   arrived, at the moment it means something.
+2. **`rigline add` from a path, and `remove`** — done 2026-09-18. No network, and what makes
+   `~/.rigline/plugins/` a managed directory rather than one people copy into. `add` is where
+   `describeUses` says what arrived, at the moment it means something.
+
+   `add <path>` validates the manifest as data against its own `name` rather than the source
+   directory's, copies the directory through the same output filter the installer uses, records a
+   source (D49), prints what the plugin can do and any host patch it declares, and re-injects so
+   one reload has it in the panel. `remove <name>` is its inverse and refuses anything that is not
+   in `~/.rigline/plugins/`. `config.json` grows `sources`, written back without losing keys
+   nothing here knows about, and `list` says which plugins have no source record and so cannot be
+   upgraded. Neither command runs a package manager or evaluates a plugin (D47, D12).
 3. **`rigline add` from npm, and `rigline update`** (D47, D48, D49). The tarball fetch and integrity
    check, the minimum release age with `--now` and a report naming what was withheld and why, and
    the source record with its kind discriminator. D47's premise already holds: `rigline build`
@@ -300,7 +308,9 @@ known risk to weigh when this phase starts.
 
 ## Next session
 
-Phase 4 item 2: `rigline add` from a path, and `remove`. Nothing blocks it.
+Phase 4 item 3: `rigline add` from npm, and `rigline update` (D47, D48, D49). Nothing blocks it —
+the source record's `kind` discriminator and the copy-and-validate path are both in place, so npm
+arrives as a fetch, an integrity check and an unpack in front of what `add` already does.
 
 **About this machine.** Only 2.1.270 is installed — VS Code deleted 2.1.268 and 2.1.269 once nothing
 was serving them, which is the behaviour D4 exists for; both are still in the corpus. Its
@@ -389,6 +399,12 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
 - 2026-09-18: Trimmed the register and this plan to what is true now, and cut `doctor` back to
   Rigline's own install state (D53 amended), dropping about 1,600 lines of VS Code log parsing and
   the redaction machinery that existed to make reading those logs safe.
+- 2026-09-18: `add` and `remove` landed, and with them the rule that one name is one plugin (D56):
+  discovery had been flattening its roots without deduplicating, so two directories of a name baked
+  two registry entries and loaded the plugin twice. `add` is what made that reachable, so it refuses
+  a name already discovered somewhere it does not own, and discovery keeps the first and reports the
+  shadow. `config.json` grew `sources` and is now written back through a read-modify-write that
+  keeps keys nothing here knows about.
 - 2026-09-18: The local anchor override landed, and phase 4's first item with it (D44 amended).
   Building it turned up two things the design had not said. The manifest's shape check was refusing
   any anchor name outside the shipped table, which stops being an answerable question once the table

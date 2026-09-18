@@ -72,7 +72,7 @@ export * from "./layers/index.ts";
 export { harvestAll, LAYERS, scanOf } from "./layers/index.ts";
 export type { RiglinePaths } from "./paths.ts";
 export { RIGLINE_HOME_VARIABLE, riglineHome, riglinePaths } from "./paths.ts";
-export type { DiscoveredPlugin, PluginsConfig } from "./plugins/discover.ts";
+export type { DiscoveredPlugin, PluginSource, PluginsConfig } from "./plugins/discover.ts";
 export {
   bakeRegistry,
   capabilityUseNotes,
@@ -82,6 +82,7 @@ export {
   isPluginOutput,
   readConfig,
   readManifest,
+  updateConfig,
 } from "./plugins/discover.ts";
 export type {
   LabelledRoot,
@@ -90,6 +91,8 @@ export type {
   PluginListing,
 } from "./plugins/list.ts";
 export { formatPlugins, listPlugins } from "./plugins/list.ts";
+export type { AddOptions, AddResult, RemoveOptions, RemoveResult } from "./plugins/manage.ts";
+export { addPlugin, removePlugin } from "./plugins/manage.ts";
 export type { BaselineSource } from "./update/baseline.ts";
 export {
   GENERATED_FILE,

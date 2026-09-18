@@ -52,6 +52,42 @@ describe("listPlugins", () => {
     ]);
   });
 
+  it("says where add brought a plugin from, and says when nothing knows", () => {
+    const managed = tempDir();
+    const checkout = tempDir();
+    writePlugin(managed, "added");
+    writePlugin(managed, "by-hand");
+    writePlugin(checkout, "first-party");
+    const configPath = join(tempDir(), "config.json");
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        sources: {
+          added: { kind: "path", from: "/src/added", addedAt: "2026-09-18T11:00:00.000Z" },
+        },
+      }),
+    );
+
+    const listed = listPlugins({
+      roots: [
+        { label: "this checkout", path: checkout },
+        { label: "~/.rigline/plugins", path: managed, managed: true },
+      ],
+      configPath,
+    });
+    const text = formatPlugins(listed);
+
+    expect(text).toContain("added from /src/added");
+    // Only a plugin in the directory `add` owns can have been placed there by hand; a first-party
+    // plugin in a checkout was never added and has nothing to be updated from (D49).
+    expect(listed.map((p) => [p.name, p.managed, p.source !== null])).toEqual([
+      ["first-party", false, false],
+      ["added", true, true],
+      ["by-hand", true, false],
+    ]);
+    expect(text.split("placed here by hand")).toHaveLength(2);
+  });
+
   it("lists in the order plugins load, `last` included, so it cannot disagree with the registry", () => {
     const root = tempDir();
     writePlugin(root, "alpha");

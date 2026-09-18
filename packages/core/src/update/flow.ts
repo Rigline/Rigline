@@ -156,8 +156,15 @@ function anchorReport(
 export function check(options: FlowOptions = {}): FlowReport {
   const exts = options.exts ?? installedExtensions();
   const overrides = readAnchorOverrides(options.anchorsPath ?? riglinePaths().anchors);
+  // Discovery says nothing version-specific, but its lines are read under a version heading in
+  // `update` because that is where the installer logs them. Repeating them per version here is what
+  // keeps `check` saying everything `update` says, in the same place.
+  const discovery: string[] = [];
   const discovered = options.plugins
-    ? discoverPlugins(options.plugins.roots, { last: options.plugins.last })
+    ? discoverPlugins(options.plugins.roots, {
+        last: options.plugins.last,
+        log: (line) => discovery.push(line),
+      })
     : [];
   const plugins = options.plugins
     ? enabledPlugins(discovered, readConfig(options.plugins.configPath))
@@ -176,7 +183,7 @@ export function check(options: FlowOptions = {}): FlowReport {
     hostChanged: false,
     enabled,
     disabled,
-    log: [],
+    log: discovery,
   }));
 
   return settle(options, overrides, harvested, versions, null);
