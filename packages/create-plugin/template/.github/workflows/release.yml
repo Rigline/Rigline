@@ -1,0 +1,105 @@
+# Publish your plugins to npm, without an npm token ever being stored here.
+#
+# GitHub authenticates to npm over OIDC, so the secret this workflow would otherwise need does not
+# exist. What it does is *stage*: a staged version sits in a queue that nobody can install until you
+# approve it from your own machine with 2FA. Approving says you meant to ship it.
+#
+#     pnpm stage approve
+#
+# Before this works, once per package, on npmjs.com:
+#
+#   1. Publish the first version by hand. A package that does not exist yet has nothing for a
+#      trusted publisher to attach to: `pnpm publish -r --otp <code>` (a one-time password, not a
+#      token — there is then nothing to store or revoke).
+#   2. Add a trusted publisher under the package's settings, naming this repository and this file
+#      by path. Renaming this file breaks the exchange until the entry is edited to match.
+#      Set its permission to stage-only.
+#
+# `-r` stages every package in the workspace whose version is not already on the registry, in
+# dependency order, so bumping one plugin releases one plugin.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      dist_tag:
+        description: The tag these versions go to. A prerelease belongs on `next`, not `latest`.
+        type: choice
+        options: [latest, next]
+        default: latest
+      dry_run:
+        description: Build, test and pack, but stage nothing
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  stage:
+    name: Stage to npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # What lets the runner ask GitHub for the token npm exchanges for a publishing one. Without
+      # it there is nothing to send, and pnpm falls back to looking for a credential that is not
+      # here — reporting that as a warning, not an error, so read the log rather than the tick.
+      id-token: write
+    steps:
+      - name: Refuse anything but the default branch
+        if: github.ref_name != github.event.repository.default_branch
+        run: |
+          echo "::error::Releases go from ${{ github.event.repository.default_branch }}."
+          exit 1
+
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm build
+      - run: pnpm test
+
+      # `generated.ts` is committed, so this needs no installed extension. `rigline codegen` is
+      # something you run locally against your own editor and commit the result of.
+      - name: Stage
+        if: ${{ !inputs.dry_run }}
+        run: pnpm stage publish -r --tag ${{ inputs.dist_tag }} --provenance --report-summary --no-git-checks
+
+      - name: Pack only
+        if: ${{ inputs.dry_run }}
+        run: pnpm stage publish -r --tag ${{ inputs.dist_tag }} --dry-run --report-summary --no-git-checks
+
+      # Nothing notifies you that a stage is waiting, and npm returns no stage id to quote, so the
+      # run summary names what went up and the one command that finishes the job.
+      - name: Summarise
+        if: always()
+        run: |
+          if [ ! -f pnpm-publish-summary.json ]; then
+            echo "## Nothing was staged" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Either the run stopped before staging, or every version is already on the registry." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          node -e '
+            const s = JSON.parse(require("fs").readFileSync("pnpm-publish-summary.json", "utf8"));
+            const out = [];
+            const staged = s.publishedPackages ?? [];
+            if (staged.length === 0) {
+              out.push("## Nothing was staged", "", "Every version is already on the registry. Bump one to release it.");
+            } else {
+              out.push("## Staged, and awaiting approval", "", "| package | version |", "| --- | --- |");
+              for (const p of staged) out.push(`| \`${p.name}\` | \`${p.version}\` |`);
+              out.push("", "**Nobody can install these yet.** On a machine with your npm 2FA:", "", "```", "pnpm stage approve", "```", "",
+                "It lists what is queued and takes the batch under one one-time password. A version you would rather not ship needs no action — do not approve it, and it expires.");
+            }
+            require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, out.join("\n") + "\n");
+          '

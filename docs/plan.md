@@ -292,22 +292,28 @@ In order.
    services), [patches.md](patches.md) (the second bundle and why it is a different kind of change),
    [transcript.md](transcript.md) (the three-way join and the sweep), and
    [verification.md](verification.md) (the three tiers and what belongs in each).
-6. **Our own release pipeline** (D46), which is a separate track and gates none of the above. The
-   workflow, the packaging metadata and [releasing.md](releasing.md) are done; what is left is the
-   npm setup and the real release that proves the whole path before the template hands it to anyone
-   else.
+6. **Our own release pipeline** (D46) — done 2026-09-19.
+   `.github/workflows/release.yml` stages the four publishable packages from
+   `main` over OIDC, with provenance and a dist-tag chosen per run, and a summary step naming what
+   is waiting and the command that approves it, because pnpm emits no registry stage id and nothing
+   notifies a maintainer. Proven on a real release: `1.0.0-alpha.1` went out through it, all four
+   attested. [releasing.md](releasing.md) is the runbook.
 
-   `.github/workflows/release.yml` stages the four publishable packages from `main` over OIDC, with
-   provenance and a dist-tag chosen per run, and a summary step that names what is waiting and the
-   command that approves it — because pnpm emits no registry stage id and nothing notifies a
-   maintainer. A dry run has been green end to end against the real registry: the ID token is
-   issued, the exchange 404s because no package exists yet, and pnpm *warns and carries on*, which
-   is why releasing.md says a dry run cannot tell you the publisher works.
+   One thing the release left behind, and it is not the pipeline's to fix. A package must have a
+   `latest`, so the bootstrap publish pinned one whatever `--tag` said; `latest` therefore still
+   names `1.0.0-alpha.0` on all four while `next` moved. That matters because `npm create
+   rigline-plugin` resolves `latest` and so still scaffolds the broken `^1.0.0` range. Moving the
+   tag is a `npm dist-tag add` per package and needs the 2FA that only a person has.
 
-   **Leo's, and all that remains**: the `@rigline` npm organisation, a bootstrap publish of each
-   package under a temporary granular token, a stage-only trusted publisher per package, and
-   revoking the token. [releasing.md](releasing.md) is the checklist and says why each step cannot
-   be automated. Then one real staged release, approved, and the template can carry the workflow.
+7. **The template carries the publish workflow** (D50) — the last of phase 4, unblocked now the
+   path is proven. An author should get the good path by generating a repository rather than by
+   reading a guide. Its workflow is ours with the workspace-specific parts taken out: no lint step,
+   since the template ships no linter, and the summary inline rather than a script, since a
+   single-plugin repo stages one package and a second file to maintain earns less than it costs.
+
+   One thing to check rather than assume: npm renames `.gitignore` inside a published tarball,
+   which is why the template ships it undotted, and whether the same happens to `.github/` decides
+   whether the scaffolder needs the same trick a second time.
 
 ### Phase 5, later: companion VS Code extension
 

@@ -71,6 +71,19 @@ describe("scaffold", () => {
     expect(read(result, "generated.ts")).toContain("pnpm codegen");
   });
 
+  it("scaffolds the release workflow, at the path a trusted publisher names", () => {
+    // D50: an author gets the good path by generating a repository, not by reading a guide. The
+    // path is load-bearing rather than decorative — npm's trusted publisher names the workflow file
+    // by path, so a scaffold that puts it anywhere else produces a repository whose publisher
+    // entry can never match. Unlike `.gitignore`, npm does not rename a `.github` directory inside
+    // a tarball, which was checked rather than assumed.
+    const result = into("clock");
+    expect(result.files).toContain(".github/workflows/release.yml");
+    const workflow = read(result, ".github/workflows/release.yml");
+    expect(workflow).toContain("id-token: write");
+    expect(workflow).toContain("pnpm stage publish -r");
+  });
+
   it("puts the dot back on the gitignore npm would have renamed", () => {
     const result = into("clock");
     expect(result.files).toContain(".gitignore");

@@ -50,7 +50,22 @@ installed with `rigline add <name>`. Nothing about publishing is special: `rigli
 everything the entry imports, so a published plugin has no runtime dependency to install, and
 `@rigline/plugin-api` stays a *devDependency*.
 
-    pnpm --filter rigline-plugin-__NAME__ publish
+`.github/workflows/release.yml` does it from CI, with no npm token stored anywhere: GitHub
+authenticates to npm over OIDC, and what the workflow does is *stage* — a version nobody can
+install until you approve it from your own machine with 2FA.
+
+    pnpm stage approve
+
+Two things to set up once per package, the first time. Publish version one by hand, because a
+package that does not exist yet has nothing for a trusted publisher to attach to — `pnpm publish -r
+--otp <code>`, supplying a one-time password rather than creating a token, so there is nothing to
+store or to revoke afterwards. Then add a trusted publisher in the package's settings on npmjs.com,
+naming this repository and `release.yml` by path, with its permission set to stage-only. The
+workflow's own header repeats both, where you will be when you need them.
+
+Adding a second plugin later means one more of each: npm's exchange is per package, so a trusted
+publisher is too. That is friction on a second plugin, never on a second release — `-r` stages only
+what you bumped.
 
 ## Rules that will cost you if you break them
 
