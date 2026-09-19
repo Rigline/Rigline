@@ -2,6 +2,22 @@
   "name": "create-rigline-plugin",
   "version": "1.0.0-alpha.0",
   "description": "Scaffold a workspace for Claude Code VS Code extension plugins",
+  "keywords": [
+    "rigline",
+    "claude-code",
+    "vscode",
+    "plugin",
+    "scaffold",
+    "create"
+  ],
+  "homepage": "https://github.com/Rigline/Rigline#readme",
+  "bugs": "https://github.com/Rigline/Rigline/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Rigline/Rigline.git",
+    "directory": "packages/create-plugin"
+  },
+  "author": "Lionell Pack",
   "type": "module",
   "license": "MIT",
   "files": [

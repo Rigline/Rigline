@@ -597,13 +597,32 @@ is stage-limited. Both kinds support it — `Read and write (stage only)` on a g
 stage-only permissions on a trusted publisher — and one forgotten full-rights token silently voids
 it.
 
-Floors: npm CLI 11.15.0 and Node 22.14, both below our own (D34). `pnpm stage publish -r` stages
-every publishable package whose version is not yet on the registry, so our three go up as one CI
-step and are approved individually; a single-package plugin repo needs no flag.
+Floors: npm CLI 11.15.0 and Node 22.14, both below our own (D34), and pnpm 12.3.4, which is where
+`pnpm stage publish` was checked end to end. `pnpm stage publish -r` stages every publishable
+package whose version is not yet on the registry, in dependency order, so our four — `rigline`,
+`@rigline/core`, `@rigline/plugin-api` and `create-rigline-plugin` — go up as one CI step; `pnpm
+stage approve` then takes the whole batch under a single OTP, skipping any package whose workspace
+dependency did not make it rather than publishing against a dependency the registry never got. A
+single-package plugin repo needs no flag.
 
-Two steps cannot be automated and are Leo's: the npm organisation, and a bootstrap publish of each
+**pnpm completes the exchange itself**, verified against a stand-in registry rather than inferred:
+it reads `ACTIONS_ID_TOKEN_REQUEST_URL`, asks GitHub for a token with `audience=npm:<registry
+host>`, `POST`s it to `/-/npm/v1/oidc/token/exchange/package/<name>`, and staged with what comes
+back. Two consequences. The exchange is **per package**, so a trusted publisher is configured per
+package — four entries naming the same workflow file, which is the same friction D50 names for a
+second plugin. And `workspace:*` is replaced with the exact version in the staged manifest, so the
+four are internally consistent or none of them are.
+
+Provenance is opt-in: pnpm asks a second time with `audience=sigstore` only under `--provenance`,
+and npm binds the attestation to the package's `repository` field, so a package without one cannot
+carry provenance at all.
+
+Three steps cannot be automated and are Leo's: the GitHub repository, whose org, name and workflow
+filename every trusted publisher entry names; the npm organisation; and a bootstrap publish of each
 package under a temporary token, since a brand-new package can be neither staged nor trusted-
-published. Revoke that token once the publisher is configured.
+published. Revoke that token once the publisher is configured. A bootstrap publish is also the first
+thing anybody sees of these packages, so the README, LICENSE and `repository` field land before it,
+not after.
 
 **D47. A plugin is distributed built, so `rigline add` never runs a package manager.** The
 distributed form is one browser ES module plus a manifest (P6) and the webview cannot resolve a bare

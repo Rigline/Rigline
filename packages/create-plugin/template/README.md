@@ -1,6 +1,6 @@
 # __NAME__
 
-Plugins for the Claude Code VS Code extension, built with [Rigline](https://github.com/rigline/rigline).
+Plugins for the Claude Code VS Code extension, built with [Rigline](https://github.com/Rigline/Rigline).
 
 A plugin is one browser ES module and a `rigline.json` manifest. This workspace holds one to start
 with; adding a second is a directory copy.

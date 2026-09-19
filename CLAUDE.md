@@ -36,6 +36,8 @@ decisions.md, and each doc cites the decisions it rests on.
   React, the sweep, and what a decoration must never do to a row.
 - [docs/verification.md](docs/verification.md): the three tiers, the corpus, the harness, the probe,
   and which tier a question belongs to.
+- [docs/releasing.md](docs/releasing.md): the four published packages, the stage-then-approve split,
+  the one-time npm setup and why each step of it is a person's, and cutting a release.
 
 Written for somebody else, so don't rewrite them for us:
 

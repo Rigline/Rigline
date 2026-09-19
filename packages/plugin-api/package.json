@@ -2,8 +2,26 @@
   "name": "@rigline/plugin-api",
   "version": "1.0.0-alpha.0",
   "description": "The context, manifest and identifier types a Rigline plugin is written against",
+  "keywords": [
+    "rigline",
+    "claude-code",
+    "vscode",
+    "plugin",
+    "plugin-api"
+  ],
+  "homepage": "https://github.com/Rigline/Rigline#readme",
+  "bugs": "https://github.com/Rigline/Rigline/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Rigline/Rigline.git",
+    "directory": "packages/plugin-api"
+  },
+  "author": "Lionell Pack",
   "type": "module",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "sideEffects": false,
   "files": [
     "dist",

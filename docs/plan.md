@@ -297,10 +297,22 @@ In order.
    [transcript.md](transcript.md) (the three-way join and the sweep), and
    [verification.md](verification.md) (the three tiers and what belongs in each).
 6. **Our own release pipeline** (D46), which is a separate track and gates none of the above. The
-   staged-publish workflow for the three packages, proven on a real release before the template
-   hands it to anyone else. One `pnpm stage publish -r` stages all three; each is approved on its
-   own. The workflow prints the stage ids and the approve command into the Actions run summary,
-   because nothing notifies a maintainer that a stage is waiting. The one-time npm setup is Leo's.
+   staged-publish workflow for the four publishable packages, proven on a real release before the
+   template hands it to anyone else. One `pnpm stage publish -r` stages them in dependency order and
+   one `pnpm stage approve` takes the batch under a single OTP. pnpm emits no registry stage id, so
+   the run summary names what was staged and the command that approves it, because nothing notifies
+   a maintainer that a stage is waiting.
+
+   **Leo's, and blocking**: the GitHub repository, the `@rigline` npm organisation, a bootstrap
+   publish of each package under a temporary granular token, and a stage-only trusted publisher per
+   package. [releasing.md](releasing.md) is the checklist and says why each step cannot be
+   automated.
+
+   **Ours, and first**, because a bootstrap publish is what the world then sees: the `repository`
+   field every package lacks and provenance refuses to run without, a README per package, the
+   LICENSE the manifests already claim, and the dist-tag a prerelease goes to. Then the workflow
+   itself, which can be written and reviewed against nothing but cannot be run until the repository
+   exists.
 
 ### Phase 5, later: companion VS Code extension
 
@@ -344,10 +356,6 @@ licence a plugin's own check should not inherit.
   whose say-so.
 - **Whether `ctx.style` refuses a selector naming a class the plugin did not declare, or only
   lints.**
-- **Whether `pnpm stage publish` completes the OIDC exchange.** D46 and D50 lean on one `pnpm stage
-  publish -r` for the whole workspace, and pnpm's support for trusted publishing is reported
-  inconsistently. Verify before the workflow is written. The fallback costs little — `npm stage
-  publish` per package, losing `-r` — but it changes what the template ships.
 - **Per-plugin settings** are not needed yet. time-marks persists its toggle in `localStorage` and
   that is the right answer for a value only the panel cares about. A `ctx.settings` API earns its
   place when a value must be editable from outside the panel, and not before.
@@ -501,3 +509,11 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   byte, which made git classify `capabilities/rewrites.ts` as **binary** — every change to it
   rendered as `Binary files differ`, with no reviewable diff, in a repo meant to be
   community-maintained. Two nested maps need no separator.
+- 2026-09-19: `pnpm stage publish` completes the OIDC exchange, verified against a stand-in registry
+  rather than inferred, so D46 and D50 keep the one command they lean on. Three things the check
+  changed. The exchange is per package, so the trusted publisher is too: four entries, not one. The
+  staged manifest carries exact versions in place of `workspace:*`. And pnpm emits no registry stage
+  id, so the run summary names what was staged instead of an id to quote. Two things the check
+  found on the way: there are four publishable packages rather than three, `create-rigline-plugin`
+  having arrived after D46 was written, and none of them has a `repository` field, without which npm
+  refuses provenance. [releasing.md](releasing.md) is the checklist for the setup that is Leo's.

@@ -1,0 +1,86 @@
+# Stage a release. Nothing here publishes anything installable: `pnpm stage publish` puts each
+# version in a queue that a person then approves from their own machine with 2FA. See
+# docs/releasing.md.
+#
+# The filename is load-bearing. Every npm trusted publisher entry names `release.yml` by path, so
+# renaming this file silently breaks the OIDC exchange for all four packages until each entry is
+# edited to match.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      dist_tag:
+        description: The tag these versions go to. A prerelease belongs on `next`, not `latest`.
+        type: choice
+        options: [latest, next]
+        default: latest
+      dry_run:
+        description: Build, test and pack, but stage nothing
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  stage:
+    name: Stage to npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # What lets the runner ask GitHub for the OIDC token pnpm exchanges for a registry token.
+      # Without it there is nothing to send and the publish falls back to looking for a credential
+      # that this repository deliberately does not have.
+      id-token: write
+    steps:
+      # Releasing from anywhere but main is a mistake rather than a case to handle. Said here, by
+      # name, rather than left to pnpm's own publish-branch heuristic, which is written for a
+      # developer's working copy and reports a detached HEAD in terms that mean nothing in CI.
+      - name: Refuse anything but main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Releases go from main. This run is on ${{ github.ref }}."
+          exit 1
+
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm lint
+
+      - run: pnpm typecheck
+
+      # Before the tests, not after: the harness drives the built payload, so a test run against a
+      # stale dist/ is a green result about code that is not loaded.
+      - run: pnpm build
+
+      # Tier 1 in full. The harness tier skips itself here, with a reason, because it needs a corpus
+      # snapshot of the extension bundle and that lives outside the repository — so a release run is
+      # a weaker check than a local one, and docs/releasing.md says to run the tests locally first.
+      - run: pnpm test
+
+      - name: Stage
+        if: ${{ !inputs.dry_run }}
+        run: pnpm stage publish -r --tag ${{ inputs.dist_tag }} --provenance --report-summary --no-git-checks
+
+      - name: Pack only
+        if: ${{ inputs.dry_run }}
+        run: pnpm stage publish -r --tag ${{ inputs.dist_tag }} --dry-run --report-summary --no-git-checks
+
+      # Nothing notifies a maintainer that a stage is waiting, and npm returns no stage id for this
+      # to quote, so the run summary names what went up and the command that approves it.
+      - name: Summarise
+        if: always()
+        run: node .github/scripts/stage-summary.mjs "${{ inputs.dry_run && 'dry-run' || 'staged' }}"

@@ -2,8 +2,25 @@
   "name": "@rigline/core",
   "version": "1.0.0-alpha.0",
   "description": "Harvest, codegen, injection and the update flow for Rigline, as a Node library",
+  "keywords": [
+    "rigline",
+    "claude-code",
+    "vscode",
+    "plugin"
+  ],
+  "homepage": "https://github.com/Rigline/Rigline#readme",
+  "bugs": "https://github.com/Rigline/Rigline/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Rigline/Rigline.git",
+    "directory": "packages/core"
+  },
+  "author": "Lionell Pack",
   "type": "module",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "files": [
     "dist"
   ],

@@ -4,6 +4,11 @@
   "private": true,
   "type": "module",
   "description": "Plugin layer for the Claude Code VS Code extension",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Rigline/Rigline.git"
+  },
   "packageManager": "pnpm@12.3.4",
   "engines": {
     "node": ">=26"

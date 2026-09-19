@@ -3,6 +3,9 @@ dist/
 *.tsbuildinfo
 *.vsix
 
+# Written by `pnpm stage publish --report-summary`, read by the release workflow's summary step.
+pnpm-publish-summary.json
+
 # Scratch files the agent workflow writes; never content.
 .commitmsg.tmp
 .local/
