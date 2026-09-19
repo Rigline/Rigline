@@ -101,10 +101,22 @@ export function generate(harvest: Harvest, anchorTable?: AnchorTable): Generated
     scan,
     unreachableModules,
     anchors,
-    source: renderSource(harvest, tables, scan, unreachableModules, anchors),
-    runtime: renderRuntime(tables),
+    source: lf(renderSource(harvest, tables, scan, unreachableModules, anchors)),
+    runtime: lf(renderRuntime(tables)),
     counts,
   };
+}
+
+/**
+ * Both renderings are multi-line template literals, so their newlines are the ones in *this file*
+ * as it was checked out — which would make the bytes codegen produces a property of the machine
+ * it runs on. `rigline codegen --check` compares what this returns against the committed
+ * `generated.ts` byte for byte, so that would be a check passing or failing by platform. The
+ * repository pins both generated artefacts to LF (`.gitattributes`) and this is the other half of
+ * that: the generator writes LF wherever it runs.
+ */
+function lf(text: string): string {
+  return text.replace(/\r\n/g, "\n");
 }
 
 /**

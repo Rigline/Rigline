@@ -1,8 +1,26 @@
-# LF in the repo and in the working tree, whatever the local core.autocrlf says. This repo asserts
-# byte-exact things: the patch the injector applies is measured in bytes, and harvested class maps
-# are compared snapshot to snapshot across extension versions. A checkout that rewrote line endings
-# would make both depend on whose machine they ran on.
-* text=auto eol=lf
+# LF in the repository, the platform's own convention in the working tree.
+#
+# Everything here is normalised to LF when it is committed, so history and diffs never depend on
+# who checked the file out, and a Windows checkout gets CRLF because that is what the tools on a
+# Windows machine write. The alternative — forcing LF into the working tree — meant that every
+# tool, script and editor that writes a file here had to be taught about line endings, and the
+# ones that were not left a whole-file diff behind them. Making git indifferent needs nobody to
+# remember anything (Leo, 2026-09-19).
+#
+# The byte-exact things this repo asserts are unaffected, and it is worth knowing why. The two
+# injected lines are string literals with `\n` escapes, not literal newlines in source, so
+# PATCH_BYTES is 133 whatever this file says. Bundles are read and written as Buffers and never
+# through a text encoding (D37), so an extension's own CRLF survives a patch untouched. The corpus
+# lives outside the repo and git never sees it.
+* text=auto
+
+# The two files whose bytes we generate and then compare against what is on disk. Both are written
+# with LF by the code that produces them — `manifestSchemaJson()` ends its JSON with "\n", and
+# codegen normalises its own output — so a CRLF checkout would make `rigline codegen --check` and
+# `schema.test.ts` fail on Windows and nowhere else. Pinned so the file on disk matches what the
+# generator writes.
+generated.ts eol=lf
+packages/plugin-api/schema/manifest.json eol=lf
 
 # Harvested from the extension bundle, not written by hand. Marked generated so review tools
 # collapse them by default, but NOT -diff: these exist to be diffed across extension versions, and
