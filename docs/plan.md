@@ -1,8 +1,8 @@
 # Rigline 1.0 plan
 
 The working document: what is being built, in what order, and where it stands. Durable rules live
-in [decisions.md](decisions.md); this file is about getting to 1.0. Phases 0 to 3 are done and
-phase 4 is next.
+in [decisions.md](decisions.md); this file is about getting to 1.0. Phases 0 to 4 are done; 5 and
+6 are both later, and nothing in 1.0 is waiting on either.
 
 ## What Rigline is
 
@@ -237,7 +237,7 @@ Three bodies of work landed after the phase closed and belong to it: anchor ambi
 `kind` split three ways, application-site counts, selector resolution, runtime multiplicity), the
 composer-footer damper (D54), and observability (D53).
 
-### Phase 4: the community layer — next
+### Phase 4: the community layer — done 2026-09-19
 
 In order.
 
@@ -363,12 +363,23 @@ licence a plugin's own check should not inherit.
 
 ## Next session
 
-Phase 4 item 6 is waiting on Leo and on nothing else: the npm setup in
-[releasing.md](releasing.md), then one real staged release. When that release is approved, the
-template gets the publish workflow D50 says it carries, and phase 4 closes.
+Phases 0 to 4 are done and 1.0.0-alpha.1 is published, so nothing is blocked. What is open is a
+choice between phase 5, phase 6, and the loose ends below — and one thing that is neither.
 
-Nothing else in phase 4 is open, so a session with no release to run picks up phase 5 or 6, or the
-small items below.
+**`latest` still names `1.0.0-alpha.0` on all four packages.** A package must have a `latest`, so
+the bootstrap publish pinned one whatever `--tag` said, and `--tag next` has not moved it since.
+`npm create rigline-plugin` resolves `latest`, so the default command still scaffolds the broken
+`^1.0.0` range that alpha.1 exists to fix. `npm dist-tag add <pkg>@1.0.0-alpha.1 latest`, four
+times, with 2FA — so it is Leo's, and it is worth doing before anybody is pointed at any of this.
+
+**Three loose ends, none blocking.** There is no CI on push or pull request, only the release
+workflow — which was tolerable while the repository was private and is not now that it is public
+and asking for contributions. None of the four published packages declares `engines`, so an old
+Node installs them and fails later; they import only `crypto`, `fs`, `os`, `path`, `url`, `util`
+and `zlib`, so the real floor is well below the root's `>=26`, and a Node matrix in that CI
+workflow is what would let us state it honestly rather than guess. And `pnpm/action-setup@v4` draws
+a Node 20 deprecation warning on the runner, which will become a failure on someone's schedule
+rather than ours.
 
 **About this machine.** Only 2.1.270 is installed — VS Code deleted 2.1.268 and 2.1.269 once nothing
 was serving them, which is the behaviour D4 exists for; both are still in the corpus. Its
@@ -536,3 +547,13 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   npm until the first staged release ships it. Also learned, and not ours: npm generates the
   abbreviated packument every installer asks for *after* the publish returns, so a brand-new scoped
   package 404s for `pnpm install` while `curl` and `pnpm view` both see it.
+- 2026-09-19: `1.0.0-alpha.1` went out through the pipeline rather than by hand, all four attested
+  now the repository is public, and the published scaffold was driven end to end from npm: create,
+  install, codegen against the installed 2.1.270, build, typecheck, test. So phase 4 closes, with
+  the template carrying the publish workflow D50 always said it would. Two things the release
+  taught. A package must have a `latest`, so the bootstrap publish pinned one whatever `--tag`
+  said, and it still names `alpha.0` — which is the broken scaffold, and what `npm create
+  rigline-plugin` resolves, so moving that tag is the difference between the fix being published
+  and being reachable. And a dry run does perform the OIDC exchange after all: it does not gate on
+  the result, so the tick means nothing, but the absence of `Skipped OIDC` in its log means every
+  trusted publisher works.
