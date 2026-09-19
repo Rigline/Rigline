@@ -78,8 +78,9 @@ jobs:
         if: ${{ inputs.dry_run }}
         run: pnpm stage publish -r --tag ${{ inputs.dist_tag }} --dry-run --report-summary --no-git-checks
 
-      # Nothing notifies you that a stage is waiting, and npm returns no stage id to quote, so the
-      # run summary names what went up and the one command that finishes the job.
+      # Nothing notifies you that a stage is waiting, and pnpm's publish output carries no stage id
+      # to quote (the registry has one; `npm stage list` shows it). So the run summary names what
+      # went up and the one command that finishes the job.
       - name: Summarise
         if: always()
         run: |

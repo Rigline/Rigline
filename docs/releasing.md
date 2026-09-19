@@ -108,6 +108,25 @@ documented command went on producing a scaffold that a later version had already
 everything is a prerelease the newest good build should hold both tags, so release with
 `dist_tag: latest` unless there is a stable line to protect.
 
+**Enrol a TOTP authenticator even if you use a security key.** A key is the better factor and works
+everywhere a browser is involved — `npm login`, and the web flow `pnpm stage approve` can fall back
+to. But some CLI paths accept only a typed code, and you find out which at the moment you are trying
+to ship. npm allows both methods on one account; recovery codes issued when 2FA was enabled also
+work wherever an OTP is asked for, once each.
+
+The npm CLI is the one to reach for when pnpm will not do the browser flow: `auth-type` defaults to
+`web`, so `npm login` prints a URL, waits, and completes against a key. It is easy to think it has
+hung — it prints `Login at:` and one URL, then goes silent while it polls, and it does not open a
+browser for you. `npm stage list` and `npm stage approve <id>` then work on stages pnpm created,
+because the stages live on the registry and do not care which client made them.
+
+npm is meanwhile closing off the alternative on its own account. `npm login` now prints:
+
+    npm tokens that bypass 2FA are being restricted for account changes and direct publishing
+
+Which is the credential-inventory argument above arriving from the other direction: the bypass-2FA
+token D46 declined is being taken away regardless.
+
 **`pnpm dist-tag` cannot do 2FA with a security key.** It takes `--otp` and nothing else, so an
 account whose second factor is a passkey or Windows Hello — no typed code to give it — gets:
 

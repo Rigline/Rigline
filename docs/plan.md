@@ -295,15 +295,15 @@ In order.
 6. **Our own release pipeline** (D46) — done 2026-09-19.
    `.github/workflows/release.yml` stages the four publishable packages from
    `main` over OIDC, with provenance and a dist-tag chosen per run, and a summary step naming what
-   is waiting and the command that approves it, because pnpm emits no registry stage id and nothing
-   notifies a maintainer. Proven on a real release: `1.0.0-alpha.1` went out through it, all four
+   is waiting and the command that approves it, because pnpm's output carries no stage id and
+   nothing notifies a maintainer. Proven on a real release: `1.0.0-alpha.1` went out through it, all four
    attested. [releasing.md](releasing.md) is the runbook.
 
-   One thing the release left behind, and it is not the pipeline's to fix. A package must have a
-   `latest`, so the bootstrap publish pinned one whatever `--tag` said; `latest` therefore still
-   names `1.0.0-alpha.0` on all four while `next` moved. That matters because `npm create
-   rigline-plugin` resolves `latest` and so still scaffolds the broken `^1.0.0` range. Moving the
-   tag is a `npm dist-tag add` per package and needs the 2FA that only a person has.
+   `1.0.0-alpha.2` then went out to `latest`, which is how the tag stranded on `alpha.0` by the
+   bootstrap publish was corrected — by publishing to it rather than moving it, since `pnpm
+   dist-tag` accepts only a typed one-time password and this account's second factor is a security
+   key. `next` sits one version behind as a result, which costs nothing and corrects itself at the
+   next release.
 
 7. **The template carries the publish workflow** (D50) — the last of phase 4, unblocked now the
    path is proven. An author should get the good path by generating a repository rather than by
@@ -363,23 +363,19 @@ licence a plugin's own check should not inherit.
 
 ## Next session
 
-Phases 0 to 4 are done and 1.0.0-alpha.1 is published, so nothing is blocked. What is open is a
-choice between phase 5, phase 6, and the loose ends below — and one thing that is neither.
+Phases 0 to 4 are done and `1.0.0-alpha.2` is published to `latest`, verified by scaffolding from
+the registry and taking it through install, build, typecheck and test. Nothing is blocked. What is
+open is a choice between phase 5, phase 6, and the loose ends below.
 
-**`latest` still names `1.0.0-alpha.0` on all four packages.** A package must have a `latest`, so
-the bootstrap publish pinned one whatever `--tag` said, and `--tag next` has not moved it since.
-`npm create rigline-plugin` resolves `latest`, so the default command still scaffolds the broken
-`^1.0.0` range that alpha.1 exists to fix. `npm dist-tag add <pkg>@1.0.0-alpha.1 latest`, four
-times, with 2FA — so it is Leo's, and it is worth doing before anybody is pointed at any of this.
-
-**Three loose ends, none blocking.** There is no CI on push or pull request, only the release
-workflow — which was tolerable while the repository was private and is not now that it is public
-and asking for contributions. None of the four published packages declares `engines`, so an old
-Node installs them and fails later; they import only `crypto`, `fs`, `os`, `path`, `url`, `util`
-and `zlib`, so the real floor is well below the root's `>=26`, and a Node matrix in that CI
-workflow is what would let us state it honestly rather than guess. And `pnpm/action-setup@v4` draws
-a Node 20 deprecation warning on the runner, which will become a failure on someone's schedule
-rather than ours.
+**Start with CI on push and pull request.** That is a recommendation, not a neutral listing. There
+is none — the release workflow is the only thing that runs the tests, which was tolerable while the
+repository was private and is not now that it is public and inviting contributions. It also pays
+for itself twice: a Node matrix is what would let the four published packages declare an honest
+`engines` floor, which none of them has. They import only `crypto`, `fs`, `os`, `path`, `url`,
+`util` and `zlib`, so the real floor is well below the root's `>=26` — but declaring a number we
+have never run is the kind of claim this project does not make, and a matrix turns it into one we
+have. While in there, `pnpm/action-setup@v4` draws a Node 20 deprecation warning on the runner,
+which becomes a failure on somebody else's schedule.
 
 **About this machine.** Only 2.1.270 is installed — VS Code deleted 2.1.268 and 2.1.269 once nothing
 was serving them, which is the behaviour D4 exists for; both are still in the corpus. Its
@@ -557,3 +553,12 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   and being reachable. And a dry run does perform the OIDC exchange after all: it does not gate on
   the result, so the tick means nothing, but the absence of `Skipped OIDC` in its log means every
   trusted publisher works.
+- 2026-09-20: `1.0.0-alpha.2` published to `latest`, and `npm create rigline-plugin` verified
+  end to end from the registry: scaffold, install, build, typecheck, test, with the release
+  workflow in it. Getting there found the second factor is where this path is thin. `pnpm
+  dist-tag` takes `--otp` and nothing else, so a security key cannot use it; `pnpm stage approve`
+  asked for a code at the last step too. The npm CLI is the way through — `auth-type` defaults to
+  `web`, so `npm login` completes against a key, and `npm stage list` / `approve` work on stages
+  pnpm created, because a stage belongs to the registry rather than to the client that made it.
+  That also retires a claim repeated in four places here: the registry does issue a stage id and
+  `npm stage list` shows it; it is pnpm's output that carries none.

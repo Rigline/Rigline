@@ -1,10 +1,10 @@
 /**
  * Turn `pnpm-publish-summary.json` into the Actions run summary.
  *
- * This exists because nothing notifies anybody that a stage is waiting. npm returns no stage id for
- * the workflow to print — pnpm identifies a stage by `name@version` and `pnpm stage approve` lists
- * what is queued for itself — so the useful summary is what went up, and the command that takes it
- * the rest of the way.
+ * This exists because nothing notifies anybody that a stage is waiting. The registry does issue a
+ * stage id — `npm stage list` will show it — but pnpm's publish output does not carry one, so there
+ * is nothing here to print even though the id exists. The useful summary is therefore what went up
+ * and the command that takes it the rest of the way, both of which work without an id.
  *
  * Runs with `if: always()`, so it must say something sensible when the staging step never got as
  * far as writing a summary file.
