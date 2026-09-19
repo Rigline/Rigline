@@ -8,7 +8,7 @@ indexed in [CLAUDE.md](CLAUDE.md).
 
 ## Prerequisites
 
-- Node 26+
+- Node 22.12+ — 26 is what it is developed, released and run against an editor on
 - pnpm 12+
 - The [Claude Code VS Code extension](https://marketplace.visualstudio.com/items?itemName=Anthropic.claude-code)
   installed, if you want to try Rigline against a real editor
@@ -21,8 +21,13 @@ indexed in [CLAUDE.md](CLAUDE.md).
     pnpm typecheck
     pnpm lint
 
-`rigline` isn't published to npm yet, but `pnpm install` links the CLI's local build as a
-workspace bin, so `pnpm rigline <command>` runs it straight out of the checkout — no path needed.
+`rigline` is on npm, but `pnpm install` links this checkout's own build as a workspace bin, so
+`pnpm rigline <command>` runs what you just built rather than what is published — no path needed.
+
+Every push to `main` and every pull request runs `lint`, `typecheck`, `build` and `test` on Node
+22.12.0, 24 and 26. The corpus those tests read real bundles from lives outside the repository, so
+the browser tier and the corpus-backed tests skip in CI and run only here;
+[docs/verification.md](docs/verification.md) says which question belongs to which tier.
 
 ## Installing into your extension
 

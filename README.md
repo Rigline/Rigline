@@ -1,5 +1,7 @@
 # Rigline
 
+[![CI](https://github.com/Rigline/Rigline/actions/workflows/ci.yml/badge.svg)](https://github.com/Rigline/Rigline/actions/workflows/ci.yml)
+
 A plugin layer for the Claude Code VS Code extension. Rigline injects a small loader into the
 installed extension's webview, gives plugins a capability-scoped context to write against, and
 harvests the identifiers plugins depend on from whichever extension version is installed, so an
@@ -31,7 +33,7 @@ Writing a plugin: [docs/authoring.md](docs/authoring.md). Repairing one an exten
 
 ## Developing
 
-pnpm 12 and Node 26.
+pnpm 12, and Node 22.12 or newer; CI runs 22.12.0, 24 and 26.
 
     pnpm install
     pnpm build

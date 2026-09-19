@@ -129,4 +129,7 @@ Work on `main` and commit straight to it; commit at each checkpoint rather than 
 large tree. Stage by path if `git status` shows changes you did not make. Commit messages go
 through a file (`.commitmsg.tmp`, gitignored) and `git commit -F`.
 
-Toolchain: pnpm 12, Node 26, TypeScript 7, Rolldown, Vitest, Biome. Semicolons are required.
+Toolchain: pnpm 12, Node 22.12+ (26 here), TypeScript 7, Rolldown, Vitest, Biome. Semicolons are
+required. CI runs lint, typecheck, build and test on every push and pull request, over a Node
+matrix whose lowest rung is the `engines` floor the published packages declare (D59) — so moving
+that floor means moving the rung and six manifests together.

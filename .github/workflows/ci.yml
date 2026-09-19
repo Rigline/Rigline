@@ -1,0 +1,62 @@
+# Everything that can be checked without the extension in front of it, on every push to `main` and
+# every pull request.
+#
+# The corpus lives outside the repository, so the harness tier and every corpus-backed test skip
+# here with a reason (D36, D59). A green run means the pure functions, the transforms and the
+# synthetic fixtures hold on three runtimes; it does not mean a harvest regex still reads real
+# minified output. That answer comes from a maintainer's local run, which is why
+# docs/releasing.md asks for one before a release.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A push supersedes the run before it on the same ref, and a pull request supersedes its own last
+# push. Two runs of one ref prove the same thing, and the newer one is what is being asked about.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      # Every rung reports. A failure on the floor and a failure on the newest runtime are
+      # different bugs, and cancelling the rest hides which one this is.
+      fail-fast: false
+      matrix:
+        # 22.12.0 exactly, because it is the floor the four published packages declare in
+        # `engines`, and a floor is a claim rather than a sample (D59). 24 and 26 float to the
+        # latest of their major: they say the major is supported, not that a patch was tested.
+        node: ["22.12.0", "24", "26"]
+    steps:
+      - uses: actions/checkout@v5
+
+      # Pinned exactly rather than to the major: `v6` still resolves to the last release before
+      # pnpm v12 support, and the `v4` this repository started on runs on the node20 runner GitHub
+      # has deprecated (D59).
+      - uses: pnpm/action-setup@v6.1.0
+
+      # After pnpm, never before: `cache: pnpm` asks pnpm where its store is.
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm lint
+
+      - run: pnpm typecheck
+
+      # Before the tests, not after: the harness drives the built payload, so a test run against a
+      # stale dist/ is a green result about code that is not loaded.
+      - run: pnpm build
+
+      - run: pnpm test

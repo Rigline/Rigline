@@ -367,15 +367,21 @@ Phases 0 to 4 are done and `1.0.0-alpha.2` is published to `latest`, verified by
 the registry and taking it through install, build, typecheck and test. Nothing is blocked. What is
 open is a choice between phase 5, phase 6, and the loose ends below.
 
-**Start with CI on push and pull request.** That is a recommendation, not a neutral listing. There
-is none — the release workflow is the only thing that runs the tests, which was tolerable while the
-repository was private and is not now that it is public and inviting contributions. It also pays
-for itself twice: a Node matrix is what would let the four published packages declare an honest
-`engines` floor, which none of them has. They import only `crypto`, `fs`, `os`, `path`, `url`,
-`util` and `zlib`, so the real floor is well below the root's `>=26` — but declaring a number we
-have never run is the kind of claim this project does not make, and a matrix turns it into one we
-have. While in there, `pnpm/action-setup@v4` draws a Node 20 deprecation warning on the runner,
-which becomes a failure on somebody else's schedule.
+**Take phase 6 next.** A recommendation, not a neutral listing. It is the one open item that pays
+somebody other than us: a plugin is precisely the thing whose failure is invisible today, and the
+probe cannot say a word about one, because every check it runs is written inside it. Phase 5 is the
+larger lift and turns on a question nobody here can answer from the code — Marketplace policy on an
+extension that patches another extension — so it wants a session that begins by finding that out,
+not one that begins by writing.
+
+**Three things CI left on the table.** The template scaffolds a release workflow and no CI
+workflow, which is the gap this repository just closed, one level out: an author's tests run only
+when they publish. It is a change to a published package, so it reaches anybody at the next release
+rather than when it is written. An OS axis is the obvious second rung — the matrix is Linux only,
+and Windows is the only machine this is developed on, so a path or line-ending fault has exactly
+one place left to hide. And nothing watches the action versions: `dependabot.yml` for the
+`github-actions` ecosystem would turn the next runner deprecation into a pull request CI already
+checks, rather than a warning somebody has to notice.
 
 **About this machine.** Only 2.1.270 is installed — VS Code deleted 2.1.268 and 2.1.269 once nothing
 was serving them, which is the behaviour D4 exists for; both are still in the corpus. Its
@@ -562,3 +568,12 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   pnpm created, because a stage belongs to the registry rather than to the client that made it.
   That also retires a claim repeated in four places here: the registry does issue a stage id and
   `npm stage list` shows it; it is pnpm's output that carries none.
+- 2026-09-20: CI on push and pull request (D59), over Node 22.12.0, 24 and 26 — and with it an
+  `engines` floor in all four published packages, the workspace root and the template, none of
+  which had one. 22.12.0 is where vitest starts, so it is the oldest Node this suite can run on;
+  the whole suite was run on it before the number was written down, tier 2 and its Chromium
+  included, and `pnpm build` with it, so the published CLI is known to work there rather than
+  assumed to. `pnpm/action-setup` moved off the `v4` that runs on GitHub's deprecated node20
+  runner, to `v6.1.0` rather than `v6`: the floating major still resolves to the last release
+  before pnpm v12 support, which is a thing to check on any action before trusting the major to be
+  the newest thing under it. The template's workflow carried the same `v4` and moved with it.

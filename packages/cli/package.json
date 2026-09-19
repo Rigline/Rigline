@@ -19,6 +19,9 @@
   "author": "Lionell Pack",
   "type": "module",
   "license": "MIT",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "files": [
     "dist",
     "!dist/**/*.map"

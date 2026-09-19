@@ -598,8 +598,9 @@ is stage-limited. Both kinds support it — `Read and write (stage only)` on a g
 stage-only permissions on a trusted publisher — and one forgotten full-rights token silently voids
 it.
 
-Floors: npm CLI 11.15.0 and Node 22.14, both below our own (D34), and pnpm 12.3.4, which is where
-`pnpm stage publish` was checked end to end. `pnpm stage publish -r` stages every publishable
+Floors: npm CLI 11.15.0 and Node 22.14 — the Node one sits above the workspace floor (D59) and
+below the 26 that CI and a release run on, so it binds nobody here — and pnpm 12.3.4, which is
+where `pnpm stage publish` was checked end to end. `pnpm stage publish -r` stages every publishable
 package whose version is not yet on the registry, in dependency order, so our four — `rigline`,
 `@rigline/core`, `@rigline/plugin-api` and `create-rigline-plugin` — go up as one CI step; `pnpm
 stage approve` then takes the whole batch under a single OTP, skipping any package whose workspace
@@ -841,3 +842,39 @@ are told to paste into an issue, so the redaction machinery that made that safe 
 liability with a way to be forgotten. Declining to read them removes both. If a panel misbehaves in
 a way the install state cannot explain, ask for the log lines rather than shipping a parser for
 them.
+
+**D59. The tests run on every push and every pull request, over a Node matrix, and the matrix's
+lowest rung is the floor the published packages declare.** Before this, the release workflow was the
+only thing that ran them: tolerable while the repository was private, and not once it was public and
+asking for contributions, because a pull request then arrives with nothing checking it and the first
+run of anybody's change is a release. `.github/workflows/ci.yml` runs `lint`, `typecheck`, `build`
+and `test` on each rung, `build` before `test` because the harness drives the built payload (D36).
+Lint and typecheck repeat on every rung rather than earning a job of their own; they cost seconds,
+and the conditional that would run them once costs a reader more than it saves.
+
+**The floor rung is an exact version because it is a claim, not a sample.** `rigline`,
+`@rigline/core`, `@rigline/plugin-api` and `create-rigline-plugin` declare `engines.node` as
+`>=22.12.0`, and 22.12.0 is the version CI runs — so the number in the manifest is a number
+something ran, which is the whole reason the matrix earns its place. The other rungs float to the
+latest of their major, because what they assert is *this major is supported*, not *this patch was
+tested*. Moving the floor means moving the rung first; the number then goes in the same six places,
+the four published manifests, the workspace root, and the template the scaffolder ships.
+
+The floor is the toolchain's, not the code's. These packages import `crypto`, `fs`, `os`, `path`,
+`url`, `util` and `zlib` and nothing else, and would run on Node far older than this; 22.12.0 is
+where vitest starts, so it is the oldest Node this repository can run its own tests on, and a floor
+below the oldest one we can test is a number nobody has stood on. Node 20 is not a rung: it went
+end-of-life in April 2026, and rolldown asks for 20.19 in any case.
+
+**A CI run is weaker than a local one, by construction.** The corpus lives outside the repository
+(D36), so every tier-2 file and every corpus-backed tier-1 test skips there with a reason. CI proves
+the pure functions, the transforms and the synthetic fixtures on three runtimes; it cannot prove
+that a harvest regex still reads real minified output. That is what a maintainer's local run is for,
+and why [releasing.md](releasing.md) says to do one before a release.
+
+**Actions are pinned to a major, except where the major points backwards.** `pnpm/action-setup` is
+pinned to `v6.1.0`: its `v6` tag still resolves to the last release before pnpm v12 support, and the
+`v4` this repository started on runs on the node20 runner GitHub has deprecated — a warning now and
+a failure on somebody else's schedule. Both halves of that are worth the habit: read what a floating
+major actually points at before trusting it to be the newest thing under that number, and treat a
+runtime deprecation warning in a green run as work already scheduled for you.
