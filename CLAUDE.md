@@ -74,7 +74,10 @@ Written for somebody else, so don't rewrite them for us:
 - **Bound any regex you run over a stringified record.** `JSON.stringify` output is one line;
   `.*` and `(.+?)` cross into unrelated fields. Exclude `"` and `\` and cap the length.
 - **Patch bundles byte-faithfully.** Read and write bytes; text-mode I/O rewrites every line
-  ending on Windows. The repo forces LF for the same reason.
+  ending on Windows. Line endings in the repo are git's problem, not yours: `* text=auto`
+  normalises to LF on commit and checks out native, so write files however your tools write
+  them. Only `generated.ts` and `packages/plugin-api/schema/manifest.json` are pinned to LF,
+  because we generate their bytes and then compare them against what is on disk.
 - **Keep `index.js.orig` and `extension.js.orig` intact.** They are the only recovery from a blank
   panel or a broken extension host.
 - **Never point a test at the live extension directory.** Copies only.

@@ -212,7 +212,7 @@ Each phase ends with a commit and a status-log entry.
 ### Phase 0: record and scaffold — done 2026-09-13
 
 Archive, plan and decisions in `docs/`; corpus snapshot outside the repo; pnpm workspace with
-TypeScript 7, Rolldown, Vitest, Biome and LF enforced.
+TypeScript 7, Rolldown, Vitest and Biome.
 
 ### Phase 1: core harvest and codegen — done 2026-09-13
 
@@ -493,3 +493,11 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   and a throw would have stranded every directory after it, which is the opposite of what
   `restoreAll` promises. `revert` now catches and `restore` reports `hostReason`; the CLI prints it
   and exits non-zero. The harness's stale-`dist` rule became a guard that refuses the run.
+- 2026-09-19: Line endings stopped being everybody's problem (D37 amended). `* text=auto` and
+  Biome's `lineEnding: "auto"` replace `eol=lf`, so git normalises on commit and no tool has to be
+  taught; `generated.ts` and the committed schema stay pinned, and codegen normalises its own
+  output, because both are compared byte for byte against what is on disk. Converting the tree
+  found the reason one file never normalised: `sharedFields` joined a composite map key with a NUL
+  byte, which made git classify `capabilities/rewrites.ts` as **binary** — every change to it
+  rendered as `Binary files differ`, with no reviewable diff, in a repo meant to be
+  community-maintained. Two nested maps need no separator.

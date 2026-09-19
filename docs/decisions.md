@@ -732,8 +732,16 @@ webview, one check per capability, `n/a` where a check cannot apply on a surface
 tier that boots the real bundle from the corpus with a faked `acquireVsCodeApi` and a replayed bus,
 which is `packages/harness`.
 
-**D37. Byte-faithful I/O for every bundle read and write, and LF enforced in the repo.** Text-mode
-I/O on Windows rewrites every line ending and turns a 133-byte patch into a 2.2 KB one.
+**D37. Byte-faithful I/O for every bundle read and write; LF in the repository, the platform's own
+convention in the working tree** (amended 2026-09-19, Leo). Text-mode I/O on Windows rewrites every
+line ending and turns a 133-byte patch into a 2.2 KB one, so every bundle read and write goes
+through Buffers. That is a rule about *our code*, and it was originally paired with `eol=lf`, a
+rule about everybody's checkout — which bought nothing and cost every tool that writes a file here
+having to be taught about line endings. `* text=auto` normalises on commit instead, so history
+never depends on who checked a file out and no tool has to care. The exception is a file whose
+bytes we generate and then compare against what is on disk: `generated.ts` and the committed JSON
+schema are pinned `eol=lf`, and codegen normalises its own output, because otherwise `codegen
+--check` would pass or fail by platform.
 
 **D38. The backup file, not the marker comment, is the authority on whether a bundle is patched.**
 Keying on the marker breaks the moment the marker string changes: the installer stops recognising
