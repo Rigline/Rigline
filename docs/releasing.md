@@ -41,10 +41,21 @@ them.
 
 **3. A bootstrap publish of each package.** A package that does not exist yet can be neither staged
 nor trusted-published: there is nothing for the registry to attach a publisher to. So the first
-version of each goes up by hand, from your machine, under a granular access token with write on
-those four packages and nothing else:
+version of each goes up by hand, from your machine, after `pnpm login`:
 
-    pnpm publish -r --tag next
+    pnpm publish -r --tag next --otp 123456
+
+**Supply a one-time password; do not create a token for this.** `pnpm login` alone gets a 403 —
+npm requires proof of presence to publish, and a session is not that. The two ways to supply it are
+an OTP and a granular token with *bypass 2FA* enabled, and the OTP is the one to take, because it
+creates no credential: nothing to store, nothing to revoke, nothing to forget. A bypass-2FA token
+would be worse here than the general case, because a granular token can only name packages that
+already exist — so for the two unscoped names it would have to carry write on **all packages**, and
+that is precisely the credential the last step of this list exists to eliminate.
+
+One OTP covers all four if they go up inside its window. If a later package fails on an expired
+code, run it again with a fresh one: `-r` skips whatever the registry already has, so a partial
+bootstrap resumes rather than needing to be unpicked.
 
 The version in the repository is `1.0.0-alpha.0`, and a prerelease goes to a tag that is not
 `latest`, so that `npm install rigline` keeps meaning the stable line even before there is one.
@@ -56,14 +67,13 @@ naming `Rigline/Rigline` and `release.yml`, because npm's OIDC exchange is per p
 `/-/npm/v1/oidc/token/exchange/package/<name>` once for each. Set each one's permission to **stage
 only**.
 
-**5. Revoke the bootstrap token.** It has served its purpose, and while it exists the gate is
-decoration: there is no org-wide or package-wide switch that *requires* staging, so the gate holds
-exactly as long as every credential able to publish is stage-limited. One forgotten full-rights
-token silently voids it — for all four packages, without any signal that it has.
-
-That is the one control worth auditing, and it is worth auditing again whenever a token is issued
-for anything else. Both kinds support the limit: `Read and write (stage only)` on a granular token,
-stage-only permissions on a trusted publisher.
+**5. Audit what can publish.** There is no org-wide or package-wide switch that *requires* staging,
+so the gate holds exactly as long as every credential able to publish is stage-limited: one
+forgotten full-rights token silently voids it, for all four packages, with no signal that it has.
+Taking step 3 by OTP means there is nothing to revoke here — which is the point of taking it that
+way. Check anyway, and check again whenever a token is issued for anything else. Both kinds support
+the limit: `Read and write (stage only)` on a granular token, stage-only permissions on a trusted
+publisher.
 
 ## Cutting a release
 

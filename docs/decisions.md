@@ -619,10 +619,17 @@ carry provenance at all.
 
 Three steps cannot be automated and are Leo's: the GitHub repository, whose org, name and workflow
 filename every trusted publisher entry names; the npm organisation; and a bootstrap publish of each
-package under a temporary token, since a brand-new package can be neither staged nor trusted-
-published. Revoke that token once the publisher is configured. A bootstrap publish is also the first
-thing anybody sees of these packages, so the README, LICENSE and `repository` field land before it,
-not after.
+package, since a brand-new package can be neither staged nor trusted-published. A bootstrap publish
+is also the first thing anybody sees of these packages, so the README, LICENSE and `repository`
+field land before it, not after.
+
+**The bootstrap publish supplies an OTP rather than creating a token.** npm demands proof of
+presence to publish and a login session is not it, which leaves two options: `--otp`, or a granular
+token with *bypass 2FA*. The OTP wins on the credential-inventory argument above — it creates
+nothing, so there is nothing to revoke and nothing to forget. The token would also be worse than
+that argument's general case: a granular token can only name packages that already exist, so
+bootstrapping the two unscoped names through one would mean write on **all packages**, which is
+exactly the credential that voids the gate.
 
 **D47. A plugin is distributed built, so `rigline add` never runs a package manager.** The
 distributed form is one browser ES module plus a manifest (P6) and the webview cannot resolve a bare
