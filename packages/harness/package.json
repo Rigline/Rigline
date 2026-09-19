@@ -1,6 +1,6 @@
 {
   "name": "@rigline/harness",
-  "version": "1.0.0-alpha.0",
+  "version": "1.0.0-alpha.1",
   "description": "Playwright-driven DOM tests against the real webview bundle, headless, no VS Code",
   "private": true,
   "type": "module",

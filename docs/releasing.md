@@ -35,9 +35,15 @@ person's.
 **1. The GitHub repository.** `Rigline/Rigline`, public, workflow at
 `.github/workflows/release.yml`. Done, and everything below names it.
 
-**2. The `@rigline` npm organisation**, for the two scoped packages. The two unscoped names,
-`rigline` and `create-rigline-plugin`, are first-come — check both are free before committing to
-them.
+**2. The `@rigline` npm organisation.** It owns the scope, so the two scoped packages belong to it
+by virtue of their names. The two unscoped ones do not, and cannot be made to: npm has no transfer
+that moves `rigline` or `create-rigline-plugin` into an organisation the way a scope does. What it
+has instead is granting the organisation write access on them, which is what they carry. The
+practical difference is worth knowing rather than discovering: their owner is still a person, so
+they need that grant maintained deliberately where the scoped pair get it from the namespace.
+
+The unscoped names stay unscoped on purpose. `npm create rigline-plugin` and `npm i -g rigline` are
+what somebody types, and `@rigline/cli` would be worse ergonomics for nothing (D50).
 
 **3. A bootstrap publish of each package.** A package that does not exist yet can be neither staged
 nor trusted-published: there is nothing for the registry to attach a publisher to. So the first
@@ -57,7 +63,7 @@ One OTP covers all four if they go up inside its window. If a later package fail
 code, run it again with a fresh one: `-r` skips whatever the registry already has, so a partial
 bootstrap resumes rather than needing to be unpicked.
 
-The version in the repository is `1.0.0-alpha.0`, and a prerelease goes to a tag that is not
+The version in the repository is a `1.0.0-alpha` prerelease, and a prerelease goes to a tag that is not
 `latest`, so that `npm install rigline` keeps meaning the stable line even before there is one.
 Moving a tag later is cheap; un-recommending an alpha that `latest` pointed at is not. The release
 workflow asks which tag every time, for the same reason.

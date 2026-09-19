@@ -1,6 +1,6 @@
 {
   "name": "rigline",
-  "version": "1.0.0-alpha.0",
+  "version": "1.0.0-alpha.1",
   "description": "Install, update and develop plugins for the Claude Code VS Code extension",
   "keywords": [
     "rigline",
