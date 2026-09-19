@@ -32,7 +32,7 @@ const FAKE_HOST = `
       state: { authStatus: {}, experimentGates: {}, openNewInTab: true },
     }),
     get_claude_state: () => ({ type: "get_claude_state_response", cached: false, config: {} }),
-    // The naming convention this reply follows (docs/archive/0.x/inventory-tools.md) is the "_request"
+    // The naming convention this reply follows is the "_request"
     // to "_response" exception, not the general "append _response" rule: the real extension answers
     // list_sessions_request with list_sessions_response, which is also the one confirmed message
     // type any plugin (worktree-prefix) taps for it. A stand-in "list_sessions_request_response" here

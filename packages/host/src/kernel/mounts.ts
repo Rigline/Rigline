@@ -229,8 +229,8 @@ export function createMountService(
    *
    * **Position, not merely presence.** A mount whose node is still connected but whose anchor was
    * *moved* rather than replaced is stranded where the anchor used to be, and the first version of
-   * this skipped it for exactly that reason. It is the 0.x prototype's vanishing session-id pill
-   * (docs/archive/0.x/vanishing-session-id-pill.md) and it reproduced here the same way: an
+   * this skipped it for exactly that reason. It is the prototype's vanishing session-id pill, and
+   * it reproduced here the same way: an
    * attachment chip in the composer reorders the footer row, the model pill goes to the end of it,
    * and every decoration anchored to the pill stays behind. Silently and permanently, because
    * `watch` only re-anchors when the pill's *identity* changes and a move does not change it.

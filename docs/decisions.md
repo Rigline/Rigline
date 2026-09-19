@@ -8,9 +8,10 @@ A decision's number is its identity, not its position: source comments cite them
 takes the next free number and sits in the section it belongs to, and numbering runs monotonically
 within a section rather than down the file.
 
-Measurements cited here were taken during the 0.x investigation across extension versions 2.1.200
-to 2.1.268 and are documented in [archive/0.x/](archive/0.x/README.md). Treat them as indicative
-and re-measure before quoting one as current.
+Measurements cited here were taken during a prototype investigation across extension versions
+2.1.200 to 2.1.268, whose notes are not in this repository. Treat every one of them as indicative
+and re-measure before quoting it as current; none of them is load-bearing for a decision in the
+sense that the decision would reverse on a different number.
 
 ## Principles
 
@@ -382,9 +383,9 @@ nothing needs re-placing while nothing is visible, and becoming visible is itsel
 
 **A pass re-checks position, not only presence (amended 2026-09-14).** The first version skipped
 every mount whose own node was still connected, which meant an anchor a re-render *moved* rather
-than replaced left its mount stranded where the anchor used to be. That is the 0.x prototype's
-vanishing session-id pill (archive/0.x/vanishing-session-id-pill.md), reproduced in 1.0 within a day
-of the note being written: an attachment chip in the composer reordered the footer row, the model
+than replaced left its mount stranded where the anchor used to be. That is the prototype's
+vanishing session-id pill, reproduced here within a day of the note being written: an attachment
+chip in the composer reordered the footer row, the model
 pill went to the end of it, and all three first-party decorations stayed behind — silently, and
 permanently, because nothing ever looked again.
 

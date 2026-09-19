@@ -370,7 +370,7 @@ export default { setup() {} };`,
     }, 20000);
 
     it("follows an anchor that a re-render moved rather than replaced", async () => {
-      // The symptom that sent us looking (docs/archive/0.x/vanishing-session-id-pill.md, and again
+      // The symptom that sent us looking (first seen in the prototype, and again
       // in 1.0 on 2026-09-14): an attachment chip reorders the composer footer, the model pill goes
       // to the end of the row, and every decoration anchored to it stays behind. The node is still
       // connected and the pill is still the same element, so neither "put back what was detached"

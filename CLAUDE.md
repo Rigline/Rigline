@@ -42,9 +42,6 @@ Written for somebody else, so don't rewrite them for us:
   `~/.rigline/anchors.json` without waiting for a release. Written for a user.
 - [docs/authoring.md](docs/authoring.md): writing, testing and shipping a plugin. Written for a
   plugin author; `packages/create-plugin/template/` is the scaffold it starts from.
-- [docs/archive/0.x/](docs/archive/0.x/README.md): the 0.x prototype's design record and source
-  inventories, the evidence behind the measurements the decisions cite. OCR-recovered; read its
-  caveats before quoting a number or a regex from it.
 
 ## Rules that will cost you if you break them
 

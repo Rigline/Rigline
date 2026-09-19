@@ -18,7 +18,7 @@
  *   webview bundle and a scripted reply table, so there is no session-list *fetch* to patch. Only
  *   the two capabilities the webview half of the plugin actually uses are covered here; the patch
  *   is exercised by grepping the real corpus (see the plugin's own report) and can only be
- *   confirmed live, per docs/archive/0.x/host-patches.md's own staged plan.
+ *   confirmed live, per the staged plan that capability was designed to.
  * - Inventory behaviour 19 ("if the app has never sent rename_tab yet, an EnterWorktree
  *   observation has nothing to resend"). The fake host's `init` reply admits `openNewInTab`, so the
  *   app sends its first `rename_tab` very early and unpredictably relative to plugin load — there

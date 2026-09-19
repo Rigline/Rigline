@@ -1,8 +1,8 @@
 /**
  * The session's short id in the composer footer, and every identifier it has in a pop-up behind it.
  *
- * Every fact below traces back to docs/archive/0.x/messaging-identity.md, which is the authority
- * on where the address comes from; this file only summarises the parts that shape a decision here.
+ * Where the messaging address comes from, and why it has to be scraped from text rather than read
+ * from a declared field, is set out below rather than anywhere else: this file is the authority.
  *
  * **The pill shows the session id, never the messaging address.** The address is unbounded: the CLI
  * names a session after its directory, so a worktree called `abcd-1234-ticket-work-46` produces an

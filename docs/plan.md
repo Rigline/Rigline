@@ -20,10 +20,6 @@ without thinking about it.
 
 ## Inputs
 
-- **The 0.x archive**, [archive/0.x/](archive/0.x/README.md): the prototype's design documents,
-  measurements and source inventories, and the evidence behind most of the numbers the decisions
-  cite. OCR-recovered, so re-derive a regex rather than copying it, and re-measure before quoting a
-  number as current.
 - **A bundle corpus** at `c:\dev\kb\vscode-claude-code-versions\<version>\` holding `extension.js`,
   `webview/index.js`, `webview/index.css` and `package.json` per version. The extension deletes
   superseded directories on update, so snapshot a new version there before it goes.
