@@ -22,7 +22,8 @@
     "access": "public"
   },
   "files": [
-    "dist"
+    "dist",
+    "!dist/**/*.map"
   ],
   "exports": {
     ".": {

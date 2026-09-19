@@ -109,8 +109,10 @@ nothing and it passes regardless. A dry run tells you the build, the tests and t
 sound; only a real stage tells you the publisher is.
 
 **Provenance fails.** It needs the `repository` field to match the repository doing the building,
-and a public repository. Under `--provenance` pnpm asks GitHub for a second token with
-`audience=sigstore`; a failure there is about the attestation, not about the publish.
+and a public repository — npm refuses to attest a private one, since an attestation nobody can check
+against the source is not an attestation. Trusted publishing itself is unaffected either way. Under
+`--provenance` pnpm asks GitHub for a second token with `audience=sigstore`; a failure there is
+about the attestation, not about the publish.
 
 **A package was published outside this path.** It installs identically and nothing in Rigline reads
 a publishing arrangement as evidence about a package (P6). What it costs is the audit trail, so say

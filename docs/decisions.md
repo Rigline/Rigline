@@ -759,7 +759,19 @@ requirement we could enforce or would want to. The package name stays singular, 
 semicolons required.** Vite is rejected: its value is a dev server and HMR, neither available in a
 webview we do not own.
 
-**D35. Inline source maps.** The webview CSP makes a sibling `.map` fetch a gamble.
+**D35. Inline source maps in the injected payload; none at all in the published packages.** The
+webview CSP makes a sibling `.map` fetch a gamble, so `pre.js` and `post.js` carry theirs inline.
+
+The published packages are the opposite case and were shipping maps by accident. tsc writes
+`sources: ["../src/foo.ts"]` and, without `inlineSources`, no `sourcesContent` — so a map in a
+tarball that contains no `src/` points at nothing. It cannot map a stack trace and cannot jump an
+editor anywhere, while accounting for 37% of `@rigline/core`'s unpacked bytes. `files` excludes
+`dist/**/*.map` in all four; the build still writes them, because they work in the working tree,
+which is where anybody debugging this code actually is.
+
+The alternative — `inlineSources`, making them work by embedding every `.ts` in the tarball — is a
+real option for later and a different decision: it trades the whole source, shipped twice over, for
+mapped stack traces in a consumer's terminal.
 
 **D36. Verification is split three ways.** Node tests for pure functions and file transforms,
 against throwaway copies and the corpus, never the live extension; the probe plugin for the real

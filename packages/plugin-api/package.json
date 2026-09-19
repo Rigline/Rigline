@@ -25,6 +25,7 @@
   "sideEffects": false,
   "files": [
     "dist",
+    "!dist/**/*.map",
     "schema"
   ],
   "exports": {

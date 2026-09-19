@@ -20,7 +20,8 @@
   "type": "module",
   "license": "MIT",
   "files": [
-    "dist"
+    "dist",
+    "!dist/**/*.map"
   ],
   "bin": {
     "rigline": "./dist/index.js"
