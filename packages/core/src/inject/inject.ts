@@ -46,21 +46,19 @@ import {
 } from "../plugins/discover.ts";
 import { applyPatches, type PatchOutcome } from "./hostpatch.ts";
 
-const DIRNAME = "rigline";
-
 /**
- * Payload directory names this project has used before `DIRNAME`.
+ * The payload directory, under the extension's `webview/`.
  *
- * A superseded directory is not inert. Rolling the old two-line patch back leaves the live bundle
- * with no reference to it, but a webview opened before that rollback still holds the old
- * `pre.js`/`post.js` resolved in its module graph, and they are still on disk: it goes on running
- * an entire second loader generation — its own observer, devtools hook, bus taps and sweeps —
- * until the window reloads. So these are removed whenever the payload is written or torn down.
- *
- * Distinct from the caution in `settleWebviewBackup`, which refuses to delete a payload directory
- * it cannot attribute. These names are ours; there is nothing to attribute.
+ * **Changing this needs more than changing this.** A directory left by an earlier name is not
+ * inert: rolling the old two-line patch back leaves the live bundle with no reference to it, but a
+ * webview opened before that rollback still holds the old `pre.js`/`post.js` resolved in its module
+ * graph, and they are still on disk — so it goes on running an entire second loader generation, its
+ * own observer, devtools hook, bus taps and sweeps, until the window reloads. A rename therefore
+ * has to delete the old directory wherever the payload is written or torn down, which is a
+ * deliberate deletion by name rather than the cautious refusal `settleWebviewBackup` makes about a
+ * directory it cannot attribute.
  */
-const SUPERSEDED_DIRNAMES = ["prototype"];
+const DIRNAME = "rigline";
 
 /** The comment that marks the static import. Never trusted on its own (D38) — see `verdict`. */
 const MARKER = "/*RIGLINE-PRE*/";
@@ -175,16 +173,6 @@ function settleWebviewBackup(state: Injection, log: (line: string) => void): voi
   writeFileSync(state.backup, live);
 }
 
-/** Removes any payload directory left by an earlier generation of this loader. See `SUPERSEDED_DIRNAMES`. */
-function removeSupersededPayloads(ext: string, log: (line: string) => void): void {
-  for (const name of SUPERSEDED_DIRNAMES) {
-    const dir = join(ext, "webview", name);
-    if (!existsSync(dir)) continue;
-    rmSync(dir, { recursive: true, force: true });
-    log(`removed superseded payload directory webview/${name}`);
-  }
-}
-
 function copyPluginDir(src: string, dest: string): void {
   cpSync(src, dest, {
     recursive: true,
@@ -278,8 +266,6 @@ export function install(ext: string, options: InstallOptions): InstallReport {
   // The identifiers a plugin declares against are harvested from the pristine bundle, so the
   // backup must be trustworthy before anything reads it.
   settleWebviewBackup(state, log);
-
-  removeSupersededPayloads(ext, log);
 
   mkdirSync(state.payloadDir, { recursive: true });
   // The payload lands before the bundle is ever patched: a static import pointing at a file that
@@ -470,7 +456,6 @@ export function restore(ext: string): RestoreResult {
     ? revert(state.host, state.hostBackup)
     : { ok: true as const };
   rmSync(state.payloadDir, { recursive: true, force: true });
-  removeSupersededPayloads(ext, () => {});
   return {
     ext,
     restored: webview.ok,

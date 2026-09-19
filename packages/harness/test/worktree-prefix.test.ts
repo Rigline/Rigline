@@ -98,10 +98,10 @@ const pulsePlugin: FixturePlugin = {
 };
 
 const WORKTREE_NAME = "TD-1234-close-the-write-leak";
-const WORKTREE_PATH = "C:\\dev\\ai\\prototype\\.claude\\worktrees\\TD-1234-close-the-write-leak";
+const WORKTREE_PATH = "C:\\dev\\ai\\atlas\\.claude\\worktrees\\TD-1234-close-the-write-leak";
 const WORKTREE_PATH_UPPER_DRIVE =
-  "C:\\DEV\\AI\\prototype\\.claude\\worktrees\\TD-1234-close-the-write-leak";
-const MAIN_CWD = "c:\\dev\\ai\\prototype";
+  "C:\\DEV\\AI\\atlas\\.claude\\worktrees\\TD-1234-close-the-write-leak";
+const MAIN_CWD = "c:\\dev\\ai\\atlas";
 
 describe.skipIf(skipReason !== null)(
   `worktree-prefix against the real bundle${skipReason ? ` (${skipReason})` : ""}`,
@@ -308,7 +308,7 @@ describe.skipIf(skipReason !== null)(
             id: "s-spike",
             worktree: {
               name: "spike-new-parser",
-              path: "C:\\dev\\ai\\prototype\\.claude\\worktrees\\spike-new-parser",
+              path: "C:\\dev\\ai\\atlas\\.claude\\worktrees\\spike-new-parser",
             },
           },
         ]);

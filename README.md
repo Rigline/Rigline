@@ -1,8 +1,5 @@
 # Rigline
 
-*Renamed from Prototype on 2026-09-14 — nothing was published under the old name. See the status log
-in [docs/plan.md](docs/plan.md) for why.*
-
 A plugin layer for the Claude Code VS Code extension. Rigline injects a small loader into the
 installed extension's webview, gives plugins a capability-scoped context to write against, and
 harvests the identifiers plugins depend on from whichever extension version is installed, so an

@@ -67,35 +67,34 @@ describe("messagingIdentity", () => {
   it("extracts the address from a realistic multi-line ListAgents result", () => {
     const text = [
       "Known sessions:",
-      "  prototype-old [9c1a2b] idle 12m",
-      "This session is prototype-ae [61b4a3] - the name other sessions use to message it",
+      "  atlas-old [9c1a2b] idle 12m",
+      "This session is atlas-ae [61b4a3] - the name other sessions use to message it",
     ].join("\n");
-    expect(messagingIdentity(toolResult(text))).toEqual({ name: "prototype-ae", ref: "61b4a3" });
+    expect(messagingIdentity(toolResult(text))).toEqual({ name: "atlas-ae", ref: "61b4a3" });
   });
 
   it("is not fooled by a peer's row appearing before the own-session line", () => {
     // bogus-peer's own bracketed pair looks exactly like a name-and-ref, but carries no "This
     // session is" wording, so the anchor phrase - not position in the string - decides the match.
-    const text = [
-      "  bogus-peer [ffffff] idle 5m",
-      "This session is prototype-ae [61b4a3] - hint",
-    ].join("\n");
-    expect(messagingIdentity(toolResult(text))).toEqual({ name: "prototype-ae", ref: "61b4a3" });
+    const text = ["  bogus-peer [ffffff] idle 5m", "This session is atlas-ae [61b4a3] - hint"].join(
+      "\n",
+    );
+    expect(messagingIdentity(toolResult(text))).toEqual({ name: "atlas-ae", ref: "61b4a3" });
   });
 
   it("extracts the same shape from the subagent's wording", () => {
-    const text = "This process's main session is prototype-ae [61b4a3] - the name OTHER sessions use";
-    expect(messagingIdentity(toolResult(text))).toEqual({ name: "prototype-ae", ref: "61b4a3" });
+    const text = "This process's main session is atlas-ae [61b4a3] - the name OTHER sessions use";
+    expect(messagingIdentity(toolResult(text))).toEqual({ name: "atlas-ae", ref: "61b4a3" });
   });
 
   it("keeps a ref extended past six hex characters whole", () => {
-    const text = "This session is prototype-ae [61b4a3ff] - a listing lengthened this one";
-    expect(messagingIdentity(toolResult(text))).toEqual({ name: "prototype-ae", ref: "61b4a3ff" });
+    const text = "This session is atlas-ae [61b4a3ff] - a listing lengthened this one";
+    expect(messagingIdentity(toolResult(text))).toEqual({ name: "atlas-ae", ref: "61b4a3ff" });
   });
 
   it("keeps a name containing a space, set via /rename", () => {
-    const text = "This session is prototype renamed [61b4a3] - hint";
-    expect(messagingIdentity(toolResult(text))).toEqual({ name: "prototype renamed", ref: "61b4a3" });
+    const text = "This session is atlas renamed [61b4a3] - hint";
+    expect(messagingIdentity(toolResult(text))).toEqual({ name: "atlas renamed", ref: "61b4a3" });
   });
 
   it("does not let a name capture run on to a later bracket when no token actually follows", () => {
@@ -118,7 +117,7 @@ describe("messagingIdentity", () => {
         type: "user",
         message: {
           content: [
-            { type: "tool_result", tool_use_id: "a", content: "This session is prototype" },
+            { type: "tool_result", tool_use_id: "a", content: "This session is atlas" },
             { type: "tool_result", tool_use_id: "b", content: " renamed [61b4a3] - hint" },
           ],
         },
@@ -139,12 +138,12 @@ describe("messagingIdentity", () => {
   });
 
   it("is not spoofed by a typed message quoting the address text as plain content", () => {
-    const pasted = "This session is prototype-ae [61b4a3] - the name other sessions use to message it";
+    const pasted = "This session is atlas-ae [61b4a3] - the name other sessions use to message it";
     expect(messagingIdentity(typedMessage(pasted))).toBeNull();
   });
 
   it("ignores an assistant record even when its text contains the phrase and the word tool_result", () => {
-    const text = "tool_result: This session is prototype-ae [61b4a3] - the name other sessions use";
+    const text = "tool_result: This session is atlas-ae [61b4a3] - the name other sessions use";
     expect(messagingIdentity(assistantMessage(text))).toBeNull();
   });
 
@@ -182,12 +181,12 @@ describe("messagingIdentity", () => {
 
 describe("formatAddress", () => {
   it("joins name and ref as the CLI's own listing does", () => {
-    expect(formatAddress({ name: "prototype-ae", ref: "61b4a3" })).toBe("prototype-ae [61b4a3]");
+    expect(formatAddress({ name: "atlas-ae", ref: "61b4a3" })).toBe("atlas-ae [61b4a3]");
   });
 });
 
 describe("currentAddress", () => {
-  const identity: Identity = { name: "prototype-ae", ref: "61b4a3" };
+  const identity: Identity = { name: "atlas-ae", ref: "61b4a3" };
   const observed: Observed = { sessionId: "s1", identity };
 
   it("is null with nothing observed yet", () => {
@@ -247,10 +246,10 @@ describe("buildEntries", () => {
   });
 
   it("shows every value once everything is known", () => {
-    const address: Identity = { name: "prototype-ae", ref: "61b4a3" };
+    const address: Identity = { name: "atlas-ae", ref: "61b4a3" };
     const entries = buildEntries(address, "session-12345678");
     expect(entries).toEqual([
-      { kind: "copyable", label: "Messaging address", value: "prototype-ae [61b4a3]" },
+      { kind: "copyable", label: "Messaging address", value: "atlas-ae [61b4a3]" },
       { kind: "copyable", label: "Session id", value: "session-12345678" },
       { kind: "copyable", label: "Short session id", value: "session-" },
     ]);
@@ -264,12 +263,12 @@ describe("copyHint and buildTooltip", () => {
   });
 
   it("offers the session id, not the address, because that is what the pill shows", () => {
-    const address: Identity = { name: "prototype-ae", ref: "61b4a3" };
+    const address: Identity = { name: "atlas-ae", ref: "61b4a3" };
     expect(copyHint("session-1")).toMatch(/copy the session id/);
     expect(copyHint("session-1")).not.toMatch(/address/);
     // The address is still in the tooltip, and still first: it left the pill, not the pop-up.
     expect(buildTooltip(buildEntries(address, "session-1"), "session-1")).toMatch(
-      /Messaging address: prototype-ae \[61b4a3\]/,
+      /Messaging address: atlas-ae \[61b4a3\]/,
     );
   });
 });

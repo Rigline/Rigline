@@ -4,6 +4,10 @@
     "lib": ["esnext"],
     "types": ["node"],
     "rewriteRelativeImportExtensions": true,
+    // The published JavaScript carries no comments. This codebase annotates heavily and those
+    // notes are written for somebody changing the code, which is done in the repository, not in a
+    // consumer's node_modules (decisions.md, D35).
+    "removeComments": true,
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,

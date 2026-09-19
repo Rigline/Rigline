@@ -1,8 +1,5 @@
 # Rigline — agent notes
 
-*Renamed from Prototype on 2026-09-14 — nothing was published under the old name; see the status log
-in [docs/plan.md](docs/plan.md).*
-
 A plugin layer for the Claude Code VS Code extension: a loader injected into the installed
 extension's webview bundle, a capability-scoped context plugins are written against, and the
 tooling that keeps it working across the extension's roughly weekly updates. Built to be

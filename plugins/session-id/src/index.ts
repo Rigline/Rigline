@@ -12,7 +12,7 @@
  * can rely on; the address lives one click away, in the pop-up, which is where you go when you
  * actually want to copy it.
  *
- * The address (`prototype-ae [61b4a3]`-shaped: a name plus a hex ref) is what `ListAgents` prints and
+ * The address (`atlas-ae [61b4a3]`-shaped: a name plus a hex ref) is what `ListAgents` prints and
  * what `SendMessage`'s `to` takes. It never reaches the webview as a declared field: the CLI writes
  * it to `~/.claude/sessions/<pid>.json`, the extension host's own registry parser drops it before
  * anything downstream sees it, and `ctx.rewrite`/`ctx.resend` can only shape what the app already

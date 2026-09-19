@@ -771,7 +771,17 @@ which is where anybody debugging this code actually is.
 
 The alternative — `inlineSources`, making them work by embedding every `.ts` in the tarball — is a
 real option for later and a different decision: it trades the whole source, shipped twice over, for
-mapped stack traces in a consumer's terminal.
+mapped stack traces in a consumer's terminal. It is also what the *injected* payload already does:
+`pre.js` and `post.js` carry their sources inline, which is three quarters of their bytes and the
+only reason a webview with no `connect-src` can be debugged at all.
+
+**The published JavaScript carries no comments, and the published declarations do.** This codebase
+annotates heavily and those notes are written for somebody changing the code, which happens in the
+repository, not in a consumer's `node_modules`. `@rigline/plugin-api`'s declarations are the
+exception that proves what the rule is for: its comments are not notes about the implementation but
+the documentation a plugin author reads on hover, and it is the one package whose whole job is to
+be read from another repository's editor. TypeScript has a single `removeComments` governing both
+emits, so plugin-api emits its declarations from a second config that turns it back off.
 
 **D36. Verification is split three ways.** Node tests for pure functions and file transforms,
 against throwaway copies and the corpus, never the live extension; the probe plugin for the real

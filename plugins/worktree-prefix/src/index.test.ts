@@ -37,7 +37,7 @@ describe("worktreeLabel", () => {
 
   it("cuts a long name at a word boundary rather than mid-token", () => {
     expect(worktreeLabel("spike-new-parser")).toBe("spike");
-    expect(worktreeLabel("prototype-wt-extra")).toBe("prototype");
+    expect(worktreeLabel("atlas-wt-extra")).toBe("atlas");
     expect(worktreeLabel("some_snake_case_name")).toBe("some");
   });
 
@@ -131,21 +131,21 @@ describe("worktreeFromTool", () => {
 
 describe("samePath", () => {
   it("ignores drive-letter case", () => {
-    // Observed live: one session's transcript recorded both c:\dev\ai\prototype and
-    // C:\dev\ai\prototype for the same directory, since defaultCwd comes through realpathSync,
+    // Observed live: one session's transcript recorded both c:\dev\ai\atlas and
+    // C:\dev\ai\atlas for the same directory, since defaultCwd comes through realpathSync,
     // which preserves whatever case it was handed.
-    expect(samePath("c:\\dev\\ai\\prototype", "C:\\dev\\ai\\prototype")).toBe(true);
+    expect(samePath("c:\\dev\\ai\\atlas", "C:\\dev\\ai\\atlas")).toBe(true);
   });
 
   it("ignores separator style and a trailing separator", () => {
-    expect(samePath("C:\\dev\\ai\\prototype\\", "C:/dev/ai/prototype")).toBe(true);
+    expect(samePath("C:\\dev\\ai\\atlas\\", "C:/dev/ai/atlas")).toBe(true);
     expect(samePath("/home/me/repo/", "/home/me/repo")).toBe(true);
   });
 
   it("still distinguishes genuinely different directories", () => {
-    expect(samePath("C:\\dev\\ai\\prototype", "C:\\dev\\ai\\other")).toBe(false);
+    expect(samePath("C:\\dev\\ai\\atlas", "C:\\dev\\ai\\other")).toBe(false);
     // A worktree subdirectory of the same root is not the root.
-    expect(samePath("C:\\dev\\ai\\prototype", "C:\\dev\\ai\\prototype\\.claude\\worktrees\\td-9")).toBe(
+    expect(samePath("C:\\dev\\ai\\atlas", "C:\\dev\\ai\\atlas\\.claude\\worktrees\\td-9")).toBe(
       false,
     );
   });

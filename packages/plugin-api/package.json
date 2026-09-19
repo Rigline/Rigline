@@ -35,7 +35,7 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && node scripts/write-schema.js",
+    "build": "tsc -p tsconfig.build.json && tsc -p tsconfig.types.json && node scripts/write-schema.js",
     "typecheck": "tsc -p tsconfig.json"
   }
 }

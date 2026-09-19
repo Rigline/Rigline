@@ -1,0 +1,20 @@
+{
+  // The declarations, emitted separately so they can keep their comments while the JavaScript
+  // beside them does not (decisions.md, D35).
+  //
+  // TypeScript has one `removeComments` and it governs both emits, but the two want opposite
+  // answers here. The implementation's comments are notes for somebody changing this code, and
+  // that is done in the repository. The declarations' comments are the documentation a plugin
+  // author reads on hover — `ctx.anchor("modelPill")` saying what it returns and which `uses` key
+  // it needs is most of what keeps somebody off a raw class — and this is the one package whose
+  // whole job is to be read from another repository's editor.
+  "extends": "./tsconfig.build.json",
+  "compilerOptions": {
+    "removeComments": false,
+    "emitDeclarationOnly": true,
+    "declaration": true,
+    "declarationMap": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts"]
+}

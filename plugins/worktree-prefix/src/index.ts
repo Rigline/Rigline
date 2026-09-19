@@ -164,7 +164,7 @@ function normalizePath(path: string): string {
 
 /**
  * Whether `a` and `b` name the same directory, ignoring separator style, a trailing separator and
- * case. A real transcript was observed to record `c:\dev\ai\prototype` and `C:\dev\ai\prototype` for the
+ * case. A real transcript was observed to record `c:\dev\ai\atlas` and `C:\dev\ai\atlas` for the
  * *same* workspace root — `defaultCwd` comes through `realpathSync`, which preserves whatever case
  * it was handed — so a plain `===` here systematically fails to recognise the root as matching
  * itself. The accepted cost is a false positive on a case-sensitive filesystem that happens to

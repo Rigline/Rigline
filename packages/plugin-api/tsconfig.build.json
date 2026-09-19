@@ -4,8 +4,12 @@
     "lib": ["esnext", "dom"],
     "types": [],
     "rewriteRelativeImportExtensions": true,
-    "declaration": true,
-    "declarationMap": true,
+    // The published JavaScript carries no comments. This codebase annotates heavily and those
+    // notes are written for somebody changing the code, which is done in the repository, not in a
+    // consumer's node_modules (decisions.md, D35).
+    "removeComments": true,
+    // Declarations come from tsconfig.types.json, which keeps the comments this drops.
+    "declaration": false,
     "sourceMap": true,
     "rootDir": "src",
     "outDir": "dist"

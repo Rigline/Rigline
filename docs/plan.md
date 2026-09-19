@@ -414,9 +414,6 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   requests have no reply by convention; two stylesheet modules are unreachable. Drift 2.1.268 to
   2.1.270: modules 99.0% kept, classes 98.2%, local names 99.6%, message types 99.3%, React anchors
   100%.
-- 2026-09-14: Renamed Prototype to Rigline — `@prototype` was a registered npm org and bare `prototype`
-  collides with a published package. Nothing had been published under the old name, so the sweep was
-  total except `docs/archive/0.x/`, which is the prototype's own record.
 - 2026-09-14: Phase 2 done, then two defects found live. **Superseded payload directories**: install
   and restore only ever wrote and removed the *current* payload directory, so a webview opened
   before a reinstall went on running a whole superseded loader from disk — a second observer, hook
