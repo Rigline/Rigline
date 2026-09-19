@@ -26,6 +26,8 @@ const NAME_PATTERN = /^[a-z0-9][a-z0-9._-]{0,213}$/;
 export interface Substitutions {
   readonly NAME: string;
   readonly DESCRIPTION: string;
+  /** The range a scaffolded workspace depends on Rigline's own packages by. See `riglineRange`. */
+  readonly RIGLINE_RANGE: string;
 }
 
 export interface ScaffoldOptions {
@@ -35,6 +37,8 @@ export interface ScaffoldOptions {
   readonly description?: string;
   /** Where the template lives. Defaults to the one shipped beside this module. */
   readonly templateDir?: string;
+  /** Overrides the derived dependency range. For tests; a scaffold should take `riglineRange()`. */
+  readonly riglineRange?: string;
 }
 
 export interface ScaffoldResult {
@@ -49,6 +53,30 @@ export class ScaffoldError extends Error {}
 /** The template shipped with this package. */
 export function defaultTemplateDir(): string {
   return resolve(dirname(fileURLToPath(import.meta.url)), "..", "template");
+}
+
+/**
+ * The range a scaffolded workspace depends on `rigline` and `@rigline/plugin-api` by: `^` plus this
+ * package's own version, read at runtime rather than written into the template (decisions.md, D50).
+ *
+ * The reason it cannot be a literal is semver's rule about prereleases: a caret range admits one
+ * only when the range itself names a prerelease with the same major, minor and patch. So `^1.0.0`
+ * does *not* match `1.0.0-alpha.0`, and a template carrying it scaffolds a workspace whose very
+ * first command — the `pnpm install` the README tells an author to run — fails with
+ * `ERR_PNPM_NO_MATCHING_VERSION` for as long as only prereleases are published. Deriving it from
+ * our own version is correct at every point on that line: `^1.0.0-alpha.3` while we are on alphas,
+ * `^1.0.0` once 1.0.0 ships, `^1.2.0` after that, and nobody has to remember to change it.
+ *
+ * These three files sit beside each other in the published package — `dist/index.js`,
+ * `package.json`, `template/` — so this resolves the same way `defaultTemplateDir` does.
+ */
+export function riglineRange(): string {
+  const path = resolve(dirname(fileURLToPath(import.meta.url)), "..", "package.json");
+  const { version } = JSON.parse(readFileSync(path, "utf8")) as { version?: unknown };
+  if (typeof version !== "string" || version.length === 0) {
+    throw new ScaffoldError(`this package's own version is missing from ${path}`);
+  }
+  return `^${version}`;
 }
 
 /**
@@ -78,6 +106,7 @@ export function scaffold(options: ScaffoldOptions): ScaffoldResult {
   const substitutions: Substitutions = {
     NAME: name,
     DESCRIPTION: options.description ?? `A Rigline plugin called ${name}.`,
+    RIGLINE_RANGE: options.riglineRange ?? riglineRange(),
   };
 
   const files: string[] = [];
@@ -109,7 +138,7 @@ function walk(root: string): string[] {
   return found;
 }
 
-/** `__NAME__` and `__DESCRIPTION__`, in a path or in a file's contents. */
+/** `__NAME__`, `__DESCRIPTION__` and `__RIGLINE_RANGE__`, in a path or in a file's contents. */
 function substitute(text: string, substitutions: Substitutions): string {
   let out = text;
   for (const [key, value] of Object.entries(substitutions)) {

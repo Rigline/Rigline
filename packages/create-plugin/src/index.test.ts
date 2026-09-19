@@ -12,7 +12,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { validateManifest } from "@rigline/plugin-api";
 import { afterEach, describe, expect, it } from "vitest";
-import { defaultTemplateDir, ScaffoldError, scaffold } from "./index.ts";
+import { defaultTemplateDir, riglineRange, ScaffoldError, scaffold } from "./index.ts";
 
 const dirs: string[] = [];
 
@@ -88,11 +88,32 @@ describe("scaffold", () => {
   });
 
   it("leaves no placeholder behind in any file it wrote", () => {
+    // Deliberately a pattern rather than the three keys by name: a new substitution that the
+    // template uses and `scaffold` does not supply would otherwise ship as literal `__FOO__` with
+    // every existing test still green, which is how `__RIGLINE_RANGE__` could have arrived broken.
     const result = into("clock");
     for (const file of result.files) {
-      expect(read(result, file), file).not.toContain("__NAME__");
-      expect(read(result, file), file).not.toContain("__DESCRIPTION__");
+      expect(read(result, file), file).not.toMatch(/__[A-Z][A-Z0-9_]*__/);
     }
+  });
+
+  it("depends on Rigline by a range that admits the version actually published", () => {
+    // A caret range admits a prerelease only when it names one with the same major, minor and
+    // patch, so a hand-written `^1.0.0` in the template does not match `1.0.0-alpha.0` and the
+    // `pnpm install` the README opens with fails outright. The first published scaffold had
+    // exactly that (D50), so the range is derived from this package's own version instead.
+    const own = JSON.parse(readFileSync(join(defaultTemplateDir(), "..", "package.json"), "utf8"));
+    expect(riglineRange()).toBe(`^${own.version}`);
+
+    const result = into("clock");
+    for (const file of ["package.json", "plugins/clock/package.json"]) {
+      const { devDependencies } = JSON.parse(read(result, file));
+      expect(devDependencies.rigline, file).toBe(`^${own.version}`);
+      expect(devDependencies["@rigline/plugin-api"], file).toBe(`^${own.version}`);
+    }
+
+    // While we are on a prerelease, the range has to carry one too, or it matches nothing at all.
+    if (own.version.includes("-")) expect(riglineRange()).toContain("-");
   });
 
   it("names the plugin after the workspace directory, or after --name", () => {

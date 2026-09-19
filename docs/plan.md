@@ -527,3 +527,13 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   either way. releasing.md now says both. Also landed, because a bootstrap publish is the first
   thing anybody sees: a README and LICENSE per published package, and `repository`, `homepage`,
   `bugs` and `keywords` in all four manifests.
+- 2026-09-19: All four bootstrapped to npm under `--tag next`, and running the *published*
+  `create-rigline-plugin` found what running the one in the tree never could: the template's
+  hand-written `^1.0.0` cannot match `1.0.0-alpha.0`, because a caret range admits a prerelease only
+  when it names one. Every scaffold it produced failed on `pnpm install`, the first command its
+  README gives. The range is now derived from the scaffolder's own version (D50), so it is right on
+  an alpha, right at 1.0.0 and never hand-maintained; the placeholder test that would have caught it
+  matches any `__UPPER__` rather than the keys it knew about. Fixed in the tree and still broken on
+  npm until the first staged release ships it. Also learned, and not ours: npm generates the
+  abbreviated packument every installer asks for *after* the publish returns, so a brand-new scoped
+  package 404s for `pnpm install` while `curl` and `pnpm view` both see it.

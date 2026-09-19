@@ -10,7 +10,7 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "devDependencies": {
-    "@rigline/plugin-api": "^1.0.0",
-    "rigline": "^1.0.0"
+    "@rigline/plugin-api": "__RIGLINE_RANGE__",
+    "rigline": "__RIGLINE_RANGE__"
   }
 }

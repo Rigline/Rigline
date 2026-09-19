@@ -737,6 +737,15 @@ into an explicit grant. The cost of the shape is per-package npm setup — a tru
 configured per package, so each plugin needs its own entry naming the same workflow file, and its
 own bootstrap publish (D46). That is friction on a second plugin, never on a second release.
 
+**The template's dependency ranges are derived from the scaffolder's own version, never written by
+hand.** A caret range excludes prereleases unless it names one with the same major, minor and patch,
+so a template pinning `^1.0.0` produces a workspace that cannot install anything while the only
+published versions are `1.0.0-alpha.*` — `ERR_PNPM_NO_MATCHING_VERSION`, on the first command the
+guide tells an author to run. `create-rigline-plugin` therefore substitutes `^` plus its own
+version, which is right while we are on alphas, is still right at 1.0.0, and never needs anybody to
+remember to bump it. The first published scaffold had the hand-written range and was broken by it,
+which is the argument for running the published artifact rather than the one in the tree.
+
 This does not weaken P6. The template is a convenience, exactly as the build preset is: a plugin is
 one browser-target ES module and a manifest however it was produced, and one built with npm, yarn,
 bun or a shell script is discovered, checked and loaded identically. What is published is the output
