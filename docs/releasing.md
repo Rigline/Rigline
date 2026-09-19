@@ -88,7 +88,8 @@ publisher.
    the registry already has.
 3. Commit and push to `main`.
 4. Run the **Release** workflow from the Actions tab, choosing the dist-tag. `Dry run` builds,
-   tests and packs without staging, which is how you check a change to the pipeline itself.
+   tests and packs without staging — worth doing first after any change to the pipeline or to the
+   publishers, since its log shows whether every exchange succeeded.
 5. Read the run summary: it names each package and version that was staged, because npm returns no
    stage id for the workflow to print and nothing notifies you that a stage is waiting.
 6. `pnpm stage approve` on your machine, and give it the OTP.
@@ -110,9 +111,12 @@ either none is configured, or its repository or workflow path does not match. Be
 `id-token: write` is in the job's `permissions`: without it the runner cannot ask GitHub for a token
 at all, and there is nothing to exchange.
 
-**A dry run does not exercise any of that.** It never uploads, so an exchange that failed costs it
-nothing and it passes regardless. A dry run tells you the build, the tests and the packing are
-sound; only a real stage tells you the publisher is.
+**A dry run performs the exchange but does not gate on it.** It asks GitHub for a token and offers
+it to the registry for every package, exactly as a real stage does; what it skips is the upload. So
+the run goes green whether the exchange succeeded or failed, and the green tick is not the signal
+— the *absence of* `Skipped OIDC` in its log is. Read the log and a dry run is a genuine check that
+every trusted publisher is configured; trust the tick alone and it tells you nothing about any of
+them.
 
 **Provenance fails.** It needs the `repository` field to match the repository doing the building,
 and a public repository — npm refuses to attest a private one, since an attestation nobody can check
