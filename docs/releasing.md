@@ -86,10 +86,17 @@ the registry never received.
 **A staged version you do not want to ship**: do not approve it. It expires. Fix the code, bump
 again, stage again.
 
-**The workflow cannot get a token.** `id-token: write` in the job's `permissions` block is what lets
-the runner ask GitHub for one; without it the exchange has nothing to send. Then check the trusted
-publisher entry matches the repository *and* the workflow path exactly, including a rename of the
-file.
+**`[WARN] Skipped OIDC` in the log.** Read this one carefully, because it is a *warning*: pnpm got a
+token from GitHub, the registry refused to exchange it, and pnpm carried on unauthenticated. The
+failure you then see is about authentication, and says nothing about the publisher that actually
+caused it. A 404 from the exchange means the registry has no trusted publisher for that package —
+either none is configured, or its repository or workflow path does not match. Before that, check
+`id-token: write` is in the job's `permissions`: without it the runner cannot ask GitHub for a token
+at all, and there is nothing to exchange.
+
+**A dry run does not exercise any of that.** It never uploads, so an exchange that failed costs it
+nothing and it passes regardless. A dry run tells you the build, the tests and the packing are
+sound; only a real stage tells you the publisher is.
 
 **Provenance fails.** It needs the `repository` field to match the repository doing the building,
 and a public repository. Under `--provenance` pnpm asks GitHub for a second token with

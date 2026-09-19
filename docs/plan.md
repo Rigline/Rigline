@@ -297,22 +297,21 @@ In order.
    [transcript.md](transcript.md) (the three-way join and the sweep), and
    [verification.md](verification.md) (the three tiers and what belongs in each).
 6. **Our own release pipeline** (D46), which is a separate track and gates none of the above. The
-   staged-publish workflow for the four publishable packages, proven on a real release before the
-   template hands it to anyone else. One `pnpm stage publish -r` stages them in dependency order and
-   one `pnpm stage approve` takes the batch under a single OTP. pnpm emits no registry stage id, so
-   the run summary names what was staged and the command that approves it, because nothing notifies
-   a maintainer that a stage is waiting.
+   workflow, the packaging metadata and [releasing.md](releasing.md) are done; what is left is the
+   npm setup and the real release that proves the whole path before the template hands it to anyone
+   else.
 
-   **Leo's, and blocking**: the GitHub repository, the `@rigline` npm organisation, a bootstrap
-   publish of each package under a temporary granular token, and a stage-only trusted publisher per
-   package. [releasing.md](releasing.md) is the checklist and says why each step cannot be
-   automated.
+   `.github/workflows/release.yml` stages the four publishable packages from `main` over OIDC, with
+   provenance and a dist-tag chosen per run, and a summary step that names what is waiting and the
+   command that approves it — because pnpm emits no registry stage id and nothing notifies a
+   maintainer. A dry run has been green end to end against the real registry: the ID token is
+   issued, the exchange 404s because no package exists yet, and pnpm *warns and carries on*, which
+   is why releasing.md says a dry run cannot tell you the publisher works.
 
-   **Ours, and first**, because a bootstrap publish is what the world then sees: the `repository`
-   field every package lacks and provenance refuses to run without, a README per package, the
-   LICENSE the manifests already claim, and the dist-tag a prerelease goes to. Then the workflow
-   itself, which can be written and reviewed against nothing but cannot be run until the repository
-   exists.
+   **Leo's, and all that remains**: the `@rigline` npm organisation, a bootstrap publish of each
+   package under a temporary granular token, a stage-only trusted publisher per package, and
+   revoking the token. [releasing.md](releasing.md) is the checklist and says why each step cannot
+   be automated. Then one real staged release, approved, and the template can carry the workflow.
 
 ### Phase 5, later: companion VS Code extension
 
@@ -362,9 +361,12 @@ licence a plugin's own check should not inherit.
 
 ## Next session
 
-Phase 4 item 6, the release pipeline, which needs Leo: the one-time npm setup is his, and `pnpm
-stage publish` and OIDC is an open question to verify before the workflow is written. The template
-ships without the publish workflow until that is proven.
+Phase 4 item 6 is waiting on Leo and on nothing else: the npm setup in
+[releasing.md](releasing.md), then one real staged release. When that release is approved, the
+template gets the publish workflow D50 says it carries, and phase 4 closes.
+
+Nothing else in phase 4 is open, so a session with no release to run picks up phase 5 or 6, or the
+small items below.
 
 **About this machine.** Only 2.1.270 is installed — VS Code deleted 2.1.268 and 2.1.269 once nothing
 was serving them, which is the behaviour D4 exists for; both are still in the corpus. Its
@@ -517,3 +519,11 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   found on the way: there are four publishable packages rather than three, `create-rigline-plugin`
   having arrived after D46 was written, and none of them has a `repository` field, without which npm
   refuses provenance. [releasing.md](releasing.md) is the checklist for the setup that is Leo's.
+- 2026-09-19: The repository is `Rigline/Rigline` and the workflow is on it, green end to end on a
+  dry run against the real registry in 26 seconds. It surfaced the thing no stand-in could: the
+  exchange 404s while the packages do not exist, and pnpm reports that as `[WARN] Skipped OIDC` and
+  carries on unauthenticated — so the error a maintainer eventually sees is about authentication and
+  names nothing about the publisher that caused it, and a dry run, which never uploads, passes
+  either way. releasing.md now says both. Also landed, because a bootstrap publish is the first
+  thing anybody sees: a README and LICENSE per published package, and `repository`, `homepage`,
+  `bugs` and `keywords` in all four manifests.
