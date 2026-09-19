@@ -80,8 +80,9 @@ Written for somebody else, so don't rewrite them for us:
 - **Never point a test at the live extension directory.** Copies only.
 - **Rebuild the host before running the harness tests.** They drive the *real* bundle in a browser
   and `preparePayload` copies `packages/host/dist/{pre,post}.js`, so vitest alone exercises whatever
-  was last built, not your source. A change to the host with no `pnpm build` gives you a green run
-  against the previous payload, or a failure you then debug in code that is not running.
+  was last built, not your source. `preparePayload` refuses when `host/src` is newer than
+  `host/dist`, naming the build command — so this costs you a re-run rather than a green result
+  about code that is not loaded, but the rebuild is still yours to do.
 - **A plugin's problem never blocks the install.** Report it by name, inject around it, refuse it
   at load. Only a collapsed harvest or Rigline's own build failure blocks.
 

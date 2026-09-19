@@ -371,21 +371,33 @@ function doctorCommand(args: string[]): number {
 
 function restoreCommand(): number {
   const results = restoreAll(installedExtensions());
-  let failed = 0;
+  let noBackup = 0;
+  let hostFailed = 0;
   for (const result of results) {
     if (result.restored) console.log(`restored: ${result.ext}`);
     else {
-      failed++;
+      noBackup++;
       console.log(`NOT restored: ${result.ext} (${result.reason})`);
     }
+    // Reported whichever way the webview side went: an extension host still carrying a
+    // substitution is the failure a person must know about, and it is invisible from the panel.
+    if (result.hostReason) {
+      hostFailed++;
+      console.log(`  extension.js NOT restored: ${result.hostReason}`);
+    }
   }
-  if (failed > 0) {
+  if (noBackup > 0) {
     console.log(
       "\nA version without a backup is recovered by uninstalling and reinstalling Claude Code from the Extensions view.",
     );
   }
+  if (hostFailed > 0) {
+    console.log(
+      "\nAn extension.js left patched still runs the substitution a plugin declared. Reinstalling Claude Code from the Extensions view replaces it.",
+    );
+  }
   console.log("Reload the window afterwards.");
-  return failed > 0 ? 1 : 0;
+  return noBackup + hostFailed > 0 ? 1 : 0;
 }
 
 /**

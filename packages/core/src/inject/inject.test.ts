@@ -563,6 +563,30 @@ describe("host patches", () => {
     expect(hostVerdict(inspect(ext))).toBe("vanilla");
   });
 
+  it("reports a host bundle it could not write back, rather than claiming a clean restore", () => {
+    const ext = fixture();
+    const root = tempDir("rigline-plugins-");
+    patchPlugin(root, "worktree-toggle");
+    install(ext, { payloadDir: payload(), plugins: withPlugins([root]) });
+    // Stands in for the platform refusing the write — on Windows, an extension host still holding
+    // extension.js open. What matters is that restore answers rather than throwing.
+    rmSync(hostPath(ext));
+    mkdirSync(hostPath(ext));
+
+    const result = restore(ext);
+
+    // The panel is back, and the extension host is not: two outcomes, reported apart.
+    expect(result.restored).toBe(true);
+    expect(result.hostReason).toMatch(/could not write/);
+  });
+
+  it("says nothing about the host bundle when nothing ever patched it", () => {
+    const ext = fixture();
+    install(ext, { payloadDir: payload() });
+
+    expect(restore(ext).hostReason).toBeUndefined();
+  });
+
   it("recovers the host bundle even when the webview backup is gone", () => {
     const ext = fixture();
     const originalHost = readFileSync(hostPath(ext));

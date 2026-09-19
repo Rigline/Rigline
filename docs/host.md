@@ -102,16 +102,25 @@ and in the webview:
 ```ts
 interface CapabilityContract<K extends UsesKey> {
   readonly key: K;
-  /** The ctx methods this capability grants, for the drift scan and for documentation. */
-  readonly grants: readonly (keyof PluginContext)[];
+  /** The ctx members this capability grants, for the advisory source scan and for documentation. */
+  readonly grants: readonly string[];
+  /** This key's fragment of the manifest JSON schema, so an editor validates before anything runs. */
+  readonly schema: Readonly<Record<string, unknown>>;
   /** Validate the manifest's value for this key: shape only. A string is the reason it is malformed. */
   shape(value: unknown): string | null;
-  /** The identifiers this declaration depends on, checked against the tables. A string is the first violation. */
-  violation(declared: Uses[K], tables: IdentifierTables): string | null;
-  /** One sentence per thing this declaration does, for `describeUses`. */
-  summary(declared: Uses[K]): readonly string[];
+  /** Every identifier this declaration depends on that the tables lack, one reason each. */
+  gaps(declared: Declarations[K], tables: IdentifierTables): readonly string[];
+  /** One line per thing the declaration lets the plugin do, for `describeUses`. */
+  summary(declared: Declarations[K]): readonly string[];
 }
 ```
+
+`gaps` returns a list rather than the first answer because both verdicts read it. A required
+declaration is refused on the first gap — the name is what makes a refusal attributable, and a
+module that has gone loses every class in it at once — while an optional one is reported on all
+of them, since each is a decoration the plugin will go without and the author is owed the whole
+list (D41). `schema` states the same rule `shape` enforces, in the one language editors read;
+neither can be derived from the other, so a test holds them together.
 
 `capabilityViolation(uses, tables)` walks every contract; it is what the update flow asks before
 injecting and what the kernel asks before importing, so the two cannot disagree.
@@ -122,14 +131,24 @@ injecting and what the kernel asks before importing, so the two cannot disagree.
 interface CapabilityModule<K extends UsesKey> {
   readonly contract: CapabilityContract<K>;
   /** The slice of ctx for one plugin, or the methods that throw when the plugin did not declare the key. */
-  grant(plugin: PluginRecord, kernel: Kernel): Partial<PluginContext>;
-  /** Checks the probe runs for this capability, contributed rather than listed elsewhere. */
-  readonly probes?: readonly ProbeCheck[];
+  grant(grant: Grant): Partial<PluginContext>;
+  /** The slice of ctx.optional, for the lookups that may answer null (D41). */
+  grantOptional?(grant: Grant): Partial<OptionalContext>;
 }
 ```
 
-`Kernel` is what a module may use: the bridge's bus and react halves, the tables, `mount` and
-`place`, `disable(reason)` for the plugin in hand, and the plugin's registry order. Modules do
+`Grant` is what a module is handed for one plugin: its `PluginRecord` (name, entry, surfaces,
+`uses`, patch verdict, registry order), the `Kernel`, `own(teardown)` to register what the disable
+path must undo, `disable(reason)` for the plugin in hand, and `guard(what, fn)` to wrap a plugin
+callback so a throw disables rather than escapes.
+
+`grantOptional` is a second method rather than a nested key in `grant`'s return, so the kernel's
+merge stays a flat `Object.assign` and one capability's slice cannot clobber another's. Only the
+two lookup-shaped capabilities implement it: everything else optional needs no API, because a
+handler that never fires is already what absence does.
+
+`Kernel` is what a module may reach through: the bridge's bus and react halves, the tables, the
+surface, the diagnostics, and the shared services — mounts, session, tools, transcript. Modules do
 not import each other; a capability that needs another's state (the transcript needs the session)
 asks the kernel for a shared service the kernel owns.
 
@@ -256,11 +275,14 @@ Node tests, against throwaway copies and the corpus: the injector (byte delta, c
 CRLF preserved, backup authority, every-version behaviour, host patches rebuilt from backup and
 written only on change, restore round-trip, status verdicts); discovery and registry baking; the
 built `pre.js` against a stubbed `acquireVsCodeApi` (immutability, unwrapping, buffer, chain,
-resend, counts); every contract's `violation` and `summary`.
+resend, counts); every contract's `gaps` and `summary`.
 
-The probe plugin, live: one check per capability, contributed by its module, plus the kernel's
-own; `n/a` where a check cannot apply on a surface; the `RIG` badge green or red with a count.
-Leo reloads webviews and reads the badge on the full editor, the sidebar and the session list.
+The probe plugin, live: one check per capability, plus the kernel's own; `n/a` where a check
+cannot apply on a surface; the `RIG` badge green or red with a count. Leo reloads webviews and
+reads the badge on the full editor, the sidebar and the session list. The checks are the probe's
+own — written in `plugins/probe/src/checks.ts`, ordered by an array beside them — so a capability
+module does not bring one, and adding a check means editing that array. Phase 6 in
+[plan.md](plan.md) is where that changes.
 
 The Playwright spike, if it boots the real bundle: a third tier for host and plugin DOM behaviour
 that needs no VS Code.

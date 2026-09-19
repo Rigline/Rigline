@@ -485,9 +485,9 @@ the more useful question anyway.
 **D55. The flow is spelled `install`; `update` means plugins (2026-09-15, Leo).** The flow keeps its
 name in the code and loses it on the command line. `install` is the one write command — inject the
 loader everywhere, say what moved since the baseline, record the new one — `check` is its read-only
-half, `watch` loops `install`, and there is no `upgrade`. `update` is reserved for the sense every
-package manager already gives it: update the things I installed. `npm update`, `pnpm update` and
-`cargo update` all read that way, and this extension's users also type `claude update`.
+half, and `watch` loops `install`. `update` is reserved for the sense every package manager
+already gives it: update the things I installed. `npm update`, `pnpm update` and `cargo update` all
+read that way, and this extension's users also type `claude update`.
 
 **A command never explains what it used to do.** Output that recounts its own past is output nobody
 has trimmed. `update` falls through to the usage rather than to an error narrating a retirement, and
@@ -623,7 +623,7 @@ it is written with no publish at all. What the delay does hold back is a fix to 
 or its raw `cls()` use, so a withheld version is reported rather than hidden (P8): `update` names the
 version, its age, and the flag that takes it early.
 
-**D49. A source is recorded by kind and pinned identity, and `upgrade` reads it.**
+**D49. A source is recorded by kind and pinned identity, and `update` reads it.**
 `~/.rigline/config.json` holds `{kind: "npm", name, version, integrity}` per plugin that `add`
 brought in. The kind discriminator is present from the first entry so the git source deferred in D33
 arrives as an adapter. The integrity hash says the bytes are the ones the registry served, which is
@@ -634,7 +634,7 @@ declares: a user who installed a plugin should not be re-asked because its autho
 and a fetch that halts on a widened declaration is the failure that makes people stop fetching.
 
 A plugin the user placed in `~/.rigline/plugins/` by hand has no source record at all. It loads on
-the next inject with everything it declares, and it cannot be upgraded, which is the honest cost of
+the next inject with everything it declares, and `update` cannot move it, which is the honest cost of
 dropping a directory in: the user owns the version because the user owns the provenance. `list`
 reports that rather than leaving it to be inferred from silence.
 

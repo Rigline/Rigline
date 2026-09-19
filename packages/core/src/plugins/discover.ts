@@ -199,7 +199,7 @@ export function readConfig(path: string): PluginsConfig {
   for (const [name, source] of Object.entries(rawSources)) {
     // Unreadable rather than absent, which is a distinction worth keeping: a record nothing can
     // parse is a file somebody edited, and dropping it silently would turn a plugin `add` brought
-    // in into one that looks hand-placed and so cannot be upgraded (D49).
+    // in into one that looks hand-placed, which `update` cannot move (D49).
     if (!isPluginSource(source)) {
       throw new UserError(`${path}: the source recorded for "${name}" is not one this can read`);
     }

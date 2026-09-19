@@ -406,11 +406,30 @@ export function install(ext: string, options: InstallOptions): InstallReport {
 
 export interface RestoreResult {
   readonly ext: string;
+  /** The webview side: whether the panel is back on the extension's own bytes. */
   readonly restored: boolean;
   readonly reason?: string;
+  /**
+   * Why `extension.js` could not be put back, when it had a backup and the revert failed.
+   *
+   * Reported apart from `reason` because the two failures cost different things and are recovered
+   * differently: a webview that cannot be restored is a panel that may not render, and a host bundle
+   * that cannot be restored is an extension host still running a plugin's substitution after a
+   * command that said it had undone it. Absent in the ordinary case, which is that nothing ever
+   * patched the host bundle, so there was no backup and nothing to put back.
+   */
+  readonly hostReason?: string;
 }
 
-/** Copies `backupPath` over `target` and re-reads it to confirm the bytes actually match. */
+/**
+ * Copies `backupPath` over `target` and re-reads it to confirm the bytes actually match.
+ *
+ * An I/O failure is returned, never thrown. Restoring is the recovery path and runs against an
+ * editor that may still be holding these files open, so a write refused by the platform is an
+ * expected outcome rather than an exceptional one — and a throw here would abort `restoreAll` part
+ * way through, stranding every directory after the one that failed, which is the opposite of what
+ * that function promises.
+ */
 function revert(
   target: string,
   backupPath: string,
@@ -418,13 +437,18 @@ function revert(
   if (!existsSync(backupPath)) {
     return { ok: false, reason: `no backup at ${backupPath}` };
   }
-  const backup = readFileSync(backupPath);
-  writeFileSync(target, backup);
-  const after = readFileSync(target);
-  if (!after.equals(backup)) {
-    return { ok: false, reason: `${target} did not match ${backupPath} after restoring` };
+  try {
+    const backup = readFileSync(backupPath);
+    writeFileSync(target, backup);
+    const after = readFileSync(target);
+    if (!after.equals(backup)) {
+      return { ok: false, reason: `${target} did not match ${backupPath} after restoring` };
+    }
+    return { ok: true };
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    return { ok: false, reason: `could not write ${target} from ${backupPath}: ${detail}` };
   }
-  return { ok: true };
 }
 
 /**
@@ -432,14 +456,27 @@ function revert(
  * recovered independently — a missing webview backup must not strand a host bundle that still has
  * one, and vice versa — and `restored` reports the webview side, since that is the one whose
  * absence blanks the panel.
+ *
+ * The host side is attempted only when it has a backup, because no backup is the ordinary state:
+ * one is written the moment a patch first lands, so its absence already says nothing patched
+ * `extension.js`. Attempting it regardless and discarding the answer, which is what this did, made
+ * the one case that matters unreportable — a backup that is there and could not be written back, so
+ * the extension host keeps running a substitution after a command that said it had been undone.
  */
 export function restore(ext: string): RestoreResult {
   const state = inspect(ext);
   const webview = revert(state.bundle, state.backup);
-  revert(state.host, state.hostBackup);
+  const host = state.hostBackupExists
+    ? revert(state.host, state.hostBackup)
+    : { ok: true as const };
   rmSync(state.payloadDir, { recursive: true, force: true });
   removeSupersededPayloads(ext, () => {});
-  return webview.ok ? { ext, restored: true } : { ext, restored: false, reason: webview.reason };
+  return {
+    ext,
+    restored: webview.ok,
+    ...(webview.ok ? {} : { reason: webview.reason }),
+    ...(host.ok ? {} : { hostReason: host.reason }),
+  };
 }
 
 /**

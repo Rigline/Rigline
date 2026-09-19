@@ -170,7 +170,7 @@ describe("readConfig", () => {
     expect(readConfig(path).sources).toEqual({ clock: source });
 
     // Dropping it silently would turn a plugin `add` brought in into one that looks hand-placed,
-    // and so cannot be upgraded (D49).
+    // which `update` cannot move (D49).
     writeFileSync(path, JSON.stringify({ sources: { clock: { kind: "carrier pigeon" } } }));
     expect(() => readConfig(path)).toThrow(/source recorded for "clock"/);
   });

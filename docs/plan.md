@@ -226,8 +226,9 @@ Deferred out of the phase and still open: `rigline corpus fetch <version>` for M
 ### Phase 2: injector, host kernel, probe — done 2026-09-14
 
 Inject, restore and status with byte-faithful I/O and the backup file as the authority. `pre.js`
-and `post.js` as kernel plus capability modules. The probe as a first-party plugin whose checks are
-contributed by the capability modules. The Playwright spike succeeded and is now `packages/harness`.
+and `post.js` as kernel plus capability modules. The probe as a first-party plugin, with a check
+per capability — written in the probe itself, which is what phase 6 revisits. The Playwright spike
+succeeded and is now `packages/harness`.
 
 ### Phase 3: plugins, build preset, install flow, CLI — done 2026-09-14
 
@@ -307,6 +308,26 @@ A thin extension over core: re-inject on update, prompt for the webview reload, 
 disable and settings. Marketplace policy for an extension that patches another extension is a
 known risk to weigh when this phase starts.
 
+### Phase 6, later: a plugin contributes its own diagnostics
+
+The probe answers *is this working, which parts are not, and why* for the host and the capability
+layer. It cannot answer it for a plugin, because every check it runs is written inside it: the
+verdict functions are in `plugins/probe/src/checks.ts` and their report order in a hand-maintained
+array beside them, so a capability module — and a plugin — has nowhere to put one.
+
+Make a check a thing that is contributed. The capability modules first, which is where the design
+already assumed it and where today's checks would move from; then plugins, which need it most,
+since a plugin is exactly the thing whose failure is invisible now. Group the panel by who
+contributed each line, the host's own under `core`, so the report reads as *which part of this is
+broken* rather than one undifferentiated list. Then "the badge is red and it names your plugin"
+replaces "the badge is green and your plugin quietly does nothing" — P8 applied to the one layer
+that has never had it.
+
+Two things to settle when it starts. Whether a contributed check is declared in the manifest or
+simply registered from `setup`: registering one is not a dependency on the extension, so probably
+not a `uses` key. And what a check may reach — the probe reads `diagnostics` directly, which is a
+licence a plugin's own check should not inherit.
+
 ## Open questions, not blocking
 
 - **Whether a plugin may have the resolved selector**, as `ctx.selector(name)`. `ctx.anchor()` hands
@@ -363,6 +384,14 @@ went). `rebind`'s peak is the early warning for the same thing.
 in its table, and a wrong one sat there until a plugin needed the message. The bodies are
 hand-found and cannot be derived, but the types can: lifting the table out of the page's template
 string into real TypeScript would let a test check each against the harvested replies layer.
+
+`hostBackupIsCurrent` decides whether `extension.js.orig` still belongs to the `extension.js` beside
+it by comparing file *sizes*, which is exact only because a declared patch never resizes the bundle.
+One case defeats it: a same-version build replaced in place at the same size reads as current, so a
+harvest would read an older build's protocol and a restore would write it back as a downgrade.
+Improbable rather than impossible, and the honest fix is an identity the bytes cannot fake — hash
+the pristine bundle when the backup is written and keep the hash beside the payload, which `doctor`
+would want to report anyway.
 
 ## Status log
 
@@ -454,3 +483,13 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   never made — the harness carries them as module source strings instead, which serves the decision
   better, since there is nothing on disk for discovery to find. D17, this plan's package table and
   the README now say so.
+- 2026-09-19: Reading the code against the docs found five more things the docs asserted and the
+  code did not. `CapabilityContract.violation` is `gaps` and returns a list; `CapabilityModule` takes
+  a `Grant` and has `grantOptional`; neither `probes` nor `ProbeCheck` has ever existed, so "checks
+  are contributed by the capability modules" was true of the design and of nothing else — phase 6
+  now owns making it true, and four documents describe what the code does until it is. D49 still said
+  `upgrade`, which D55 had already abolished. And `restore` discarded the host bundle's result, while
+  `revert` threw on an I/O error: an `extension.js` that could not be written back was unreportable,
+  and a throw would have stranded every directory after it, which is the opposite of what
+  `restoreAll` promises. `revert` now catches and `restore` reports `hostReason`; the CLI prints it
+  and exits non-zero. The harness's stale-`dist` rule became a guard that refuses the run.

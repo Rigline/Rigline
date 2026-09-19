@@ -107,8 +107,11 @@ would leave `watch` finding the element the test says has gone.
 
 **Rebuild the host before running these.** `preparePayload` copies
 `packages/host/dist/{pre,post}.js`, so vitest alone exercises whatever was last built. A change to
-the host with no `pnpm build` gives you a green run against the previous payload, or a failure you
-then debug in code that is not running.
+the host with no `pnpm build` would give a green run against the previous payload — a result about
+code that is not loaded, which is worse than a red one — or a failure you then debug in source that
+was never running. `preparePayload` refuses rather than letting either happen: it compares the
+newest mtime under `host/src` against the older of the two built files and throws with the build
+command. The rule used to live in `CLAUDE.md` and rely on everybody remembering it.
 
 A file skips, with a reason, when the corpus lacks its version or Chromium will not launch — and the
 reason says which.
@@ -119,12 +122,18 @@ reason says which.
 in the actual panel. It is the only tier that exercises the real extension host, the real CSP, the
 real React build and the real install.
 
-Its checks are **contributed by the capability modules**, not listed centrally, so a new capability
-brings its own check the way it brings its own contract. Everything it can reach through `ctx` it
-reaches through `ctx`, exactly as a third-party plugin would — which is what makes an all-green
-badge evidence rather than self-assessment. The one exception is `globalThis.__rigline.diagnostics`,
-read directly and by nothing else: this plugin exists to diagnose the host, and pre/post timing, raw
-tap counts and every plugin's load status are not capabilities a manifest could sanely declare.
+Everything it can reach through `ctx` it reaches through `ctx`, exactly as a third-party plugin
+would — which is what makes an all-green badge evidence rather than self-assessment. The one
+exception is `globalThis.__rigline.diagnostics`, read directly and by nothing else: this plugin
+exists to diagnose the host, and pre/post timing, raw tap counts and every plugin's load status are
+not capabilities a manifest could sanely declare.
+
+The checks themselves are the probe's own. The verdict functions are in
+[checks.ts](../plugins/probe/src/checks.ts), pure and separately tested, and their report order is a
+hand-maintained array in [index.ts](../plugins/probe/src/index.ts) — so adding a check means editing
+that array, and neither a capability module nor a plugin can contribute one. That is the gap phase 6
+in [plan.md](plan.md) exists to close: a plugin is precisely the thing whose failure is invisible
+today, and it has nowhere to say what working would look like.
 
 Three verdicts, and **`n/a` is a real state**: a check that cannot apply on this surface, or has had
 no opportunity yet, says so instead of guessing. Every verdict goes through one `report()` path, so

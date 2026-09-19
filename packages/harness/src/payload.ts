@@ -3,7 +3,7 @@
  * injector leaves on disk"): pre.js and post.js from the host build, generated.js harvested fresh
  * from the corpus, and a registry baking whichever fixture plugins one test wants active.
  */
-import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { generate, harvestAll, missingAnchorReason } from "@rigline/core";
@@ -18,6 +18,56 @@ import { corpusBundles } from "../../core/test/corpus.ts";
 
 /** packages/host/dist, resolved from this file rather than assumed relative to the cwd. */
 const HOST_DIST = fileURLToPath(new URL("../../host/dist/", import.meta.url));
+
+/** packages/host/src, the sources `dist` is built from and is checked against below. */
+const HOST_SRC = fileURLToPath(new URL("../../host/src/", import.meta.url));
+
+/** The two files the host builds to, which are the two this copies. */
+const PAYLOAD_FILES = ["pre.js", "post.js"] as const;
+
+const BUILD_HINT = "run `pnpm build` (or `pnpm --filter @rigline/host build`) and try again";
+
+/** The newest mtime anywhere under `dir`, or 0 for a directory that is not there. */
+function newestMtime(dir: string): number {
+  if (!existsSync(dir)) return 0;
+  let newest = 0;
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    const at = entry.isDirectory() ? newestMtime(path) : statSync(path).mtimeMs;
+    if (at > newest) newest = at;
+  }
+  return newest;
+}
+
+/**
+ * Refuse to build a payload out of a host build older than the host sources.
+ *
+ * These tests drive the *real* `pre.js` and `post.js`, copied from `dist`, so vitest on its own
+ * exercises whatever was last built. Without this, a change to the host with no rebuild gives
+ * either a green run against the previous payload — the worse outcome, since it reports a
+ * property of code that is not running — or a failure debugged in source that was never loaded.
+ * It was a rule in CLAUDE.md that every contributor had to keep; this is the tooling keeping it.
+ *
+ * Mtimes rather than content hashes: the question is only "was this built after it was edited",
+ * a rebuild of unchanged sources answers it correctly, and the cost is a stat per source file.
+ */
+function assertHostBuildIsCurrent(): void {
+  const built = PAYLOAD_FILES.map((file) => join(HOST_DIST, file));
+  const missing = built.filter((file) => !existsSync(file));
+  if (missing.length > 0) {
+    throw new Error(
+      `@rigline/host is not built: ${missing.join(", ")} ${missing.length === 1 ? "is" : "are"} missing — ${BUILD_HINT}`,
+    );
+  }
+  const oldestBuilt = Math.min(...built.map((file) => statSync(file).mtimeMs));
+  const newestSource = newestMtime(HOST_SRC);
+  if (newestSource > oldestBuilt) {
+    throw new Error(
+      `@rigline/host has sources newer than its build, so these tests would run against a stale ` +
+        `pre.js/post.js and report a property of code that is not loaded — ${BUILD_HINT}`,
+    );
+  }
+}
 
 export interface FixturePlugin {
   readonly name: string;
@@ -50,9 +100,11 @@ export interface PreparePayloadOptions {
 
 /** Write pre.js, post.js, generated.js, registry.js and plugins/<name>/index.js into `dir`. */
 export function preparePayload(dir: string, options: PreparePayloadOptions): void {
+  assertHostBuildIsCurrent();
   mkdirSync(dir, { recursive: true });
-  copyFileSync(join(HOST_DIST, "pre.js"), join(dir, "pre.js"));
-  copyFileSync(join(HOST_DIST, "post.js"), join(dir, "post.js"));
+  for (const file of PAYLOAD_FILES) {
+    copyFileSync(join(HOST_DIST, file), join(dir, file));
+  }
 
   const generated = generate(harvestAll(corpusBundles(options.version)));
   writeFileSync(join(dir, "generated.js"), withoutIdentifiers(generated.runtime, options.remove));
