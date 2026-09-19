@@ -98,6 +98,29 @@ Approving in dependency order matters and `stage approve` does it for you — a 
 workspace dependency could not be approved is skipped rather than published against a dependency
 the registry never received.
 
+## Two traps, both already paid for
+
+**`latest` does not move unless you publish to it.** A package must have a `latest`, so the very
+first publish pins one whatever `--tag` says — and nothing moves it afterwards except another
+publish to `latest` or a `dist-tag` change. That stranded `latest` on `1.0.0-alpha.0` here while
+`next` went ahead, which mattered because `npm create rigline-plugin` resolves `latest`: the
+documented command went on producing a scaffold that a later version had already fixed. While
+everything is a prerelease the newest good build should hold both tags, so release with
+`dist_tag: latest` unless there is a stable line to protect.
+
+**`pnpm dist-tag` cannot do 2FA with a security key.** It takes `--otp` and nothing else, so an
+account whose second factor is a passkey or Windows Hello — no typed code to give it — gets:
+
+    You must provide a one-time pass. Upgrade your client to npm@latest in order to use 2FA.
+
+pnpm does ship browser-based auth (its `network-web-auth` crate prompts to open a URL, which is how
+`pnpm stage approve` works with a key), but `dist-tag` does not appear to route through it, and
+`--auth-type` is neither a flag nor a key `pnpm config set` accepts. So do not plan a release around
+moving a tag by hand. **Publish to the tag you want instead**: staging authenticates over OIDC and
+needs no second factor at all, and the approval step is the one that does support a key. Which is
+the better path anyway — it leaves a version behind it rather than a pointer with nothing new under
+it.
+
 ## If something goes wrong
 
 **A staged version you do not want to ship**: do not approve it. It expires. Fix the code, bump

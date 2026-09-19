@@ -41,3 +41,18 @@ pnpm 12 and Node 26.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for installing (and uninstalling) Rigline against your own
 copy of the extension.
+
+## Releasing
+
+Four packages go to npm: `rigline`, `@rigline/core`, `@rigline/plugin-api` and
+`create-rigline-plugin`. CI stages them over OIDC, so no npm token is stored anywhere, and a person
+approves with 2FA afterwards — a staged version is one nobody can install until they do.
+
+1. Bump the versions, commit, push to `main`.
+2. Run the **Release** workflow from the Actions tab, choosing the dist-tag.
+3. `pnpm stage approve` on your own machine.
+
+[docs/releasing.md](docs/releasing.md) is the full runbook: the one-time npm setup, what to do when
+a step fails, and the two traps that have already cost time here — `latest` staying pinned to the
+first version ever published, and `pnpm dist-tag` demanding a typed one-time password that a
+security key cannot give it.

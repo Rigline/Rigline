@@ -68,3 +68,10 @@ for you. Run `install` again after updating.
 
 Work happens on `main`; there's no branching model yet. Commit at each checkpoint rather than
 accumulating a large, hard-to-review tree.
+
+## Releasing
+
+Not something a contributor needs, but it is written down rather than held by one person:
+[docs/releasing.md](docs/releasing.md) has the whole path. In short, CI stages to npm over OIDC
+and a maintainer approves with 2FA; nothing publishes straight from a push, and no npm credential
+lives in this repository.
