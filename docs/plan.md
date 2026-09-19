@@ -61,8 +61,11 @@ pnpm workspace, TypeScript throughout, every package a real package with its own
 | `plugins/worktree-prefix` | first-party plugin | Worktree prefix on the session tab label; declares the worktree-list host patch. |
 | `plugins/time-marks` | first-party plugin | Clock times and pause dividers on transcript rows. |
 | `plugins/probe` | first-party plugin | The live integration harness: a check per capability and the `RIG` badge in the composer footer. |
-| `fixtures/plugins/*` | test fixtures | Plugins that must be refused (unknown class, unknown field, failed required patch). Test-only. |
 | `docs/` | | Plan, decisions, topic docs, authoring guide, archive. |
+
+Plugins that exist to be refused (unknown class, unknown field, failed required patch) are module
+source strings the harness hands `preparePayload`, not a directory: nothing on disk, so nothing
+discovery could install (D17).
 
 Each first-party plugin: `rigline.json`, `package.json`, `src/index.ts`, `src/*.test.ts`,
 `README.md`, built by `rigline build` to `dist/index.js`. The distributed form of any plugin is one
@@ -282,10 +285,16 @@ In order.
    D40's own promise made true at the one moment it is easiest to break. It ships without the
    publish workflow: D50 has the template carry it, and item 6 is where it is proven before it is
    handed to anybody.
-5. **Topic docs**: architecture, identifier layers, the bus, host patches, the transcript,
-   verification. [anchors.md](anchors.md) covers the anchor half of surviving an update and
-   [authoring.md](authoring.md) covers publishing a plugin, so what is left is the internals a
-   contributor to Rigline itself reads.
+5. **Topic docs** — done 2026-09-19. [anchors.md](anchors.md) covers the anchor half of surviving
+   an update and [authoring.md](authoring.md) covers publishing a plugin, so what is left is the
+   internals a contributor to Rigline itself reads. Six, on [host.md](host.md)'s model — the shape,
+   not the argument, with the argument in [decisions.md](decisions.md):
+   [architecture.md](architecture.md) (the map: what runs where, the seams, the two pipelines),
+   [identifiers.md](identifiers.md) (the layer contract, the five layers, views, codegen, adding
+   one), [bus.md](bus.md) (the protocol, the single egress, the tap, the rewrite chain, the derived
+   services), [patches.md](patches.md) (the second bundle and why it is a different kind of change),
+   [transcript.md](transcript.md) (the three-way join and the sweep), and
+   [verification.md](verification.md) (the three tiers and what belongs in each).
 6. **Our own release pipeline** (D46), which is a separate track and gates none of the above. The
    staged-publish workflow for the three packages, proven on a real release before the template
    hands it to anyone else. One `pnpm stage publish -r` stages all three; each is approved on its
@@ -324,9 +333,9 @@ known risk to weigh when this phase starts.
 
 ## Next session
 
-Phase 4 item 5, the topic docs, then item 6, the release pipeline. Item 6 needs Leo: the one-time
-npm setup is his, and `pnpm stage publish` and OIDC is an open question to verify before the
-workflow is written. The template ships without the publish workflow until that is proven.
+Phase 4 item 6, the release pipeline, which needs Leo: the one-time npm setup is his, and `pnpm
+stage publish` and OIDC is an open question to verify before the workflow is written. The template
+ships without the publish workflow until that is proven.
 
 **About this machine.** Only 2.1.270 is installed — VS Code deleted 2.1.268 and 2.1.269 once nothing
 was serving them, which is the behaviour D4 exists for; both are still in the corpus. Its
@@ -440,3 +449,8 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   `generated.ts` from the merged table, so one machine's local repair would have been committed into
   the record every other checkout reads; the write is now the shipped table's answer, byte for byte,
   and a test holds it there.
+- 2026-09-19: The six topic docs landed, and phase 4 item 5 with them. Writing them turned up one
+  stale fact in three places: D17 put the refusal fixtures under `fixtures/`, and the directory was
+  never made — the harness carries them as module source strings instead, which serves the decision
+  better, since there is nothing on disk for discovery to find. D17, this plan's package table and
+  the README now say so.

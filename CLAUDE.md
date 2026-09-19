@@ -16,11 +16,33 @@ from. Update the plan before writing code; log status there, not here.
 
 - [docs/plan.md](docs/plan.md): what Rigline is, the physics that shape it, the architecture,
   phases with acceptance criteria, status log.
-- [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D39.
+- [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D58.
+
+The internals, for a contributor to Rigline itself. The shape, not the argument — the argument is in
+decisions.md, and each doc cites the decisions it rests on.
+
+- [docs/architecture.md](docs/architecture.md): the map. What runs in Node and what in the webview,
+  the one channel between them, the packages, the three registries, the install and boot pipelines,
+  failure isolation, where state lives, which reload a change needs. Start here.
+- [docs/identifiers.md](docs/identifiers.md): the layer contract, the five layers and what each
+  anchors on, floors and views, the stability diff, codegen's two outputs, adding a layer.
+- [docs/bus.md](docs/bus.md): the protocol's three shapes, the single egress, what a tap is handed,
+  the replay buffer, the rewrite chain and its refusals, `resend`, the session and tool services.
+- [docs/host.md](docs/host.md): the injected runtime — what lands on disk, `pre.js`, the `post.js`
+  kernel, the capability module contract, the manifest, the registry, diagnostics.
+- [docs/patches.md](docs/patches.md): byte substitutions in `extension.js` — why the capability
+  exists, rebuild-from-backup, the three refusals, and how to write one.
+- [docs/transcript.md](docs/transcript.md): the three-way join behind an entry, row identity through
+  React, the sweep, and what a decoration must never do to a row.
+- [docs/verification.md](docs/verification.md): the three tiers, the corpus, the harness, the probe,
+  and which tier a question belongs to.
+
+Written for somebody else, so don't rewrite them for us:
+
 - [docs/anchors.md](docs/anchors.md): what an anchor is, and repairing one through
-  `~/.rigline/anchors.json` without waiting for a release. Written for a user, not for us.
+  `~/.rigline/anchors.json` without waiting for a release. Written for a user.
 - [docs/authoring.md](docs/authoring.md): writing, testing and shipping a plugin. Written for a
-  plugin author, not for us; `packages/create-plugin/template/` is the scaffold it starts from.
+  plugin author; `packages/create-plugin/template/` is the scaffold it starts from.
 - [docs/archive/0.x/](docs/archive/0.x/README.md): the 0.x prototype's design record and source
   inventories, the evidence behind the measurements the decisions cite. OCR-recovered; read its
   caveats before quoting a number or a regex from it.

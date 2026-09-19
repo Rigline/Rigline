@@ -224,9 +224,11 @@ declaration. The mapping lives in exactly one table read by both the Node gate a
 check, so the grant and the gate cannot drift apart.
 
 **D17. Refusal fixtures are test-only.** Plugins that exist to be refused (an unknown class, an
-unknown field, a failed required patch) live under `fixtures/` and are never installed by default.
-Installing them live would force an expected-refusals list to be maintained wherever refusals are
-scored.
+unknown field, a failed required patch) are never installed by default. Installing them live would
+force an expected-refusals list to be maintained wherever refusals are scored. A `fixtures/`
+directory was the planned home; the harness gives them a stronger one, as module source strings
+handed to `preparePayload` (see [verification.md](verification.md)), so there is nothing on disk for
+discovery to find at all.
 
 **D40. No harvested identifier types are published; an author harvests and commits their own.**
 `@rigline/plugin-api` ships the curated anchor names, the manifest type and the context types, and

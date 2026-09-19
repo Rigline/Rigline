@@ -1,8 +1,10 @@
 # Contributing to Rigline
 
 This covers building the project and trying it against your own installed copy of the Claude Code
-VS Code extension. For the architecture and the reasoning behind it, see
-[docs/plan.md](docs/plan.md) and [docs/decisions.md](docs/decisions.md).
+VS Code extension. For how the system is put together, start with
+[docs/architecture.md](docs/architecture.md); [docs/plan.md](docs/plan.md) says where the work is
+and [docs/decisions.md](docs/decisions.md) why the shape is this shape. The remaining topic docs are
+indexed in [CLAUDE.md](CLAUDE.md).
 
 ## Prerequisites
 
