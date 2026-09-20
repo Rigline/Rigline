@@ -16,7 +16,7 @@ import { describe, expect, it } from "vitest";
 import type { FixturePlugin } from "../src/payload.ts";
 import { harnessSkipReason, register } from "../src/suite.ts";
 
-const VERSION = "2.1.270";
+const VERSION = "2.1.278";
 
 const DIST_PATH = fileURLToPath(
   new URL("../../../plugins/session-id/dist/index.js", import.meta.url),

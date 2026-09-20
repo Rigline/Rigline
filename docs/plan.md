@@ -390,9 +390,11 @@ is the one plugin that declares a host patch, and a host patch takes effect only
 Reload Window*, which ends every Claude session in that window. `pnpm rigline restore` puts a version
 back to the extension's own bytes and needs neither VS Code nor the extension to be working.
 
-The harness is still pinned to 2.1.270 in each of its four test files. Now that 2.1.278 is in the
-corpus it could move, and whether it should on every extension release — reproducibility against
-testing what people run — is a policy nobody has set.
+The harness pins a corpus version in each of its four test files, and the pin follows the installed
+extension: it is 2.1.278, and all 34 tests pass against it. Moving it is maintenance rather than a
+decision — the corpus keeps every version, so an old pin costs reproducibility nothing and buys
+testing a bundle nobody runs. A clone whose corpus lacks the pinned version skips the suite with a
+reason, as it always did.
 
 **What the live read is for.** The panel now groups by contributor, so the first question is whether
 each group says what it should on each surface: `core` above the plugins, `n/a` where a capability
