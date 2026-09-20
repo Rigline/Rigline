@@ -854,6 +854,27 @@ permanent rather than an inconvenience: npm stopped accepting new TOTP enrolment
 and is retiring the ones it grandfathered, so a design resting on a typed code is a design with an
 end date.
 
+**D62. `main` is always the line `latest` points at; every other live line is a `<major>.x` branch
+(2026-09-20, Leo).** Routine work and maintenance releases happen on `main`. The next major lives on
+one long-lived branch until it ships, and then *becomes* `main`; if the old line still needs support,
+`1.x` is cut from its last tag at that point. Merge `main` into a line branch and never the reverse,
+so the branch carries every maintenance fix as it lands and the handover is a fast-forward.
+
+The rule is a convention for people, not an input to anything. No script reads a branch: a version
+is computed from the checkout, a dist-tag from that version and the registry (D61), and a tag names
+a commit. That is what lets two release lines run at once for no machinery — each branch's
+`package.json` holds its own line's version, so the same command with the same argument computes
+`1.2.4` on `main` and `2.0.0-alpha.2` on `2.x`, and nobody has to say which line they are on.
+
+`main` tracks the released line rather than being the development trunk, which is the less common
+half of this and costs a long-lived branch that drifts. It buys the thing that matters more here:
+what a person gets by cloning is what they get by installing, and the routine case needs no branch
+at all. The drift is paid down by the merge direction above rather than at the end.
+
+The changelog is the one file this reliably conflicts in, since both lines append under
+`## Unreleased`. Resolved at merge, keeping both sides in version order (D60). An entry-file layout
+would remove the conflict and is the known answer if it ever stops being a minute's work.
+
 ### Toolchain and verification
 
 **D34. Toolchain: pnpm 12, TypeScript 7, Rolldown for browser bundles, Vitest, Biome with

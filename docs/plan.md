@@ -1,8 +1,9 @@
 # Rigline 1.0 plan
 
 The working document: what is being built, in what order, and where it stands. Durable rules live
-in [decisions.md](decisions.md); this file is about getting to 1.0. Phases 0 to 4 are done; 5 and
-6 are both later, and nothing in 1.0 is waiting on either.
+in [decisions.md](decisions.md); this file is about getting to 1.0. Phases 0 to 4b are done; 5 and
+6 are both later, and nothing in 1.0 is waiting on either. Delivery has its own document,
+[ci.md](ci.md) — the branching rule, the release commands and the two workflows.
 
 ## What Rigline is
 
@@ -315,31 +316,10 @@ In order.
    which is why the template ships it undotted, and whether the same happens to `.github/` decides
    whether the scaffolder needs the same trick a second time.
 
-### Phase 4b: the changelog, and what a release verifies — done 2026-09-20
+### Phase 4b: the changelog, and the release pipeline — done 2026-09-20
 
-1. **`CHANGELOG.md` at the root, entries written as the change lands.** Under `## Unreleased`, in
-   the same commit as the change. A rule in [CLAUDE.md](../CLAUDE.md) so it happens at every
-   checkpoint commit rather than being reconstructed at release time. Each published package's
-   README links to it; it ships in no tarball, for the reason D60 gives.
-
-2. **`pnpm release <increment>`.** Computes the version from the tree with `semver.inc`, rolls
-   `## Unreleased` into it, writes it into every `package.json`, commits, tags `v<version>` and
-   pushes. Prints what it computed before writing anything, and `--dry-run` stops there. Refuses a
-   dirty tree and an empty `Unreleased` — a release with nothing to say about it is a mistake, not
-   a case to handle.
-
-3. **The workflow triggers on the tag, and verifies before it stages.** The changelog has a section
-   for the version in the tree, the tag names that version, and the dist-tag is derived rather than
-   asked for (D61). All reads: no credential, no permission, and they fail the run before anything
-   reaches npm.
-
-4. **`pnpm release:finish`.** Approves what is staged, reconciles `next`, and creates the GitHub
-   release from the changelog section. The retag goes through the npm CLI, not pnpm's, so it
-   completes against a security key.
-
-*Acceptance:* a release is two commands, both in the terminal, with no browser between them; a
-version the changelog does not describe cannot be staged; and neither dist-tag is ever chosen by a
-person or left behind by a release that should have moved it.
+Delivery outgrew a phase entry. The model, the branching rule, the two workflows and what is still
+outstanding live in [ci.md](ci.md); [releasing.md](releasing.md) is the runbook.
 
 ### Phase 5, later: companion VS Code extension
 
@@ -393,11 +373,8 @@ Phases 0 to 4b are done and `1.0.0-alpha.2` is published to `latest`, verified b
 the registry and taking it through install, build, typecheck and test. Nothing is blocked. What is
 open is a choice between phase 5, phase 6, and the loose ends below.
 
-**The release pipeline has not been driven end to end yet.** Every part of it is tested or exercised
-— the derivation in tier 1, the local command by dry run, the workflow's checks by CI — but no tag
-has been pushed through it. The first real release is the test, and the thing to watch is the
-handover: that `release:check` derives the tag you expect, and that `release:finish` finds the stage
-where it looks for it.
+**The release pipeline has not been driven end to end yet**, and [ci.md](ci.md) carries that along
+with the rest of what delivery still owes.
 
 **Take phase 6 next.** A recommendation, not a neutral listing. It is the one open item that pays
 somebody other than us: a plugin is precisely the thing whose failure is invisible today, and the
@@ -405,9 +382,6 @@ probe cannot say a word about one, because every check it runs is written inside
 larger lift and turns on a question nobody here can answer from the code — Marketplace policy on an
 extension that patches another extension — so it wants a session that begins by finding that out,
 not one that begins by writing.
-
-**One thing CI still leaves on the table.** macOS is untested anywhere: the matrix is Linux plus
-one Windows row, so the third platform a VS Code user might be on has never run this code.
 
 **About this machine.** Only 2.1.270 is installed — VS Code deleted 2.1.268 and 2.1.269 once nothing
 was serving them, which is the behaviour D4 exists for; both are still in the corpus. Its
