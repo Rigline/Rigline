@@ -129,6 +129,14 @@ Work on `main` and commit straight to it; commit at each checkpoint rather than 
 large tree. Stage by path if `git status` shows changes you did not make. Commit messages go
 through a file (`.commitmsg.tmp`, gitignored) and `git commit -F`.
 
+**A user-visible change updates `CHANGELOG.md` in the same commit**, under `## Unreleased` (D60).
+User-visible means somebody installing a package would notice: behaviour, the CLI's surface, what a
+plugin can do, what the scaffolder emits, a dependency floor. Refactors, docs and tests are not,
+and padding the file with them makes the real entries harder to find. It is written for somebody
+reading it on npm, not for us — say what changed for them, not which function moved.
+`pnpm release:prep <version>` rolls the section and sets every manifest's version; the release
+refuses a version the changelog has no section for.
+
 Toolchain: pnpm 12, Node 22.12+ (26 here), TypeScript 7, Rolldown, Vitest, Biome. Semicolons are
 required. CI runs lint, typecheck, build and test on every push and pull request, over a Node
 matrix whose lowest rung is the `engines` floor the published packages declare (D59) — so moving

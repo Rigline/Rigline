@@ -38,4 +38,7 @@ registries, and the install and boot pipelines. The decisions each part rests on
 [decisions.md](https://github.com/Rigline/Rigline/blob/main/docs/decisions.md), and the code cites
 them by number.
 
+[Changelog](https://github.com/Rigline/Rigline/blob/main/CHANGELOG.md) — every package in this
+workspace shares it, and one version number.
+
 MIT.

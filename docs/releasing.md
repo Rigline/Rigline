@@ -84,9 +84,13 @@ publisher.
 ## Cutting a release
 
 1. Run `pnpm test` locally, with the corpus, and read the skips.
-2. Bump the version of each package that is going out. Leave the others alone; `-r` skips whatever
-   the registry already has.
-3. Commit and push to `main`.
+2. `pnpm release:prep <version>`. It rolls the changelog's `## Unreleased` section into one headed
+   by the version, opens a fresh `Unreleased`, and writes the version into every manifest. All of
+   them move together — one changelog and one version number across the workspace (D60) — and `-r`
+   still publishes only what the registry does not already have.
+3. Read the diff, then commit and push to `main`. The bump and the notes belong in one commit: the
+   release refuses a version the changelog has no section for, and `--provenance` attests the tree
+   the tarball was built from.
 4. Run the **Release** workflow from the Actions tab, choosing the dist-tag. `Dry run` builds,
    tests and packs without staging — worth doing first after any change to the pipeline or to the
    publishers, since its log shows whether every exchange succeeded.
@@ -98,7 +102,7 @@ Approving in dependency order matters and `stage approve` does it for you — a 
 workspace dependency could not be approved is skipped rather than published against a dependency
 the registry never received.
 
-## Two traps, both already paid for
+## Three traps, all already paid for
 
 **`latest` does not move unless you publish to it.** A package must have a `latest`, so the very
 first publish pins one whatever `--tag` says — and nothing moves it afterwards except another
@@ -108,17 +112,23 @@ documented command went on producing a scaffold that a later version had already
 everything is a prerelease the newest good build should hold both tags, so release with
 `dist_tag: latest` unless there is a stable line to protect.
 
-**Enrol a TOTP authenticator even if you use a security key.** A key is the better factor and works
-everywhere a browser is involved — `npm login`, and the web flow `pnpm stage approve` can fall back
-to. But some CLI paths accept only a typed code, and you find out which at the moment you are trying
-to ship. npm allows both methods on one account; recovery codes issued when 2FA was enabled also
-work wherever an OTP is asked for, once each.
+**A security key is the only second factor you can still enrol, so plan around what it can do.** npm
+stopped accepting new TOTP enrolments in September 2025 and is retiring the ones it grandfathered,
+which turns "some CLI paths accept only a typed code" from an inconvenience into a wall: there is no
+code to type and no way to arrange one. Recovery codes from an earlier enrolment still work wherever
+an OTP is asked for, once each, and that is the whole of the fallback.
 
-The npm CLI is the one to reach for when pnpm will not do the browser flow: `auth-type` defaults to
-`web`, so `npm login` prints a URL, waits, and completes against a key. It is easy to think it has
-hung — it prints `Login at:` and one URL, then goes silent while it polls, and it does not open a
-browser for you. `npm stage list` and `npm stage approve <id>` then work on stages pnpm created,
-because the stages live on the registry and do not care which client made them.
+The npm CLI is the one to reach for when pnpm will not do the browser flow, and it is worth knowing
+*why* rather than treating it as a quirk of one command. Every npm write that can need a second
+factor goes through one wrapper, `otplease`; its first branch opens a browser when the registry
+answers with an `authUrl`, and only its second asks for a typed code. So `npm publish`,
+`npm dist-tag` and the rest all complete against a key, and they do it because the registry offered
+the flow — not because of `auth-type`, which only `login` and `adduser` read. The same wrapper is
+also why none of them work in CI: it re-throws unless both stdin and stdout are a TTY.
+
+`npm login` prints `Login at:` and one URL, then goes silent while it polls, and does not open a
+browser for you — easy to read as a hang. `npm stage list` and `npm stage approve <id>` then work on
+stages pnpm created, because the stages live on the registry and do not care which client made them.
 
 npm is meanwhile closing off the alternative on its own account. `npm login` now prints:
 
@@ -134,11 +144,14 @@ account whose second factor is a passkey or Windows Hello — no typed code to g
 
 pnpm does ship browser-based auth (its `network-web-auth` crate prompts to open a URL, which is how
 `pnpm stage approve` works with a key), but `dist-tag` does not appear to route through it, and
-`--auth-type` is neither a flag nor a key `pnpm config set` accepts. So do not plan a release around
-moving a tag by hand. **Publish to the tag you want instead**: staging authenticates over OIDC and
-needs no second factor at all, and the approval step is the one that does support a key. Which is
-the better path anyway — it leaves a version behind it rather than a pointer with nothing new under
-it.
+`--auth-type` is neither a flag nor a key `pnpm config set` accepts. **Use `npm dist-tag` instead**,
+which does — for the reason the trap above gives. This is the whole of the difference: the operation
+is fine, one client cannot authenticate it.
+
+Publishing to the tag you want is still the better path where there is a choice, because it leaves a
+version behind it rather than a pointer with nothing new under it. Moving a tag is for the case that
+has no version to publish: a release to `latest` that should carry `next` forward with it (D61),
+where the two tags name one version and only one of them can be set at publish time.
 
 ## If something goes wrong
 

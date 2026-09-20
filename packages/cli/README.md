@@ -51,4 +51,7 @@ there is nothing to resolve. A version must reach a minimum age (a day, by defau
 form. [Anchors](https://github.com/Rigline/Rigline/blob/main/docs/anchors.md) is what to read when
 an extension update breaks a plugin and you would rather not wait for a release.
 
+[Changelog](https://github.com/Rigline/Rigline/blob/main/CHANGELOG.md) — every package in this
+workspace shares it, and one version number.
+
 MIT.

@@ -42,4 +42,7 @@ is the one ordering dependency in the whole arrangement.
 
 [Authoring guide](https://github.com/Rigline/Rigline/blob/main/docs/authoring.md)
 
+[Changelog](https://github.com/Rigline/Rigline/blob/main/CHANGELOG.md) — every package in this
+workspace shares it, and one version number.
+
 MIT.

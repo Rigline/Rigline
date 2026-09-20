@@ -315,6 +315,33 @@ In order.
    which is why the template ships it undotted, and whether the same happens to `.github/` decides
    whether the scaffolder needs the same trick a second time.
 
+### Phase 4b: the changelog, and what a release verifies
+
+Taken before phases 5 and 6. Distribution works; what it has no record of is what changed, and
+nothing checks that the version going out is the one the tree describes (D60, D61).
+
+1. **`CHANGELOG.md` at the root, entries written as the change lands.** Under `## Unreleased`, in
+   the same commit as the change. A rule in [CLAUDE.md](../CLAUDE.md) so it happens at every
+   checkpoint commit rather than being reconstructed at release time. Each published package's
+   README links to it; it ships in no tarball, for the reason D60 gives.
+
+2. **`pnpm release:prep <version>`.** Renames `## Unreleased` to the version under today's date,
+   opens a fresh `Unreleased`, and writes the version into every `package.json`. Refuses a version
+   that is not above the current one, and refuses an empty `Unreleased` — a release with nothing to
+   say about it is a mistake, not a case to handle.
+
+3. **The release workflow verifies before it stages.** The changelog has a section for the version
+   in the tree; no published package is already on the registry at that version. Both are reads,
+   need no credential, and fail the run before anything reaches npm.
+
+4. **`pnpm release:finish`.** Approves what is staged, then per package compares the released
+   version against what `next` holds and retags where `semver.gt` says it should move (D61).
+   Through the npm CLI, not pnpm's, so it completes against a security key.
+
+*Acceptance:* a release is three commands and one dispatch, none of which requires reading a
+summary and acting on it; a version with no changelog section cannot be staged; and `next` is never
+behind `latest` without someone having chosen it.
+
 ### Phase 5, later: companion VS Code extension
 
 A thin extension over core: re-inject on update, prompt for the webview reload, expose enable,
@@ -364,8 +391,8 @@ licence a plugin's own check should not inherit.
 ## Next session
 
 Phases 0 to 4 are done and `1.0.0-alpha.2` is published to `latest`, verified by scaffolding from
-the registry and taking it through install, build, typecheck and test. Nothing is blocked. What is
-open is a choice between phase 5, phase 6, and the loose ends below.
+the registry and taking it through install, build, typecheck and test. Nothing is blocked. Phase 4b
+is in flight; after it, what is open is a choice between phase 5, phase 6, and the loose ends below.
 
 **Take phase 6 next.** A recommendation, not a neutral listing. It is the one open item that pays
 somebody other than us: a plugin is precisely the thing whose failure is invisible today, and the
@@ -593,3 +620,9 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   reading a warning. Two gaps it does not close, both written down rather than left to be
   discovered: the template's own workflows are not at the repository root and so are not watched,
   and enabling version updates is a repository setting rather than a file.
+- 2026-09-20: `CHANGELOG.md`, `pnpm release:prep` and `pnpm release:check` (D60) — entries written
+  as the change lands, one command to cut a version across every manifest, and a release that
+  refuses a version the changelog does not describe. D61 records why moving `next` cannot be CI's
+  job: npm's OIDC exchange authenticates `publish` and `stage publish` and nothing else, and
+  `otplease` needs a TTY, so the retag belongs to `release:finish` beside the approval. Phase 4b's
+  fourth item is what remains.

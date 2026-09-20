@@ -772,6 +772,61 @@ contract, never the toolchain — the template is how the good path is made the 
 requirement we could enforce or would want to. The package name stays singular, because
 `create-rigline-plugin` is what an author types.
 
+**D60. One root changelog, written as the change lands; the version bump is one local command and
+the release only verifies it (2026-09-20, Leo).** Entries go under `## Unreleased` in `CHANGELOG.md`
+in the same commit as the change they describe, and `pnpm release:prep <version>` renames that
+heading to the version, opens a fresh `Unreleased`, and sets the version in every `package.json` at
+once. One commit carries the bump and the notes, and the release workflow refuses to stage a version
+the changelog has no section for.
+
+The bump stays in a commit rather than moving into the workflow because of what `--provenance`
+attests. A version staged from a runner-side edit is one no commit in `main` declares, so the
+attestation names a tree whose `package.json` disagrees with the tarball; a workflow that bumps
+*and* pushes fixes that but needs `contents: write`, and then attests a commit it created after
+checkout rather than the one the release was dispatched on. Both are workable and both spend the
+audit trail D46 bought. Verification is the half CI is good at and can have for free: it reads the
+registry and the tree and refuses a release whose facts do not line up, which needs no credential
+and no permission.
+
+Every package moves together, so one changelog at the root is one file rather than four copies of
+it. It is not in any tarball: `files` cannot reach above a package root, so shipping it would mean
+copying it into four directories at pack time and ignoring four copies, which buys less than it
+costs. Each package's README links to it instead.
+
+**Not changesets, and not conventional commits.** Changesets earns its complexity on independent
+per-package versions, and every version here moves in lockstep — and it wants to own publishing,
+which is the stage-and-approve split (D46) and the last thing to put another tool inside. Commit
+message conventions would generate the changelog from what is already written, at the price of
+writing `ci: add dependabot config` where this repository writes *A bot watches the action pins,
+because a person did not*. GitHub's generated release notes read merged pull requests, so they are
+empty for a repository that commits to `main`, and they live where an installed tarball cannot see
+them. The entry-file shape changesets uses is the right upgrade when a second contributor makes
+`Unreleased` a merge conflict; it solves nothing for one committer working serially.
+
+**D61. `next` never moves backwards, and moving it is the approval step's job, not CI's
+(2026-09-20, Leo).** A release to `latest` also takes `next` when the version going out is newer
+than what `next` holds, and leaves it alone when it is not — so a maintenance release on a `latest`
+line cannot drag `next` back off a preview that is ahead of it. The comparison is `semver.gt` and
+not a string compare, which sorts `1.0.0-alpha.10` below `1.0.0-alpha.2` and would move the tag
+backwards on precisely the release nobody would check.
+
+CI cannot do this half, for two reasons that hold independently. npm's OIDC exchange authenticates
+`npm publish` and `npm stage publish` and nothing else, `dist-tag` included; and `otplease`, the
+wrapper every 2FA'd write goes through, returns the original error unless both stdin and stdout are
+a TTY, so a runner has no second-factor path at all. The only way round either is a long-lived
+token with publish rights in a repository secret, which is the credential D46 exists to remove —
+and npm has been removing it anyway, having revoked classic tokens and capped granular write tokens
+at ninety days. So the retag belongs to `pnpm release:finish`, beside the approval it has to follow:
+a tag cannot point at a version the registry does not have yet, so this was never work that could
+happen before approving.
+
+It runs through the npm CLI rather than pnpm's. `npm dist-tag` calls the same `otplease` as `npm
+publish`, whose first branch opens a browser when the registry offers one — so it completes against
+a security key, where `pnpm dist-tag` takes a typed code and nothing else. That distinction is now
+permanent rather than an inconvenience: npm stopped accepting new TOTP enrolments in September 2025
+and is retiring the ones it grandfathered, so a design resting on a typed code is a design with an
+end date.
+
 ### Toolchain and verification
 
 **D34. Toolchain: pnpm 12, TypeScript 7, Rolldown for browser bundles, Vitest, Biome with

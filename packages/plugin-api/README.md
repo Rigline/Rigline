@@ -66,4 +66,7 @@ actually has are the ones your editor offers you. No published type union double
 [Authoring guide](https://github.com/Rigline/Rigline/blob/main/docs/authoring.md) ·
 [anchors](https://github.com/Rigline/Rigline/blob/main/docs/anchors.md)
 
+[Changelog](https://github.com/Rigline/Rigline/blob/main/CHANGELOG.md) — every package in this
+workspace shares it, and one version number.
+
 MIT.

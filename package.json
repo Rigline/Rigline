@@ -18,14 +18,18 @@
     "codegen": "rigline codegen",
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run",
+    "release:prep": "node scripts/release-prep.mjs",
+    "release:check": "node scripts/release-check.mjs",
     "lint": "biome check .",
     "format": "biome format --write ."
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.13",
     "@types/node": "^26.5.1",
+    "@types/semver": "^7.8.0",
     "rigline": "workspace:*",
     "rolldown": "^1.2.8",
+    "semver": "^7.8.5",
     "typescript": "^7.0.2",
     "vitest": "^5.0.0"
   }
