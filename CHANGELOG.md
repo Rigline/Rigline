@@ -12,6 +12,14 @@ anything may change between releases.
 
 ### Added
 
+- `ctx.check(name, run)`: a plugin contributes its own line to the diagnostics panel, grouped under
+  its own name. It declares nothing, and the host hands it nothing — your own state answers it. The
+  host calls it about once a second, so read state you already keep rather than computing an answer.
+  A check that throws shows as a failing line naming your plugin and never disables it.
+- The panel groups every line by who contributed it: the host's own under `core`, then each plugin.
+  A plugin that has quietly stopped working can now say so, where before the badge stayed green.
+- Scaffolded plugins ship with a check, so a new plugin starts with one rather than adding it after
+  the first silent failure.
 - A changelog, and `pnpm release <increment>` to cut and push a version with one command. A pushed
   tag starts the release; `pnpm release:finish` approves it, moves `next` if the release is ahead of
   it, and creates the GitHub release.

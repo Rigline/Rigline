@@ -1,91 +1,44 @@
 /**
- * Rigline's own integration harness: proves every capability the host grants through the same
- * `ctx` any plugin gets, plus the kernel's own bookkeeping, and shows the result as a small badge
- * in the composer footer (or fixed to a corner on the session list, which has no composer).
+ * Rigline's diagnostics panel, and one contributor to it.
  *
- * `globalThis.__rigline.diagnostics` is read directly below, which nothing else may do: this plugin
- * exists to diagnose the host, and the diagnostics it needs (pre/post timing, raw tap counts,
- * every plugin's load status, rewrite and patch bookkeeping) is not a capability a manifest could
- * sanely declare. Everything else here goes through `ctx` like any third-party plugin, which is
- * what makes an all-green badge proof that the plugin machinery itself works end to end.
+ * Two jobs that used to be one. The panel and the `RIG` badge render the host's check registry:
+ * `core` — the kernel and every capability module — then each plugin under its own name, so the
+ * report reads as *which part of this is broken* rather than as one undifferentiated list. And
+ * separately, this plugin contributes the handful of checks nothing else is in a position to run:
+ * the ones that have to do something to the bus and then look at what came back.
  *
- * Every verdict passes through `report()`, so the badge's failing count and the panel's lines are
- * always built from the same map and cannot disagree.
+ * `globalThis.__rigline` is read directly below, which nothing else may do. That is what this plugin
+ * is for: reading every contributor's verdict, and the diagnostics the copied report carries, is not
+ * a capability a manifest could sanely declare. Its own five checks go through `ctx.check` like
+ * anybody's, which is what keeps the panel honest about the API it is displaying.
  */
 import { definePlugin } from "@rigline/plugin-api";
 import {
-  acquireVerdict,
-  anchorResolvesVerdict,
-  anchorUniqueVerdict,
-  bufferSealedVerdict,
-  busTrafficVerdict,
-  type CheckResult,
+  badgeMountedVerdict,
+  type CheckGroup,
   chainComposeVerdict,
   errorMessage,
   failingCount,
-  formatLine,
+  formatGroups,
   formatReport,
-  hostErrorsVerdict,
   immutabilityVerdict,
   leakVerdict,
-  mountOrderVerdict,
-  mountReplacementVerdict,
-  mountSurvivesVerdict,
   type PluginStatusLike,
-  pluginStatusVerdict,
-  preHookOrderVerdict,
   type RewriteRecordLike,
-  reactVerdict,
   rewriteBookkeepingVerdict,
-  sessionIdVerdict,
-  stylesheetVerdict,
-  tablesLoadedVerdict,
-  toolCallsVerdict,
-  transcriptVerdict,
-  type Verdict,
 } from "./checks.ts";
 
 /** The mark the first rewriter adds and the second strips, so the net effect on the wire is nothing. */
 const MARK = "[rigline-probe] ";
 
-/** The check names, in report order. Seeded up front so the panel's line order never depends on
- * which event happens to fire first. */
-const ORDER = [
-  "pre hook ran before render",
-  "acquireVsCodeApi wrapped and called",
-  "bus traffic in both directions",
-  "replay buffer sealed",
-  "tables loaded",
-  "every plugin loaded",
-  "no host errors",
-  "React renderer injected",
-  "surface",
-  "read taps are immutable",
-  "anchor resolves",
-  "anchor element found",
-  "watched singletons match one element",
-  "mount survives re-render",
-  "mounts sharing an anchor keep registry order",
-  "rewrite chain composes in order",
-  "read taps see the app's original",
-  "rewrite bookkeeping",
-  "tool calls observed",
-  "session id observed",
-  "transcript rows identified and timed",
-  "stylesheet applied",
-  "mounts re-placed after a re-render",
-] as const;
+/** The fields of `globalThis.__rigline` this plugin reads. See the host's kernel/bridge.ts for the
+ * full shape; `checks` is the registry every contributor's line comes back through. */
+interface ProbeBridge {
+  readonly diagnostics: ProbeDiagnostics;
+  readonly checks: { run(): readonly CheckGroup[] } | null;
+}
 
-/** The fields of `globalThis.__rigline.diagnostics` this plugin reads. See bridge.ts for the full shape. */
 interface ProbeDiagnostics {
-  readonly rootChildrenAtPre: number;
-  readonly rootChildrenAtPost: number | null;
-  readonly acquireWrapped: boolean;
-  readonly acquireCalled: boolean;
-  readonly outboundCount: number;
-  readonly inboundCount: number;
-  readonly buffered: number;
-  readonly bufferSealed: boolean;
   readonly identifiersFor: string | null;
   readonly plugins: readonly PluginStatusLike[];
   readonly rewrites: readonly RewriteRecordLike[];
@@ -96,14 +49,11 @@ interface ProbeDiagnostics {
     readonly commits: number;
     readonly notified: number;
   };
-  readonly transcript: { readonly entries: number; readonly timed: number };
   readonly mounts: {
     readonly driver: "commit" | "observer";
     readonly active: number;
     readonly replaced: number;
-    readonly moved: number;
     readonly lost: number;
-    readonly multiple: Readonly<Record<string, number>>;
     readonly abandoned: readonly string[];
   };
   readonly meters: Record<
@@ -124,6 +74,8 @@ interface ProbeDiagnostics {
   } | null;
   readonly preAt: number;
   readonly postAt: number | null;
+  readonly outboundCount: number;
+  readonly inboundCount: number;
   readonly tapClones: number;
   readonly tapCloneMs: number;
   readonly tapCloneMaxMs: number;
@@ -136,9 +88,8 @@ interface ProbeDiagnostics {
   }[];
 }
 
-function readDiagnostics(): ProbeDiagnostics | null {
-  const bridge = (globalThis as { __rigline?: { diagnostics: ProbeDiagnostics } }).__rigline;
-  return bridge ? bridge.diagnostics : null;
+function readBridge(): ProbeBridge | null {
+  return (globalThis as { __rigline?: ProbeBridge }).__rigline ?? null;
 }
 
 const CSS = `
@@ -208,6 +159,11 @@ const CSS = `
 /** How long "copied"/"copy failed" sits in place of the button's own label before reverting. */
 const COPY_FLASH_MS = 1200;
 
+/** How often the panel and badge are refreshed. It is also how often every contributed check runs,
+ * for the life of the window, which is the cadence `ctx.check`'s "a check reads, it does not
+ * compute" rule exists to keep affordable. */
+const POLL_MS = 1000;
+
 /**
  * Copy `text` with `document.execCommand("copy")` over a detached, invisible textarea, rather than
  * the async Clipboard API, which needs a permission a webview does not necessarily hold and rejects
@@ -241,17 +197,17 @@ function copyToClipboard(text: string): boolean {
 
 export default definePlugin({
   setup(ctx) {
-    const checks = new Map<string, CheckResult>();
-    for (const name of ORDER) checks.set(name, { name, verdict: "n/a", detail: "no data yet" });
-
     let panelVisible = false;
     let currentBadge: HTMLElement | null = null;
     let badgeMounted = false;
-    let anchorEl: Element | null = null;
+
+    /** The last run of the registry. The panel, the badge and the clipboard all read this one
+     * value, so the count and the lines cannot disagree about what a check found. */
+    let groups: readonly CheckGroup[] = [];
 
     function applyBadgeState(): void {
       if (!currentBadge) return;
-      const failing = failingCount([...checks.values()]);
+      const failing = failingCount(groups);
       currentBadge.textContent = failing > 0 ? `RIG ${failing}` : "RIG";
       currentBadge.classList.toggle("rigline-probe-failing", failing > 0);
       const state = failing > 0 ? `${failing} failing` : "all checks pass";
@@ -259,21 +215,8 @@ export default definePlugin({
       currentBadge.title = `${state} — click to ${action} diagnostics`;
     }
 
-    /**
-     * The whole report as text: what the panel renders, and what the copy button hands over.
-     *
-     * Built from the check map both times rather than read back out of the DOM. The panel is only
-     * written to while it is open and only when the text has actually changed, so the DOM is not the
-     * record — copying from it would hand over whatever the last render happened to leave there.
-     * The 0.x prototype learned this from the other end, keeping a `reportCache` beside a panel
-     * whose writes it skipped mid-selection.
-     */
-    function reportText(): string {
-      return ORDER.map((name) => formatLine(checks.get(name) as CheckResult)).join("\n");
-    }
-
     function renderPanelBody(): void {
-      const text = reportText();
+      const text = formatGroups(groups);
       if (panelBody.textContent !== text) panelBody.textContent = text;
     }
 
@@ -288,8 +231,8 @@ export default definePlugin({
      * check lines alone if the bridge has gone, which would itself be worth reporting.
      */
     function clipboardText(): string {
-      const diag = readDiagnostics();
-      if (!diag) return reportText();
+      const diag = readBridge()?.diagnostics;
+      if (!diag) return formatGroups(groups);
       return formatReport(
         {
           extension: diag.identifiersFor,
@@ -313,7 +256,7 @@ export default definePlugin({
           previous: diag.previous,
           errors: diag.errors,
         },
-        ORDER.map((name) => checks.get(name) as CheckResult),
+        groups,
       );
     }
 
@@ -325,14 +268,6 @@ export default definePlugin({
         copyFlashTimer = null;
         copyButton.textContent = "copy";
       }, COPY_FLASH_MS);
-    }
-
-    function report(name: (typeof ORDER)[number], verdict: Verdict, detail: string): void {
-      const prev = checks.get(name);
-      if (prev && prev.verdict === verdict && prev.detail === detail) return;
-      checks.set(name, { name, verdict, detail });
-      applyBadgeState();
-      if (panelVisible) renderPanelBody();
     }
 
     function togglePanel(show: boolean): void {
@@ -385,46 +320,26 @@ export default definePlugin({
     document.addEventListener("keydown", onKeydown);
     document.addEventListener("mousedown", onPointerDown);
 
-    // Check 9: always pass, the detail is what the badge and every n/a below is relative to.
-    report("surface", "pass", ctx.surface);
-
-    // Check 21: the stylesheet is applied synchronously, so this is stable for the plugin's life.
     ctx.style(CSS);
-    const styled = document.head.querySelector('style[data-rigline-style="probe"]') !== null;
-    const stylesheet = stylesheetVerdict(styled);
-    report("stylesheet applied", stylesheet.verdict, stylesheet.detail);
 
-    // Check 11: resolved once; the anchor table does not change at runtime. Still `modelPill`,
-    // which the badge no longer mounts against: it is the table's most-refined singleton, so it is
-    // the one worth asking whether resolution still works, and asking it of the anchor this plugin
-    // happens to mount on would prove less.
-    try {
-      const resolved = ctx.anchor("modelPill");
-      const anchor = anchorResolvesVerdict(resolved, null);
-      report("anchor resolves", anchor.verdict, anchor.detail);
-    } catch (e) {
-      const anchor = anchorResolvesVerdict(null, errorMessage(e));
-      report("anchor resolves", anchor.verdict, anchor.detail);
-    }
-
-    // Badge placement, and checks 12/13/14 which ride along with it.
+    // Badge placement. `footerSpacer`, not the model pill: the footer measures its own element
+    // children to pick a fit stage and moves the pill out of itself at the widest one, so a
+    // decoration anchored to the pill oscillates against the measurement it is part of (D54).
+    // mountBefore puts the badge at the end of the left cluster rather than beside the send button.
     if (ctx.surface === "sessionList") {
-      report("anchor element found", "n/a", "sessionList renders no composer footer");
       ctx.mount(document.body, buildBadge);
     } else {
-      report("anchor element found", "n/a", "not found yet");
-      // The footer's spacer, not the model pill: the footer measures its own element children to
-      // pick a fit stage and moves the pill out of itself at the widest one, so a decoration
-      // anchored to the pill oscillates against the measurement it is part of (D54). mountBefore
-      // puts the badge at the end of the left cluster rather than beside the send button.
-      ctx.watch("footerSpacer", (el) => {
-        anchorEl = el;
-        report("anchor element found", "pass", "found");
-        return ctx.mountBefore(el, buildBadge);
-      });
+      ctx.watch("footerSpacer", (el) => ctx.mountBefore(el, buildBadge));
     }
 
-    // Check 10: the read-immutability of a tap's payload, and once seen, its nested `request`.
+    // ---- What this plugin contributes, through ctx.check like anybody else ------------------
+
+    ctx.check("badge is mounted", () =>
+      badgeMountedVerdict(badgeMounted, currentBadge?.isConnected ?? false),
+    );
+
+    // The read-immutability of a tap's payload, and once seen, its nested `request`. An experiment
+    // rather than a reading: only something that has registered a tap can say what a tap was handed.
     let nestedSeen = false;
     let topFrozen = false;
     let nestedFrozen = false;
@@ -436,12 +351,13 @@ export default definePlugin({
         topFrozen = frozenTop;
         nestedFrozen = Object.isFrozen(inner);
       }
-      const immutable = immutabilityVerdict(nestedSeen, topFrozen, nestedFrozen);
-      report("read taps are immutable", immutable.verdict, immutable.detail);
     });
+    ctx.check("read taps are immutable", () =>
+      immutabilityVerdict(nestedSeen, topFrozen, nestedFrozen),
+    );
 
-    // Checks 15/16: two rewriters composing on rename_tab, plus a read tap proving the app's
-    // original title never carries the mark onto the wire.
+    // Two rewriters composing on rename_tab, plus a read tap proving the app's original title never
+    // carries the mark onto the wire.
     let chainCrossed = false;
     let chainComposed = false;
     ctx.rewrite("rename_tab", (payload) => {
@@ -454,10 +370,11 @@ export default definePlugin({
       chainCrossed = true;
       const composedNow = title.startsWith(MARK);
       if (composedNow) chainComposed = true;
-      const chain = chainComposeVerdict(chainCrossed, chainComposed);
-      report("rewrite chain composes in order", chain.verdict, chain.detail);
       return composedNow ? { title: title.slice(MARK.length) } : null;
     });
+    ctx.check("rewrite chain composes in order", () =>
+      chainComposeVerdict(chainCrossed, chainComposed),
+    );
 
     let renameSeen = false;
     let renameLeaked = false;
@@ -467,136 +384,59 @@ export default definePlugin({
       const title = payload.title;
       lastRenameTitle = typeof title === "string" ? title : null;
       if (lastRenameTitle?.startsWith(MARK)) renameLeaked = true;
-      const leak = leakVerdict(renameSeen, renameLeaked, lastRenameTitle);
-      report("read taps see the app's original", leak.verdict, leak.detail);
+    });
+    ctx.check("read taps see the app's original", () =>
+      leakVerdict(renameSeen, renameLeaked, lastRenameTitle),
+    );
+
+    ctx.check("rewrite bookkeeping", () => {
+      const diag = readBridge()?.diagnostics;
+      if (!diag) return { verdict: "fail", detail: "the bridge is gone" };
+      return rewriteBookkeepingVerdict(diag.rewrites, "probe");
     });
 
-    // Check 18: tool calls observed through ctx.onToolUse.
-    let toolsSeen = 0;
-    let lastTool: string | null = null;
-    ctx.onToolUse((tool) => {
-      toolsSeen += 1;
-      lastTool = tool.name;
-      const tools = toolCallsVerdict(toolsSeen, lastTool);
-      report("tool calls observed", tools.verdict, tools.detail);
-    });
-
-    // Check 19: the panel's session id, through ctx.onSessionId.
-    ctx.onSessionId((id) => {
-      const session = sessionIdVerdict(id);
-      report("session id observed", session.verdict, session.detail);
-    });
-
-    // Check 20: the probe draws nothing; it only checks the host can identify and time rows.
-    let transcriptThrew = false;
-    let transcriptStuckSinceMs: number | null = null;
+    // A decorator that draws nothing, kept for the life of the plugin. It is not idle: the
+    // transcript service sweeps only while something is decorating, so this registration is what
+    // keeps rows being identified and timed — and therefore what makes the transcript capability's
+    // own check mean anything — on a panel where the plugin that actually draws on rows is switched
+    // off or not installed.
+    //
+    // Caught rather than allowed to disable this plugin, because this plugin is the panel. The
+    // consequence of a throw is otherwise perfectly silent: `entries` stays at zero, which the
+    // transcript capability correctly reports as "no rows yet" rather than as a fault, and nothing
+    // anywhere would say the sweep was never started.
+    let transcriptError: string | null = null;
     try {
       ctx.decorateTranscript(() => null);
     } catch (e) {
-      transcriptThrew = true;
-      report(
-        "transcript rows identified and timed",
-        "fail",
-        `decorateTranscript threw: ${errorMessage(e)}`,
-      );
+      transcriptError = errorMessage(e);
+    }
+    ctx.check("transcript decorator registered", () =>
+      transcriptError === null
+        ? { verdict: "pass", detail: "sweeping" }
+        : { verdict: "fail", detail: transcriptError },
+    );
+
+    // ---- The panel's cadence ---------------------------------------------------------------
+
+    /**
+     * Run every contributor's checks and repaint.
+     *
+     * Deferred, not called at setup: this runs inside the kernel's plugin-loading loop, and the
+     * kernel seals the replay buffer only once that loop has finished, so a run taken now reports a
+     * failure for something that could not yet be true. Everything between here and the seal is a
+     * microtask continuation, so a macrotask lands after it. Sound because the probe is pinned last
+     * in registry order: no later plugin's import can yield a macrotask turn ahead of this. It is
+     * also what lets every *other* plugin's checks be registered before the first run.
+     */
+    function poll(): void {
+      groups = readBridge()?.checks?.run() ?? [];
+      applyBadgeState();
+      if (panelVisible) renderPanelBody();
     }
 
-    // Checks driven by diagnostics and by DOM state that only changes with a render: polled once a
-    // second, which is also what keeps the panel fresh while it is open.
-    function pollDiagnostics(now: number): void {
-      const diag = readDiagnostics();
-      if (!diag) return;
-
-      const pre = preHookOrderVerdict(diag.rootChildrenAtPre, diag.rootChildrenAtPost);
-      report("pre hook ran before render", pre.verdict, pre.detail);
-
-      const acquire = acquireVerdict(diag.acquireWrapped, diag.acquireCalled);
-      report("acquireVsCodeApi wrapped and called", acquire.verdict, acquire.detail);
-
-      const traffic = busTrafficVerdict(diag.outboundCount, diag.inboundCount);
-      report("bus traffic in both directions", traffic.verdict, traffic.detail);
-
-      const sealed = bufferSealedVerdict(diag.bufferSealed, diag.buffered);
-      report("replay buffer sealed", sealed.verdict, sealed.detail);
-
-      const tables = tablesLoadedVerdict(diag.identifiersFor);
-      report("tables loaded", tables.verdict, tables.detail);
-
-      const plugins = pluginStatusVerdict(diag.plugins);
-      report("every plugin loaded", plugins.verdict, plugins.detail);
-
-      const errors = hostErrorsVerdict(diag.errors);
-      report("no host errors", errors.verdict, errors.detail);
-
-      const react = reactVerdict(diag.react);
-      report("React renderer injected", react.verdict, react.detail);
-
-      const rewrites = rewriteBookkeepingVerdict(diag.rewrites, "probe");
-      report("rewrite bookkeeping", rewrites.verdict, rewrites.detail);
-
-      const survives = mountSurvivesVerdict(badgeMounted, currentBadge?.isConnected ?? false);
-      report("mount survives re-render", survives.verdict, survives.detail);
-
-      const { driver, active, replaced, moved, lost } = diag.mounts;
-      const replacement = mountReplacementVerdict(
-        driver,
-        active,
-        replaced,
-        moved,
-        lost,
-        diag.mounts.abandoned ?? [],
-      );
-      report("mounts re-placed after a re-render", replacement.verdict, replacement.detail);
-
-      const unique = anchorUniqueVerdict(diag.mounts.multiple ?? {});
-      report("watched singletons match one element", unique.verdict, unique.detail);
-
-      if (ctx.surface === "sessionList") {
-        report(
-          "mounts sharing an anchor keep registry order",
-          "n/a",
-          "no shared anchor on this surface",
-        );
-      } else if (anchorEl === null) {
-        report("mounts sharing an anchor keep registry order", "n/a", "anchor not found yet");
-      } else {
-        // Backwards, and unshifted, so `indices` still reads left to right: the footer decorations
-        // mount *before* their anchor, with the highest registry order nearest it, which is the
-        // same "registry order reads left to right" the forward walk asserted when they mounted
-        // after one.
-        const indices: number[] = [];
-        let sibling = anchorEl.previousElementSibling;
-        while (sibling?.hasAttribute("data-rigline-mount")) {
-          const owner = sibling.getAttribute("data-rigline-mount");
-          const index = diag.plugins.findIndex((p) => p.name === owner);
-          if (index !== -1) indices.unshift(index);
-          sibling = sibling.previousElementSibling;
-        }
-        // Our own badge being on screen is what makes "nothing beside the anchor" a failure rather
-        // than an absence: it is mounted before this anchor, so it must be one of those siblings.
-        const order = mountOrderVerdict(indices, currentBadge?.isConnected === true);
-        report("mounts sharing an anchor keep registry order", order.verdict, order.detail);
-      }
-
-      if (ctx.surface === "sessionList") {
-        report("transcript rows identified and timed", "n/a", "sessionList renders no transcript");
-      } else if (!transcriptThrew) {
-        const { entries, timed } = diag.transcript;
-        if (entries === 0 || timed > 0) transcriptStuckSinceMs = null;
-        else if (transcriptStuckSinceMs === null) transcriptStuckSinceMs = now;
-        const elapsed = transcriptStuckSinceMs === null ? null : now - transcriptStuckSinceMs;
-        const transcript = transcriptVerdict(entries, timed, elapsed);
-        report("transcript rows identified and timed", transcript.verdict, transcript.detail);
-      }
-    }
-
-    // Deferred, not called here: setup() runs inside the kernel's plugin-loading loop, and the
-    // kernel seals the replay buffer only once that loop has finished, so a poll taken now reports
-    // a failure for something that could not yet be true. Everything between here and the seal is a
-    // microtask continuation, so a macrotask lands after it. Sound because the probe is pinned last
-    // in registry order: no later plugin's import can yield a macrotask turn ahead of this.
-    const firstPoll = setTimeout(() => pollDiagnostics(performance.now()), 0);
-    const interval = setInterval(() => pollDiagnostics(performance.now()), 1000);
+    const firstPoll = setTimeout(poll, 0);
+    const interval = setInterval(poll, POLL_MS);
 
     return () => {
       clearTimeout(firstPoll);

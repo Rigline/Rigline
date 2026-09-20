@@ -26,6 +26,7 @@ export {
   patchViolation,
   sharedFields,
 } from "./capabilities/index.ts";
+export type { CheckVerdict, Verdict } from "./checks.ts";
 export type {
   OptionalContext,
   Payload,

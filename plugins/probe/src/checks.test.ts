@@ -1,51 +1,81 @@
 import { describe, expect, it } from "vitest";
 import {
-  acquireVerdict,
-  anchorResolvesVerdict,
-  anchorUniqueVerdict,
-  bufferSealedVerdict,
-  busTrafficVerdict,
+  badgeMountedVerdict,
+  type CheckGroup,
   chainComposeVerdict,
   errorMessage,
   failingCount,
+  formatGroups,
   formatLine,
   formatReport,
-  hostErrorsVerdict,
   immutabilityVerdict,
   leakVerdict,
-  mountOrderVerdict,
-  mountReplacementVerdict,
-  mountSurvivesVerdict,
-  pluginStatusVerdict,
-  preHookOrderVerdict,
-  reactVerdict,
   rewriteBookkeepingVerdict,
-  sessionIdVerdict,
-  stylesheetVerdict,
-  tablesLoadedVerdict,
-  toolCallsVerdict,
-  transcriptVerdict,
 } from "./checks.ts";
+
+/** One group, as the host's registry hands it back. */
+function group(contributor: string, ...results: CheckGroup["results"]): CheckGroup {
+  return {
+    contributor,
+    results,
+    failing: results.filter((r) => r.verdict === "fail").length,
+  };
+}
+
+const line = (name: string, verdict: "pass" | "fail" | "n/a", detail = "") => ({
+  name,
+  verdict,
+  detail,
+});
 
 describe("formatLine and failingCount", () => {
   it("tags each verdict and keeps the detail after an em dash", () => {
-    expect(formatLine({ name: "x", verdict: "pass", detail: "ok" })).toBe("PASS  x — ok");
-    expect(formatLine({ name: "y", verdict: "fail", detail: "broken" })).toBe("FAIL  y — broken");
-    expect(formatLine({ name: "z", verdict: "n/a", detail: "not yet" })).toBe("N/A   z — not yet");
+    expect(formatLine(line("x", "pass", "ok"))).toBe("PASS  x — ok");
+    expect(formatLine(line("y", "fail", "broken"))).toBe("FAIL  y — broken");
+    expect(formatLine(line("z", "n/a", "not yet"))).toBe("N/A   z — not yet");
   });
 
   it("omits the dash and detail when there is none", () => {
-    expect(formatLine({ name: "x", verdict: "pass", detail: "" })).toBe("PASS  x");
+    expect(formatLine(line("x", "pass"))).toBe("PASS  x");
   });
 
-  it("counts only fail, never n/a or pass", () => {
-    const checks = [
-      { name: "a", verdict: "pass", detail: "" },
-      { name: "b", verdict: "fail", detail: "" },
-      { name: "c", verdict: "n/a", detail: "" },
-      { name: "d", verdict: "fail", detail: "" },
-    ] as const;
-    expect(failingCount(checks)).toBe(2);
+  it("counts only fail, never n/a or pass, across every contributor", () => {
+    const groups = [
+      group("core", line("a", "pass"), line("b", "fail")),
+      group("probe", line("c", "n/a"), line("d", "fail")),
+    ];
+    expect(failingCount(groups)).toBe(2);
+    expect(failingCount([])).toBe(0);
+  });
+});
+
+describe("formatGroups", () => {
+  it("heads each contributor's lines with its name and indents them under it", () => {
+    const text = formatGroups([group("core", line("tables loaded", "pass", "2.1.270"))]);
+    expect(text).toBe("core\n  PASS  tables loaded — 2.1.270");
+  });
+
+  // A count on every header would train the eye to skip it; a header that carries one is itself
+  // the finding, which is the same reason the abandoned-mounts line is absent rather than empty.
+  it("puts a count on a header only when that contributor has a failure", () => {
+    const text = formatGroups([
+      group("core", line("a", "pass")),
+      group("time-marks", line("b", "fail", "no rows carried a time")),
+    ]);
+    expect(text.split("\n")[0]).toBe("core");
+    expect(text).toContain("time-marks  (1 failing)");
+  });
+
+  it("keeps the host's order rather than sorting, so the list cannot move as verdicts change", () => {
+    const text = formatGroups([
+      group("core", line("a", "pass")),
+      group("probe", line("b", "fail")),
+    ]);
+    expect(text.indexOf("core")).toBeLessThan(text.indexOf("probe"));
+  });
+
+  it("says so rather than rendering nothing when no check has been contributed", () => {
+    expect(formatGroups([])).toBe("(no checks registered)");
   });
 });
 
@@ -56,111 +86,13 @@ describe("errorMessage", () => {
 
   it("stringifies anything else", () => {
     expect(errorMessage("boom")).toBe("boom");
-    expect(errorMessage(42)).toBe("42");
-  });
-});
-
-describe("preHookOrderVerdict", () => {
-  it("is n/a while either child count is -1", () => {
-    expect(preHookOrderVerdict(-1, null).verdict).toBe("n/a");
-    expect(preHookOrderVerdict(-1, 3).verdict).toBe("n/a");
-    expect(preHookOrderVerdict(0, -1).verdict).toBe("n/a");
-  });
-
-  it("passes when the root was empty at pre and non-empty at post", () => {
-    expect(preHookOrderVerdict(0, 5).verdict).toBe("pass");
-  });
-
-  it("fails when the root already had children at pre", () => {
-    expect(preHookOrderVerdict(2, 5).verdict).toBe("fail");
-  });
-
-  it("fails when the root is still empty at post", () => {
-    expect(preHookOrderVerdict(0, 0).verdict).toBe("fail");
-  });
-});
-
-describe("acquireVerdict", () => {
-  it("passes only when both wrapped and called", () => {
-    expect(acquireVerdict(true, true).verdict).toBe("pass");
-    expect(acquireVerdict(true, false).verdict).toBe("fail");
-    expect(acquireVerdict(false, true).verdict).toBe("fail");
-  });
-});
-
-describe("busTrafficVerdict", () => {
-  it("requires traffic in both directions", () => {
-    expect(busTrafficVerdict(1, 1).verdict).toBe("pass");
-    expect(busTrafficVerdict(0, 1).verdict).toBe("fail");
-    expect(busTrafficVerdict(1, 0).verdict).toBe("fail");
-  });
-});
-
-describe("bufferSealedVerdict", () => {
-  it("passes when sealed", () => {
-    expect(bufferSealedVerdict(true, 12).verdict).toBe("pass");
-    expect(bufferSealedVerdict(false, 12).verdict).toBe("fail");
-  });
-});
-
-describe("tablesLoadedVerdict", () => {
-  it("passes with a version string, fails on null", () => {
-    expect(tablesLoadedVerdict("2.1.270")).toEqual({ verdict: "pass", detail: "2.1.270" });
-    expect(tablesLoadedVerdict(null).verdict).toBe("fail");
-  });
-});
-
-describe("pluginStatusVerdict", () => {
-  it("passes when every plugin loaded or is inactive", () => {
-    const result = pluginStatusVerdict([
-      { name: "probe", status: "loaded" },
-      { name: "other", status: "inactive", reason: "not for this surface" },
-    ]);
-    expect(result.verdict).toBe("pass");
-  });
-
-  it("fails and names every refused or error entry with its reason", () => {
-    const result = pluginStatusVerdict([
-      { name: "probe", status: "loaded" },
-      { name: "bad-anchor", status: "refused", reason: "anchor gone" },
-      { name: "broken", status: "error", reason: "setup() threw: boom" },
-    ]);
-    expect(result.verdict).toBe("fail");
-    expect(result.detail).toContain("bad-anchor refused: anchor gone");
-    expect(result.detail).toContain("broken error: setup() threw: boom");
-  });
-
-  it("passes vacuously with no plugins", () => {
-    expect(pluginStatusVerdict([]).verdict).toBe("pass");
-  });
-});
-
-describe("hostErrorsVerdict", () => {
-  it("passes with no errors", () => {
-    expect(hostErrorsVerdict([])).toEqual({ verdict: "pass", detail: "0" });
-  });
-
-  it("fails and lists up to three", () => {
-    const result = hostErrorsVerdict(["a", "b", "c", "d"]);
-    expect(result.verdict).toBe("fail");
-    expect(result.detail).toBe("a; b; c");
-  });
-});
-
-describe("reactVerdict", () => {
-  it("passes only once a version is known", () => {
-    expect(
-      reactVerdict({ hook: "installed", version: "19.0.0", commits: 3, notified: 3 }).verdict,
-    ).toBe("pass");
-    expect(
-      reactVerdict({ hook: "installed", version: null, commits: 0, notified: 0 }).verdict,
-    ).toBe("fail");
+    expect(errorMessage(7)).toBe("7");
   });
 });
 
 describe("immutabilityVerdict", () => {
   it("is n/a until a nested object has been seen", () => {
-    expect(immutabilityVerdict(false, true, true).verdict).toBe("n/a");
+    expect(immutabilityVerdict(false, false, false).verdict).toBe("n/a");
   });
 
   it("passes when both levels are frozen", () => {
@@ -177,60 +109,14 @@ describe("immutabilityVerdict", () => {
   });
 });
 
-describe("anchorResolvesVerdict", () => {
-  it("passes with a resolved class", () => {
-    expect(anchorResolvesVerdict("modelPill_gGYT1w", null)).toEqual({
-      verdict: "pass",
-      detail: "modelPill_gGYT1w",
-    });
-  });
-
-  it("fails on an empty resolution or a throw", () => {
-    expect(anchorResolvesVerdict("", null).verdict).toBe("fail");
-    expect(anchorResolvesVerdict(null, "anchor gone").verdict).toBe("fail");
-  });
-});
-
-describe("mountSurvivesVerdict", () => {
+describe("badgeMountedVerdict", () => {
   it("is n/a before the first mount", () => {
-    expect(mountSurvivesVerdict(false, false).verdict).toBe("n/a");
+    expect(badgeMountedVerdict(false, false).verdict).toBe("n/a");
   });
 
   it("reflects the current node's connectedness once mounted", () => {
-    expect(mountSurvivesVerdict(true, true).verdict).toBe("pass");
-    expect(mountSurvivesVerdict(true, false).verdict).toBe("fail");
-  });
-});
-
-describe("mountOrderVerdict", () => {
-  it("is n/a with fewer than two nodes on the anchor", () => {
-    expect(mountOrderVerdict([]).verdict).toBe("n/a");
-    expect(mountOrderVerdict([2]).verdict).toBe("n/a");
-  });
-
-  it("passes when registry indices are non-decreasing", () => {
-    expect(mountOrderVerdict([0, 1, 1, 4]).verdict).toBe("pass");
-  });
-
-  it("fails when a later DOM sibling has an earlier registry index", () => {
-    expect(mountOrderVerdict([3, 1]).verdict).toBe("fail");
-  });
-});
-
-describe("mountOrderVerdict, drift", () => {
-  it("fails when our own mount is on screen but nothing sits beside the anchor", () => {
-    const { verdict, detail } = mountOrderVerdict([], true);
-    expect(verdict).toBe("fail");
-    expect(detail).toContain("drifted");
-  });
-
-  it("stays n/a when nothing of ours is mounted to have drifted", () => {
-    expect(mountOrderVerdict([], false).verdict).toBe("n/a");
-  });
-
-  it("still checks ordering once there are siblings to order", () => {
-    expect(mountOrderVerdict([0, 1], true).verdict).toBe("pass");
-    expect(mountOrderVerdict([3, 1], true).verdict).toBe("fail");
+    expect(badgeMountedVerdict(true, true).verdict).toBe("pass");
+    expect(badgeMountedVerdict(true, false)).toEqual({ verdict: "fail", detail: "detached" });
   });
 });
 
@@ -245,7 +131,6 @@ describe("chainComposeVerdict", () => {
 
   it("passes and latches once composition has been observed", () => {
     expect(chainComposeVerdict(true, true).verdict).toBe("pass");
-    // Once composed, later traffic that happens not to cross again cannot un-observe it.
     expect(chainComposeVerdict(false, true).verdict).toBe("pass");
   });
 });
@@ -256,13 +141,16 @@ describe("leakVerdict", () => {
   });
 
   it("passes when the tap never saw the mark", () => {
-    expect(leakVerdict(true, false, "My Session").verdict).toBe("pass");
+    expect(leakVerdict(true, false, "Refactor the bus")).toEqual({
+      verdict: "pass",
+      detail: "clean",
+    });
   });
 
   it("fails and names the leaked title when the mark reached the wire", () => {
-    const result = leakVerdict(true, true, "[rigline-probe] My Session");
+    const result = leakVerdict(true, true, "[rigline-probe] Refactor the bus");
     expect(result.verdict).toBe("fail");
-    expect(result.detail).toContain("[rigline-probe] My Session");
+    expect(result.detail).toContain("[rigline-probe]");
   });
 });
 
@@ -270,115 +158,18 @@ describe("rewriteBookkeepingVerdict", () => {
   it("passes with exactly two entries for this plugin", () => {
     const result = rewriteBookkeepingVerdict(
       [
-        { plugin: "probe", type: "rename_tab", applied: 2, ran: 4, missed: 0 },
-        { plugin: "probe", type: "rename_tab", applied: 1, ran: 4, missed: 1 },
-        { plugin: "other", type: "rename_tab", applied: 1, ran: 1, missed: 0 },
+        { plugin: "probe", type: "rename_tab", applied: 3, ran: 4, missed: 1 },
+        { plugin: "probe", type: "rename_tab", applied: 3, ran: 4, missed: 1 },
+        { plugin: "worktree-prefix", type: "rename_tab", applied: 4, ran: 4, missed: 1 },
       ],
       "probe",
     );
     expect(result.verdict).toBe("pass");
-    expect(result.detail).toContain("ran=4 applied=2 missed=0");
+    expect(result.detail).toContain("ran=4 applied=3 missed=1");
   });
 
   it("fails when the count is not exactly two", () => {
     expect(rewriteBookkeepingVerdict([], "probe").verdict).toBe("fail");
-  });
-});
-
-describe("toolCallsVerdict", () => {
-  it("is n/a until a tool call has been seen", () => {
-    expect(toolCallsVerdict(0, null).verdict).toBe("n/a");
-  });
-
-  it("passes with the count and last name once seen", () => {
-    const result = toolCallsVerdict(3, "Read");
-    expect(result.verdict).toBe("pass");
-    expect(result.detail).toBe('3 seen, last "Read"');
-  });
-});
-
-describe("sessionIdVerdict", () => {
-  it("is n/a while null", () => {
-    expect(sessionIdVerdict(null).verdict).toBe("n/a");
-  });
-
-  it("passes with the first 8 characters", () => {
-    expect(sessionIdVerdict("abcdefgh-ijkl").detail).toBe("abcdefgh");
-  });
-});
-
-describe("transcriptVerdict", () => {
-  it("is n/a with no rows yet", () => {
-    expect(transcriptVerdict(0, 0, null).verdict).toBe("n/a");
-  });
-
-  it("passes once anything is timed", () => {
-    expect(transcriptVerdict(5, 2, 9000).verdict).toBe("pass");
-  });
-
-  it("stays n/a while untimed rows are still young", () => {
-    expect(transcriptVerdict(5, 0, 1000).verdict).toBe("n/a");
-  });
-
-  it("fails only past the five-second mark with nothing timed", () => {
-    expect(transcriptVerdict(5, 0, 5001).verdict).toBe("fail");
-  });
-});
-
-describe("stylesheetVerdict", () => {
-  it("reflects whether the host-managed stylesheet is present", () => {
-    expect(stylesheetVerdict(true).verdict).toBe("pass");
-    expect(stylesheetVerdict(false).verdict).toBe("fail");
-  });
-});
-
-describe("mountReplacementVerdict", () => {
-  it("is n/a when nothing has had to be put back or moved", () => {
-    const { verdict, detail } = mountReplacementVerdict("commit", 12, 0, 0, 0);
-    expect(verdict).toBe("n/a");
-    expect(detail).toContain("12 active");
-  });
-
-  it("passes when a re-placement happened, because that is the mechanism working", () => {
-    const { verdict, detail } = mountReplacementVerdict("commit", 12, 3, 0, 0);
-    expect(verdict).toBe("pass");
-    expect(detail).toContain("3 re-placed");
-  });
-
-  it("reports drift separately from re-placement, since they answer different questions", () => {
-    const { verdict, detail } = mountReplacementVerdict("commit", 12, 0, 7, 0);
-    expect(verdict).toBe("pass");
-    expect(detail).toContain("7 moved");
-    expect(detail).not.toContain("re-placed");
-    expect(mountReplacementVerdict("commit", 12, 3, 7, 0).detail).toContain("3 re-placed, 7 moved");
-  });
-
-  it("fails on a mount left detached from an anchor that is still there", () => {
-    expect(mountReplacementVerdict("commit", 12, 3, 0, 1).verdict).toBe("fail");
-  });
-
-  it("names the driver, so the observer fallback is never silent", () => {
-    expect(mountReplacementVerdict("observer", 1, 0, 0, 0).detail).toContain("observer");
-  });
-});
-
-describe("anchorUniqueVerdict", () => {
-  it("passes on an empty record, because that is a measurement and not an absence of one", () => {
-    const { verdict, detail } = anchorUniqueVerdict({});
-    expect(verdict).toBe("pass");
-    expect(detail).toBe("one element each");
-  });
-
-  it("fails and names the anchor and the count, which is where somebody has to go and look", () => {
-    const { verdict, detail } = anchorUniqueVerdict({ modelPill: 2 });
-    expect(verdict).toBe("fail");
-    expect(detail).toBe("modelPill matched 2");
-  });
-
-  it("names every offender, sorted, rather than only the first", () => {
-    expect(anchorUniqueVerdict({ modelPill: 3, composer: 2 }).detail).toBe(
-      "composer matched 2, modelPill matched 3",
-    );
   });
 });
 
@@ -413,17 +204,17 @@ describe("formatReport", () => {
     },
     errors: [],
   };
-  const checks = [{ name: "tables loaded", verdict: "pass" as const, detail: "2.1.270" }];
+  const groups = [group("core", line("tables loaded", "pass", "2.1.270"))];
 
   it("leads with the facts a stranger needs before any check line", () => {
-    const text = formatReport(facts, checks);
+    const text = formatReport(facts, groups);
     expect(text).toContain("2.1.270, surface editor");
     expect(text).toContain("6 active, 1 re-placed, 0 lost, on commit");
     expect(text).toContain("14 writes");
   });
 
   it("ranks peaks by how busy they got and omits the ones that never fired", () => {
-    const text = formatReport(facts, checks);
+    const text = formatReport(facts, groups);
     const commit = text.indexOf("commit ");
     const sweep = text.indexOf("sweep ");
     expect(commit).toBeGreaterThan(-1);
@@ -431,14 +222,37 @@ describe("formatReport", () => {
     expect(text).not.toContain("resend ");
   });
 
+  it("carries the check lines grouped by contributor", () => {
+    const text = formatReport(facts, [
+      ...groups,
+      group("time-marks", line("marks are being placed", "fail", "no rows carried a time")),
+    ]);
+    expect(text).toContain("time-marks  (1 failing)");
+    expect(text).toContain("FAIL  marks are being placed");
+  });
+
+  // Nothing else in the report says why a decoration a person is looking for is not on screen.
+  it("names what a loaded plugin is going without", () => {
+    const text = formatReport(
+      {
+        ...facts,
+        plugins: [
+          { name: "session-id", status: "loaded" as const, missingOptional: ["anchor x is gone"] },
+        ],
+      },
+      groups,
+    );
+    expect(text).toContain("without anchor x is gone");
+  });
+
   it("includes the previous run's tail, which is the whole reason it is persisted", () => {
-    expect(formatReport(facts, checks)).toContain("previous run (");
-    expect(formatReport(facts, checks)).toContain("outbound=900");
+    expect(formatReport(facts, groups)).toContain("previous run (");
+    expect(formatReport(facts, groups)).toContain("outbound=900");
   });
 
   it("says so plainly when there are no host errors", () => {
-    expect(formatReport(facts, checks)).toContain("host errors (0)");
-    expect(formatReport(facts, checks)).toContain("(none)");
+    expect(formatReport(facts, groups)).toContain("host errors (0)");
+    expect(formatReport(facts, groups)).toContain("(none)");
   });
 
   it("still reports when storage was unavailable and nothing has been counted", () => {
@@ -448,7 +262,7 @@ describe("formatReport", () => {
       meters: {},
       previous: null,
     };
-    const text = formatReport(bare, checks);
+    const text = formatReport(bare, groups);
     expect(text).toContain("storage    unavailable");
     expect(text).toContain("(nothing has been counted yet)");
     expect(text).not.toContain("previous run (");

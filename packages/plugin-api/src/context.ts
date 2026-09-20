@@ -11,6 +11,7 @@
  * imports the host; a module singleton would defeat both the scoping and the attribution.
  */
 import type { AnchorName, Surface } from "./anchors.ts";
+import type { CheckVerdict } from "./checks.ts";
 import type { MessageType, ModuleClasses, ModuleId, OutboundFields } from "./identifiers.ts";
 import type { ToolResult, ToolUse } from "./stream.ts";
 import type { TranscriptEntry } from "./transcript.ts";
@@ -69,6 +70,29 @@ export interface PluginContext {
    * the plugin.
    */
   readonly optional: OptionalContext;
+
+  /**
+   * Contribute a line to the diagnostics panel, under this plugin's name. Declares nothing.
+   *
+   * `run` is called by the host whenever the panel is read — about once a second, for the life of
+   * the window — and must answer from state this plugin already keeps. **A check reads; it does not
+   * compute.** Walking the DOM or re-deriving an answer here is work done every second whether or
+   * not anyone is looking; do that work where it already happens and have the check read the
+   * result.
+   *
+   * Nothing is handed in, because nothing needs to be: your own bookkeeping is in scope, and so is
+   * your own `ctx`, so a check that asks whether your anchor still resolves calls `ctx.anchor()`
+   * inside the closure and stays scoped to what you declared.
+   *
+   * A check that throws, or returns something that is not a verdict, is reported as a failing line
+   * naming this plugin. It does not disable the plugin: a broken sentence about a feature is not
+   * evidence against the feature.
+   *
+   * `n/a` is the answer for a check that cannot apply yet or here — a surface with no transcript, a
+   * session that has not started. Say why in the detail; a reader learns more from "waiting for a
+   * session" than from a green line that means the same thing.
+   */
+  check(name: string, run: () => CheckVerdict): Teardown;
 
   /**
    * The class an anchor resolves to in the installed extension, e.g. `anchor("modelPill")` gives

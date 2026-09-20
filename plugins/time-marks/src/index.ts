@@ -347,9 +347,18 @@ export default definePlugin({
       return node;
     }
 
+    /** Rows this plugin has been asked about, and rows it returned a mark for. The two numbers its
+     * check turns on: asked-but-never-marked is the whole feature silently absent. */
+    let asked = 0;
+    let marked = 0;
+    let unmarkedSince: number | null = null;
+
     function build(entry: TranscriptEntry, entries: readonly TranscriptEntry[]): Element | null {
+      asked += 1;
+      if (unmarkedSince === null) unmarkedSince = performance.now();
       const mark = markFor(entry, entries);
       if (mark === null) return null;
+      marked += 1;
       return mark.lead === null ? buildPlain(mark.time) : buildDivider(mark.lead, mark.time);
     }
 
@@ -425,5 +434,48 @@ export default definePlugin({
     // mountBefore rather than mountAfter because the spacer is `flex-grow:1`: before it is the end
     // of the footer's left cluster, after it is out beside the send button.
     ctx.watch("footerSpacer", (el) => ctx.mountBefore(el, buildIcon));
+
+    /**
+     * Whether any time is actually on screen.
+     *
+     * The failure this exists for: the plugin loads, its toggle is on, its decorator is registered,
+     * and every row comes back unmarked because `entry.at` is null for all of them — the three-way
+     * join behind an entry having come apart. Nothing else in the panel says a word about it. The
+     * host's own `transcript:` line says rows are being identified and timed, which is a different
+     * claim: it can pass while this fails, and that difference is what says the fault is here and
+     * not in the host.
+     *
+     * Switched off is `n/a` and says so. A plugin the user has turned off is not a plugin that is
+     * failing, and a red badge for a deliberate choice is the fastest way to teach somebody to
+     * ignore the badge.
+     *
+     * The five-second grace is the same one the host's transcript check uses, and for the same
+     * reason: a session still loading, or a prompt just sent, is a row that legitimately has no
+     * record behind it yet.
+     */
+    ctx.check("marks are being placed", () => {
+      if (!visible) return { verdict: "n/a", detail: "markers are switched off" };
+      if (asked === 0) return { verdict: "n/a", detail: "no transcript rows yet" };
+      if (marked > 0) return { verdict: "pass", detail: `${marked} marked of ${asked} asked` };
+      const waited = unmarkedSince === null ? 0 : performance.now() - unmarkedSince;
+      if (waited > 5000) {
+        return { verdict: "fail", detail: `${asked} rows, none carried a time` };
+      }
+      return { verdict: "n/a", detail: `${asked} rows, none timed yet` };
+    });
+
+    /**
+     * The toggle is on screen. `n/a` rather than a failure when the anchor itself is gone: the
+     * spacer is declared optional, so losing it costs this one button and never the feature — the
+     * stored preference still governs whether marks are drawn (D41).
+     */
+    ctx.check("toggle is mounted", () => {
+      if (ctx.optional.anchor("footerSpacer") === null) {
+        return { verdict: "n/a", detail: "this extension has no footer spacer to mount on" };
+      }
+      return currentIcon?.isConnected
+        ? { verdict: "pass", detail: visible ? "on" : "off" }
+        : { verdict: "fail", detail: "the toggle is not in the document" };
+    });
   },
 });

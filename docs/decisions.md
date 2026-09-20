@@ -306,8 +306,8 @@ check with no mechanism of its own.
 
 **D18. `ctx` is built per plugin, scoped to its manifest, by a registry of capability modules.**
 A capability module carries its declaration schema, its layer expansion, the sentence
-`describeUses` prints, its runtime grant, its diagnostics and its probe check. The kernel knows
-none of them by name.
+`describeUses` prints, its runtime grant, its diagnostics and the checks it contributes to the
+panel (D63). The kernel knows none of them by name.
 Plugins never import the host; a module singleton would defeat both the scoping and the
 attribution.
 
@@ -437,6 +437,55 @@ copied is the wrong thing to make an overlay. The exemption is right for a marke
 **D24. A row's own timestamp is never read.** It is `Date.now()` from when the row object was
 built, so every row in a reopened session claims to be from just now. Real times come from the bus
 (`get_session_response` and `io_message` records), and an entry with no record is `null`.
+
+**D63. A diagnostic check is contributed, and a plugin's is a closure the host hands nothing.**
+`ctx.check(name, run)`, `run` taking no arguments and returning a verdict and a line. It declares
+nothing, because a declaration exists to be checked against the identifier tables: a check names no
+identifier, so a `uses.checks` key could never produce a gap and would only ever answer yes, and a
+key whose validation is a constant is a label rather than a declaration. Nothing needs to be handed
+in — a plugin's own bookkeeping is in scope, and so is its own `ctx`, so a check asking whether its
+anchor still resolves calls `ctx.anchor()` inside the closure and stays capability-scoped by
+construction. It joins `surface` as an undeclared member of `ctx`, under the rule that makes that
+safe: **an undeclared member may not widen what a plugin can reach.**
+
+The host's own checks take the other path. The kernel and each capability module contribute through
+`CapabilityModule.checks(kernel)` and are handed the `Kernel`, because they are host code and their
+checks are readings of state they already own. That asymmetry is the same answer applied twice — what
+a contributor is handed follows from where it sits in the trust model — and is not to be unified.
+
+The probe is left as one contributor among several, keeping only what is an experiment rather than a
+reading, which is the test of whether the shape is right (D17).
+
+**D64. Checks are pulled on the renderer's cadence, and a check reads rather than computes.** The
+host owns the registry and the running; the renderer decides when to ask, which is once a second.
+There is no `report()` a contributor must remember to call after every state change, so a verdict
+cannot go stale — and a stale `pass` is indistinguishable from a fresh one, which makes it the
+failure mode that matters rather than the tidy one. The badge's failing count is always on screen, so
+the cadence cannot be narrowed to panel-open; the cost of that lands on the contributor as a rule
+with the same standing as "a rewriter is synchronous". A check that wants an expensive answer caches
+it where the work already happens.
+
+**D65. A check that throws fails its own line and does not disable its plugin.** The one plugin
+callback the host calls without `guard`. `guard` disables because a throw inside the app's message
+flow or a React commit means the plugin is broken at its job and has left the host somewhere nobody
+can reason about; a throw here means the *diagnostic* is broken. Tearing down a working decoration on
+that evidence would inflict the failure the panel is reporting, and the disable would be reported
+too — one bug in the least important code a plugin has, rendered as two red lines and no feature,
+which inverts P8's "absent beats wrong" by making the working thing the absent one. A malformed
+return is treated the same way. Nothing is written to `diagnostics.errors`, which feeds `core`'s own
+*no host errors* check and would otherwise count one fault twice under the wrong layer's name.
+
+**D66. The panel groups by contributor: `core` first, then plugins in registry order.** Registry
+order because the codebase already has one answer to "in what order" — it is how mounts on a shared
+anchor are placed and how rewriters compose — and a second rule is a second thing to hold in your
+head. `core` first because a host failure explains a plugin failure: tables that did not load refuse
+every plugin downstream, and reading top-down gives cause before effect.
+
+The ordering is fixed rather than derived from the verdicts, and that is the part that is load-bearing.
+Sorting failures to the top reorders the panel as verdicts change, which slides a line out from under
+a pointer mid-click and rearranges a report while somebody is reading it. `core` is flat, with the
+capability in the check's name, because a group per module would be nine headers for one to three
+lines each.
 
 ### Host patches
 

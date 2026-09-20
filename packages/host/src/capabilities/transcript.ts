@@ -1,5 +1,11 @@
 import { CONTRACTS } from "@rigline/plugin-api";
-import { type CapabilityModule, declaredSwitch, undeclared } from "../kernel/types.ts";
+import {
+  type CapabilityModule,
+  declaredSwitch,
+  undeclared,
+  usedOnSurface,
+} from "../kernel/types.ts";
+import { transcriptVerdict } from "../kernel/verdicts.ts";
 
 /**
  * `ctx.decorateTranscript(build)`: one entry per transcript row, with its real time, and a node
@@ -27,5 +33,26 @@ export const transcriptModule: CapabilityModule<"transcript"> = {
         return own(kernel.transcript.decorate(plugin.name, plugin.order, build, disable));
       },
     };
+  },
+  checks(kernel) {
+    const used = usedOnSurface(kernel, "transcript");
+    // Held by the check rather than by the service: how long rows have been present with nothing
+    // timed is a fact about how long anybody has been *asking*, and nothing else wants to know.
+    let untimedSince: number | null = null;
+    return [
+      {
+        name: "transcript: rows identified and timed",
+        run: () => {
+          if (kernel.surface === "sessionList") {
+            return { verdict: "n/a", detail: "the session list renders no transcript" };
+          }
+          const { entries, timed } = kernel.diagnostics.transcript;
+          if (entries === 0 || timed > 0) untimedSince = null;
+          else if (untimedSince === null) untimedSince = performance.now();
+          const stuck = untimedSince === null ? null : performance.now() - untimedSince;
+          return transcriptVerdict(used, entries, timed, stuck);
+        },
+      },
+    ];
   },
 };

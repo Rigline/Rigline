@@ -10,6 +10,7 @@
  * setup() in its own try/catch. It knows no capability by name.
  */
 import {
+  type CheckVerdict,
   capabilityViolation,
   type IdentifierTables,
   type OptionalContext,
@@ -20,6 +21,7 @@ import {
 } from "@rigline/plugin-api";
 import { MODULES } from "./capabilities/index.ts";
 import { type Bridge, bridge as findBridge, type PluginStatus } from "./kernel/bridge.ts";
+import { CORE, createCheckService, kernelChecks } from "./kernel/checks.ts";
 import { createMountService } from "./kernel/mounts.ts";
 import { createRecorder } from "./kernel/record.ts";
 import { createSessionService } from "./kernel/session.ts";
@@ -113,7 +115,16 @@ async function loadPlugin(plugin: PluginRecord, kernel: Kernel): Promise<PluginS
   // object, so neither assign can clobber another capability's slice.
   const optional = {} as OptionalContext;
   for (const module of MODULES) Object.assign(optional, module.grantOptional?.(grant));
-  const ctx = { surface: kernel.surface, optional: Object.freeze(optional) } as PluginContext;
+  const ctx = {
+    surface: kernel.surface,
+    optional: Object.freeze(optional),
+    // Undeclared, like `surface`, because it widens nothing: the plugin hands the host a function
+    // and gets nothing back, so there is no identifier for a manifest to name and no gap a
+    // declaration could ever report. Through `own` so a disabled plugin's lines go with it — a
+    // plugin the host has torn down should not keep reporting on itself.
+    check: (name: string, run: () => CheckVerdict) =>
+      grant.own(kernel.checks.add(plugin.name, name, run)),
+  } as PluginContext;
   for (const module of MODULES) Object.assign(ctx, module.grant(grant));
   Object.freeze(ctx);
 
@@ -165,6 +176,7 @@ async function main(): Promise<void> {
   }
 
   const mounts = createMountService(message, react, diagnostics.mounts, meter);
+  const checks = createCheckService();
   const kernel: Kernel = {
     tables,
     surface: detectSurface(),
@@ -183,7 +195,23 @@ async function main(): Promise<void> {
       message,
       meter,
     ),
+    checks,
+    plugins: entries,
   };
+
+  // Before the loop, so `core` is the first contributor and a capability that has already failed
+  // reads above the plugins it took down with it. A module's checks throwing while being *built* is
+  // a fault in the host rather than in a check, so it goes to `diagnostics.errors` like any other.
+  checks.addAll(CORE, kernelChecks(kernel));
+  for (const module of MODULES) {
+    try {
+      const contributed = module.checks?.(kernel);
+      if (contributed) checks.addAll(CORE, contributed);
+    } catch (e) {
+      diagnostics.errors.push(`checks(${module.contract.key}): ${message(e)}`);
+    }
+  }
+  bridge.checks = checks;
 
   // Started before plugins load, so a panel that dies during a plugin's setup still leaves a record
   // of having got that far. The recorder never throws and never blocks: if storage is unavailable it

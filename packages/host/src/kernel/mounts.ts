@@ -84,6 +84,30 @@ interface Watch {
   abandoned: boolean;
 }
 
+/**
+ * What the mount capability's checks read: one record per mount and per watch, reduced to plain
+ * data so a verdict can be argued about without a DOM.
+ *
+ * `positioned` rather than merely "connected" is the point of handing this over at all. It is the
+ * predicate the per-commit pass already uses to decide whether to act, so it answers presence and
+ * registry order together — which is what lets one check replace the two the probe wrote around its
+ * own badge and its own anchor.
+ */
+export interface MountSnapshot {
+  readonly mounts: readonly {
+    readonly owner: string;
+    readonly anchorConnected: boolean;
+    readonly positioned: boolean;
+    readonly abandoned: boolean;
+  }[];
+  readonly watches: readonly {
+    readonly owner: string;
+    readonly anchor: string;
+    readonly found: boolean;
+    readonly abandoned: boolean;
+  }[];
+}
+
 export interface MountService {
   /** Build, place and keep `build()`'s node at `anchor`. Null when `build()` threw (already reported). */
   attach(
@@ -102,6 +126,8 @@ export interface MountService {
     onFound: (element: Element) => Teardown | undefined,
     onError: (reason: string) => void,
   ): Teardown;
+  /** Every mount and watch as the checks need them. Reads state; places and moves nothing. */
+  inspect(): MountSnapshot;
 }
 
 export function createMountService(
@@ -466,6 +492,22 @@ export function createMountService(
           w.teardown = null;
           off();
         }
+      };
+    },
+    inspect() {
+      return {
+        mounts: active.map((m) => ({
+          owner: m.owner,
+          anchorConnected: m.anchor.isConnected,
+          positioned: positioned(m),
+          abandoned: m.abandoned,
+        })),
+        watches: watches.map((w) => ({
+          owner: w.owner,
+          anchor: w.target.anchor,
+          found: w.current !== null,
+          abandoned: w.abandoned,
+        })),
       };
     },
   };

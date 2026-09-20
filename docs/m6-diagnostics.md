@@ -173,14 +173,52 @@ the probe's own badge and the one anchor it mounts against; the mount service kn
 every anchor, so it can make the same assertion about all of them. *Stylesheet applied* is the same
 shape: the style module knows what every plugin asked for.
 
-**The probe keeps five:** read taps are immutable, the rewrite chain composes in order, read taps
-see the app's original, its own rewrite bookkeeping, and its own badge still mounted — the last as
-the worked example of a plugin checking itself, which is what every third-party plugin's check will
-look like.
+**The probe keeps six:** read taps are immutable, the rewrite chain composes in order, read taps see
+the app's original, its own rewrite bookkeeping, its own badge still mounted, and its transcript
+decorator registered.
+
+The last of those looks like it belongs to the transcript capability and does not. The probe
+registers a decorator that draws nothing, and that registration is what keeps the transcript service
+sweeping at all — so it is what makes the capability's own *rows identified and timed* check mean
+anything on a panel where the plugin that actually draws on rows is switched off. The probe catches
+the throw rather than letting it disable the panel, which makes the failure silent from every other
+line: `entries` stays at zero, and zero rows is correctly not a fault.
 
 It ends up one contributor among several, with `checks.ts` reduced to the verdict functions for
 those five plus the report formatting, and the panel and badge — which are the probe's other job,
 and stay its job.
+
+## The first-party plugins contribute, through `ctx.check` and nothing else
+
+The probe is a bad witness for whether the plugin-facing API is any good. It reads
+`globalThis.__rigline` directly, which no other plugin may, so a `ctx.check` shaped to suit it would
+be shaped to suit the one client that does not need it. session-id, time-marks and worktree-prefix
+are the ordinary client, and they go through exactly the API a stranger's plugin goes through: their
+own state, their own `ctx`, no diagnostics.
+
+They are worth checking on their own account, because each has a characteristic failure that is
+silent today — which is the whole of what this phase is for.
+
+**session-id** — *badge mounted*, and *session id known*. The plugin's own distinction between
+"mounted, waiting" and "never mounted" is already written into its placeholder, and the placeholder
+is the only thing that currently says which. A check says it in words.
+
+**time-marks** — *marks are being placed*: rows present, rows decorated. This is the one that
+justifies the phase on its own. The plugin can be loaded, its toggle on, its stylesheet applied, its
+`decorateTranscript` registered, and every row undecorated because the three-way join behind an
+entry came apart — and today the panel says `time-marks loaded` and nothing else. `n/a` while the
+toggle is off, and it says so, because a plugin the user has switched off is not a plugin that is
+failing. Plus *toggle mounted*, its anchor being optional.
+
+**worktree-prefix** — *prefix applied*: whether the rewrite has ever put a marker on a title, `n/a`
+when it believes this session is in no worktree, with what it believes as the detail. Its silent
+failure is the most complete of the three: its host patch is optional, so an update that stops the
+patch applying costs it the list-sessions detection path with no refusal anywhere, and a session
+that is genuinely not in a worktree looks identical to one whose detection has gone. The detail line
+is what separates them.
+
+The scaffold in `packages/create-plugin/template/` gets one check for the same reason: a plugin
+should start with the habit, not acquire it after the first silent failure.
 
 ## Order of work
 
@@ -190,11 +228,12 @@ and stay its job.
 2. The capability modules' checks, per module, likewise trading probe lines for `core` lines as each
    lands. The `CapabilityModule` interface grows one optional member; a module that contributes none
    is unchanged.
-3. `ctx.check`, and the probe reduced to its five.
+3. `ctx.check`, the probe reduced to its five, and the three first-party plugins contributing
+   through it. They are the acceptance test for the step: if writing those seven checks is
+   awkward, the API is wrong, and that is worth finding out before a stranger finds it out.
 
 Modules before `ctx.check` because the plugin-facing API should be shaped against a mechanism that
-already works, not co-designed with it — and because the probe is an unusual first client, reading
-diagnostics directly in a way no other plugin may.
+already works, not co-designed with it.
 
 ## What this owes elsewhere, when it lands
 

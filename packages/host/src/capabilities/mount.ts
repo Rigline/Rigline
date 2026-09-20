@@ -1,5 +1,11 @@
 import { ANCHORS, type AnchorName, CONTRACTS } from "@rigline/plugin-api";
 import { type CapabilityModule, declaredSwitch, undeclared } from "../kernel/types.ts";
+import {
+  anchorUniqueVerdict,
+  mountReplacementVerdict,
+  mountsInPlaceVerdict,
+  watchesFoundVerdict,
+} from "../kernel/verdicts.ts";
 
 /** `ctx.mount`, `ctx.mountAfter`, `ctx.mountBefore` and `ctx.watch`: DOM placement the host keeps
  * in place. */
@@ -92,5 +98,27 @@ export const mountModule: CapabilityModule<"mount"> = {
         );
       },
     };
+  },
+  checks(kernel) {
+    const m = kernel.diagnostics.mounts;
+    return [
+      {
+        name: "mount: nodes are where the host put them",
+        run: () => mountsInPlaceVerdict(kernel.mounts.inspect().mounts),
+      },
+      {
+        name: "mount: watches have found their element",
+        run: () => watchesFoundVerdict(kernel.mounts.inspect().watches),
+      },
+      {
+        name: "mount: re-placement after a re-render",
+        run: () =>
+          mountReplacementVerdict(m.driver, m.active, m.replaced, m.moved, m.lost, m.abandoned),
+      },
+      {
+        name: "mount: watched singletons match one element",
+        run: () => anchorUniqueVerdict(m.multiple),
+      },
+    ];
   },
 };

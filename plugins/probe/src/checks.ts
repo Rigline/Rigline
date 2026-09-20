@@ -1,22 +1,31 @@
 /**
- * Pure verdict logic for every check the probe runs.
+ * The probe's own verdict logic, and the formatting for everything the panel and the clipboard show.
  *
- * Every function here takes the raw state (diagnostics fields, ctx-observed values, DOM facts
- * already reduced to plain data) and returns a verdict and a one-line detail. Nothing here touches
- * the DOM, `ctx`, or `globalThis.__rigline`: that wiring lives in index.ts, which calls these and
- * feeds the result through one `report()` path, so the badge count and the panel text cannot
- * disagree about what a check found.
+ * Two jobs, and they used to be one. The probe is now a *renderer* of a registry it no longer owns —
+ * the kernel and the capability modules contribute `core`, plugins contribute their own lines — and
+ * separately one contributor among them, with the handful of checks nothing else can run.
  *
- * `n/a` is a real state, never a failure: a check that cannot apply on this surface, or has had no
- * opportunity yet, says so instead of guessing pass or fail.
+ * What stayed here is what is an experiment rather than a reading: register a tap and check the tap
+ * saw the app's original, rewrite twice and check the chain composed. Those need something done to
+ * the bus and then looked at, which no capability module is in a position to do to itself.
+ *
+ * Nothing here touches the DOM, `ctx`, or `globalThis.__rigline`: that wiring is in index.ts.
  */
 
 export type Verdict = "pass" | "fail" | "n/a";
 
-export interface CheckResult {
+/** One line as the host's registry hands it back. See the host's kernel/checks.ts for the source. */
+export interface CheckLine {
   readonly name: string;
   readonly verdict: Verdict;
   readonly detail: string;
+}
+
+/** One contributor's lines. `core` first, then plugins in registry order. */
+export interface CheckGroup {
+  readonly contributor: string;
+  readonly results: readonly CheckLine[];
+  readonly failing: number;
 }
 
 /** The message of a thrown value, for a detail string. `Error` when it is one, `String()` otherwise. */
@@ -25,7 +34,7 @@ export function errorMessage(e: unknown): string {
 }
 
 /** One line of the panel report: the verdict tag, the check's name, and its detail. */
-export function formatLine(check: CheckResult): string {
+export function formatLine(check: CheckLine): string {
   const tag = check.verdict === "pass" ? "PASS" : check.verdict === "fail" ? "FAIL" : "N/A ";
   return check.detail.length > 0
     ? `${tag}  ${check.name} — ${check.detail}`
@@ -33,115 +42,34 @@ export function formatLine(check: CheckResult): string {
 }
 
 /** How many checks are failing, which is what the badge count must agree with. */
-export function failingCount(checks: readonly CheckResult[]): number {
-  return checks.filter((c) => c.verdict === "fail").length;
-}
-
-/** Check 1: the pre hook's static import ran, and ran before the app rendered anything. */
-export function preHookOrderVerdict(
-  rootChildrenAtPre: number,
-  rootChildrenAtPost: number | null,
-): { verdict: Verdict; detail: string } {
-  if (rootChildrenAtPre === -1 || rootChildrenAtPost === null || rootChildrenAtPost === -1) {
-    return {
-      verdict: "n/a",
-      detail: `pre=${rootChildrenAtPre} post=${rootChildrenAtPost ?? "null"}`,
-    };
-  }
-  const ok = rootChildrenAtPre === 0 && rootChildrenAtPost > 0;
-  return {
-    verdict: ok ? "pass" : "fail",
-    detail: `#root kids ${rootChildrenAtPre} -> ${rootChildrenAtPost}`,
-  };
-}
-
-/** Check 2: the app's single `acquireVsCodeApi` call went through the pre hook's wrapper. */
-export function acquireVerdict(
-  wrapped: boolean,
-  called: boolean,
-): { verdict: Verdict; detail: string } {
-  return {
-    verdict: wrapped && called ? "pass" : "fail",
-    detail: `wrapped=${wrapped} called=${called}`,
-  };
-}
-
-/** Check 3: the bus tap sees traffic in both directions. */
-export function busTrafficVerdict(
-  outboundCount: number,
-  inboundCount: number,
-): { verdict: Verdict; detail: string } {
-  return {
-    verdict: outboundCount > 0 && inboundCount > 0 ? "pass" : "fail",
-    detail: `out=${outboundCount} in=${inboundCount}`,
-  };
-}
-
-/** Check 4: the boot replay buffer sealed once every plugin had its chance to register. */
-export function bufferSealedVerdict(
-  sealed: boolean,
-  buffered: number,
-): { verdict: Verdict; detail: string } {
-  return { verdict: sealed ? "pass" : "fail", detail: `buffered=${buffered}` };
-}
-
-/** Check 5: the identifier tables the kernel checks declarations against are loaded. */
-export function tablesLoadedVerdict(identifiersFor: string | null): {
-  verdict: Verdict;
-  detail: string;
-} {
-  return {
-    verdict: identifiersFor !== null ? "pass" : "fail",
-    detail: identifiersFor ?? "no tables loaded",
-  };
-}
-
-/** One plugin's status, as far as check 6 needs it. */
-export interface PluginStatusLike {
-  readonly name: string;
-  readonly status: "loaded" | "refused" | "error" | "inactive";
-  readonly reason?: string;
+export function failingCount(groups: readonly CheckGroup[]): number {
+  return groups.reduce((total, group) => total + group.failing, 0);
 }
 
 /**
- * Check 6: every plugin in the registry loaded or was legitimately inactive. There is no list of
- * expected refusals here (D17): the fixtures that exist to be refused are never installed, so any
- * `refused` or `error` entry names a real problem.
+ * The panel's body: a header per contributor, then its lines indented under it.
+ *
+ * The count on a header appears only when it is not zero, so a header that carries one is itself the
+ * finding and the eye is never trained to skip a `(0 failing)` on every group (the same reason the
+ * abandoned-mounts line is absent rather than empty, D54).
+ *
+ * Order is the registry's, and it is the host that decides it. Nothing here sorts: a list that
+ * reorders as verdicts change slides a line out from under a pointer mid-click, and a report that
+ * rearranges itself while it is being read is worse than one that is merely long.
  */
-export function pluginStatusVerdict(plugins: readonly PluginStatusLike[]): {
-  verdict: Verdict;
-  detail: string;
-} {
-  const bad = plugins.filter((p) => p.status === "refused" || p.status === "error");
-  if (bad.length === 0) {
-    return { verdict: "pass", detail: `${plugins.length} plugin(s) loaded or inactive` };
+export function formatGroups(groups: readonly CheckGroup[]): string {
+  const out: string[] = [];
+  for (const group of groups) {
+    if (out.length > 0) out.push("");
+    out.push(
+      group.failing > 0 ? `${group.contributor}  (${group.failing} failing)` : group.contributor,
+    );
+    for (const line of group.results) out.push(`  ${formatLine(line)}`);
   }
-  const detail = bad
-    .map((p) => `${p.name} ${p.status}${p.reason ? `: ${p.reason}` : ""}`)
-    .join("; ");
-  return { verdict: "fail", detail };
+  return out.length > 0 ? out.join("\n") : "(no checks registered)";
 }
 
-/** Check 7: no error has landed in `diagnostics.errors`. */
-export function hostErrorsVerdict(errors: readonly string[]): { verdict: Verdict; detail: string } {
-  if (errors.length === 0) return { verdict: "pass", detail: "0" };
-  return { verdict: "fail", detail: errors.slice(0, 3).join("; ") };
-}
-
-/** Check 8: the React devtools hook is installed and the renderer is known. */
-export function reactVerdict(react: {
-  readonly hook: "installed" | "chained";
-  readonly version: string | null;
-  readonly commits: number;
-  readonly notified: number;
-}): { verdict: Verdict; detail: string } {
-  return {
-    verdict: react.version !== null ? "pass" : "fail",
-    detail: `${react.hook}, ${react.version ?? "no version"}, ${react.commits} -> ${react.notified}`,
-  };
-}
-
-/** Check 10: a tap's payload, and once seen, its nested `request` object, are frozen. */
+/** A tap's payload, and once seen, its nested `request` object, are frozen. */
 export function immutabilityVerdict(
   nestedSeen: boolean,
   topFrozen: boolean,
@@ -153,24 +81,17 @@ export function immutabilityVerdict(
   return { verdict: "fail", detail: `${broken} not frozen` };
 }
 
-/** Check 11: `ctx.anchor()` resolved a non-empty class for the anchor this plugin mounts against. */
-export function anchorResolvesVerdict(
-  resolved: string | null,
-  thrown: string | null,
-): { verdict: Verdict; detail: string } {
-  if (thrown !== null) return { verdict: "fail", detail: `threw: ${thrown}` };
-  if (resolved === null || resolved.length === 0) {
-    return { verdict: "fail", detail: "resolved to an empty string" };
-  }
-  return { verdict: "pass", detail: resolved };
-}
-
 /**
- * Check 13: the node this plugin mounted is still in the document. `mounted` is whether `build()`
- * has run at least once; a node the host has since rebuilt (after its anchor's children were wholly
- * replaced) is a different element, so the caller passes the *current* one, not the first.
+ * The node this plugin mounted is still in the document. `mounted` is whether `build()` has run at
+ * least once; a node the host has since rebuilt (after its anchor's children were wholly replaced)
+ * is a different element, so the caller passes the *current* one, not the first.
+ *
+ * The host's own `mount:` checks ask this of every mount and read the mount service's own idea of
+ * where a node belongs. This one is deliberately the naive version, asked from outside: it is what a
+ * plugin can see about itself with nothing but a DOM reference, and so it is the worked example of
+ * the shape every third-party check will have.
  */
-export function mountSurvivesVerdict(
+export function badgeMountedVerdict(
   mounted: boolean,
   connected: boolean,
 ): { verdict: Verdict; detail: string } {
@@ -179,49 +100,9 @@ export function mountSurvivesVerdict(
 }
 
 /**
- * Check 14: whether a shared anchor's `data-rigline-mount` siblings, read in DOM order and mapped to
- * their registry index, come out non-decreasing (D23). `n/a` with fewer than two nodes: nothing
- * about ordering is proven by one node sharing an anchor with itself, which is the ordinary case
- * until another plugin decorates the same anchor.
- */
-export function mountOrderVerdict(
-  indices: readonly number[],
-  anchored = false,
-): {
-  verdict: Verdict;
-  detail: string;
-} {
-  // `anchored` is the drift check, and it is why this is not simply an ordering assertion. This
-  // plugin's own badge is mounted beside the anchor, so when it is on screen there must be a
-  // host-placed node adjacent to the anchor; finding none means every decoration on that anchor
-  // has been left behind by a re-render that moved it. Without this the failure reads as
-  // "n/a, 0 nodes", which is what it read as when it actually happened.
-  if (anchored && indices.length === 0) {
-    return {
-      verdict: "fail",
-      detail: "no host-placed node beside the anchor: mounts have drifted",
-    };
-  }
-  if (indices.length < 2) {
-    return { verdict: "n/a", detail: `${indices.length} node(s) on the anchor` };
-  }
-  for (let i = 1; i < indices.length; i++) {
-    const prev = indices[i - 1] as number;
-    const curr = indices[i] as number;
-    if (curr < prev) {
-      return {
-        verdict: "fail",
-        detail: `registry order ${indices.join(",")} is not non-decreasing`,
-      };
-    }
-  }
-  return { verdict: "pass", detail: `registry order ${indices.join(",")}` };
-}
-
-/**
- * Check 15: the two-rewriter chain on `rename_tab` composes. `composed` latches true the first time
- * the second rewriter sees the first's mark; once true it stays true, because the claim being
- * proved is "we have been seen to compose", which a later message cannot un-observe.
+ * The two-rewriter chain on `rename_tab` composes. `composed` latches true the first time the
+ * second rewriter sees the first's mark; once true it stays true, because the claim being proved is
+ * "we have been seen to compose", which a later message cannot un-observe.
  */
 export function chainComposeVerdict(
   crossed: boolean,
@@ -232,7 +113,7 @@ export function chainComposeVerdict(
   return { verdict: "fail", detail: "second rewriter did not see the first's mark" };
 }
 
-/** Check 16: a read tap on `rename_tab` never saw the chain's own mark on the wire. */
+/** A read tap on `rename_tab` never saw the chain's own mark on the wire. */
 export function leakVerdict(
   seen: boolean,
   leaked: boolean,
@@ -243,7 +124,7 @@ export function leakVerdict(
   return { verdict: "pass", detail: "clean" };
 }
 
-/** One rewrite bookkeeping record, as far as check 17 needs it. */
+/** One rewrite bookkeeping record, as far as the bookkeeping check needs it. */
 export interface RewriteRecordLike {
   readonly plugin: string;
   readonly type: string;
@@ -252,7 +133,7 @@ export interface RewriteRecordLike {
   readonly missed: number;
 }
 
-/** Check 17: `diagnostics.rewrites` carries exactly the probe's own two registrations. */
+/** `diagnostics.rewrites` carries exactly the probe's own two registrations. */
 export function rewriteBookkeepingVerdict(
   records: readonly RewriteRecordLike[],
   pluginName: string,
@@ -270,112 +151,12 @@ export function rewriteBookkeepingVerdict(
   return { verdict: "pass", detail };
 }
 
-/** Check 18: at least one tool call has been observed through `ctx.onToolUse`. */
-export function toolCallsVerdict(
-  seen: number,
-  lastName: string | null,
-): { verdict: Verdict; detail: string } {
-  if (seen === 0) return { verdict: "n/a", detail: "no tool calls yet" };
-  return { verdict: "pass", detail: `${seen} seen, last "${lastName}"` };
-}
-
-/** Check 19: a session id has arrived through `ctx.onSessionId`. */
-export function sessionIdVerdict(id: string | null): { verdict: Verdict; detail: string } {
-  if (id === null) return { verdict: "n/a", detail: "no session" };
-  return { verdict: "pass", detail: id.slice(0, 8) };
-}
-
-/**
- * Check 20: transcript rows are being identified and timed. `fail` only once entries have been
- * present for more than five seconds with nothing timed, which is the join being broken rather than
- * merely not yet caught up; an untimed row younger than that (a prompt just sent, a session still
- * loading) is ordinary.
- */
-export function transcriptVerdict(
-  entries: number,
-  timed: number,
-  msSinceEntriesUntimed: number | null,
-): { verdict: Verdict; detail: string } {
-  if (entries === 0) return { verdict: "n/a", detail: "no transcript rows yet" };
-  if (timed > 0) return { verdict: "pass", detail: `entries=${entries} timed=${timed}` };
-  if (msSinceEntriesUntimed !== null && msSinceEntriesUntimed > 5000) {
-    return {
-      verdict: "fail",
-      detail: `entries=${entries} timed=0 after ${Math.round(msSinceEntriesUntimed)}ms`,
-    };
-  }
-  return { verdict: "n/a", detail: `entries=${entries} timed=0, waiting` };
-}
-
-/** Check 21: the host-managed stylesheet this plugin asked for is in the document. */
-export function stylesheetVerdict(present: boolean): { verdict: Verdict; detail: string } {
-  return { verdict: present ? "pass" : "fail", detail: present ? "present" : "missing" };
-}
-
-/**
- * Check 22: what the mount service is doing about re-placement, and the number D52 turns on.
- *
- * `lost` is the only failure here — a node detached from an anchor still in the document, retried
- * every frame and visible to nobody. A non-zero `replaced` is the opposite of a failure: it is the
- * mechanism working, and the only evidence that will keep it in the codebase. Both at zero is the
- * quiet state the 0.x prototype measured across all three surfaces, and `n/a` reports it as what it
- * is rather than claiming a pass for something that never had to happen.
- *
- * `driver` rides along because the fallback is otherwise silent: "observer" against the real
- * extension means no React renderer injected, which is a much larger problem than re-placement and
- * would otherwise only show up as an empty transcript two lines further down the panel.
- *
- * `abandoned` outranks `lost` and is reported by name rather than by count (D54). It means the host
- * kept re-placing something and kept being undone, concluded it was losing, and stopped — so the
- * decoration is gone and, before it went, the panel was flickering at frame rate. A count would say
- * how bad; the name says which plugin and which anchor, which is the thing anyone reading this
- * needs next.
- */
-export function mountReplacementVerdict(
-  driver: string,
-  active: number,
-  replaced: number,
-  moved: number,
-  lost: number,
-  abandoned: readonly string[] = [],
-): { verdict: Verdict; detail: string } {
-  const where = `${active} active, on ${driver}`;
-  const work = [
-    replaced > 0 ? `${replaced} re-placed` : null,
-    moved > 0 ? `${moved} moved` : null,
-  ].filter((part) => part !== null);
-  if (abandoned.length > 0) {
-    return { verdict: "fail", detail: `gave up on ${abandoned.join("; ")}, ${where}` };
-  }
-  if (lost > 0) return { verdict: "fail", detail: `${lost} still detached, ${where}` };
-  if (work.length > 0) return { verdict: "pass", detail: `${work.join(", ")}, ${where}` };
-  return { verdict: "n/a", detail: `nothing detached or moved yet, ${where}` };
-}
-
-/**
- * Check 22: every anchor this panel watches that claims to name one element matched exactly one.
- *
- * The build-time count and this one answer different questions and neither subsumes the other
- * (D7). The harvest counts how many *places the bundle applies* a class, which is where an
- * ambiguity is caught before anyone runs anything; this counts how many *elements are on screen*,
- * which is the only thing that can tell you a refinement stopped refining — a class applied at one
- * site inside a list renders many, and a selector that matched one control last week can match two
- * after a release that never touched the class at all.
- *
- * `multiple` carries only the anchors that have failed the claim, so empty is the pass, and the
- * verdict is `pass` rather than `n/a` when nothing is in it: the host has been looking on every
- * commit since boot, which is a measurement and not an absence of one.
- */
-export function anchorUniqueVerdict(multiple: Readonly<Record<string, number>>): {
-  verdict: Verdict;
-  detail: string;
-} {
-  const names = Object.keys(multiple).sort();
-  if (names.length === 0) return { verdict: "pass", detail: "one element each" };
-  return {
-    verdict: "fail",
-    detail: names.map((name) => `${name} matched ${multiple[name]}`).join(", "),
-  };
+/** One plugin's status, as far as the report needs it. */
+export interface PluginStatusLike {
+  readonly name: string;
+  readonly status: "loaded" | "refused" | "error" | "inactive";
+  readonly reason?: string;
+  readonly missingOptional?: readonly string[];
 }
 
 /** Wall-clock `HH:MM:SS` for a report meant to be lined up against VS Code's own logs, which are
@@ -462,15 +243,15 @@ function previousRow(entry: Record<string, unknown>): string {
  *
  * Rich where the panel is lean, and deliberately so: the panel is a list you scan for a red line,
  * while this is what somebody pastes into an issue and a stranger has to diagnose from cold. The
- * peaks block is the part that is new and the part that matters — a total says a panel has been busy
- * and a peak says when, which is the difference between a report that can be correlated with VS
- * Code's own logs and one that cannot.
+ * peaks block is the part that matters most — a total says a panel has been busy and a peak says
+ * when, which is the difference between a report that can be correlated with VS Code's own logs and
+ * one that cannot.
  *
  * It carries no message content, no titles and no transcript text, by construction rather than by
  * filtering (D53). The session id is the one identifier present, already truncated to eight
  * characters by its own check, and already on screen in the panel.
  */
-export function formatReport(facts: ReportFacts, checks: readonly CheckResult[]): string {
+export function formatReport(facts: ReportFacts, groups: readonly CheckGroup[]): string {
   const out: string[] = ["rigline probe report"];
 
   out.push("");
@@ -514,7 +295,9 @@ export function formatReport(facts: ReportFacts, checks: readonly CheckResult[])
 
   out.push("", "plugins");
   for (const p of facts.plugins) {
-    out.push(`  ${p.name.padEnd(16)} ${p.status}${p.reason ? ` — ${p.reason}` : ""}`);
+    const without =
+      (p.missingOptional?.length ?? 0) > 0 ? ` — without ${p.missingOptional?.join("; ")}` : "";
+    out.push(`  ${p.name.padEnd(16)} ${p.status}${p.reason ? ` — ${p.reason}` : ""}${without}`);
   }
 
   if (facts.hostPatches.length > 0) {
@@ -531,7 +314,7 @@ export function formatReport(facts: ReportFacts, checks: readonly CheckResult[])
   }
 
   out.push("", "checks");
-  for (const check of checks) out.push(`  ${formatLine(check)}`);
+  for (const line of formatGroups(groups).split("\n")) out.push(line.length > 0 ? `  ${line}` : "");
 
   out.push("", `host errors (${facts.errors.length})`);
   if (facts.errors.length === 0) out.push("  (none)");

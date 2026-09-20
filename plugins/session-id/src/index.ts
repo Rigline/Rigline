@@ -555,6 +555,35 @@ export default definePlugin({
       }
     });
 
+    ctx.check("badge is mounted", () =>
+      badge?.isConnected
+        ? { verdict: "pass", detail: headlineText(sessionId) }
+        : { verdict: "fail", detail: "the badge is not in the document" },
+    );
+
+    /**
+     * Whether the address scrape has ever found anything.
+     *
+     * This is the check worth having here, and the session id is not: the id comes from the host,
+     * which reports on it under `core`, while the address is this plugin's one piece of
+     * derived-from-someone-else's-wording risk — a bounded regex over a stringified tool result, in
+     * two CLI phrasings, pinned by this plugin's tests against a form that can change without
+     * anything here breaking loudly. A rewording turns the pop-up's first row into a permanent "no
+     * messaging address yet", which is also exactly what an ordinary session that never ran
+     * `ListAgents` looks like.
+     *
+     * So it stays `n/a` in most sessions, and that is the honest answer rather than a defect in the
+     * check: it says the scrape has had no opportunity, not that it works.
+     */
+    ctx.check("messaging address observed", () => {
+      const identity = currentIdentity();
+      if (identity !== null) return { verdict: "pass", detail: formatAddress(identity) };
+      if (observed !== null) {
+        return { verdict: "n/a", detail: "one was seen, for a session this panel has left" };
+      }
+      return { verdict: "n/a", detail: "none yet — it appears once this session runs ListAgents" };
+    });
+
     return () => {
       stopWatch();
       stopSession();

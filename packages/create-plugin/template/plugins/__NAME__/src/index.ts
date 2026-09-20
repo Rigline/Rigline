@@ -55,7 +55,25 @@ export default definePlugin({
     // a decoration beside it contributes a constant width and the ladder settles.
     const stopWatch = ctx.watch("footerSpacer", (spacer) => ctx.mountBefore(spacer, () => badge));
 
+    // One line in Rigline's diagnostics panel, under this plugin's name. It declares nothing: the
+    // host calls it, hands it nothing, and gets a verdict back.
+    //
+    // Worth the four lines from the first day, because the failure a plugin has is normally silent.
+    // An extension update can leave this one loaded, declared, styled and drawing nothing, and
+    // every other line in that panel will say it is fine. Ask the question only your own state can
+    // answer — here, whether the badge is actually in the document — and say `n/a` with a reason
+    // when there is nothing to report yet.
+    //
+    // The host runs this about once a second for the life of the window, so read state you already
+    // keep. Do not walk the DOM or recompute an answer here; do that work where it already happens.
+    const stopCheck = ctx.check("badge is mounted", () =>
+      badge.isConnected
+        ? { verdict: "pass", detail: badgeText(calls) }
+        : { verdict: "fail", detail: "the badge is not in the document" },
+    );
+
     return () => {
+      stopCheck();
       stopWatch();
       stopTools();
       stopStyle();

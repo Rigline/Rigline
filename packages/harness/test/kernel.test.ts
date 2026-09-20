@@ -836,5 +836,76 @@ export default { setup() {} };`,
         await booted.close();
       }
     }, 20000);
+
+    /**
+     * A plugin's own diagnostics, end to end: `ctx.check` with no declaration behind it, grouped
+     * under the plugin's name, with `core` above it — and a throwing check rendered as one failing
+     * line with the plugin still loaded, which is the decision this whole capability turns on.
+     */
+    it("groups a plugin's contributed checks under its name, core first, and survives one that throws", async () => {
+      const checkerPlugin: FixturePlugin = {
+        name: "checker",
+        // Nothing declared, because a check declares nothing: it names no identifier, so there is
+        // no gap a manifest could ever report.
+        manifest: { uses: {} },
+        source: `export default { setup(ctx) {
+    let seen = 0;
+    ctx.check("counts something", () => ({ verdict: "pass", detail: seen + " seen" }));
+    ctx.check("has had no opportunity", () => ({ verdict: "n/a" }));
+    ctx.check("throws", () => { throw new Error("no such element"); });
+    ctx.check("answers nonsense", () => ({ verdict: "green" }));
+  } };`,
+      };
+      const booted = await boot({ plugins: [checkerPlugin] });
+      try {
+        const groups = await booted.page.evaluate(() => {
+          const bridge = (
+            globalThis as {
+              __rigline?: {
+                checks: {
+                  run(): readonly {
+                    contributor: string;
+                    failing: number;
+                    results: readonly { name: string; verdict: string; detail: string }[];
+                  }[];
+                } | null;
+              };
+            }
+          ).__rigline;
+          return bridge?.checks?.run() ?? null;
+        });
+
+        expect(groups).not.toBeNull();
+        const names = (groups ?? []).map((g) => g.contributor);
+        expect(names[0]).toBe("core");
+        expect(names).toContain("checker");
+
+        // core carries the kernel's own lines and every capability module's, keyed by capability.
+        const core = (groups ?? []).find((g) => g.contributor === "core");
+        expect(core?.results.map((r) => r.name)).toEqual(
+          expect.arrayContaining(["tables loaded", "mount: re-placement after a re-render"]),
+        );
+        expect(core?.results.find((r) => r.name === "tables loaded")?.detail).toBe(VERSION);
+
+        const checker = (groups ?? []).find((g) => g.contributor === "checker");
+        expect(checker?.results.map((r) => [r.name, r.verdict])).toEqual([
+          ["counts something", "pass"],
+          ["has had no opportunity", "n/a"],
+          ["throws", "fail"],
+          ["answers nonsense", "fail"],
+        ]);
+        expect(checker?.failing).toBe(2);
+        expect(checker?.results[2]?.detail).toContain("no such element");
+        expect(checker?.results[3]?.detail).toContain("not a verdict");
+
+        // The point of the decision: neither the throw nor the nonsense disabled the plugin, and
+        // neither reached diagnostics.errors, where it would have been counted a second time.
+        const d = await booted.diagnostics();
+        expect(d.plugins).toContainEqual({ name: "checker", status: "loaded" });
+        expect(d.errors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
   },
 );

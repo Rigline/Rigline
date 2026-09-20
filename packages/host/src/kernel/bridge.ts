@@ -6,6 +6,7 @@
  * file the injector never copies). The pre hook's Node test holds the runtime shape to this one.
  * Host-internal: no plugin sees any of it.
  */
+import type { CheckService } from "./checks.ts";
 
 export type Handler = (payload: unknown) => void;
 export type Rewriter = (
@@ -117,6 +118,15 @@ export interface ReactBridge {
 
 export interface Bridge {
   readonly diagnostics: Diagnostics;
+  /**
+   * The check registry, once the kernel has built it. Null until then, and null forever if the
+   * kernel never ran — which is itself the thing a reader would want to know.
+   *
+   * Beside `diagnostics` rather than inside it because `diagnostics` is data: the recorder snapshots
+   * it into the storage ring, and a function in there would be one more thing that walk has to know
+   * to skip.
+   */
+  checks: CheckService | null;
   readonly bus: Bus;
   readonly react: ReactBridge;
   /** Count one event against a named hot path's current second. See the pre hook's own `meter`. */

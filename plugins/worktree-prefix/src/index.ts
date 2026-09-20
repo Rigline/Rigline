@@ -290,6 +290,11 @@ export default definePlugin({
       return worktreeLabel(entry.name);
     }
 
+    /** Renames this plugin has actually prefixed, and the last marker it used. Bookkeeping for the
+     * check below, and the only thing that can distinguish a working prefix from a silent one. */
+    let prefixed = 0;
+    let lastMarker: string | null = null;
+
     ctx.rewrite("rename_tab", (payload) => {
       const label = prefix();
       const title = payload.title;
@@ -299,7 +304,39 @@ export default definePlugin({
       // double up today. The guard is defensive against a future where something upstream echoes a
       // previously-rewritten title back through the pipe — the difference between a feature and a
       // bug the day that stops being true.
-      return title.startsWith(marker) ? null : { title: marker + title };
+      if (title.startsWith(marker)) return null;
+      prefixed += 1;
+      lastMarker = label;
+      return { title: marker + title };
+    });
+
+    /**
+     * Whether this plugin is doing anything, and what it believes.
+     *
+     * The most complete silent failure of the three first-party plugins is this one's. The host
+     * patch it declares is optional, so an extension update that stops it applying costs the
+     * list-sessions detection path with no refusal anywhere and nothing on screen — and a session
+     * genuinely not in a worktree looks exactly the same from outside. Only this plugin's own belief
+     * separates them, so the detail line carries it whichever way the verdict goes.
+     *
+     * The session count is the tell for the patch specifically: a panel that has fetched a session
+     * list and found no worktree on any entry is either a machine with no worktrees, or a patch that
+     * did not land. It cannot tell which, and says the number rather than guessing.
+     */
+    ctx.check("prefix applied to the tab", () => {
+      const label = prefix();
+      const seen = `${worktrees.size} session(s) listed with a worktree`;
+      if (label === null) {
+        const why =
+          observedWorktree === null
+            ? "this session left its worktree"
+            : `no worktree for this session; ${seen}`;
+        return { verdict: "n/a", detail: why };
+      }
+      if (prefixed === 0) {
+        return { verdict: "n/a", detail: `"${label}" ready, no rename_tab since` };
+      }
+      return { verdict: "pass", detail: `"${lastMarker}" on ${prefixed} rename(s)` };
     });
   },
 });

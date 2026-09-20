@@ -234,6 +234,17 @@ interface RiglineBridge {
     readonly errors: string[];
   };
   /**
+   * The check registry, filled in by post.ts once the kernel has built it.
+   *
+   * Declared here and left null because this file is the bridge's shape and post.ts is the one
+   * thing that writes it. Null after boot means the kernel never ran, which is worth more to a
+   * reader than an empty registry that looks like a panel with nothing wrong.
+   *
+   * Typed loosely on purpose: what a check is belongs to post.ts, and this file shares no build
+   * with it (see the note at the head of kernel/bridge.ts).
+   */
+  checks: { run(): unknown } | null;
+  /**
    * The message plumbing post.ts drives, and the only part of this bridge it needs: taps on the
    * way in, rewrites on the way out. Buffered-and-live pub/sub keyed on the message "type" — see
    * `tap` below for what "type" means here.
@@ -699,6 +710,7 @@ try {
       previous: null,
       errors: [],
     },
+    checks: null,
     bus: {
       on(type, handler) {
         // The buffered payloads are the app's own objects, so replay clones and freezes here rather

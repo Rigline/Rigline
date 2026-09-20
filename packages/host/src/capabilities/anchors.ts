@@ -1,5 +1,6 @@
 import { CONTRACTS } from "@rigline/plugin-api";
 import type { CapabilityModule } from "../kernel/types.ts";
+import { anchorsResolveVerdict } from "../kernel/verdicts.ts";
 
 /** `ctx.anchor(name)` and `ctx.optional.anchor(name)`: the class a curated anchor resolves to. */
 export const anchorsModule: CapabilityModule<"anchors"> = {
@@ -35,5 +36,14 @@ export const anchorsModule: CapabilityModule<"anchors"> = {
         return kernel.tables.anchors[name] ?? null;
       },
     };
+  },
+  checks(kernel) {
+    return [
+      {
+        name: "anchors: table resolves against this extension",
+        run: () =>
+          anchorsResolveVerdict(kernel.tables.anchors, kernel.tables.unresolvedAnchors ?? {}),
+      },
+    ];
   },
 };
