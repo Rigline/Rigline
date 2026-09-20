@@ -134,6 +134,8 @@ interface CapabilityModule<K extends UsesKey> {
   grant(grant: Grant): Partial<PluginContext>;
   /** The slice of ctx.optional, for the lookups that may answer null (D41). */
   grantOptional?(grant: Grant): Partial<OptionalContext>;
+  /** The lines this capability contributes to `core`, registered once at boot (D63). */
+  checks?(kernel: Kernel): readonly Check[];
 }
 ```
 
@@ -148,9 +150,17 @@ two lookup-shaped capabilities implement it: everything else optional needs no A
 handler that never fires is already what absence does.
 
 `Kernel` is what a module may reach through: the bridge's bus and react halves, the tables, the
-surface, the diagnostics, and the shared services — mounts, session, tools, transcript. Modules do
-not import each other; a capability that needs another's state (the transcript needs the session)
-asks the kernel for a shared service the kernel owns.
+surface, the diagnostics, the registry as the injector baked it, and the shared services — mounts,
+session, tools, transcript, checks. Modules do not import each other; a capability that needs
+another's state (the transcript needs the session) asks the kernel for a shared service the kernel
+owns.
+
+`checks` is called once per module, before any plugin loads, so `core` is the first contributor in
+the panel. A module is handed the `Kernel` because a module's check is a reading of state it already
+owns — where a plugin's check is handed nothing (D63). Two of the three switch modules read
+`kernel.plugins` first, through `usedOnSurface`: a capability nothing on this surface declared
+reports `n/a` and why, and the tap such a check would need is never installed for a panel that was
+not going to install it anyway.
 
 ### Initial capabilities
 
@@ -166,8 +176,11 @@ asks the kernel for a shared service the kernel owns.
 | `session` | `true` | `onSessionId(handler)` | `update_session_state` |
 | `transcript` | `true` | `decorateTranscript(build)` | `get_session_response`, `io_message`, anchor `transcriptRow` |
 
-`surface` is on every `ctx` without a declaration: it is a string, and knowing which surface you
-are on grants nothing.
+`surface` and `check` are on every `ctx` without a declaration. `surface` is a string, and knowing
+which one you are on grants nothing; `check(name, run)` hands the host a function and takes nothing
+back, so there is no identifier for a manifest to name and no gap a declaration could report (D63).
+The rule both rest on, and that a third undeclared member would have to satisfy: **an undeclared
+member may not widen what a plugin can reach.**
 
 `watch(anchor, onFound)`: the host calls `onFound(element)` when an element for the anchor is
 present and again whenever the element it last handed over leaves the document and a new one
@@ -269,6 +282,28 @@ decoration may be on the wrong control (D7). `mounts.abandoned` names a mount or
 gave up on, so a decoration is gone and the panel was flickering before it went (D54); the `rebind`
 meter's peak is the early warning for the same condition.
 
+## The check registry
+
+Beside `diagnostics` on the bridge, and filled in by the kernel: `globalThis.__rigline.checks`, null
+until the kernel has run and null forever if it never did. Beside rather than inside, because
+`diagnostics` is data the recorder snapshots into the storage ring.
+
+`add(contributor, name, run)` registers one line and returns its removal; `run()` executes every
+registered check now and returns them grouped — `core` first, then each contributor in the order it
+first appeared, which for plugins is registry order because setup runs in it (D66). Nothing sorts on
+the verdicts: a list that reorders as they change slides a line out from under a pointer mid-click.
+
+Three contributors, two paths. The kernel's own nine lines and each capability module's come through
+`kernelChecks` and `CapabilityModule.checks`, and are handed the `Kernel`. A plugin's come through
+`ctx.check`, and are handed nothing. The host runs them all the same way: a check that throws, or
+returns something that is not a verdict, becomes one failing line naming its contributor, and
+nothing else happens — no disable, and nothing in `diagnostics.errors`, which would count one fault
+twice under the wrong layer's name (D65).
+
+The cadence belongs to whoever renders. The probe asks once a second, for the life of the window,
+because the badge's failing count is on screen whether or not the panel is open — which is what
+makes *a check reads, it does not compute* a rule rather than a preference (D64).
+
 ## Verification
 
 Node tests, against throwaway copies and the corpus: the injector (byte delta, contiguous original,
@@ -277,12 +312,12 @@ written only on change, restore round-trip, status verdicts); discovery and regi
 built `pre.js` against a stubbed `acquireVsCodeApi` (immutability, unwrapping, buffer, chain,
 resend, counts); every contract's `gaps` and `summary`.
 
-The probe plugin, live: one check per capability, plus the kernel's own; `n/a` where a check
-cannot apply on a surface; the `RIG` badge green or red with a count. Leo reloads webviews and
-reads the badge on the full editor, the sidebar and the session list. The checks are the probe's
-own — written in `plugins/probe/src/checks.ts`, ordered by an array beside them — so a capability
-module does not bring one, and adding a check means editing that array. Phase 6 in
-[plan.md](plan.md) is where that changes.
+The probe plugin, live: every contributor's lines under its own heading, `n/a` where a check cannot
+apply on a surface, and the `RIG` badge green or red with the total count. Leo reloads webviews and
+reads the badge on the full editor, the sidebar and the session list. The probe renders the registry
+and contributes six of its own; the verdict logic behind `core` is unit-tested in
+`packages/host/test/verdicts.test.ts` and the registry's own behaviour in `checks.test.ts` beside it,
+because neither needs a browser to be argued about.
 
 The Playwright spike, if it boots the real bundle: a third tier for host and plugin DOM behaviour
 that needs no VS Code.

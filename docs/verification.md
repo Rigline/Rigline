@@ -116,28 +116,34 @@ command. The rule used to live in `CLAUDE.md` and rely on everybody remembering 
 A file skips, with a reason, when the corpus lacks its version or Chromium will not launch — and the
 reason says which.
 
-## Tier 3: the probe, in the real extension
+## Tier 3: the panel, in the real extension
 
-`plugins/probe` is a first-party plugin whose job is to prove the plugin machinery works end to end
-in the actual panel. It is the only tier that exercises the real extension host, the real CSP, the
-real React build and the real install.
+`plugins/probe` renders Rigline's diagnostics panel in the actual webview, and is the only tier that
+exercises the real extension host, the real CSP, the real React build and the real install.
 
-Everything it can reach through `ctx` it reaches through `ctx`, exactly as a third-party plugin
-would — which is what makes an all-green badge evidence rather than self-assessment. The one
-exception is `globalThis.__rigline.diagnostics`, read directly and by nothing else: this plugin
-exists to diagnose the host, and pre/post timing, raw tap counts and every plugin's load status are
-not capabilities a manifest could sanely declare.
+**A check is contributed, not written into the probe** (D63). The kernel and each capability module
+contribute the host's lines under `core`; every plugin contributes its own through `ctx.check`, under
+its own name. So the panel answers *which part of this is broken* — and a plugin, which is precisely
+the thing whose failure was invisible, now has somewhere to say what working would look like.
 
-The checks themselves are the probe's own. The verdict functions are in
-[checks.ts](../plugins/probe/src/checks.ts), pure and separately tested, and their report order is a
-hand-maintained array in [index.ts](../plugins/probe/src/index.ts) — so adding a check means editing
-that array, and neither a capability module nor a plugin can contribute one. That is the gap phase 6
-in [plan.md](plan.md) exists to close: a plugin is precisely the thing whose failure is invisible
-today, and it has nowhere to say what working would look like.
+The probe is one contributor among several, which is the test of whether the shape is right. It keeps
+only what is an experiment rather than a reading: register a tap and check the tap saw the app's
+original, rewrite twice and check the chain composed. Everything it can reach through `ctx` it
+reaches through `ctx`, exactly as a third-party plugin would, which is what makes an all-green badge
+evidence rather than self-assessment. The one exception is `globalThis.__rigline`, read directly and
+by nothing else: rendering every contributor's verdict, and the diagnostics the copied report
+carries, is not a capability a manifest could sanely declare.
+
+The verdict logic behind `core` is pure and tested in Node, in
+[verdicts.test.ts](../packages/host/test/verdicts.test.ts), with the registry's own behaviour — a
+throwing check, a malformed one, the grouping — beside it in `checks.test.ts`. Tier 2 proves the
+registry end to end through the real `ctx`, in
+[kernel.test.ts](../packages/harness/test/kernel.test.ts). What is left for this tier is the thing
+none of them can answer: whether the lines are true of a real panel.
 
 Three verdicts, and **`n/a` is a real state**: a check that cannot apply on this surface, or has had
-no opportunity yet, says so instead of guessing. Every verdict goes through one `report()` path, so
-the badge's failing count and the panel's lines are built from the same map and cannot disagree.
+no opportunity yet, says so instead of guessing. The panel, the badge count and the clipboard are
+all built from one run of the registry, so they cannot disagree about what a check found.
 
 The loop is: `pnpm build`, `pnpm rigline install`, *Developer: Reload Webviews*, read the `RIG`
 badge — on the full editor, the sidebar and the session list, because the three surfaces differ in

@@ -17,7 +17,7 @@
  * needs: one harvest at a workspace root serving every plugin in the repository (D50).
  */
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -131,6 +131,27 @@ describe("a plugin compiled against a committed harvest", () => {
     for (const body of cases) {
       expect(compile(plugin(body), { harvest: true }), body).toMatch(/error TS/);
     }
+  }, 120000);
+});
+
+/**
+ * The source a scaffolded plugin starts life as, run through the same compiler.
+ *
+ * It is the one plugin in this repository that nothing else typechecks: it lives under
+ * `create-plugin/template/` with `__NAME__` placeholders, outside every package's `include`, and a
+ * scaffolded copy resolves `@rigline/plugin-api` from npm rather than from here — so a template
+ * written against an API this repository has but has not yet published looks fine until somebody
+ * scaffolds. Both halves, because a fresh scaffold has no harvest and gains one at `pnpm codegen`.
+ */
+describe("the template create-rigline-plugin ships", () => {
+  const source = readFileSync(
+    join(REPO, "packages/create-plugin/template/plugins/__NAME__/src/index.ts"),
+    "utf8",
+  );
+
+  it("compiles before codegen has ever run, and again once it has", () => {
+    expect(compile(source, { harvest: false })).toBe("");
+    expect(compile(source, { harvest: true })).toBe("");
   }, 120000);
 });
 

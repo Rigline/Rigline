@@ -121,6 +121,50 @@ Calling one you did not declare throws and disables the plugin. That is delibera
 you can forget is a declaration the install cannot check. `rigline install` scans your built source
 and says so when the two disagree, in either direction.
 
+Two members of `ctx` are on it without a declaration, because neither widens what you can reach:
+`ctx.surface`, which is a string, and `ctx.check`, below.
+
+## Say when you are working: `ctx.check`
+
+Your plugin's characteristic failure is silent. An extension update, a class that moved, a message
+that changed shape — and it stays loaded, declared, styled, and drawing nothing, while every other
+line in the diagnostics panel says it is fine. `ctx.check` is where you say what working looks like,
+so that a red badge naming your plugin replaces a green one and a feature nobody noticed going.
+
+```ts
+ctx.check("marks are being placed", () => {
+  if (!enabled) return { verdict: "n/a", detail: "switched off" };
+  if (rowsSeen === 0) return { verdict: "n/a", detail: "no transcript rows yet" };
+  if (rowsMarked > 0) return { verdict: "pass", detail: `${rowsMarked} of ${rowsSeen}` };
+  return { verdict: "fail", detail: `${rowsSeen} rows, none carried a time` };
+});
+```
+
+It declares nothing, and the host hands it nothing, because nothing needs handing in: your own
+bookkeeping is in scope, and so is your own `ctx`, so a check that asks whether your anchor still
+resolves calls `ctx.anchor()` inside the closure.
+
+Three things are worth knowing.
+
+**`n/a` is a real verdict, not a soft failure.** A plugin the user switched off is not one that is
+failing, and a badge that goes red for a deliberate choice teaches people to ignore the badge. Say
+`n/a` with the reason, which is more use to a reader than a green line meaning the same thing.
+
+**A check reads; it does not compute.** The host calls it about once a second for the life of the
+window, whether or not anybody has the panel open, because the failing count is always on the badge.
+Walking the DOM or re-deriving an answer here is work done every second for nobody. Count as the
+events happen — a `rowsSeen++` where the row is already being handled — and have the check read the
+counter.
+
+**A check that throws costs you the line, not the plugin.** It shows as a failing line naming your
+plugin, with the message as its detail, and nothing is torn down: a broken sentence about a feature
+is not evidence against the feature. So there is no reason to be defensive in one, and no reason to
+wrap it in a `try`.
+
+Ask the question only your own state can answer. Whether the host derived a session id, whether
+mounts are being re-placed and whether the anchor table still resolves are already lines under
+`core`; what nothing else can say is whether *your* plugin turned any of that into what it promised.
+
 ## What you may do, and what is asked of you
 
 A plugin runs in the app's realm with full DOM access and can read every message on the bus. That
@@ -179,7 +223,8 @@ Three tiers, and knowing which one a question belongs to is most of the work.
   DOM. Export them and test them. This is the tier the scaffold ships an example of.
 - **The real app.** Whether a decoration lands in the right place, survives a re-render, or costs a
   row a line of height is a question about the extension, and only the extension can answer it.
-  Build, add, reload, look.
+  Build, add, reload, look — and read your own line in the diagnostics panel, which is the part of
+  that loop you do not have to remember to do.
 - **`rigline check`** for the question in between: does everything this plugin declares still exist
   in the version in front of me.
 
@@ -227,6 +272,11 @@ be repaired on a user's machine in minutes without a release from anybody — se
 **Something you declared is gone** — a message type, a payload field, a raw class pair. That one is
 yours: the install names it, and the fix is a new build. Raw `ctx.cls()` pairs are counted per
 plugin at install for exactly this reason, because no table fix reaches them.
+
+There is a third kind that neither of those catches, and it is the one `ctx.check` exists for:
+everything you declared still resolves, the install is clean, and the feature has stopped working
+anyway, because the shape of something you read changed without its name changing. Nothing at
+install time can see that. Your own check can.
 
 Backward compatibility is deliberately not a thing here. A plugin ships one build, and per-version
 variants would ask you to predict a release that does not exist yet.

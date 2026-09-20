@@ -327,47 +327,27 @@ A thin extension over core: re-inject on update, prompt for the webview reload, 
 disable and settings. Marketplace policy for an extension that patches another extension is a
 known risk to weigh when this phase starts.
 
-### Phase 6, later: a plugin contributes its own diagnostics
+### Phase 6: a plugin contributes its own diagnostics — built 2026-09-20
 
-The probe answers *is this working, which parts are not, and why* for the host and the capability
-layer. It cannot answer it for a plugin, because every check it runs is written inside it: the
-verdict functions are in `plugins/probe/src/checks.ts` and their report order in a hand-maintained
-array beside them, so a capability module — and a plugin — has nowhere to put one.
+A check is a thing that is contributed. The kernel and each capability module contribute the host's
+lines under `core`; a plugin contributes its own through `ctx.check(name, run)`, which declares
+nothing and is handed nothing. Checks are pulled on the panel's cadence rather than pushed, a
+throwing one fails its own line without disabling its plugin, and the panel groups by contributor in
+an order that does not move as verdicts change. The probe is left rendering the registry and
+contributing six of its own, which is the test of whether the shape is right.
 
-Make a check a thing that is contributed. The capability modules first, which is where the design
-already assumed it and where today's checks would move from; then plugins, which need it most,
-since a plugin is exactly the thing whose failure is invisible now. Group the panel by who
-contributed each line, the host's own under `core`, so the report reads as *which part of this is
-broken* rather than one undifferentiated list. Then "the badge is red and it names your plugin"
-replaces "the badge is green and your plugin quietly does nothing" — P8 applied to the one layer
-that has never had it.
+So "the badge is red and it names your plugin" replaces "the badge is green and your plugin quietly
+does nothing" — P8 applied to the one layer that never had it.
 
-**The fork this opens with, and a recommendation to push on.** Whether a contributed check is
-declared in the manifest, and what a check may reach, are one question — does the host hand a
-check any state? — and answering it settles both.
+session-id, time-marks and worktree-prefix go through `ctx.check` exactly as a stranger's plugin
+does, and the scaffold ships one, so a plugin starts with the habit rather than acquiring it after
+the first silent failure.
 
-*A check is a closure, and the host hands it nothing.* `ctx.check(name, fn)`, `fn` taking no
-arguments and returning a verdict and a line of detail. A plugin already knows whether it is
-working: its own bookkeeping is in scope, and so is its own `ctx`, so a check asking whether its
-anchor still resolves calls `ctx.anchor()` inside the closure and is capability-scoped by
-construction. The probe reads `diagnostics` because it is diagnosing the host. A plugin diagnosing
-itself needs no such licence and should not inherit one.
+[m6-diagnostics.md](m6-diagnostics.md) is the working doc; the reference is spread across
+[host.md](host.md), [verification.md](verification.md) and [authoring.md](authoring.md), and the
+argument is D63 to D66.
 
-*So no `uses` key.* A function the host calls, receiving nothing and granting nothing, is not a
-dependency on the extension: there is no identifier to validate, nothing for the schema to say,
-and nothing a person reading `rigline list` is owed a warning about. A check that later turns out
-to need host state is a request for a capability, decided by name, the way `ctx.copy` would be.
-
-*And the probe becomes a renderer that also contributes.* Most of `checks.ts` is about the kernel
-or about one capability, and moves to whoever owns it. What stays behind is the handful that are
-experiments rather than verdicts — register a tap and check the tap saw the app's original,
-rewrite and check the chain composed — which nothing but the probe can run. It ends up one
-contributor among several, which is the test of whether the shape is right.
-
-[m6-diagnostics.md](m6-diagnostics.md) is the working doc. It takes the fork's recommendation and
-settles the three questions this section left it — when the host runs a check, what a throwing one
-does, and how the panel orders contributors — along with what moves out of the probe and in what
-order the work goes.
+Outstanding: the live read on the real extension, across all three surfaces.
 
 ## Open questions, not blocking
 
@@ -391,21 +371,17 @@ order the work goes.
 
 ## Next session
 
-Phases 0 to 4b are done and `1.0.0-alpha.2` is published to `latest`, verified by scaffolding from
-the registry and taking it through install, build, typecheck and test. Nothing is blocked. What is
-open is a choice between phase 5, phase 6, and the loose ends below.
+Phases 0 to 4b are done and `1.0.0-alpha.2` is published to `latest`. Phase 6 is built, with the
+live read across the three surfaces outstanding — read that first, because everything below is
+cheaper to judge once the panel has been seen working. Nothing is blocked.
 
 **The release pipeline has not been driven end to end yet**, and [ci.md](ci.md) carries that along
 with the rest of what delivery still owes.
 
-**Take phase 6 next.** A recommendation, not a neutral listing. It is the one open item that pays
-somebody other than us: a plugin is precisely the thing whose failure is invisible today, and the
-probe cannot say a word about one, because every check it runs is written inside it. It opens on a
-design fork rather than on code, and that fork is written up in its phase section above with a
-recommendation to agree or veto before anything is built. Phase 5 is the
-larger lift and turns on a question nobody here can answer from the code — Marketplace policy on an
-extension that patches another extension — so it wants a session that begins by finding that out,
-not one that begins by writing.
+After the live read, what is open is phase 5 and the loose ends below. Phase 5 is the larger lift
+and turns on a question nobody here can answer from the code — Marketplace policy on an extension
+that patches another extension — so it wants a session that begins by finding that out, not one that
+begins by writing.
 
 **About this machine.** Only 2.1.270 is installed — VS Code deleted 2.1.268 and 2.1.269 once nothing
 was serving them, which is the behaviour D4 exists for; both are still in the corpus. Its
@@ -414,8 +390,13 @@ host patch takes effect only after *Developer: Reload Window*, which ends every 
 that window. `pnpm rigline restore` puts it back to the extension's own bytes and needs neither VS
 Code nor the extension to be working.
 
-**Two numbers to read off the live probe** before deciding anything about them. Its copied report
-carries both.
+**What the live read is for.** The panel now groups by contributor, so the first question is whether
+each group says what it should on each surface: `core` above the plugins, `n/a` where a capability
+nothing on that surface uses, and every first-party plugin's own line. The session list is the one
+worth looking hardest at, because most of what it reports is legitimately `n/a` and that is exactly
+where a check that is quietly wrong hides.
+
+**Two numbers to read off the same report** before deciding anything about them.
 
 - *Mount re-placement* (D52): `replaced`, `lost` and the driver. Zero `replaced` retires
   `replaceLost` and the peer scan it needs. Any `lost` at all is a node nobody can see being retried
@@ -645,3 +626,10 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   *one preview line at a time* as the constraint the wider naming now makes it possible to
   violate. [releasing.md](releasing.md) gains what the machine needs, the three runbooks — steady
   state, a preview line and its promotion, two lines at once — and no longer contradicts D61.
+- 2026-09-20: Phase 6 built. A check is contributed rather than written into the probe (D63 to D66):
+  nine lines from the kernel, nine from the capability modules, six left in the probe, and
+  `ctx.check` for everybody else. Pulled rather than pushed, so a verdict cannot go stale; a
+  throwing check fails its own line and leaves its plugin loaded. The three first-party plugins went
+  through the plugin-facing API rather than a privileged one, which is what tested it, and each
+  turned out to have a failure that was silent — time-marks most completely, since it can be loaded,
+  toggled on and decorating nothing while every other line says it is fine. Live read outstanding.
