@@ -910,13 +910,13 @@ major actually points at before trusting it to be the newest thing under that nu
 runtime deprecation warning in a green run as work already scheduled for you.
 
 **And a bot watches those pins, because a person did not** (2026-09-20). `.github/dependabot.yml`
-opens one grouped pull request a week when an action has moved, and CI checks it like any other —
-the `v4` above was six months stale, and what found it was somebody reading a warning in a green
-run. It is `github-actions` only: pointing it at `npm` would have Dependabot rewriting
-`pnpm-lock.yaml`, and how that sits with `minimumReleaseAge`, `blockExoticSubdeps` and
-`allowBuilds` (D46 to D48) is worth establishing before a bot touches that file rather than after.
-Its own three-day cooldown on a version update is stricter than D48's day, so that much of the
-posture survives the question either way.
+opens one grouped pull request a week when an action has moved, and CI checks it like any other.
+The `v4` above was six months behind upstream the day it was written here, and what found it was
+somebody reading a warning inside a green run. It is `github-actions` only: pointing it at `npm`
+would have Dependabot rewriting `pnpm-lock.yaml`, and how that sits with `minimumReleaseAge`,
+`blockExoticSubdeps` and `allowBuilds` (D46 to D48) is worth establishing before a bot touches
+that file rather than after. Its own three-day cooldown on a version update is stricter than
+D48's day, so that much of the posture survives the question either way.
 
 Two things it does not reach, both worth knowing rather than discovering. The scaffolder's
 template carries its own workflows under `packages/create-plugin/template/.github/workflows/`, and

@@ -589,7 +589,7 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   machine and does not transfer to an author's.
 - 2026-09-20: `.github/dependabot.yml` for the `github-actions` ecosystem (D59), one grouped pull
   request a week, arriving checked because CI runs on `pull_request`. It is the answer to a `v4`
-  that sat on a deprecated runner for six months and was found by somebody reading a warning. Two
-  gaps it does not close, both written down rather than left to be discovered: the template's own
-  workflows are not at the repository root and so are not watched, and enabling version updates
-  is a repository setting rather than a file.
+  that was six months behind upstream the day it was written here, and was found by somebody
+  reading a warning. Two gaps it does not close, both written down rather than left to be
+  discovered: the template's own workflows are not at the repository root and so are not watched,
+  and enabling version updates is a repository setting rather than a file.
