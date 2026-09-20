@@ -180,7 +180,8 @@ empty queue every reading of it approves the same thing.
 Two questions can only be answered by the first real release, and both want `npm stage list` open:
 whether a bare `stage approve` takes this run's batch or everything on the account, and whether
 reconciling `next` costs one authentication or four. Until the first is answered, `releasing.md`
-should not tell anybody an unwanted stage is safe to leave alone.
+says to read `npm stage list` before approving anything, rather than that an unwanted stage is
+safe to leave where it is.
 
 **The pipeline has not been driven end to end.** Every claim above is derived from the code and
 from one bootstrap publish done by hand. The first release is the test of it.
