@@ -364,8 +364,10 @@ experiments rather than verdicts — register a tap and check the tap saw the ap
 rewrite and check the chain composed — which nothing but the probe can run. It ends up one
 contributor among several, which is the test of whether the shape is right.
 
-Left for the working doc when the phase starts: when the host runs a check, what a throwing one
-does, and how the panel orders contributors.
+[m6-diagnostics.md](m6-diagnostics.md) is the working doc. It takes the fork's recommendation and
+settles the three questions this section left it — when the host runs a check, what a throwing one
+does, and how the panel orders contributors — along with what moves out of the probe and in what
+order the work goes.
 
 ## Open questions, not blocking
 
