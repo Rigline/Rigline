@@ -1,0 +1,27 @@
+# Watches the `uses:` pins in .github/workflows, because a pinned action goes stale quietly:
+# `pnpm/action-setup@v4` sat on GitHub's deprecated node20 runner here for six months, and what
+# found it was a person reading a warning inside a green run (D59). A pull request from this
+# arrives checked, since ci.yml runs on `pull_request` like it does for anybody else.
+#
+# This file is half a switch. Version updates are also enabled from the repository's settings,
+# under Advanced Security, which nothing in the tree can do.
+#
+# Not watched: the scaffolder's template carries its own workflows under
+# packages/create-plugin/template/.github/workflows/, and this ecosystem reads only
+# `.github/workflows` at the repository root. Those pins stay a person's job.
+version: 2
+
+updates:
+  # `github-actions` only. Pointing this at `npm` would have Dependabot rewriting
+  # `pnpm-lock.yaml`, and how that sits with minimumReleaseAge, blockExoticSubdeps and
+  # allowBuilds (D46 to D48) is worth establishing before a bot edits that file rather than after.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      # One pull request for everything that moved, rather than one per action. Four actions
+      # across two workflows is a handful of bumps a year; splitting a week's worth into separate
+      # pull requests is the noise that gets a bot muted, which costs more than it saves.
+      actions:
+        patterns: ["*"]

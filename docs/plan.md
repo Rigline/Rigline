@@ -374,11 +374,8 @@ larger lift and turns on a question nobody here can answer from the code — Mar
 extension that patches another extension — so it wants a session that begins by finding that out,
 not one that begins by writing.
 
-**Two things CI left on the table.** macOS is untested anywhere: the matrix is Linux plus one
-Windows row, so the third platform a VS Code user might be on has never run this code. And nothing
-watches the action versions — `dependabot.yml` for the `github-actions` ecosystem would turn the
-next runner deprecation into a pull request CI already checks, rather than a warning somebody has
-to notice.
+**One thing CI still leaves on the table.** macOS is untested anywhere: the matrix is Linux plus
+one Windows row, so the third platform a VS Code user might be on has never run this code.
 
 **About this machine.** Only 2.1.270 is installed — VS Code deleted 2.1.268 and 2.1.269 once nothing
 was serving them, which is the behaviour D4 exists for; both are still in the corpus. Its
@@ -590,3 +587,9 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   asserts something into a thing a run proves, because a CRLF checkout is precisely what that row
   gets. The scaffolder's template stays on one platform: the argument for this row is about this
   machine and does not transfer to an author's.
+- 2026-09-20: `.github/dependabot.yml` for the `github-actions` ecosystem (D59), one grouped pull
+  request a week, arriving checked because CI runs on `pull_request`. It is the answer to a `v4`
+  that sat on a deprecated runner for six months and was found by somebody reading a warning. Two
+  gaps it does not close, both written down rather than left to be discovered: the template's own
+  workflows are not at the repository root and so are not watched, and enabling version updates
+  is a repository setting rather than a file.

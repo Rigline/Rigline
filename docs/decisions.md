@@ -908,3 +908,19 @@ pinned to `v6.1.0`: its `v6` tag still resolves to the last release before pnpm 
 a failure on somebody else's schedule. Both halves of that are worth the habit: read what a floating
 major actually points at before trusting it to be the newest thing under that number, and treat a
 runtime deprecation warning in a green run as work already scheduled for you.
+
+**And a bot watches those pins, because a person did not** (2026-09-20). `.github/dependabot.yml`
+opens one grouped pull request a week when an action has moved, and CI checks it like any other —
+the `v4` above was six months stale, and what found it was somebody reading a warning in a green
+run. It is `github-actions` only: pointing it at `npm` would have Dependabot rewriting
+`pnpm-lock.yaml`, and how that sits with `minimumReleaseAge`, `blockExoticSubdeps` and
+`allowBuilds` (D46 to D48) is worth establishing before a bot touches that file rather than after.
+Its own three-day cooldown on a version update is stricter than D48's day, so that much of the
+posture survives the question either way.
+
+Two things it does not reach, both worth knowing rather than discovering. The scaffolder's
+template carries its own workflows under `packages/create-plugin/template/.github/workflows/`, and
+the `github-actions` ecosystem reads only `.github/workflows` at the repository root — so those
+pins stay a person's job, which is the same staleness in the one place nothing watches. And the
+file is half a switch: version updates are also enabled from the repository's settings, which is
+not something the tree can carry.
