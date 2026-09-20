@@ -9,6 +9,14 @@
  *
  * All reads, so this runs before anything is built and needs no permission. It writes `dist_tag`
  * to `$GITHUB_OUTPUT` for the staging step, and prints the same to a terminal.
+ *
+ * `--no-staging` says this run will not stage. The caller says so rather than this inferring it,
+ * because every inference available here — a dispatch, a branch ref — is the same shape as the
+ * thing being asked about and gets it wrong on a re-run. A run that stages nothing has no tag to
+ * derive: the derivation is printed as information, including a refusal, and the emitted tag is
+ * the placeholder `dry-run`, which the staging step refuses by name.
+ *
+ * Usage: node scripts/release-check.mjs [--staging | --no-staging]
  */
 import { appendFileSync } from "node:fs";
 import { registryState, stageTag } from "./lib/tags.mjs";
@@ -20,6 +28,10 @@ import {
   say,
 } from "./lib/workspace.mjs";
 
+/** The tag emitted when nothing will be staged: obviously fake, so a leak into a real stage shows. */
+const PLACEHOLDER = "dry-run";
+
+const staging = !process.argv.slice(2).includes("--no-staging");
 const version = currentVersion();
 
 const notes = changelogSection(version);
@@ -42,7 +54,22 @@ if (ref.startsWith("refs/tags/") && ref !== `refs/tags/v${version}`) {
 
 const packages = publishedPackages();
 const { refusal, tag } = stageTag(version, registryState(packages));
-if (refusal) fail(refusal);
 
+if (!staging) {
+  say(`${version} is described by CHANGELOG.md.`);
+  // A run that stages nothing is usually run against a tree whose version is already published,
+  // which is a refusal — and the right one. Reported rather than obeyed: what this run is for is
+  // the build, the tests and the OIDC exchange, none of which the tag decides.
+  say(refusal ? `The derivation refuses it: ${refusal}` : `It would stage under \`${tag}\`.`);
+  say(`Nothing will be staged, so the tag is \`${PLACEHOLDER}\`.`);
+  emit(PLACEHOLDER);
+  process.exit(0);
+}
+
+if (refusal) fail(refusal);
 say(`${version} is described by CHANGELOG.md, and stages under \`${tag}\`.`);
-if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `dist_tag=${tag}\n`);
+emit(tag);
+
+function emit(value) {
+  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `dist_tag=${value}\n`);
+}

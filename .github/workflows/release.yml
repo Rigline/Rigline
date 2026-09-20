@@ -40,13 +40,14 @@ jobs:
       id-token: write
     steps:
       # A dispatch is for dry runs, and a dry run from a feature branch says nothing about what a
-      # release would do. A tag-triggered run has no branch to check: `release:check` establishes
-      # that the tag names the version in the tree, which is the stronger claim and works on any
-      # maintenance line.
-      - name: Refuse a dispatch from anywhere but main
-        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
+      # release would do. A release line is another matter: checking the publishers before the
+      # first release on a new line is exactly what this is for. A tag-triggered run has no branch
+      # to check — `release:check` establishes that the tag names the version in the tree, which is
+      # the stronger claim and works on any line.
+      - name: Refuse a dispatch from anywhere but a release line
+        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' && !endsWith(github.ref, '.x')
         run: |
-          echo "::error::Dispatch this from main. This run is on ${{ github.ref }}."
+          echo "::error::Dispatch this from main or a <major>.x line. This run is on ${{ github.ref }}."
           exit 1
 
       # fetch-depth 0 because a tag-triggered run is checked out at the tag, and the default
@@ -69,8 +70,13 @@ jobs:
       # Before anything is built: a version the changelog does not describe, or a tag that names a
       # different one, is a release to abandon now rather than after a green run and an approval.
       # It also derives the dist-tag the two steps below stage under (D61).
+      #
+      # Whether this run stages is told, not inferred. A dry run is by construction a run against a
+      # tree whose version is already published, so deriving a tag for one refuses — and inferring
+      # the dry run from the event or the ref is the same test in another costume, which gets a
+      # re-run of a real release wrong.
       - id: check
-        run: pnpm release:check
+        run: pnpm release:check ${{ !inputs.dry_run && '--staging' || '--no-staging' }}
 
       - run: pnpm lint
 
@@ -85,13 +91,27 @@ jobs:
       # a weaker check than a local one, and docs/releasing.md says to run the tests locally first.
       - run: pnpm test
 
+      # The tag goes through the environment and is quoted at the point of use, so an empty one is
+      # an empty argument rather than a `--tag` that swallows the flag after it. The refusal above
+      # it guards the other direction: two expressions decide whether a run stages — this step's
+      # `if:` and the flag the check was given — and if they ever disagree the tag is the
+      # placeholder, which must never reach the registry.
       - name: Stage
         if: ${{ !inputs.dry_run }}
-        run: pnpm stage publish -r --tag ${{ steps.check.outputs.dist_tag }} --provenance --report-summary --no-git-checks
+        env:
+          DIST_TAG: ${{ steps.check.outputs.dist_tag }}
+        run: |
+          if [ "$DIST_TAG" = "dry-run" ]; then
+            echo "::error::release:check was told this run stages nothing, and this step says it stages. Nothing published."
+            exit 1
+          fi
+          pnpm stage publish -r --tag "$DIST_TAG" --provenance --report-summary --no-git-checks
 
       - name: Pack only
         if: ${{ inputs.dry_run }}
-        run: pnpm stage publish -r --tag ${{ steps.check.outputs.dist_tag }} --dry-run --report-summary --no-git-checks
+        env:
+          DIST_TAG: ${{ steps.check.outputs.dist_tag }}
+        run: pnpm stage publish -r --tag "$DIST_TAG" --dry-run --report-summary --no-git-checks
 
       # Nothing notifies a maintainer that a stage is waiting, and pnpm's publish output carries no
       # stage id for this to quote (the registry has one; `npm stage list` shows it). So the run

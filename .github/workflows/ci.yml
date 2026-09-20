@@ -2,8 +2,10 @@
 name: CI
 
 on:
+  # Every live release line, not just main: a `<major>.x` branch (D62) carries maintenance
+  # releases, so it needs the same verdict main gets.
   push:
-    branches: [main]
+    branches: [main, "*.x"]
   pull_request:
 
 permissions:

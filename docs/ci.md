@@ -83,6 +83,20 @@ stage under — all reads, so no credential and no permission. It is also the on
 release has: matching the tag against the tree is a stronger claim than any branch rule, and it
 works on `main` and on a `<major>.x` branch alike.
 
+Only the last of the three is conditional, and the workflow says which way with `--no-staging`
+rather than leaving it to be inferred. A run that stages nothing is by construction a run against a
+tree whose version is already published, so deriving a tag for one refuses — correctly, and
+uselessly, since nothing is going anywhere. Told that it will not stage, the check prints the
+derivation and any refusal as information and emits the tag `dry-run`, which the staging step
+refuses by name. An obviously fake tag that leaks into a real stage is spotted in a minute; a
+plausible one is not.
+
+The flag is a flag, and not `GITHUB_REF` or the event name, because every inference available is
+the same shape as the question: a re-run of a real release looks exactly like the thing that must
+not stage. One consequence falls out and is worth having — a dispatch with `dry_run: false` now
+refuses, since the tree's version is already published, so staging is tag-only, which is what D60
+claims and nothing else enforces.
+
 `release:finish` needs a person, and cannot be automated. npm's OIDC exchange authenticates
 `publish` and `stage publish` and nothing else, and `otplease` — the wrapper every 2FA'd npm write
 goes through — re-throws unless stdin and stdout are a TTY. It refuses to run unless HEAD is the
@@ -91,13 +105,14 @@ tree, and a checkout that has moved between the two makes those different things
 
 ## The two workflows
 
-**`ci.yml`** runs `lint`, `typecheck`, `build` and `test` on every push to `main` and every pull
-request, over Node 22.12.0, 24 and 26 on Linux plus 22.12.0 on Windows (D59). It cancels a
-superseded run, including on `main`, which is a deliberate trade: the newest commit is the one worth
-a verdict.
+**`ci.yml`** runs `lint`, `typecheck`, `build` and `test` on every push to a release line — `main`
+or a `<major>.x` branch — and every pull request, over Node 22.12.0, 24 and 26 on Linux plus
+22.12.0 on Windows (D59). It cancels a superseded run, including on `main`, which is a deliberate
+trade: the newest commit is the one worth a verdict.
 
 **`release.yml`** triggers on a pushed `v*` tag, and keeps `workflow_dispatch` for dry runs against
-the trusted publishers. It re-runs the full gate on one rung rather than the matrix — a release is a
+the trusted publishers, from `main` or any line branch — checking the publishers before the first
+release on a new line is most of what a dry run is for. It re-runs the full gate on one rung rather than the matrix — a release is a
 smoke test over code the matrix has already seen, and the matrix is where breadth is paid for. Its
 filename is load-bearing: every npm trusted publisher names `release.yml` by path.
 
