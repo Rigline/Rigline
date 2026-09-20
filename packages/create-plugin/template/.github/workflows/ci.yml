@@ -1,0 +1,62 @@
+# Your plugins, checked on every push and every pull request. The release workflow runs the same
+# steps again before it stages anything, so this is the copy that tells you early — and the copy a
+# contributor's pull request gets, which is the whole reason it is separate.
+#
+# There is no lint step because this workspace ships no linter. Add one here if you add one.
+name: CI
+
+on:
+  push:
+    # GitHub takes no expression here, so your default branch cannot be filled in for you. These
+    # are the two common names; edit if yours is neither.
+    branches: [main, master]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A push supersedes the run before it on the same ref, and a pull request supersedes its own last
+# push. Two runs of one ref prove the same thing, and the newer one is what is being asked about.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      # Every rung reports. A failure on the floor and a failure on the newest runtime are
+      # different bugs, and cancelling the rest hides which one this is.
+      fail-fast: false
+      matrix:
+        # The first is the floor this workspace's package.json declares in `engines`, pinned
+        # exactly so that the number claimed is a number something ran; the others float to the
+        # latest of their major, which says the major is supported rather than that a patch was
+        # tested. Cutting this to one rung is a reasonable thing to do — then drop the `engines`
+        # claim to match, because a floor nothing runs on is a guess.
+        node: ["22.12.0", "24", "26"]
+    steps:
+      - uses: actions/checkout@v5
+
+      # Pinned exactly rather than to the major: this action's `v6` tag still resolves to the last
+      # release before pnpm v12 support, and `v4` runs on a runner runtime GitHub has deprecated.
+      - uses: pnpm/action-setup@v6.1.0
+
+      # After pnpm, never before: `cache: pnpm` asks pnpm where its store is.
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+
+      # Needs `pnpm-lock.yaml` committed, which is why nothing ignores it. Installing what the
+      # lockfile says is the point: a run that resolved its own dependencies would be testing
+      # something nobody has.
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm typecheck
+
+      # Before the tests, because a test that imports a built entry should import this build.
+      - run: pnpm build
+
+      - run: pnpm test

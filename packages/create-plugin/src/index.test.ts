@@ -84,6 +84,30 @@ describe("scaffold", () => {
     expect(workflow).toContain("pnpm stage publish -r");
   });
 
+  it("scaffolds CI beside the release workflow, so a push is checked before a publish is", () => {
+    // The repository this template comes from ran its tests only at release for a while, which is
+    // tolerable in private and not once anybody else can open a pull request. A scaffold inherits
+    // the answer rather than the lesson.
+    const result = into("clock");
+    expect(result.files).toContain(".github/workflows/ci.yml");
+    const ci = read(result, ".github/workflows/ci.yml");
+    expect(ci).toContain("pull_request:");
+    expect(ci).toContain("pnpm test");
+  });
+
+  it("carries the publishable metadata a scaffold can know, and none that it cannot", () => {
+    // `repository` is deliberately absent. A scaffold cannot know it, npm binds a provenance
+    // attestation to it, and a placeholder would put a URL that resolves to nothing into the
+    // registry — absent beats wrong (P8), so the release workflow refuses instead. What a
+    // scaffold does know is here: the keyword a plugin is found by, and the access setting a
+    // scoped name would otherwise need somebody to discover.
+    const result = into("clock");
+    const manifest = JSON.parse(read(result, "plugins/clock/package.json"));
+    expect(manifest.keywords).toContain("rigline-plugin");
+    expect(manifest.publishConfig).toEqual({ access: "public" });
+    expect(manifest.repository).toBeUndefined();
+  });
+
   it("puts the dot back on the gitignore npm would have renamed", () => {
     const result = into("clock");
     expect(result.files).toContain(".gitignore");

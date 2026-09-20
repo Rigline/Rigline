@@ -748,6 +748,23 @@ version, which is right while we are on alphas, is still right at 1.0.0, and nev
 remember to bump it. The first published scaffold had the hand-written range and was broken by it,
 which is the argument for running the published artifact rather than the one in the tree.
 
+**The scaffold ships CI as well as the release workflow, and the publishable metadata a scaffold
+can know** (amended 2026-09-20). D59's argument, one level out: with only a release workflow, the
+first thing that runs an author's tests is a release, and a contributor's pull request is checked
+by nothing at all. `ci.yml` runs typecheck, build and test on the same three Node rungs, so the
+`engines` floor a scaffolded workspace declares is one its own CI stands on — and a scaffold that
+is cut back to a single rung should drop that claim to match.
+
+The plugin manifest carries what a scaffold can know: the `rigline-plugin` keyword a plugin is
+found by on npm, which nothing in Rigline reads, and `publishConfig.access`, inert on the unscoped
+name it ships with and the difference between a publish and npm's least helpful error on a scoped
+one. It does not carry `repository`, which is the one field a publish genuinely needs and a
+scaffold genuinely cannot know: npm binds a provenance attestation to it, and a guessed URL is a
+wrong one in the registry rather than a missing one (P8). So the release workflow refuses a
+publishable package that has none, by name, before it builds anything, and the README says so
+where an author is reading about their first publish. A `LICENSE` file is left out on the same
+reasoning — the copyright line is the author's to write, and npm ships one whatever `files` says.
+
 This does not weaken P6. The template is a convenience, exactly as the build preset is: a plugin is
 one browser-target ES module and a manifest however it was produced, and one built with npm, yarn,
 bun or a shell script is discovered, checked and loaded identically. What is published is the output

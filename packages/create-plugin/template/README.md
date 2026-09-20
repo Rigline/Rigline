@@ -43,6 +43,11 @@ plugin that one decoration rather than the whole plugin.
 lands in the right place, survives a re-render, or costs a row a line of height is a question only
 the app can answer: build, add, reload, look.
 
+`.github/workflows/ci.yml` runs typecheck, build and test on every push and every pull request,
+over three Node versions — the same set the release workflow runs, so nothing reaches a release
+that a pull request would not already have failed on. Commit `pnpm-lock.yaml`: CI installs what it
+says rather than resolving its own.
+
 ## Publishing
 
 A plugin is published as an ordinary npm package carrying `rigline.json` and its built entry, and
@@ -55,6 +60,22 @@ authenticates to npm over OIDC, and what the workflow does is *stage* — a vers
 install until you approve it from your own machine with 2FA.
 
     pnpm stage approve
+
+**One field to fill in before the first publish: `repository`.** npm binds a provenance attestation
+to it, and this workflow stages with provenance, so a package without one cannot be staged at all.
+Nothing can scaffold it for you — a guessed URL would be a wrong one in the registry rather than a
+missing one — so the workflow refuses by name, before it builds anything, until it is there:
+
+    "repository": {
+      "type": "git",
+      "url": "git+https://github.com/you/your-repo.git",
+      "directory": "plugins/__NAME__"
+    }
+
+`homepage` and `bugs` are worth the same minute; npm shows them on the package page. A `LICENSE`
+file is not scaffolded either, because the copyright line is yours to write — the manifest says
+MIT, and npm ships a licence file whatever `files` says, so adding one is the whole job. The
+`rigline-plugin` keyword is already there: it is how somebody finds a plugin on npm.
 
 Two things to set up once per package, the first time. Publish version one by hand, because a
 package that does not exist yet has nothing for a trusted publisher to attach to — `pnpm publish -r

@@ -190,7 +190,9 @@ A plugin is an ordinary npm package carrying `rigline.json` and its built entry:
 ```json
 {
   "name": "rigline-plugin-my-plugin",
+  "keywords": ["rigline-plugin"],
   "files": ["dist", "rigline.json"],
+  "repository": { "type": "git", "url": "git+https://github.com/you/your-repo.git" },
   "devDependencies": { "@rigline/plugin-api": "^1.0.0", "rigline": "^1.0.0" }
 }
 ```
@@ -199,6 +201,12 @@ A plugin is an ordinary npm package carrying `rigline.json` and its built entry:
 imports, so what you publish has no runtime dependency for anyone to install. Rigline runs no
 package manager when it installs your plugin — it fetches the tarball, checks it against the
 registry's integrity hash, unpacks it and validates the manifest.
+
+Two of those fields are not decoration. `keywords` carries `rigline-plugin` because that is how
+somebody finds a plugin on npm; nothing in Rigline reads it. `repository` is there because npm
+binds a provenance attestation to it, so a package without one cannot be published with provenance
+at all — the release workflow `create-rigline-plugin` scaffolds refuses by name before it builds
+anything, rather than letting you find out two minutes into your first release.
 
 Your users install it with `rigline add rigline-plugin-my-plugin` and keep it current with
 `rigline update`. A published version has to be a day old before either will take it, which is

@@ -2,8 +2,10 @@
   "name": "rigline-plugin-__NAME__",
   "version": "0.1.0",
   "description": "__DESCRIPTION__",
+  "keywords": ["rigline-plugin", "rigline", "claude-code", "vscode"],
   "type": "module",
   "license": "MIT",
+  "publishConfig": { "access": "public" },
   "files": ["dist", "rigline.json"],
   "scripts": {
     "build": "rigline build",

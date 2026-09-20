@@ -374,12 +374,9 @@ larger lift and turns on a question nobody here can answer from the code — Mar
 extension that patches another extension — so it wants a session that begins by finding that out,
 not one that begins by writing.
 
-**Three things CI left on the table.** The template scaffolds a release workflow and no CI
-workflow, which is the gap this repository just closed, one level out: an author's tests run only
-when they publish. It is a change to a published package, so it reaches anybody at the next release
-rather than when it is written. An OS axis is the obvious second rung — the matrix is Linux only,
-and Windows is the only machine this is developed on, so a path or line-ending fault has exactly
-one place left to hide. And nothing watches the action versions: `dependabot.yml` for the
+**Two things CI left on the table.** An OS axis is the obvious second rung — the matrix is Linux
+only, and Windows is the only machine this is developed on, so a path or line-ending fault has
+exactly one place left to hide. And nothing watches the action versions: `dependabot.yml` for the
 `github-actions` ecosystem would turn the next runner deprecation into a pull request CI already
 checks, rather than a warning somebody has to notice.
 
@@ -577,3 +574,12 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   runner, to `v6.1.0` rather than `v6`: the floating major still resolves to the last release
   before pnpm v12 support, which is a thing to check on any action before trusting the major to be
   the newest thing under it. The template's workflow carried the same `v4` and moved with it.
+- 2026-09-20: The template ships CI as well (D50 amended), which is D59's argument one level out:
+  a scaffolded repository ran its tests only when it published, and a contributor's pull request
+  was checked by nothing. Same three rungs, so an author's own `engines` floor is one their own CI
+  stands on. The scaffold now carries the publishable metadata it can know — the `rigline-plugin`
+  keyword and `publishConfig.access` — and deliberately not `repository`, the one field a publish
+  needs and a scaffold cannot guess: npm binds provenance to it, so the release workflow refuses a
+  publishable package that has none, by name, before it builds anything. That refusal was run
+  against a real scaffold in all three of its states rather than reasoned about. None of it
+  reaches an author until the next release.

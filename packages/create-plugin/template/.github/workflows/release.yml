@@ -57,6 +57,28 @@ jobs:
           exit 1
 
       - uses: actions/checkout@v5
+
+      # npm binds a provenance attestation to the package's `repository` field, so a package
+      # without one cannot be staged with `--provenance` at all. Asked here, before the build, so
+      # that the answer is a package name rather than an error about attestations two minutes in.
+      # A dry run is checked too: a rehearsal that skips this rehearses a different release.
+      - name: Refuse a publishable package with no repository
+        run: |
+          node -e '
+            const fs = require("fs");
+            const dirs = fs.existsSync("plugins") ? fs.readdirSync("plugins") : [];
+            const missing = [];
+            for (const dir of dirs) {
+              const path = `plugins/${dir}/package.json`;
+              if (!fs.existsSync(path)) continue;
+              const manifest = JSON.parse(fs.readFileSync(path, "utf8"));
+              if (!manifest.private && !manifest.repository) missing.push(manifest.name || dir);
+            }
+            if (missing.length === 0) process.exit(0);
+            console.log(`::error::No "repository" field in ${missing.join(", ")}. npm binds a provenance attestation to it, so --provenance cannot stage a package without one.`);
+            process.exit(1);
+          '
+
       # Pinned exactly rather than to the major: this action's `v6` tag still resolves to the last
       # release before pnpm v12 support, and `v4` runs on a runner runtime GitHub has deprecated.
       - uses: pnpm/action-setup@v6.1.0
