@@ -342,10 +342,30 @@ broken* rather than one undifferentiated list. Then "the badge is red and it nam
 replaces "the badge is green and your plugin quietly does nothing" — P8 applied to the one layer
 that has never had it.
 
-Two things to settle when it starts. Whether a contributed check is declared in the manifest or
-simply registered from `setup`: registering one is not a dependency on the extension, so probably
-not a `uses` key. And what a check may reach — the probe reads `diagnostics` directly, which is a
-licence a plugin's own check should not inherit.
+**The fork this opens with, and a recommendation to push on.** Whether a contributed check is
+declared in the manifest, and what a check may reach, are one question — does the host hand a
+check any state? — and answering it settles both.
+
+*A check is a closure, and the host hands it nothing.* `ctx.check(name, fn)`, `fn` taking no
+arguments and returning a verdict and a line of detail. A plugin already knows whether it is
+working: its own bookkeeping is in scope, and so is its own `ctx`, so a check asking whether its
+anchor still resolves calls `ctx.anchor()` inside the closure and is capability-scoped by
+construction. The probe reads `diagnostics` because it is diagnosing the host. A plugin diagnosing
+itself needs no such licence and should not inherit one.
+
+*So no `uses` key.* A function the host calls, receiving nothing and granting nothing, is not a
+dependency on the extension: there is no identifier to validate, nothing for the schema to say,
+and nothing a person reading `rigline list` is owed a warning about. A check that later turns out
+to need host state is a request for a capability, decided by name, the way `ctx.copy` would be.
+
+*And the probe becomes a renderer that also contributes.* Most of `checks.ts` is about the kernel
+or about one capability, and moves to whoever owns it. What stays behind is the handful that are
+experiments rather than verdicts — register a tap and check the tap saw the app's original,
+rewrite and check the chain composed — which nothing but the probe can run. It ends up one
+contributor among several, which is the test of whether the shape is right.
+
+Left for the working doc when the phase starts: when the host runs a check, what a throwing one
+does, and how the panel orders contributors.
 
 ## Open questions, not blocking
 
@@ -378,7 +398,9 @@ with the rest of what delivery still owes.
 
 **Take phase 6 next.** A recommendation, not a neutral listing. It is the one open item that pays
 somebody other than us: a plugin is precisely the thing whose failure is invisible today, and the
-probe cannot say a word about one, because every check it runs is written inside it. Phase 5 is the
+probe cannot say a word about one, because every check it runs is written inside it. It opens on a
+design fork rather than on code, and that fork is written up in its phase section above with a
+recommendation to agree or veto before anything is built. Phase 5 is the
 larger lift and turns on a question nobody here can answer from the code — Marketplace policy on an
 extension that patches another extension — so it wants a session that begins by finding that out,
 not one that begins by writing.
