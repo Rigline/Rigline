@@ -7,6 +7,8 @@ export default defineConfig({
       "packages/*/src/**/*.test.ts",
       "packages/*/test/**/*.test.ts",
       "plugins/*/src/**/*.test.ts",
+      // The release scripts are plain ES modules with no build step, so their tests are too.
+      "scripts/**/*.test.mjs",
     ],
     environment: "node",
   },

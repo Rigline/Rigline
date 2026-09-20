@@ -1,41 +1,48 @@
 #!/usr/bin/env node
 /**
- * Refuse a release the tree does not describe: the version in the manifests must have a section in
- * the changelog, and that section must say something.
+ * Everything the release workflow can establish without a credential, and the dist-tag it derives
+ * from the answer (D60, D61):
  *
- * A read, so it needs no credential and no permission, and it runs before the release workflow
- * builds anything (D60). The failure it exists for is `release:prep` never having been run — the
- * version bumped by hand, the changelog still holding the notes under `Unreleased`, and the release
- * going out with nothing recorded against it anywhere.
+ *   - the changelog has a section for the version in the tree, and that section says something;
+ *   - a tag-triggered run is on the tag that names that version;
+ *   - the version is above at least one of the two dist-tags, so there is a tag to stage under.
+ *
+ * All reads, so this runs before anything is built and needs no permission. It writes `dist_tag`
+ * to `$GITHUB_OUTPUT` for the staging step, and prints the same to a terminal.
  */
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { appendFileSync } from "node:fs";
+import { registryState, stageTag } from "./lib/tags.mjs";
+import {
+  changelogSection,
+  currentVersion,
+  fail,
+  publishedPackages,
+  say,
+} from "./lib/workspace.mjs";
 
-const ROOT = fileURLToPath(new URL("..", import.meta.url));
+const version = currentVersion();
 
-/** GitHub renders `::error::` as an annotation on the run; a terminal just reads the line. */
-function fail(message) {
-  const prefix = process.env.GITHUB_ACTIONS === "true" ? "::error::" : "release:check — ";
-  process.stderr.write(`${prefix}${message}\n`);
-  process.exit(1);
-}
-
-const { version } = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
-const changelog = readFileSync(join(ROOT, "CHANGELOG.md"), "utf8");
-
-const heading = `\n## ${version} `;
-const start = changelog.indexOf(heading);
-if (start === -1) {
+const notes = changelogSection(version);
+if (notes === null) {
   fail(
-    `CHANGELOG.md has no section for ${version}. Run \`pnpm release:prep ${version}\` on a branch ` +
-      "where the notes are still under `## Unreleased`, and commit the result.",
+    `CHANGELOG.md has no section for ${version}. A release is cut with \`pnpm release <increment>\`, ` +
+      "which rolls `## Unreleased` into one.",
+  );
+}
+if (notes.trim() === "") fail(`CHANGELOG.md's section for ${version} is empty`);
+
+// On a tag-triggered run the tag is the release's identity, so a tag naming a different version
+// than the tree does is a tag pushed by hand at the wrong commit.
+const ref = process.env.GITHUB_REF ?? "";
+if (ref.startsWith("refs/tags/") && ref !== `refs/tags/v${version}`) {
+  fail(
+    `${ref.slice("refs/tags/".length)} does not name ${version}, which is the version in the tree`,
   );
 }
 
-const bodyStart = changelog.indexOf("\n", start + 1);
-const nextHeading = changelog.indexOf("\n## ", bodyStart);
-const body = changelog.slice(bodyStart, nextHeading === -1 ? undefined : nextHeading);
-if (body.trim() === "") fail(`CHANGELOG.md's section for ${version} is empty`);
+const packages = publishedPackages();
+const { refusal, tag } = stageTag(version, registryState(packages));
+if (refusal) fail(refusal);
 
-process.stdout.write(`CHANGELOG.md describes ${version}.\n`);
+say(`${version} is described by CHANGELOG.md, and stages under \`${tag}\`.`);
+if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `dist_tag=${tag}\n`);

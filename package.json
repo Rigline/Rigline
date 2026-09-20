@@ -18,8 +18,9 @@
     "codegen": "rigline codegen",
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run",
-    "release:prep": "node scripts/release-prep.mjs",
+    "release": "node scripts/release.mjs",
     "release:check": "node scripts/release-check.mjs",
+    "release:finish": "node scripts/release-finish.mjs",
     "lint": "biome check .",
     "format": "biome format --write ."
   },

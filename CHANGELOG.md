@@ -12,7 +12,9 @@ anything may change between releases.
 
 ### Added
 
-- A changelog, and `pnpm release:prep <version>` to cut a version with one command.
+- A changelog, and `pnpm release <increment>` to cut and push a version with one command. A pushed
+  tag starts the release; `pnpm release:finish` approves it, moves `next` if the release is ahead of
+  it, and creates the GitHub release.
 - CI on every push and pull request, over Node 22.12.0, 24 and 26 on Linux plus 22.12.0 on Windows.
 - Scaffolded plugin workspaces ship a CI workflow alongside the release one, so an author's tests
   run on a pull request rather than first running during a release.

@@ -3,19 +3,24 @@
 Four packages go to npm: `rigline`, `@rigline/core`, `@rigline/plugin-api` and
 `create-rigline-plugin`. `@rigline/host` and `@rigline/harness` are `private` and never do.
 
-A release has two halves, and the split is the point. CI **stages**: GitHub Actions authenticates to
-npm over OIDC, so no npm credential sits in this repository, and a staged version is one nobody can
-install. A person then **approves** it with 2FA, from their own machine. An approved stage says the
-owner meant to ship, and nothing more than that (D46).
+A release is two commands, both in a terminal:
 
-    pnpm stage publish -r     # .github/workflows/release.yml, from main
-    pnpm stage approve        # on your machine, afterwards
+    pnpm release prerelease   # cut it: changelog, manifests, commit, tag, push
+    pnpm release:finish       # when the workflow is green: approve, reconcile `next`
+
+Between them, the pushed tag triggers `.github/workflows/release.yml`, which **stages**: GitHub
+Actions authenticates to npm over OIDC, so no npm credential sits in this repository, and a staged
+version is one nobody can install. `release:finish` then **approves** with 2FA, from your own
+machine. An approved stage says the owner meant to ship, and nothing more than that (D46).
+
+The split is the point, and it is also what makes a tag safe to trigger on: a tag pushed by mistake
+produces a stage nobody approves, which expires. Nothing here asks which dist-tag to use — that is
+derived from the version and what the registry already holds (D61), and reconciled after approval.
 
 `stage publish -r` stages every publishable package whose version is not already on the registry, in
-dependency order, replacing each `workspace:*` with the exact version. So bumping one package
-releases one package, running it twice stages nothing the second time, and the four are either
-internally consistent or they are not published at all. `stage approve` with no arguments lists what
-is waiting and takes the batch under a single one-time password.
+dependency order, replacing each `workspace:*` with the exact version. So running it twice stages
+nothing the second time, and the four are either internally consistent or they are not published at
+all. Approval takes the whole batch under a single authentication.
 
 **The workflow filename is load-bearing.** Each npm trusted publisher names `release.yml` by path,
 so renaming the file breaks the OIDC exchange for all four packages until every entry is edited to
@@ -84,23 +89,33 @@ publisher.
 ## Cutting a release
 
 1. Run `pnpm test` locally, with the corpus, and read the skips.
-2. `pnpm release:prep <version>`. It rolls the changelog's `## Unreleased` section into one headed
-   by the version, opens a fresh `Unreleased`, and writes the version into every manifest. All of
-   them move together — one changelog and one version number across the workspace (D60) — and `-r`
-   still publishes only what the registry does not already have.
-3. Read the diff, then commit and push to `main`. The bump and the notes belong in one commit: the
-   release refuses a version the changelog has no section for, and `--provenance` attests the tree
-   the tarball was built from.
-4. Run the **Release** workflow from the Actions tab, choosing the dist-tag. `Dry run` builds,
-   tests and packs without staging — worth doing first after any change to the pipeline or to the
-   publishers, since its log shows whether every exchange succeeded.
-5. Read the run summary: it names each package and version that was staged, because npm returns no
-   stage id for the workflow to print and nothing notifies you that a stage is waiting.
-6. `pnpm stage approve` on your machine, and give it the OTP.
+2. `pnpm release <increment>` — `patch`, `minor`, `major`, `prerelease`, or one of `prepatch`,
+   `preminor` and `premajor`. It computes the version, rolls `## Unreleased` into a section headed
+   by it, writes it into every manifest, commits, tags `v<version>` and pushes. Add `--dry-run` to
+   see all of that without writing anything.
+3. Watch the run the tag triggered. Its summary names each package and version staged, because npm
+   returns no stage id for the workflow to print and nothing notifies you that a stage is waiting.
+4. `pnpm release:finish`. It approves the batch — in dependency order, so a package whose workspace
+   dependency could not be approved is skipped rather than published against a dependency the
+   registry never received — then points `next` at this version if the release is ahead of it, and
+   creates the GitHub release from the changelog section.
 
-Approving in dependency order matters and `stage approve` does it for you — a package whose
-workspace dependency could not be approved is skipped rather than published against a dependency
-the registry never received.
+**The version is an increment, not a number you type.** `semver.inc` computes it from what is in the
+tree, so there is no second place to get it right. Read what the command prints before it writes:
+from a prerelease, all three of `patch`, `minor` and `major` resolve to the same release version —
+`1.0.0-alpha.2` plus any of them is `1.0.0`, because that is the version the prerelease was already
+aimed at. Use `--preid` to change the identifier; without it, the current one carries forward.
+
+**Which dist-tags move is derived, never chosen** (D61). `next` points at the newest version and
+`latest` at the newest version a naive `npm install` should get. So a new alpha goes to `latest` and
+takes `next` with it while no stable line exists; a preview goes to `next` once one does; and a
+maintenance release goes to `latest` without disturbing a preview ahead of it. A release on a
+superseded major is refused by name, because it belongs on a line tag such as `1.x` and neither tag
+on offer would be right.
+
+**Dry runs go through the Actions tab.** The workflow keeps its `workflow_dispatch` for exactly
+that: it builds, tests and packs without staging, which is worth doing after any change to the
+pipeline or to the publishers, since its log shows whether every exchange succeeded.
 
 ## Three traps, all already paid for
 

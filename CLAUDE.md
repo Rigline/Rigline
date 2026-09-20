@@ -74,6 +74,12 @@ Written for somebody else, so don't rewrite them for us:
   normalises to LF on commit and checks out native, so write files however your tools write
   them. Only `generated.ts` and `packages/plugin-api/schema/manifest.json` are pinned to LF,
   because we generate their bytes and then compare them against what is on disk.
+- **Code that parses a repo file must not assume LF.** The working tree carries whatever git
+  checked out, which here is CRLF, so `indexOf("## Heading\n")` finds nothing and `/^\n+/` strips
+  nothing — on the machine this is developed on, not somebody else's. Find the end of a line rather
+  than the newline you assume ends it, and compose with the endings the file already has. It is
+  quiet in both directions: a search that fails reads as "the section is missing", and a rewrite
+  that fails reads as a successful no-op, which is how it survives a green run.
 - **Keep `index.js.orig` and `extension.js.orig` intact.** They are the only recovery from a blank
   panel or a broken extension host.
 - **Never point a test at the live extension directory.** Copies only.
@@ -134,8 +140,9 @@ User-visible means somebody installing a package would notice: behaviour, the CL
 plugin can do, what the scaffolder emits, a dependency floor. Refactors, docs and tests are not,
 and padding the file with them makes the real entries harder to find. It is written for somebody
 reading it on npm, not for us — say what changed for them, not which function moved.
-`pnpm release:prep <version>` rolls the section and sets every manifest's version; the release
-refuses a version the changelog has no section for.
+`pnpm release <increment>` cuts and pushes a version — changelog, manifests, commit, tag — and
+`pnpm release:finish` approves it; the release refuses a version the changelog has no section for.
+[docs/releasing.md](docs/releasing.md) is the runbook.
 
 Toolchain: pnpm 12, Node 22.12+ (26 here), TypeScript 7, Rolldown, Vitest, Biome. Semicolons are
 required. CI runs lint, typecheck, build and test on every push and pull request, over a Node

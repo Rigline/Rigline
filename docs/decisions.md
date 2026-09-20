@@ -772,21 +772,33 @@ contract, never the toolchain — the template is how the good path is made the 
 requirement we could enforce or would want to. The package name stays singular, because
 `create-rigline-plugin` is what an author types.
 
-**D60. One root changelog, written as the change lands; the version bump is one local command and
-the release only verifies it (2026-09-20, Leo).** Entries go under `## Unreleased` in `CHANGELOG.md`
-in the same commit as the change they describe, and `pnpm release:prep <version>` renames that
-heading to the version, opens a fresh `Unreleased`, and sets the version in every `package.json` at
-once. One commit carries the bump and the notes, and the release workflow refuses to stage a version
-the changelog has no section for.
+**D60. One root changelog, written as the change lands; a pushed tag is what starts a release
+(2026-09-20, Leo).** Entries go under `## Unreleased` in `CHANGELOG.md` in the same commit as the
+change they describe. `pnpm release <increment>` — `patch`, `minor`, `major`, `prerelease` and the
+`pre*` pair — computes the version from what is in the tree, rolls that heading into it, sets it in
+every `package.json`, commits, tags `v<version>` and pushes. The workflow triggers on the tag. One
+commit carries the bump and the notes, and the release refuses to stage a version the changelog has
+no section for.
+
+An increment rather than a typed version, because a typed version is a number a person has to get
+right twice — once against what is published and once against what they meant — and `semver.inc`
+already knows both. The command prints what it computed before it writes anything, because the
+answer is not always the obvious one: from `1.0.0-alpha.2`, all three of `patch`, `minor` and
+`major` give `1.0.0`.
+
+A tag rather than a dispatch input, because a release that begins in a browser cannot end in the
+terminal it started from, and because the tag is the record. `git describe` resolves, the commit
+that shipped a version is unambiguous, and the GitHub release has something to hang from. What makes
+this safe here is the approval gate: a tag pushed by accident produces a stage nobody approves,
+which expires. Tag-triggering a pipeline that published directly would be a different proposition.
 
 The bump stays in a commit rather than moving into the workflow because of what `--provenance`
-attests. A version staged from a runner-side edit is one no commit in `main` declares, so the
-attestation names a tree whose `package.json` disagrees with the tarball; a workflow that bumps
+attests. A version staged from a runner-side edit is one no commit in the repository declares, so
+the attestation names a tree whose `package.json` disagrees with the tarball; a workflow that bumps
 *and* pushes fixes that but needs `contents: write`, and then attests a commit it created after
-checkout rather than the one the release was dispatched on. Both are workable and both spend the
-audit trail D46 bought. Verification is the half CI is good at and can have for free: it reads the
-registry and the tree and refuses a release whose facts do not line up, which needs no credential
-and no permission.
+checkout rather than the one the tag names. Both are workable and both spend the audit trail D46
+bought. Verification is the half CI is good at and can have for free: it reads the registry and the
+tree and refuses a release whose facts do not line up, which needs no credential and no permission.
 
 Every package moves together, so one changelog at the root is one file rather than four copies of
 it. It is not in any tarball: `files` cannot reach above a package root, so shipping it would mean
@@ -803,12 +815,26 @@ empty for a repository that commits to `main`, and they live where an installed 
 them. The entry-file shape changesets uses is the right upgrade when a second contributor makes
 `Unreleased` a merge conflict; it solves nothing for one committer working serially.
 
-**D61. `next` never moves backwards, and moving it is the approval step's job, not CI's
-(2026-09-20, Leo).** A release to `latest` also takes `next` when the version going out is newer
-than what `next` holds, and leaves it alone when it is not — so a maintenance release on a `latest`
-line cannot drag `next` back off a preview that is ahead of it. The comparison is `semver.gt` and
-not a string compare, which sorts `1.0.0-alpha.10` below `1.0.0-alpha.2` and would move the tag
-backwards on precisely the release nobody would check.
+**D61. Both dist-tags are derived from the version and the registry; neither is ever chosen, and
+`next` never moves backwards (2026-09-20, Leo).** There is no dist-tag input anywhere, because there
+was never a judgement to make. Two sentences describe what the tags mean, and everything else falls
+out of them: `next` points at the newest version, and `latest` points at the newest version a naive
+`npm install` should get — which is the newest stable one, or the newest of any kind while no stable
+one exists.
+
+So the tag a release is staged under is computed: `latest` when the version is above what `latest`
+holds and is either stable or the line has no stable version yet, `next` when it is above what
+`next` holds, and otherwise nothing this pipeline can express. That last case is a release on a
+superseded major — `1.2.4` while `latest` is `2.0.0` — which belongs on a line tag such as `1.x`
+and is refused by name rather than approximated, because both of the tags on offer would be wrong
+and one of them would be a downgrade for everybody.
+
+`next` is then reconciled after approval: point it at the released version when `semver.gt` says the
+release is newer, and leave it otherwise. One line covering every case — it moves `next` up behind a
+release to `latest`, does nothing after a release that was staged to `next` because the tag is
+already there, and declines to drag `next` off a preview that is ahead of a maintenance release. The
+comparison is `semver.gt` and not a string compare, which sorts `1.0.0-alpha.10` below
+`1.0.0-alpha.2` and would move the tag backwards on precisely the release nobody would check.
 
 CI cannot do this half, for two reasons that hold independently. npm's OIDC exchange authenticates
 `npm publish` and `npm stage publish` and nothing else, `dist-tag` included; and `otplease`, the
@@ -818,7 +844,8 @@ token with publish rights in a repository secret, which is the credential D46 ex
 and npm has been removing it anyway, having revoked classic tokens and capped granular write tokens
 at ninety days. So the retag belongs to `pnpm release:finish`, beside the approval it has to follow:
 a tag cannot point at a version the registry does not have yet, so this was never work that could
-happen before approving.
+happen before approving. The GitHub release is created there too, for the same reason — it should
+appear when the packages become installable, not when a stage nobody has approved goes up.
 
 It runs through the npm CLI rather than pnpm's. `npm dist-tag` calls the same `otplease` as `npm
 publish`, whose first branch opens a browser when the registry offers one — so it completes against

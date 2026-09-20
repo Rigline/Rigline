@@ -62,13 +62,14 @@ if (mode === "dry-run") {
 write("**Nobody can install these yet.** To finish the release, on a machine with your npm 2FA:");
 write("");
 write("```");
-write("pnpm stage approve");
+write("pnpm release:finish");
 write("```");
 write("");
 write(
-  "It lists what is queued, takes the whole batch under one one-time password, and approves in " +
-    "dependency order — skipping any package whose workspace dependency did not make it, rather " +
-    "than publishing against a dependency the registry never received.",
+  "It approves the whole batch under one authentication and in dependency order — skipping any " +
+    "package whose workspace dependency did not make it, rather than publishing against a " +
+    "dependency the registry never received — then points `next` at this version if it is ahead " +
+    "of what that tag holds, and puts the changelog section on a GitHub release.",
 );
 write("");
 write("A staged version you would rather not ship needs no action. Do not approve it; it expires.");

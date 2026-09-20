@@ -1,6 +1,6 @@
-# Stage a release. Nothing here publishes anything installable: `pnpm stage publish` puts each
-# version in a queue that a person then approves from their own machine with 2FA. See
-# docs/releasing.md.
+# Stage a release, triggered by the tag `pnpm release` pushes. Nothing here publishes anything
+# installable: `pnpm stage publish` puts each version in a queue that `pnpm release:finish` then
+# approves from a maintainer's machine with 2FA. See docs/releasing.md.
 #
 # The filename is load-bearing. Every npm trusted publisher entry names `release.yml` by path, so
 # renaming this file silently breaks the OIDC exchange for all four packages until each entry is
@@ -8,17 +8,18 @@
 name: Release
 
 on:
+  # A pushed tag is what starts a release (D60). `pnpm release <increment>` writes it, so nothing
+  # here asks for a version — and nothing asks for a dist-tag either, because `release:check`
+  # derives it from the version and what the registry already holds (D61).
+  push:
+    tags: ["v*"]
+  # Kept for dry runs, which are how the trusted publishers get checked without staging anything.
   workflow_dispatch:
     inputs:
-      dist_tag:
-        description: The tag these versions go to. A prerelease belongs on `next`, not `latest`.
-        type: choice
-        options: [latest, next]
-        default: latest
       dry_run:
         description: Build, test and pack, but stage nothing
         type: boolean
-        default: false
+        default: true
 
 permissions:
   contents: read
@@ -38,16 +39,21 @@ jobs:
       # that this repository deliberately does not have.
       id-token: write
     steps:
-      # Releasing from anywhere but main is a mistake rather than a case to handle. Said here, by
-      # name, rather than left to pnpm's own publish-branch heuristic, which is written for a
-      # developer's working copy and reports a detached HEAD in terms that mean nothing in CI.
-      - name: Refuse anything but main
-        if: github.ref != 'refs/heads/main'
+      # A dispatch is for dry runs, and a dry run from a feature branch says nothing about what a
+      # release would do. A tag-triggered run has no branch to check: `release:check` establishes
+      # that the tag names the version in the tree, which is the stronger claim and works on any
+      # maintenance line.
+      - name: Refuse a dispatch from anywhere but main
+        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
         run: |
-          echo "::error::Releases go from main. This run is on ${{ github.ref }}."
+          echo "::error::Dispatch this from main. This run is on ${{ github.ref }}."
           exit 1
 
+      # fetch-depth 0 because a tag-triggered run is checked out at the tag, and the default
+      # shallow fetch brings none of the history a version comparison reads.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       # Pinned exactly rather than to the major: `v6` resolves to the last release before pnpm
       # v12 support, and `v4` runs on the node20 runner GitHub has deprecated (D59).
@@ -60,9 +66,11 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # Before anything is built: a version the changelog does not describe is a release to abandon
-      # now rather than after a green run and an approval (D60).
-      - run: pnpm release:check
+      # Before anything is built: a version the changelog does not describe, or a tag that names a
+      # different one, is a release to abandon now rather than after a green run and an approval.
+      # It also derives the dist-tag the two steps below stage under (D61).
+      - id: check
+        run: pnpm release:check
 
       - run: pnpm lint
 
@@ -79,11 +87,11 @@ jobs:
 
       - name: Stage
         if: ${{ !inputs.dry_run }}
-        run: pnpm stage publish -r --tag ${{ inputs.dist_tag }} --provenance --report-summary --no-git-checks
+        run: pnpm stage publish -r --tag ${{ steps.check.outputs.dist_tag }} --provenance --report-summary --no-git-checks
 
       - name: Pack only
         if: ${{ inputs.dry_run }}
-        run: pnpm stage publish -r --tag ${{ inputs.dist_tag }} --dry-run --report-summary --no-git-checks
+        run: pnpm stage publish -r --tag ${{ steps.check.outputs.dist_tag }} --dry-run --report-summary --no-git-checks
 
       # Nothing notifies a maintainer that a stage is waiting, and pnpm's publish output carries no
       # stage id for this to quote (the registry has one; `npm stage list` shows it). So the run
