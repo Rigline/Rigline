@@ -125,7 +125,7 @@ for (const name of packages) {
 if (moved.length > 0)
   say(`  \`next\` moved to ${version} on ${moved.length} of ${packages.length}`);
 
-if (!args.includes("--no-github-release")) {
+if (!args.includes("--no-github-release") && !githubReleaseExists()) {
   const notes = changelogSection(version);
   try {
     run("gh", [
@@ -152,4 +152,19 @@ if (stuck.length === 0) {
   say(`${version} is published, and \`next\` still points elsewhere on ${stuck.join(", ")}.`);
   say("Run `pnpm release:finish` again: it skips what is done and retries only those.");
   process.exitCode = 1;
+}
+
+/**
+ * Asked rather than discovered from a failed create, so a second run does not report a release
+ * that exists as one it could not make. False for an uninstalled `gh` too, which the create below
+ * then reports the way it reports any other reason it could not run.
+ */
+function githubReleaseExists() {
+  try {
+    capture("gh", ["release", "view", tagName, "--json", "tagName"]);
+    say(`GitHub release ${tagName} exists already.`);
+    return true;
+  } catch {
+    return false;
+  }
 }
