@@ -29,7 +29,7 @@ match.
 **A release run is a weaker check than a local one.** It runs lint, typecheck, build and the full
 Node tier, but the harness tier skips itself there — it needs a corpus snapshot of the extension
 bundle, and that lives outside the repository. So run `pnpm test` on a machine that has the corpus
-before you dispatch, and read the skips.
+before you cut anything, and read the skips.
 
 ## One-time setup
 
@@ -68,10 +68,11 @@ One OTP covers all four if they go up inside its window. If a later package fail
 code, run it again with a fresh one: `-r` skips whatever the registry already has, so a partial
 bootstrap resumes rather than needing to be unpicked.
 
-The version in the repository is a `1.0.0-alpha` prerelease, and a prerelease goes to a tag that is not
-`latest`, so that `npm install rigline` keeps meaning the stable line even before there is one.
-Moving a tag later is cheap; un-recommending an alpha that `latest` pointed at is not. The release
-workflow asks which tag every time, for the same reason.
+A bootstrap is the one place a tag is typed, and it barely matters which is typed: a package's
+first publish pins `latest` whatever `--tag` says, which is the first of the three traps below.
+Nothing is typed after it. Both tags are derived from the version and what the registry already
+holds (D61), and while no stable line exists the newest alpha is what `latest` should point at —
+there is no input for it anywhere, and no run that asks.
 
 **4. A trusted publisher per package**, on npm, under each package's settings. Four entries, all
 naming `Rigline/Rigline` and `release.yml`, because npm's OIDC exchange is per package — pnpm asks
@@ -86,6 +87,25 @@ way. Check anyway, and check again whenever a token is issued for anything else.
 the limit: `Read and write (stage only)` on a granular token, stage-only permissions on a trusted
 publisher.
 
+## What you need on the machine
+
+**An npm session.** `npm whoami` should name your account. Both commands refuse without one —
+`release` before it pushes the tag, so a lapsed session costs a minute rather than a cycle. `npm
+login` prints `Login at:` and one URL, then goes quiet while it polls; it does not open a browser
+for you, and the silence reads as a hang.
+
+**`npm` itself, not only `pnpm`.** The retag goes through `npm dist-tag`, because `pnpm dist-tag`
+takes a typed one-time password and nothing else — which an account with a security key cannot
+give it. The third trap below argues this at length; it is listed here because it is a
+requirement, and the argument is no use to somebody who has not installed the thing.
+
+**`gh`, authenticated**, for the GitHub release at the end. Without it you get a message naming
+the command to run by hand, and the release is otherwise finished; `--no-github-release` skips the
+step deliberately.
+
+**The corpus**, for the local test run. The release workflow cannot reach it and skips the harness
+tier, so the local run is the stronger one.
+
 ## Cutting a release
 
 1. Run `pnpm test` locally, with the corpus, and read the skips.
@@ -98,7 +118,8 @@ publisher.
 4. `pnpm release:finish`. It approves the batch — in dependency order, so a package whose workspace
    dependency could not be approved is skipped rather than published against a dependency the
    registry never received — then points `next` at this version if the release is ahead of it, and
-   creates the GitHub release from the changelog section.
+   creates the GitHub release from the changelog section. Run it again if anything goes wrong
+   partway through: every step of it skips what is already done and retries only the rest.
 
 **The version is an increment, not a number you type.** `semver.inc` computes it from what is in the
 tree, so there is no second place to get it right. Read what the command prints before it writes:
@@ -117,6 +138,84 @@ on offer would be right.
 that: it builds, tests and packs without staging, which is worth doing after any change to the
 pipeline or to the publishers, since its log shows whether every exchange succeeded.
 
+## The three shapes a release comes in
+
+The steps above are the same every time. What changes is which line you are on and what the
+version means, and there are only three answers.
+
+### Steady state
+
+`main` is the line `latest` points at, nothing is in preview, and a release is one increment.
+
+    pnpm test                 # with the corpus
+    pnpm release patch        # or minor
+    # watch the run, then
+    pnpm release:finish
+
+The version stages under `latest` and `next` follows it after approval. Nothing else moves, and
+there is no branch anywhere. This is the case the whole pipeline is shaped around, and most
+releases are this.
+
+### A preview line, and the promotion that ends it
+
+Open the line with a `pre*` increment, which sets the identifier the rest of the line carries:
+
+    pnpm release preminor --preid beta     # 1.2.3 -> 1.3.0-beta.0
+    pnpm release prerelease                # 1.3.0-beta.0 -> 1.3.0-beta.1
+
+Each of those stages under `next` once a stable line exists, and `latest` does not move. While the
+line is open, `main` is the `next` line rather than the `latest` one, and two things follow from
+that. A hotfix to the released `1.2.3` needs a `1.2.x` branch cut from its tag, because no
+increment from `1.3.0-beta.1` produces `1.2.4`. And only one preview line may be open at a time,
+because two of them both want `next`.
+
+**Ending it is a promotion, and a promotion is a release.** The stable version is cut with an
+increment like any other, from the same tree the last preview was cut from.
+
+First the changelog, because this is the one release that may have nothing new to say and the
+command refuses an empty `## Unreleased`. Write the promotion's own entry and commit it — *`1.3.0`
+promotes `1.3.0-beta.1` unchanged* is a true and useful line for somebody reading the changelog on
+npm, who otherwise cannot tell whether the stable release differs from the preview they were on —
+and the tree has to be clean before the next command anyway. Then:
+
+    pnpm release minor                     # 1.3.0-beta.1 -> 1.3.0
+
+From a prerelease, `patch`, `minor` and `major` all resolve to the version the line was aimed at,
+so the argument matters less here than anywhere else. It stages under `latest` and takes `next`
+with it, and the shipped code is the code the last beta shipped.
+
+Do **not** reach for `npm dist-tag` to promote. Moving `latest` onto `1.3.0-beta.1` publishes
+nothing, leaves `latest` pointing at a prerelease forever, and skips the changelog entry, the tag
+and the GitHub release.
+
+### Two lines at once
+
+`main` carries 1.x and a long-lived branch carries the next major (D62). Cut the branch, and open
+its line the same way:
+
+    git switch -c 2.x
+    pnpm release premajor --preid alpha    # 2.0.0-alpha.0
+
+Nothing in the pipeline is told which line you are on. CI runs on `2.x` as it does on `main`, a
+dispatch dry run can check the trusted publishers from it before the first release goes out, and
+`pnpm release` reads the version out of that branch's own `package.json`.
+
+Then, while both lines are live:
+
+- Maintenance releases happen on `main`, exactly as in steady state. Each stages under `latest`
+  and leaves `next` alone, because the preview on `2.x` is ahead of it.
+- Previews happen on `2.x` and stage under `next`.
+- Merge `main` into `2.x` after each maintenance release, and never the reverse. `CHANGELOG.md`
+  conflicts every time; resolve it by keeping both sides in version order.
+- Run `pnpm release:finish` from the checkout the tag was cut on. It refuses otherwise, and this
+  is the case it refuses for: cut `2.0.0-alpha.1` on `2.x`, switch back to `main` while CI runs,
+  and approval would publish the right version while every tag below it pointed at `main`'s.
+
+When `2.0.0` ships it is a promotion, from `2.x`, and it stages under `latest`. After that `2.x`
+*becomes* `main`, and `1.x` is cut from the last 1.x tag if the old line still needs support. A
+release on that line is then refused by name: it belongs under a line tag such as `1.x`, which
+this pipeline does not set, and the two tags it does set would both be wrong.
+
 ## Three traps, all already paid for
 
 **`latest` does not move unless you publish to it.** A package must have a `latest`, so the very
@@ -124,8 +223,9 @@ first publish pins one whatever `--tag` says — and nothing moves it afterwards
 publish to `latest` or a `dist-tag` change. That stranded `latest` on `1.0.0-alpha.0` here while
 `next` went ahead, which mattered because `npm create rigline-plugin` resolves `latest`: the
 documented command went on producing a scaffold that a later version had already fixed. While
-everything is a prerelease the newest good build should hold both tags, so release with
-`dist_tag: latest` unless there is a stable line to protect.
+everything is a prerelease the newest good build should hold both tags, which is exactly what the
+derivation gives: `latest` is the newest version a naive install should get, and with no stable
+line that is the newest there is (D61). Nothing to set, and nothing to remember.
 
 **A security key is the only second factor you can still enrol, so plan around what it can do.** npm
 stopped accepting new TOTP enrolments in September 2025 and is retiring the ones it grandfathered,
@@ -168,10 +268,25 @@ version behind it rather than a pointer with nothing new under it. Moving a tag 
 has no version to publish: a release to `latest` that should carry `next` forward with it (D61),
 where the two tags name one version and only one of them can be set at publish time.
 
+**Promoting a preview to stable is not that case**, and it is what somebody arriving at this
+section is most likely to be looking for. It has a version to publish — the stable one — so it is
+a release, cut with an increment, and the runbook above walks it.
+
 ## If something goes wrong
 
 **A staged version you do not want to ship**: do not approve it. It expires. Fix the code, bump
 again, stage again.
+
+Do not leave it unwatched, though. Nobody here has yet established whether a bare `pnpm stage
+approve` takes only the batch the last run staged or everything waiting on the account, so an
+unwanted stage left sitting could be swept up by the next release's approval. Run `npm stage list`
+before you approve anything, and make sure what is waiting is what you mean to ship.
+
+**A version burned by a red run.** The tag and the commit are already pushed, so the number is
+spent: the fix is the next version, not this one. What is left behind is a changelog section
+headed by a version that never shipped, describing changes that will ship under a different
+number. Fold it into the next release's section — move its entries back under `## Unreleased` and
+delete the heading — rather than leaving a section on npm for a version nobody can install.
 
 **`[WARN] Skipped OIDC` in the log.** Read this one carefully, because it is a *warning*: pnpm got a
 token from GitHub, the registry refused to exchange it, and pnpm carried on unauthenticated. The

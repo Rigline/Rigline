@@ -599,7 +599,7 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   reading a warning. Two gaps it does not close, both written down rather than left to be
   discovered: the template's own workflows are not at the repository root and so are not watched,
   and enabling version updates is a repository setting rather than a file.
-- 2026-09-20: `CHANGELOG.md`, `pnpm release:prep` and `pnpm release:check` (D60) — entries written
+- 2026-09-20: `CHANGELOG.md`, `pnpm release` and `pnpm release:check` (D60) — entries written
   as the change lands, one command to cut a version across every manifest, and a release that
   refuses a version the changelog does not describe. D61 records why moving `next` cannot be CI's
   job: npm's OIDC exchange authenticates `publish` and `stage publish` and nothing else, and
@@ -609,3 +609,15 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   derivation is tier 1 in `scripts/lib/tags.test.mjs`, which is where the two silent failures live:
   a maintenance release staged to `latest` is a downgrade for everybody, and a `next` left behind
   strands whoever follows it.
+- 2026-09-20: [ci.md](ci.md)'s review lands in full, and what is left there is deferred rather
+  than outstanding. The dispatch dry run was broken and passing by luck — a dry run checks a tree
+  whose version is already published, which the derivation refuses, and only `next` lagging
+  `latest` by one version kept that quiet — so the workflow now tells `release:check` whether the
+  run will stage, gets the placeholder `dry-run` back when it will not, and the Stage step refuses
+  that tag by name. `release:finish` repeats end to end: approval is decided three ways per
+  package from `versions`, and `next` moves one package at a time, each caught and named. A lapsed
+  npm session fails before the tag is pushed. CI runs on a `<major>.x` branch and a dispatch may
+  come from one. D62's invariant is restated around the preview window that made it false, with
+  *one preview line at a time* as the constraint the wider naming now makes it possible to
+  violate. [releasing.md](releasing.md) gains what the machine needs, the three runbooks — steady
+  state, a preview line and its promotion, two lines at once — and no longer contradicts D61.

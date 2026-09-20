@@ -11,13 +11,25 @@ input to any script — which is what keeps two release lines from costing anyth
 
 ## The branching rule
 
-**`main` is always the line `latest` points at.** Every other live line is a `<major>.x` branch
-(D62).
+**`main` is the line `latest` points at, or the line that will next point at it.** Every other
+live line has a branch named for it (D62).
 
 - Routine work and maintenance releases happen on `main`, which is where you already are.
 - The next major lives on one long-lived branch — `2.x` — from the day it diverges until it ships.
 - When `2.0.0` ships, `2.x` *becomes* `main`. If the old line still needs support, cut `1.x` from
   the last 1.x tag at that point.
+
+The second clause of the rule is doing work. Through a preview window `main` carries
+`1.3.0-beta.1`, which is on `next`, and `latest` sits several commits behind it — so an invariant
+that said *always* would be false for as long as the preview takes. It is also the window in which
+a hotfix needs a branch: no increment from `1.3.0-beta.1` produces `1.2.4`, so patching the
+released `1.2.3` means cutting `1.2.x` from its tag. A line narrower than a major is named for what
+it is, `<major>.<minor>.x`.
+
+**One preview line at a time**, until line tags exist. Two of them both want `next` and only the
+higher one can have it. The pipeline refuses rather than mis-tagging — the lower line's next
+release is below both tags — but it refuses at the end of a green run, which is a poor place to
+learn it.
 
 Merge `main` into `2.x` regularly and never the reverse. The branch then carries every maintenance
 fix as it lands, and the handover at the end is a fast-forward rather than a reconciliation.
@@ -74,8 +86,11 @@ invisible until somebody installs the wrong thing.
     pnpm release:finish        # local: approve with 2FA, reconcile `next`, GitHub release
 
 `release` writes the tag that triggers the release workflow, so a release never leaves the terminal
-it started in. It refuses a dirty tree, an empty `## Unreleased`, and a version that is not above
-what the registry holds. `--dry-run` shows the whole plan and writes nothing.
+it started in. It refuses a dirty tree, an empty `## Unreleased`, a version that is not above what
+the registry holds, and — when the registry has just answered, so the question is about the
+session and not the weather — a machine with no npm login, because that one is otherwise found by
+`release:finish` after a whole cycle has been spent. `--dry-run` shows the whole plan and writes
+nothing.
 
 `release:check` runs before anything is built. It establishes that the changelog describes the
 version, that a tag-triggered run is on the tag naming that version, and that a dist-tag exists to
@@ -103,6 +118,18 @@ goes through — re-throws unless stdin and stdout are a TTY. It refuses to run 
 commit the tag names, because approval takes whatever is staged while the version comes from the
 tree, and a checkout that has moved between the two makes those different things.
 
+Every step of it repeats, because a half-finished release is the likeliest way to arrive here
+twice. It reads each package's `versions` before approving and decides three ways rather than two
+— none published, approve; all published, skip to the retag; **some** published, approve again,
+since `stage approve` skips a package whose workspace dependency did not make it and a straggler
+left behind can never be caught up, the next release staging a different version. Then it moves
+`next` one package at a time, each one caught and named, since `npm dist-tag add` is idempotent
+and the recovery for a cancelled authentication partway through is the whole command again rather
+than resume state somebody has to understand. The two registry reads stay apart for a reason:
+`versions` before the approval and `dist-tags` after it, because approval is what sets `next` when
+the stage went up under `next`, and a single pre-approval snapshot spends four authenticated
+writes where it should spend none.
+
 ## The two workflows
 
 **`ci.yml`** runs `lint`, `typecheck`, `build` and `test` on every push to a release line — `main`
@@ -127,123 +154,8 @@ than a local one. See [verification.md](verification.md).
 
 ## Outstanding
 
-A review on 2026-09-20 read the pipeline as a new contributor would, and found the model sound and
-several of its edges wrong. Everything below is agreed and specified; none of it is an open
-question, and the cuts near the end were deliberate. Until it lands, two claims in the sections
-above are known to be false — the branching invariant as stated, and `release:check` refusing on
-every run — and items 9 and 5 are what make them true.
-
-### Must fix before the first release
-
-1. **CI never runs on a line branch.** `ci.yml` is `push: branches: [main]`, so every `<major>.x`
-   branch this model creates has nothing running on it until a release does — the failure D50's
-   amendment argues against, one level out. Make it `[main, "*.x"]`.
-
-2. **`release:finish` cannot be re-run, and its second half is unreachable.** The `pnpm stage
-   approve` call sits in a `catch` that calls `fail()` with a message about the workflow still
-   running, so a re-run after a successful approval dies there; and the `npm dist-tag add` loop
-   below it is uncaught, so a cancelled authentication on the third package exits with a stack
-   trace, `next` half-moved, and no recovery in any document. Three changes:
-   - Gate on `npm whoami` before anything else, so a stale session fails before the tag is pushed
-     rather than after the workflow is green.
-   - Decide the approval three ways, per package, by reading `versions`: none published, approve;
-     all published, skip to the retag; **some** published, approve again. Partial approval is real —
-     `stage approve` skips a package whose workspace dependency did not make it — and a binary check
-     answers it wrongly and strands the stragglers permanently, because the next release stages a
-     different version.
-   - Wrap each `dist-tag add` individually: name the package, print the literal command, carry on,
-     report at the end. `npm dist-tag add` is idempotent, so re-running the whole command corrects
-     itself and needs no resume state.
-
-   **Do not merge the two registry reads.** `versions` must be read before the approval and
-   `dist-tags` after it, because approval is what sets `next` when the stage went up under `next` —
-   which is what the `next === version` guard at the top of the retag loop is for. A single
-   pre-approval snapshot sees the old value, and on the commonest preview release you spend four
-   authenticated writes where you should spend none.
-
-3. **`releasing.md` contradicts D61 in two places.** It says the workflow "asks which tag every
-   time" and tells you to "release with `dist_tag: latest`". That input does not exist; the only
-   input is `dry_run`. The first is also wrong on substance — it says a prerelease goes to a tag
-   that is not `latest`, which is the opposite of what D61 derives while no stable line exists.
-
-4. **The workspace is `packages/*` and `plugins/*`; `manifestPaths()` reads only `packages/`.** The
-   four plugins sit at `1.0.0-alpha.2` and are never bumped, while `pnpm stage publish -r` reads
-   `pnpm-workspace.yaml` and would stage one the day somebody drops its `private`. Glob both.
-
-5. **The dry run is already broken, and passes only by luck.** A dispatch runs `release:check`
-   against an unchanged tree, so the version is one already published and `stageTag` refuses it. It
-   works today only because `next` lags `latest` by one version; the first clean release closes that
-   gap and the dry-run path — the documented way to check the trusted publishers — starts failing.
-   GitHub's *Re-run jobs* on a release run hits the same wall, and that is a button pressed by
-   somebody already rattled. Fix: the workflow tells `release:check` explicitly whether this run
-   will stage — a flag, not an inference from `GITHUB_REF`, which is the same dispatch-shaped test
-   in another costume. When it will not stage, print the derivation including any refusal as
-   information, and emit `dry-run` as the tag. Not `next`: a wrong-but-plausible tag that leaks into
-   a real stage is invisible, an obviously fake one is spotted in a minute.
-
-   A consequence worth having: this also makes `workflow_dispatch` with `dry_run: false` refuse,
-   since the tree's version is by construction already published. Staging becomes tag-only, which is
-   what D60 claims and nothing currently enforces.
-
-6. **Quote the dist-tag interpolation.** Both `stage publish` lines render `--tag ${{ ... }}`
-   unquoted. An empty value turns the dry-run step into `--tag --dry-run --report-summary ...`, and
-   if pnpm's parser takes `--dry-run` as the tag's value it has eaten the flag that made it a dry
-   run. Quoting fails loudly on empty instead, and nobody has to find out what pnpm's parser does.
-   One guard beside it: the **Stage** step refuses the literal `dry-run`, so the two expressions
-   that decide whether a run stages — that step's `if:` and the flag in item 5 — cannot drift into
-   publishing under the placeholder on a green run nobody reads.
-
-### Smaller, all agreed
-
-7. **Split the refusal message** (`tags.mjs`). It always says a release on a superseded major needs
-   a line tag, including when the version is simply already published or the line moved on — where
-   the suggested `1.x` is the line `latest` is already on. Both dry-run paths in item 5 surface this
-   text, which raises its value rather than lowering it.
-
-8. **A prerequisites block in `releasing.md`.** Be logged in to npm before cutting, and the
-   `npm login` trap already written up — one URL, then silence while it polls — is what you will hit
-   doing it. `gh` on PATH, and `--no-github-release` if you do not want one. `npm` distinctly from
-   `pnpm`, which is argued at length as a trap but never stated as a requirement.
-
-9. **D62's invariant is false during a preview window**, and the naming rule runs only one way. When
-   `main` carries `1.3.0-beta.1` it is on `next` and `latest` is a commit behind — and no increment
-   from `main` produces a hotfix. Restate as: *`main` is the line `latest` points at, or the line
-   that will next point at it*; every live line that is not `main` has a branch named for it,
-   `<major>.x` or `<major>.<minor>.x`. Then add the constraint the naming now makes it possible to
-   violate: **one preview line at a time** until line tags exist, because two preview lines both
-   want `next` and only the higher one can have it.
-
-10. **Name the promotion.** The second half of a preview cycle is a stable release of the same code.
-    The docs describe it correctly and never label it, so a reader looking for "promote" lands on
-    the `npm dist-tag` trap and may move `latest` by hand.
-
-11. **Catch the push in `release.mjs`** and print two commands — the retry, and the undo
-    (`git tag -d v<version>` and a reset). A failed push leaves a local commit and tag, and
-    re-running answers `v1.2.4 already exists`, which is true and useless. Prose only for the other
-    half: a version burned by a red run leaves a changelog section describing changes that will ship
-    under a different number, and it folds into the next release's section.
-
-12. **Say why `currentVersion()` reads only the root**, at the function. Reading all seven manifests
-    and refusing when they disagree is exactly the hardening a contributor would call obvious, and
-    it would fire on every merge between two lines: every manifest conflicts, and only the root is
-    worth a person's attention, because `release` rewrites the rest from it.
-
-13. **Let a dispatch come from a line branch** — `main` or `*.x`. A dry run is how the trusted
-    publishers get checked before the first release on a new line, which is exactly where the guard
-    refuses today. One `if:`, and nothing written about it anywhere.
-
-14. **`plan.md` still names `pnpm release:prep`**, which does not exist.
-
-15. **Assert the delimiter after the heading in `changelogSection()`.** It matches as a prefix, so
-    `1.0.0-alpha.1` finds `## 1.0.0-alpha.10`. Unreachable while the newest section is first — which
-    stops being guaranteed in a changelog merged between two lines. One line, no test, no prose.
-
-### Cut deliberately
-
-A sentence noting that an unreachable registry moves the refusal from local to post-push. The
-refusal itself should say so when it happens; nobody reads a document in advance for the offline
-case. What accumulates in this repository is prose, not code, and a sentence explaining a subtlety
-competes with the sentences already carrying weight.
+The model above is implemented. What is left is one capability that was deferred, one gap in the
+matrix, and the two questions only a real release can answer.
 
 ### Deferred, with the reason
 
@@ -253,6 +165,9 @@ a version below `latest` that is the newest on its own major stages under `<majo
 neither tag — and it is one more branch in `stageTag` plus `--latest=false` on the GitHub release.
 Deferred to the day the `2.x` branch opens (Leo, 2026-09-20): the naming and the flag want the real
 case in view, and until a second line exists there is nothing to maintain.
+
+It is also what *one preview line at a time* is standing in for. Two preview lines both want
+`next`, and a line tag is how the lower one stops needing it.
 
 **macOS is untested anywhere.** The matrix is Linux plus one Windows row.
 
@@ -266,3 +181,6 @@ Two questions can only be answered by the first real release, and both want `npm
 whether a bare `stage approve` takes this run's batch or everything on the account, and whether
 reconciling `next` costs one authentication or four. Until the first is answered, `releasing.md`
 should not tell anybody an unwanted stage is safe to leave alone.
+
+**The pipeline has not been driven end to end.** Every claim above is derived from the code and
+from one bootstrap publish done by hand. The first release is the test of it.

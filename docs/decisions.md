@@ -854,11 +854,28 @@ permanent rather than an inconvenience: npm stopped accepting new TOTP enrolment
 and is retiring the ones it grandfathered, so a design resting on a typed code is a design with an
 end date.
 
-**D62. `main` is always the line `latest` points at; every other live line is a `<major>.x` branch
-(2026-09-20, Leo).** Routine work and maintenance releases happen on `main`. The next major lives on
-one long-lived branch until it ships, and then *becomes* `main`; if the old line still needs support,
-`1.x` is cut from its last tag at that point. Merge `main` into a line branch and never the reverse,
-so the branch carries every maintenance fix as it lands and the handover is a fast-forward.
+**D62. `main` is the line `latest` points at, or the line that will next point at it; every other
+live line has a branch named for it (2026-09-20, Leo, amended the same day).** Routine work and
+maintenance releases happen on `main`. The next major lives on one long-lived branch until it
+ships, and then *becomes* `main`; if the old line still needs support, `1.x` is cut from its last
+tag at that point. Merge `main` into a line branch and never the reverse, so the branch carries
+every maintenance fix as it lands and the handover is a fast-forward.
+
+*Or the line that will next point at it*, because `main` holds the preview through a preview
+window: while it carries `1.3.0-beta.1` the tag on it is `next`, and `latest` is several commits
+behind. The stricter wording is false for exactly as long as a preview takes, which is not a
+window to have the invariant off in.
+
+Every live line that is not `main` has a branch named for it, `<major>.x` or — where the line is
+narrower than a major — `<major>.<minor>.x`. The narrow form is what that same preview window
+needs: `main` at `1.3.0-beta.1` has no increment that produces `1.2.4`, so a hotfix to the released
+`1.2.3` is a `1.2.x` branch cut from its tag.
+
+**One preview line at a time**, until line tags exist. Two of them both want `next`, only the
+higher one can have it, and the lower becomes a line whose releases are installable by exact
+version and nothing else. The pipeline does refuse rather than mis-tag — the second line's next
+release is below both tags, which is the refusal `stageTag` already carries — but it refuses at
+the end of a green run, and the constraint is cheaper kept than discovered.
 
 The rule is a convention for people, not an input to anything. No script reads a branch: a version
 is computed from the checkout, a dist-tag from that version and the registry (D61), and a tag names
