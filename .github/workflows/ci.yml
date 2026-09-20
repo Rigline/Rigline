@@ -31,13 +31,13 @@ jobs:
           - os: windows-latest
             node: "22.12.0"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # Not `@v6`: that tag still resolves to the release before pnpm v12 support (D59).
       - uses: pnpm/action-setup@v6.1.0
 
       # After pnpm, never before: `cache: pnpm` asks pnpm where its store is.
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node }}
           cache: pnpm
