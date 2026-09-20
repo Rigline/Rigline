@@ -9,8 +9,14 @@
  *
  * `globalThis.__rigline` is read directly below, which nothing else may do. That is what this plugin
  * is for: reading every contributor's verdict, and the diagnostics the copied report carries, is not
- * a capability a manifest could sanely declare. Its own five checks go through `ctx.check` like
- * anybody's, which is what keeps the panel honest about the API it is displaying.
+ * a capability a manifest could sanely declare. Its own checks go through `ctx.check` like anybody
+ * else's, which is what keeps the panel honest about the API it is displaying.
+ *
+ * It no longer declares `tools` or `session`. It used to, to prove the capability was grantable, and
+ * a check about either is now the capability module's own — so the declaration had become a
+ * dependency on nothing, which the install-time scan says in those words. The consequence is right
+ * rather than a loss: on a surface where no plugin uses tool calls, the `core` line says so instead
+ * of waiting forever for one, and no `io_message` tap is installed for a panel that had no use for it.
  */
 import { definePlugin } from "@rigline/plugin-api";
 import {
