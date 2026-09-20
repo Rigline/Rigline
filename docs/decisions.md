@@ -877,6 +877,19 @@ latest of their major, because what they assert is *this major is supported*, no
 tested*. Moving the floor means moving the rung first; the number then goes in the same six places,
 the four published manifests, the workspace root, and the template the scaffolder ships.
 
+**A fourth row is Windows, at the floor rung again** (2026-09-20, Leo). Three Linux rungs plus
+`windows-latest` on 22.12.0, rather than a second axis. This machine develops on Windows at Node
+26 and runs the whole suite there many times a day, so the pairing nothing covers is Windows on an
+older Node; a full OS axis would mostly buy CI coverage of what a maintainer already does by hand.
+Pinning the Windows row to the same 22.12.0 the Linux floor uses leaves exactly one variable
+between those two jobs, so a red one here means Windows rather than Node. macOS remains untested
+anywhere, which is the honest state rather than an oversight.
+
+What that row is most likely to catch is line endings. `* text=auto` gives a Windows checkout
+CRLF, and the two files whose bytes we generate and then compare against disk — `generated.ts` and
+the committed JSON schema — are pinned `eol=lf` for precisely that reason (D37). Until now that
+pin was a comment asserting something; it is now a thing a run proves or disproves.
+
 The floor is the toolchain's, not the code's. These packages import `crypto`, `fs`, `os`, `path`,
 `url`, `util` and `zlib` and nothing else, and would run on Node far older than this; 22.12.0 is
 where vitest starts, so it is the oldest Node this repository can run its own tests on, and a floor
@@ -884,10 +897,10 @@ below the oldest one we can test is a number nobody has stood on. Node 20 is not
 end-of-life in April 2026, and rolldown asks for 20.19 in any case.
 
 **A CI run is weaker than a local one, by construction.** The corpus lives outside the repository
-(D36), so every tier-2 file and every corpus-backed tier-1 test skips there with a reason. CI proves
-the pure functions, the transforms and the synthetic fixtures on three runtimes; it cannot prove
-that a harvest regex still reads real minified output. That is what a maintainer's local run is for,
-and why [releasing.md](releasing.md) says to do one before a release.
+(D36), so every tier-2 file and every corpus-backed tier-1 test skips there with a reason. CI
+proves the pure functions, the transforms and the synthetic fixtures on every row of the matrix;
+it cannot prove that a harvest regex still reads real minified output. That is what a maintainer's
+local run is for, and why [releasing.md](releasing.md) says to do one before a release.
 
 **Actions are pinned to a major, except where the major points backwards.** `pnpm/action-setup` is
 pinned to `v6.1.0`: its `v6` tag still resolves to the last release before pnpm v12 support, and the

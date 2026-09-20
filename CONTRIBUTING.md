@@ -25,9 +25,10 @@ indexed in [CLAUDE.md](CLAUDE.md).
 `pnpm rigline <command>` runs what you just built rather than what is published — no path needed.
 
 Every push to `main` and every pull request runs `lint`, `typecheck`, `build` and `test` on Node
-22.12.0, 24 and 26. The corpus those tests read real bundles from lives outside the repository, so
-the browser tier and the corpus-backed tests skip in CI and run only here;
-[docs/verification.md](docs/verification.md) says which question belongs to which tier.
+22.12.0, 24 and 26, and once more on Windows at 22.12.0. The corpus those tests read real bundles
+from lives outside the repository, so the browser tier and the corpus-backed tests skip in CI and
+run only here; [docs/verification.md](docs/verification.md) says which question belongs to which
+tier.
 
 ## Installing into your extension
 

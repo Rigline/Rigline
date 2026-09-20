@@ -3,8 +3,8 @@
 #
 # The corpus lives outside the repository, so the harness tier and every corpus-backed test skip
 # here with a reason (D36, D59). A green run means the pure functions, the transforms and the
-# synthetic fixtures hold on three runtimes; it does not mean a harvest regex still reads real
-# minified output. That answer comes from a maintainer's local run, which is why
+# synthetic fixtures hold on every row of the matrix; it does not mean a harvest regex still reads
+# real minified output. That answer comes from a maintainer's local run, which is why
 # docs/releasing.md asks for one before a release.
 name: CI
 
@@ -24,17 +24,27 @@ concurrency:
 
 jobs:
   check:
-    name: Node ${{ matrix.node }}
-    runs-on: ubuntu-latest
+    name: Node ${{ matrix.node }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     strategy:
       # Every rung reports. A failure on the floor and a failure on the newest runtime are
       # different bugs, and cancelling the rest hides which one this is.
       fail-fast: false
       matrix:
+        os: [ubuntu-latest]
         # 22.12.0 exactly, because it is the floor the four published packages declare in
         # `engines`, and a floor is a claim rather than a sample (D59). 24 and 26 float to the
         # latest of their major: they say the major is supported, not that a patch was tested.
         node: ["22.12.0", "24", "26"]
+        # One Windows row rather than a second axis: this is developed on Windows at Node 26 and
+        # the suite is run there by hand many times a day, so the pairing nothing covers is
+        # Windows on an older Node. It takes the Linux floor's own version, which leaves one
+        # variable between those two jobs — a red one here means Windows rather than Node. What
+        # it is most likely to catch is a CRLF checkout reaching a file whose bytes we compare
+        # (D37). An include matching no existing combination is added as a new one.
+        include:
+          - os: windows-latest
+            node: "22.12.0"
     steps:
       - uses: actions/checkout@v5
 
