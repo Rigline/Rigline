@@ -555,11 +555,20 @@ export default definePlugin({
       }
     });
 
-    ctx.check("badge is mounted", () =>
-      badge?.isConnected
+    /**
+     * Whether the badge this plugin placed is still on screen.
+     *
+     * `n/a`, not a failure, until the host has handed over a footer to mount on. Whether an anchor
+     * ever appears is core's `mount: watches have found their element`, which owns the watch and has
+     * a clock; this one can only see that it has not been given anything yet, and answering the
+     * other question from here would be answering it worse — and, at boot, wrongly.
+     */
+    ctx.check("badge is mounted", () => {
+      if (badge === null) return { verdict: "n/a", detail: "no composer footer yet" };
+      return badge.isConnected
         ? { verdict: "pass", detail: headlineText(sessionId) }
-        : { verdict: "fail", detail: "the badge is not in the document" },
-    );
+        : { verdict: "fail", detail: "the badge is not in the document" };
+    });
 
     /**
      * Whether the address scrape has ever found anything.

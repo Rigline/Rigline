@@ -20,6 +20,16 @@ anything may change between releases.
   A plugin that has quietly stopped working can now say so, where before the badge stayed green.
 - Scaffolded plugins ship with a check, so a new plugin starts with one rather than adding it after
   the first silent failure.
+
+### Fixed
+
+- `ctx.watch` no longer waits for an anchor the extension does not render on the current surface. It
+  watches nothing and tears down cleanly, as it already did for an optional anchor the extension has
+  not got, so a plugin that spans surfaces is not reported as broken on the one where its decoration
+  was never going to appear.
+- The diagnostics badge no longer flashes red for a second at startup. A check asking whether a
+  decoration is on screen now says "not yet" until the host has had a chance to place one.
+- session-id no longer loads on the session list, which has no composer footer for its badge.
 - A changelog, and `pnpm release <increment>` to cut and push a version with one command. A pushed
   tag starts the release; `pnpm release:finish` approves it, moves `next` if the release is ahead of
   it, and creates the GitHub release.

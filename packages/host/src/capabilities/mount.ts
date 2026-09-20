@@ -1,4 +1,4 @@
-import { ANCHORS, type AnchorName, CONTRACTS } from "@rigline/plugin-api";
+import { ANCHORS, type AnchorName, type AnchorSpec, CONTRACTS } from "@rigline/plugin-api";
 import { type CapabilityModule, declaredSwitch, undeclared } from "../kernel/types.ts";
 import {
   anchorUniqueVerdict,
@@ -85,14 +85,25 @@ export const mountModule: CapabilityModule<"mount"> = {
           }
           return () => {};
         }
+        // Through `AnchorSpec` rather than the `const`-asserted literal's own type: the table is one
+        // object literal per anchor and only some carry `surfaces`, so the narrowed entry type does
+        // not have the field at all.
+        const spec: AnchorSpec | undefined = ANCHORS[name as AnchorName];
+        // An anchor this *surface* has not got, which is the same answer to the plugin as an
+        // optional anchor this *extension* has not got: there is nothing to mount on, so watch
+        // nothing and tear down cleanly (D41). The composer footer is the case — `footerSpacer` is
+        // measured as editor and sidebar only, and the session list renders no composer — and
+        // without this a plugin that spans all three reports a decoration missing on the one
+        // surface where it was never going to appear.
+        //
+        // Only where the table has measured it. `surfaces` absent means *not yet measured*, not
+        // *no surfaces*, and it is absent on about half the table; reading absence as exclusion
+        // would switch off every watch that depends on one of those.
+        if (spec?.surfaces && !spec.surfaces.includes(kernel.surface)) return () => {};
         // `unique` is the anchor's own claim, carried through so the host can notice at runtime
         // when it stops holding (D7). The table is Rigline's vocabulary and ships with the loader,
         // so this is a lookup rather than another generated field.
-        const target = {
-          anchor: name,
-          selector,
-          unique: ANCHORS[name as AnchorName]?.kind === "singleton",
-        };
+        const target = { anchor: name, selector, unique: spec?.kind === "singleton" };
         return own(
           kernel.mounts.watch(target, plugin.name, (el) => onFound(el) ?? undefined, disable),
         );

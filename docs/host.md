@@ -187,6 +187,13 @@ present and again whenever the element it last handed over leaves the document a
 appears, returning that call's teardown before the next; the plugin polls nothing. It runs on the
 same per-React-commit pass as mount re-placement (D52), not on a mutation observer.
 
+It watches nothing, cleanly, in two cases that are the same answer to the plugin — there is nothing
+to mount on. An optional anchor this *extension* has not got (D41), and an anchor the table records
+as not rendering on this *surface* (D68). The second reads `ANCHORS[name].surfaces` and acts only
+when it is present, because absent means *not yet measured* and half the table is still absent. A
+plugin that has no work at all on a surface says so with `surfaces` in its manifest instead, and is
+skipped as `inactive`.
+
 `mount`, `mountAfter`, `mountBefore`: inside the target, immediately after a sibling, immediately
 before one. Mounts sharing an anchor are ordered by the host in registry order, which for both
 sibling placements reads left to right — so the *highest* order ends up nearest a `before` anchor.

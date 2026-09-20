@@ -487,6 +487,31 @@ a pointer mid-click and rearranges a report while somebody is reading it. `core`
 capability in the check's name, because a group per module would be nine headers for one to three
 lines each.
 
+**D67. A check that has not had its chance yet says `n/a`, and the host is what knows.** A badge
+that goes red at boot and green a second later teaches the reader that red is noise, which costs
+more than the second of silence buys — the same argument that makes a switched-off plugin `n/a`
+rather than failing. The line splits by who can answer, not by giving every check a timer: whether an
+anchor *ever* appeared is the host's question, because it owns the watch and has a clock, so
+`watchesFoundVerdict` waits the same five seconds the transcript check waits before it will fail.
+A plugin's own check says `n/a` until the host has handed it something and leaves that question
+alone — a plugin asking "has my watch ever fired" is asking core's question from a worse position,
+and at boot it answers it wrongly.
+
+**D68. `ctx.watch` honours the anchor table's `surfaces`, and a plugin that has nothing to do on a
+surface says so in its manifest.** Two mechanisms, one for each half of *does this work here*.
+
+A watch for an anchor this *surface* does not render watches nothing and tears down cleanly, which
+is what an optional anchor this *extension* has not got already did (D41): both are the same answer
+to the plugin, that there is nothing to mount on. The table has recorded `footerSpacer` as editor
+and sidebar only since it was written, and the host was not reading it — so a plugin spanning all
+three surfaces reported a decoration missing on the one surface where it was never going to appear.
+Only where the table has measured it: `surfaces` absent means *not yet measured*, and reading absence
+as exclusion would switch off every watch depending on one of the half of entries that lack it.
+
+That covers a plugin that does *some* of its work on a surface. A plugin that does *none* of it there
+declares `surfaces` in its manifest and is skipped as `inactive`, which is not a failure and never
+was. session-id had claimed all three while its entire output was a composer-footer badge.
+
 ### Host patches
 
 **D25. A plugin may declare byte substitutions in `extension.js`, applied by the installer.** The

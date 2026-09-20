@@ -838,6 +838,60 @@ export default { setup() {} };`,
     }, 20000);
 
     /**
+     * A watch for an anchor this *surface* has not got, which is the same answer to the plugin as an
+     * optional anchor this *extension* has not got: nothing to mount on, so watch nothing.
+     *
+     * `footerSpacer` is measured in the table as editor and sidebar only, and the session list
+     * renders no composer. Without this, a plugin that spans all three surfaces reports a decoration
+     * missing on the one surface where it was never going to appear — which is exactly what the
+     * first live read of the panel showed.
+     */
+    it("watches nothing for an anchor the table says this surface does not render", async () => {
+      const spanningPlugin: FixturePlugin = {
+        name: "spanning",
+        manifest: { uses: { anchors: ["footerSpacer"], mount: true } },
+        source: `window.__spanned = { found: 0 };
+export default { setup(ctx) {
+    ctx.watch("footerSpacer", () => { window.__spanned.found += 1; });
+  } };`,
+      };
+      const booted = await boot({ plugins: [spanningPlugin], surface: "sessionList" });
+      try {
+        const state = await booted.page.evaluate(() => {
+          const found = (globalThis as { __spanned?: { found: number } }).__spanned?.found ?? -1;
+          const bridge = (
+            globalThis as {
+              __rigline?: {
+                checks: {
+                  run(): readonly {
+                    contributor: string;
+                    results: readonly { name: string; verdict: string; detail: string }[];
+                  }[];
+                } | null;
+              };
+            }
+          ).__rigline;
+          const core = bridge?.checks?.run().find((g) => g.contributor === "core");
+          return {
+            found,
+            watches: core?.results.find((r) => r.name.startsWith("mount: watches")) ?? null,
+          };
+        });
+
+        // Registered, never called, and never counted as a watch that found nothing.
+        expect(state.found).toBe(0);
+        expect(state.watches?.verdict).toBe("n/a");
+        expect(state.watches?.detail).toContain("no watches on this surface");
+
+        const d = await booted.diagnostics();
+        expect(d.plugins).toContainEqual({ name: "spanning", status: "loaded" });
+        expect(booted.consoleErrors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
+    /**
      * A plugin's own diagnostics, end to end: `ctx.check` with no declaration behind it, grouped
      * under the plugin's name, with `core` above it — and a throwing check rendered as one failing
      * line with the plugin still loaded, which is the decision this whole capability turns on.

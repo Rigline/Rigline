@@ -82,6 +82,9 @@ interface Watch {
   streak: number;
   /** Set once the streak ran out: the host has stopped re-anchoring this watch. */
   abandoned: boolean;
+  /** When it was registered, so a watch that has never found anything can be told from one that
+   * has been looking since boot. */
+  readonly since: number;
 }
 
 /**
@@ -105,6 +108,8 @@ export interface MountSnapshot {
     readonly anchor: string;
     readonly found: boolean;
     readonly abandoned: boolean;
+    /** Milliseconds since it was registered: what separates still settling from never appeared. */
+    readonly lookingMs: number;
   }[];
 }
 
@@ -480,6 +485,7 @@ export function createMountService(
         teardown: null,
         streak: 0,
         abandoned: false,
+        since: performance.now(),
       };
       watches.push(w);
       runWatch(w);
@@ -507,6 +513,7 @@ export function createMountService(
           anchor: w.target.anchor,
           found: w.current !== null,
           abandoned: w.abandoned,
+          lookingMs: performance.now() - w.since,
         })),
       };
     },

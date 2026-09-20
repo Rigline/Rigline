@@ -249,6 +249,46 @@ already works, not co-designed with it.
   habit.
 - **CHANGELOG.md**: `ctx.check` is a user-visible change to what a plugin can do.
 
+## What the first live read found
+
+Three faults, and they are two mistakes rather than three. Both were invisible to every tier below —
+the harness boots a panel with fixture plugins and reads it once, and neither the boot instant nor
+the session list is a thing it looks at.
+
+**A check with no "not yet" state is a check that fails at boot.** The badge showed `RIG 3` for a
+second before going green. The three were `mount: watches have found their element`,
+session-id's *badge is mounted* and time-marks' *toggle is mounted* — all of them asking whether a
+decoration is on screen, at an instant before the host had handed anybody an element. The probe's
+own badge check did not flash, because it distinguishes *never mounted* from *mounted and gone*,
+which is the distinction the other three lacked.
+
+A badge that goes red and corrects itself is worse than one that stays grey. It teaches the reader
+that red is noise, which is the same argument that makes a switched-off plugin `n/a` rather than
+failing.
+
+**The split is by who can answer, not by adding a timer to each.** Whether an anchor ever appeared is
+the host's question — it owns the watch, and it has a clock. Whether a decoration that *was* handed
+an element is still on screen is the plugin's. So `watchesFoundVerdict` gets a grace before it
+fails, in one place, and the two plugin checks simply say `n/a` until the host has handed them
+something. That also retires a duplication: a plugin asking "has my watch ever fired" was asking
+core's question in a worse position to answer it.
+
+**session-id had no business being on the session list.** Its whole output is a badge in the composer
+footer, and the session list has no composer, so it loaded there to watch an anchor that never
+appears and do nothing. Its manifest should have said `surfaces: ["editor", "sidebar"]`, as
+time-marks' and worktree-prefix's do. That is the mechanism for *this works in a session window, not
+in the session list*, and it already existed.
+
+**But the host should not have needed the manifest to be right.** `ANCHORS` records the surfaces an
+anchor renders on — `footerSpacer` has carried `surfaces: ["editor", "sidebar"]` since the table was
+written — and `ctx.watch` ignored it. A watch for an anchor this surface does not have now watches
+nothing and tears down cleanly, which is what an optional anchor this *extension* does not have
+already did (D41). The two are the same answer to the plugin: there is nothing to mount on.
+
+Only where the table says so. `surfaces` absent means *not yet measured*, not *no surfaces*, and
+thirteen of the twenty-seven entries are still absent — reading absence as exclusion would silently
+switch off every watch that depends on one.
+
 ## Open, and not blocking this phase
 
 - **Whether a check may be `async`.** No, for now: pull at one second with an awaited verdict means

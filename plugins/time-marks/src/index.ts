@@ -465,15 +465,18 @@ export default definePlugin({
     });
 
     /**
-     * The toggle is on screen. `n/a` rather than a failure when the anchor itself is gone: the
-     * spacer is declared optional, so losing it costs this one button and never the feature — the
-     * stored preference still governs whether marks are drawn (D41).
+     * The toggle is on screen. Two ways that is legitimately not a failure, and neither is this
+     * plugin guessing: the spacer is declared optional, so an extension that has retired it costs
+     * this one button and never the feature (D41); and until the host has handed over a footer
+     * there is nothing to be connected to. Whether a footer that should have appeared never did is
+     * core's line, which owns the watch and has a clock.
      */
     ctx.check("toggle is mounted", () => {
       if (ctx.optional.anchor("footerSpacer") === null) {
         return { verdict: "n/a", detail: "this extension has no footer spacer to mount on" };
       }
-      return currentIcon?.isConnected
+      if (currentIcon === null) return { verdict: "n/a", detail: "no composer footer yet" };
+      return currentIcon.isConnected
         ? { verdict: "pass", detail: visible ? "on" : "off" }
         : { verdict: "fail", detail: "the toggle is not in the document" };
     });

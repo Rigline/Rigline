@@ -4,6 +4,7 @@
   "name": "session-id",
   "description": "The session's short id in the composer footer. Click for a pop-up of every identifier it has, the inter-agent messaging address included; a row's click copies it, and alt-click or shift-click on the badge copies the session id in full.",
   "entry": "dist/index.js",
+  "surfaces": ["editor", "sidebar"],
   "uses": {
     "anchors": ["footerSpacer"],
     "messages": ["io_message"],

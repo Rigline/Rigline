@@ -197,7 +197,13 @@ describe("mountsInPlaceVerdict", () => {
 });
 
 describe("watchesFoundVerdict", () => {
-  const found = { owner: "session-id", anchor: "footerSpacer", found: true, abandoned: false };
+  const found = {
+    owner: "session-id",
+    anchor: "footerSpacer",
+    found: true,
+    abandoned: false,
+    lookingMs: 30_000,
+  };
 
   it("is n/a when nothing is watching", () => {
     expect(watchesFoundVerdict([]).verdict).toBe("n/a");
@@ -211,6 +217,21 @@ describe("watchesFoundVerdict", () => {
     const result = watchesFoundVerdict([found, { ...found, owner: "time-marks", found: false }]);
     expect(result.verdict).toBe("fail");
     expect(result.detail).toContain("time-marks/footerSpacer");
+  });
+
+  // The boot flash: at the first poll the host has not handed anybody an element yet, and a badge
+  // that goes red and corrects itself a second later teaches the reader that red is noise.
+  it("stays n/a while a watch that has found nothing is still settling", () => {
+    const young = { ...found, found: false, lookingMs: 200 };
+    const result = watchesFoundVerdict([young]);
+    expect(result.verdict).toBe("n/a");
+    expect(result.detail).toContain("still looking: session-id/footerSpacer");
+  });
+
+  it("fails once any empty watch is past the grace, not once all of them are", () => {
+    const young = { ...found, owner: "a", found: false, lookingMs: 200 };
+    const old = { ...found, owner: "b", found: false, lookingMs: 9000 };
+    expect(watchesFoundVerdict([young, old]).verdict).toBe("fail");
   });
 });
 

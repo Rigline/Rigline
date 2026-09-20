@@ -85,8 +85,13 @@ sessions). `ctx.surface` tells you which one you are in.
 They are not the same page. The session list has no composer, so no composer footer and no
 `footerSpacer` to hang anything from: a plugin that wants a badge there mounts on `document.body`
 and positions it itself. A plugin that decorates the transcript belongs in `editor` and `sidebar`
-and should say so, rather than loading into a surface with no transcript and watching for something
-that will never appear.
+and should say so, rather than loading into a surface with no transcript.
+
+**If none of your plugin works on a surface, say so here.** That is what this key is for, and it is
+the difference between `inactive`, which is not a failure, and a plugin that loaded and can do
+nothing. If only *part* of it does not apply, you need nothing: the anchor table records which
+surfaces each anchor renders on, so `ctx.watch` for one this surface has not got watches nothing and
+tears down cleanly, exactly as an optional anchor this extension has not got does.
 
 ### Optional dependencies
 
@@ -149,6 +154,12 @@ Three things are worth knowing.
 **`n/a` is a real verdict, not a soft failure.** A plugin the user switched off is not one that is
 failing, and a badge that goes red for a deliberate choice teaches people to ignore the badge. Say
 `n/a` with the reason, which is more use to a reader than a green line meaning the same thing.
+
+That includes *not yet*. Your check runs from the moment `setup` returns, before the host has handed
+you an element, so a check that goes straight to `fail` when your decoration is not on screen is red
+for the first second of every panel. Say `n/a` until you have been given something to decorate.
+Whether an anchor that should have appeared never did is not your question — `core`'s
+*mount: watches have found their element* owns it, has a clock, and waits before it fails.
 
 **A check reads; it does not compute.** The host calls it about once a second for the life of the
 window, whether or not anybody has the panel open, because the failing count is always on the badge.

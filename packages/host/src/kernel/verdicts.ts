@@ -160,7 +160,19 @@ export interface WatchLike {
   readonly anchor: string;
   readonly found: boolean;
   readonly abandoned: boolean;
+  /** How long it has been looking. A watch that has found nothing for a frame is not a fault. */
+  readonly lookingMs: number;
 }
+
+/**
+ * How long a watch may find nothing before that counts as a failure rather than as boot.
+ *
+ * The same five seconds the transcript check waits, and for the same reason: an anchor that renders
+ * a frame or two after the plugin registered is the ordinary case, and a check with no "not yet"
+ * state fails at boot and corrects itself a second later. A badge that goes red and then green
+ * teaches the reader that red is noise, which costs more than the second of silence buys.
+ */
+const SETTLING_MS = 5000;
 
 /**
  * Every mount whose anchor is still in the document is where the host means it to be.
@@ -201,6 +213,16 @@ export function watchesFoundVerdict(watches: readonly WatchLike[]): CheckVerdict
   const empty = watches.filter((w) => !w.found && !w.abandoned);
   if (empty.length === 0) return { verdict: "pass", detail: `${watches.length} anchored` };
   const named = [...new Set(empty.map((w) => `${w.owner}/${w.anchor}`))].sort().join(", ");
+  // Still settling is not the same claim as never appeared, and this is the one place that can tell
+  // them apart: the host owns the watch and has a clock, where the plugin waiting on the element has
+  // neither. That is why a plugin's own check says `n/a` until it is handed something and leaves
+  // this question here, rather than keeping a timer of its own and answering it worse.
+  if (empty.every((w) => w.lookingMs < SETTLING_MS)) {
+    return {
+      verdict: "n/a",
+      detail: `${empty.length} of ${watches.length} still looking: ${named}`,
+    };
+  }
   return {
     verdict: "fail",
     detail: `${empty.length} of ${watches.length} found nothing: ${named}`,
