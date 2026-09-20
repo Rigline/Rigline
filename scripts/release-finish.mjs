@@ -8,6 +8,10 @@
  * write goes through — re-throws unless stdin and stdout are a TTY, so a runner has no second
  * factor to offer. A dist-tag cannot point at a version the registry does not have yet in any case.
  *
+ * Every step is safe to repeat, because a half-finished release is the likeliest way to arrive
+ * here twice: an authentication cancelled on the third package leaves `next` half-moved, and the
+ * answer is to run this again rather than to reconstruct by hand what it got to.
+ *
  * Usage: pnpm release:finish [--no-github-release]
  */
 import semver from "semver";
@@ -18,7 +22,9 @@ import {
   currentVersion,
   distTags,
   fail,
+  npmAccountOrNull,
   publishedPackages,
+  publishedVersions,
   run,
   say,
 } from "./lib/workspace.mjs";
@@ -27,6 +33,17 @@ const args = process.argv.slice(2);
 const version = currentVersion();
 const tagName = `v${version}`;
 const packages = publishedPackages();
+
+// Before anything else, because every step below authenticates and a session that has lapsed is a
+// person's to fix. It is also the cheapest place to find out: by the time this command runs, the
+// tag is pushed and the workflow is green.
+const account = npmAccountOrNull();
+if (account === null) {
+  fail(
+    "`npm whoami` names no account, so nothing below can authenticate. `npm login` — which " +
+      "prints one URL and then goes quiet while it polls — and run this again",
+  );
+}
 
 if (capture("git", ["tag", "--list", tagName]) === "") {
   fail(`${tagName} does not exist here. Cut the release first with \`pnpm release <increment>\``);
@@ -43,25 +60,48 @@ if (capture("git", ["rev-list", "-n", "1", tagName]) !== capture("git", ["rev-pa
   );
 }
 
-// Approval goes through pnpm: it takes the whole batch under one authentication and approves in
-// dependency order, skipping any package whose workspace dependency did not make it rather than
-// publishing against a dependency the registry never received.
-say(`Approving ${version}. This needs your second factor.`);
-say("");
-try {
-  run("pnpm", ["stage", "approve"]);
-} catch {
-  fail(
-    "approval did not complete. If nothing is staged yet the release workflow may still be " +
-      `running — check it, then run this again. \`npm stage list\` shows what is waiting.`,
-  );
+// Read `versions` here and `dist-tags` only after the approval, never both at once: approval is
+// what sets `next` when the stage went up under it, so a single pre-approval snapshot sees the old
+// value and spends four authenticated writes where it should spend none.
+//
+// Three answers, not two. Partial approval is real — `stage approve` skips a package whose
+// workspace dependency did not make it — and a binary published-or-not check answers it wrongly
+// and strands the stragglers for good, because the next release stages a different version.
+const already = packages.filter((name) => publishedVersions(name).includes(version));
+
+if (already.length === packages.length) {
+  say(`All ${packages.length} packages are on the registry at ${version} already.`);
+} else {
+  if (already.length > 0) {
+    say(`${already.join(", ")} already published. Approving again for the rest.`);
+    say("");
+  }
+  say(`Approving ${version} as ${account}. This needs your second factor.`);
+  say("");
+  try {
+    // Approval goes through pnpm: it takes the whole batch under one authentication and approves
+    // in dependency order, skipping any package whose workspace dependency did not make it rather
+    // than publishing against a dependency the registry never received.
+    run("pnpm", ["stage", "approve"]);
+  } catch {
+    fail(
+      "approval did not complete. If nothing is staged yet the release workflow may still be " +
+        "running — check it, then run this again. `npm stage list` shows what is waiting, and " +
+        "running this twice costs nothing",
+    );
+  }
 }
 
 // Retagging goes through npm, not pnpm: `pnpm dist-tag` takes a typed one-time password and
 // nothing else, and npm stopped accepting new TOTP enrolments in September 2025. `npm dist-tag`
 // shares `otplease` with `npm publish`, whose first branch opens a browser.
+//
+// One package at a time, each caught: a cancelled authentication partway through must not take the
+// ones after it with it. `npm dist-tag add` is idempotent, so the recovery is this whole command
+// again and there is no resume state for anybody to carry.
 say("");
 const moved = [];
+const stuck = [];
 for (const name of packages) {
   const { next } = distTags(name);
   // Equality first: `nextShouldMove` is a `semver.gt`, so it already says no for the version that
@@ -74,8 +114,13 @@ for (const name of packages) {
     say(`  ${name}: \`next\` stays at ${next}, which is ahead of ${version}`);
     continue;
   }
-  run("npm", ["dist-tag", "add", `${name}@${version}`, "next"]);
-  moved.push(name);
+  try {
+    run("npm", ["dist-tag", "add", `${name}@${version}`, "next"]);
+    moved.push(name);
+  } catch {
+    stuck.push(name);
+    say(`  ${name}: \`next\` not moved — npm dist-tag add ${name}@${version} next`);
+  }
 }
 if (moved.length > 0)
   say(`  \`next\` moved to ${version} on ${moved.length} of ${packages.length}`);
@@ -101,4 +146,10 @@ if (!args.includes("--no-github-release")) {
 }
 
 say("");
-say(`${version} is published.`);
+if (stuck.length === 0) {
+  say(`${version} is published.`);
+} else {
+  say(`${version} is published, and \`next\` still points elsewhere on ${stuck.join(", ")}.`);
+  say("Run `pnpm release:finish` again: it skips what is done and retries only those.");
+  process.exitCode = 1;
+}

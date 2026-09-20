@@ -18,6 +18,7 @@ import {
   currentVersion,
   fail,
   manifestPaths,
+  npmAccountOrNull,
   publishedPackages,
   run,
   say,
@@ -84,6 +85,12 @@ const state = registryStateOrNull(publishedPackages());
 const planned = state === null ? null : stageTag(version, state);
 if (planned?.refusal) fail(planned.refusal);
 
+// Asked only when the registry has just answered, so an offline cut degrades the way the tag
+// derivation above it does rather than being refused for the weather. A lapsed session is
+// otherwise found by `pnpm release:finish`, which is after the tag is pushed and the workflow is
+// green — a whole cycle spent on something a person fixes in a minute.
+const account = state === null ? null : npmAccountOrNull();
+
 say(`  ${current}  ->  ${version}     (${increment}${preid ? `, preid ${identifier}` : ""})`);
 say(`  tag          ${tagName} on ${branch}`);
 say(`  manifests    ${manifestPaths().length}`);
@@ -92,6 +99,9 @@ say(
     ? `  dist-tag     stages under \`${planned.tag}\`, and \`next\` is reconciled after approval`
     : "  dist-tag     registry unreachable from here; the workflow derives it at stage time",
 );
+if (state !== null) {
+  say(`  npm          ${account ?? "no session — approval will need `npm login`"}`);
+}
 say("");
 say(notes.trim());
 say("");
@@ -103,6 +113,13 @@ if (dryRun) {
       : "A dry run. Nothing written, nothing pushed.",
   );
   process.exit(0);
+}
+
+if (state !== null && account === null) {
+  fail(
+    "npm has no session on this machine, and `pnpm release:finish` cannot approve without one. " +
+      "`npm login` first — it prints one URL and then goes quiet while it polls",
+  );
 }
 
 const body = notes.replace(/^(\r?\n)+/, eol);
@@ -134,7 +151,20 @@ const message = `Release ${version}\n${notes.replace(/\r\n/g, "\n").replace(/^\n
 run("git", ["add", "CHANGELOG.md", ...manifestPaths()]);
 run("git", ["commit", "-m", message]);
 run("git", ["tag", "-a", tagName, "-m", message]);
-run("git", ["push", "--follow-tags", "origin", branch]);
+
+// The commit and the tag are made before the push and survive it failing, so re-running this
+// command answers `v1.2.4 already exists` — which is true, and no help at all. Both ways out,
+// printed where the failure is.
+try {
+  run("git", ["push", "--follow-tags", "origin", branch]);
+} catch {
+  fail(
+    `the push failed, so ${tagName} and the release commit are here and not on the remote. ` +
+      `Retry it:\n\n    git push --follow-tags origin ${branch}\n\n` +
+      `or undo the release and cut it again:\n\n    git tag -d ${tagName}\n` +
+      "    git reset --hard HEAD~1",
+  );
+}
 
 say("");
 say(`Pushed ${tagName}. The release workflow is staging it; when that run is green:`);

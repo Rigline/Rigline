@@ -29,9 +29,12 @@ export function registryState(packages) {
 /**
  * The tag to stage under, or a refusal explaining why neither is right.
  *
- * The refusal is a release on a superseded major — `1.2.4` while `latest` is `2.0.0`. It belongs on
- * a line tag such as `1.x`, which this pipeline does not do; staging it to `latest` would be a
- * downgrade for everybody and staging it to `next` would strand the preview that tag is carrying.
+ * There are two refusals, and they want different sentences. One is a release on a superseded
+ * major — `1.2.4` while `latest` is `2.0.0` — which belongs on a line tag such as `1.x`: this
+ * pipeline does not set one, and of the two it does set, `latest` would be a downgrade for
+ * everybody and `next` would strand the preview it carries. The other is a version that has simply
+ * been released already, which is what a dry run against an unchanged tree is, and where a
+ * suggested `1.x` names the line `latest` is on and reads as advice to do something strange.
  */
 export function stageTag(version, { latest, next, hasStable }) {
   const isStable = semver.prerelease(version) === null;
@@ -40,11 +43,19 @@ export function stageTag(version, { latest, next, hasStable }) {
   if (above(latest) && (isStable || !hasStable)) return { tag: "latest" };
   if (above(next)) return { tag: "next" };
 
+  const held = `\`latest\` (${latest ?? "unset"}) or \`next\` (${next ?? "unset"})`;
+  if (latest !== null && semver.major(version) < semver.major(latest)) {
+    return {
+      refusal:
+        `${version} is on a superseded major: it is below ${held}, and a release there needs a ` +
+        `line tag such as \`${semver.major(version)}.x\`, which this pipeline does not set.`,
+    };
+  }
   return {
     refusal:
-      `${version} is not above \`latest\` (${latest}) or \`next\` (${next}), so neither tag ` +
-      "describes it. A release on a superseded major needs a line tag such as " +
-      `\`${semver.major(version)}.x\`, which this pipeline does not set.`,
+      `${version} is not above ${held}, so there is nothing here to release: it has been ` +
+      "published already, or the line has moved past it. Cut a new one with `pnpm release " +
+      "<increment>`.",
   };
 }
 

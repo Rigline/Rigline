@@ -51,6 +51,12 @@ describe("stageTag", () => {
   it("refuses a version already behind both tags", () => {
     expect(stageTag("1.0.0-alpha.1", alphaLine).refusal).toBeTypeOf("string");
   });
+
+  it("does not suggest a line tag for a version that is simply already published", () => {
+    // Which is every dry run: the tree's version is one the registry has. `1.x` here would name
+    // the line `latest` is already on, so the suggestion would be to do something strange.
+    expect(stageTag("1.0.0-alpha.2", alphaLine).refusal).not.toContain("1.x");
+  });
 });
 
 describe("nextShouldMove", () => {

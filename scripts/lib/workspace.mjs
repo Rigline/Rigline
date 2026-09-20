@@ -7,13 +7,16 @@
  * to the workspace and left out of a release by nobody having remembered this file.
  */
 import { execFileSync } from "node:child_process";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const ROOT = fileURLToPath(new URL("../..", import.meta.url));
 export const CHANGELOG = join(ROOT, "CHANGELOG.md");
 export const UNRELEASED = "## Unreleased";
+
+/** Every directory `pnpm-workspace.yaml` globs. A fourth one there needs a fourth entry here. */
+const WORKSPACE_DIRS = ["packages", "plugins"];
 
 /** GitHub renders `::error::` as an annotation on the run; a terminal just reads the line. */
 export function fail(message) {
@@ -26,15 +29,30 @@ export function say(message) {
   process.stdout.write(`${message}\n`);
 }
 
-/** Every manifest the workspace version lives in: the root, and one per package. */
+/**
+ * Every manifest the workspace version lives in: the root first, then one per workspace member.
+ *
+ * Both globs, not just `packages/*`. A plugin is `private` and so never published — but it is a
+ * workspace member, and `pnpm stage publish -r` reads `pnpm-workspace.yaml` rather than this file,
+ * so a plugin left behind at an old version is one dropped `private` away from being staged at it.
+ */
 export function manifestPaths() {
-  const packages = join(ROOT, "packages");
-  const members = readdirSync(packages, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => join(packages, entry.name, "package.json"));
+  const members = WORKSPACE_DIRS.flatMap((dir) =>
+    readdirSync(join(ROOT, dir), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => join(ROOT, dir, entry.name, "package.json"))
+      .filter((path) => existsSync(path)),
+  );
   return [join(ROOT, "package.json"), ...members];
 }
 
+/**
+ * The root manifest's version, and only the root's.
+ *
+ * Reading every manifest and refusing when they disagree is the hardening this obviously invites,
+ * and it would fire on every merge between two release lines: all of them conflict, and only the
+ * root is worth a person's attention, because `release` rewrites the rest from it.
+ */
 export function currentVersion() {
   return JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).version;
 }
@@ -55,7 +73,14 @@ export function publishedPackages() {
  */
 export function changelogSection(heading) {
   const changelog = readFileSync(CHANGELOG, "utf8");
-  const start = changelog.indexOf(`\n## ${heading}`);
+  const marker = `\n## ${heading}`;
+  // The heading has to end where the match does, or `1.0.0-alpha.1` finds `## 1.0.0-alpha.10`.
+  // Unreachable while the newest section is first, which a changelog merged between two release
+  // lines stops guaranteeing.
+  let start = changelog.indexOf(marker);
+  while (start !== -1 && !" \r\n".includes(changelog[start + marker.length] ?? "\n")) {
+    start = changelog.indexOf(marker, start + 1);
+  }
   if (start === -1) return null;
   const bodyStart = changelog.indexOf("\n", start + 1);
   const end = changelog.indexOf("\n## ", bodyStart);
@@ -70,6 +95,21 @@ export function run(command, args, options = {}) {
 /** Run a command for its output, and hand back the trimmed text. */
 export function capture(command, args) {
   return execFileSync(command, args, { cwd: ROOT, encoding: "utf8", shell: false }).trim();
+}
+
+/**
+ * The npm account this machine has a session for, or null when `npm whoami` will not name one.
+ *
+ * An expired session and a registry that did not answer both land here, and they are told apart by
+ * running the command rather than by parsing its stderr — so a caller with a reason to believe the
+ * registry is up (it just read from it) may treat null as the session, and one without says so.
+ */
+export function npmAccountOrNull() {
+  try {
+    return capture("npm", ["whoami"]);
+  } catch {
+    return null;
+  }
 }
 
 /**
