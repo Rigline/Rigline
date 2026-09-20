@@ -32,6 +32,17 @@ if (capture("git", ["tag", "--list", tagName]) === "") {
   fail(`${tagName} does not exist here. Cut the release first with \`pnpm release <increment>\``);
 }
 
+// The version comes from the tree, and approval takes whatever is staged — so a checkout that has
+// moved since the release makes those two different things. It is the maintenance case that makes
+// this real: cut 1.2.4 on a `1.x` branch, switch back to main while CI runs, and `stage approve`
+// would correctly publish 1.2.4 while everything below pointed tags at main's version instead.
+if (capture("git", ["rev-list", "-n", "1", tagName]) !== capture("git", ["rev-parse", "HEAD"])) {
+  fail(
+    `HEAD is not the commit ${tagName} names, so ${version} is not the version this checkout is ` +
+      `releasing. \`git checkout ${tagName}\` (or the branch you cut it from) and run this again.`,
+  );
+}
+
 // Approval goes through pnpm: it takes the whole batch under one authentication and approves in
 // dependency order, skipping any package whose workspace dependency did not make it rather than
 // publishing against a dependency the registry never received.
@@ -53,12 +64,14 @@ say("");
 const moved = [];
 for (const name of packages) {
   const { next } = distTags(name);
-  if (!nextShouldMove(version, next)) {
-    say(`  ${name}: \`next\` stays at ${next}, which is ahead of ${version}`);
+  // Equality first: `nextShouldMove` is a `semver.gt`, so it already says no for the version that
+  // was staged under `next` — and "stays at X, which is ahead of X" is not what happened.
+  if (next === version) {
+    say(`  ${name}: \`next\` is already ${version}, set by the publish`);
     continue;
   }
-  if (next === version) {
-    say(`  ${name}: \`next\` is already ${version}`);
+  if (!nextShouldMove(version, next)) {
+    say(`  ${name}: \`next\` stays at ${next}, which is ahead of ${version}`);
     continue;
   }
   run("npm", ["dist-tag", "add", `${name}@${version}`, "next"]);
