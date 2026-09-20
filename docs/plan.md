@@ -383,12 +383,16 @@ and turns on a question nobody here can answer from the code — Marketplace pol
 that patches another extension — so it wants a session that begins by finding that out, not one that
 begins by writing.
 
-**About this machine.** Only 2.1.270 is installed — VS Code deleted 2.1.268 and 2.1.269 once nothing
-was serving them, which is the behaviour D4 exists for; both are still in the corpus. Its
-`extension.js` is patched, worktree-prefix being the one plugin that declares a host patch, and a
-host patch takes effect only after *Developer: Reload Window*, which ends every Claude session in
-that window. `pnpm rigline restore` puts it back to the extension's own bytes and needs neither VS
-Code nor the extension to be working.
+**About this machine.** 2.1.270 and 2.1.278 are both installed and both injected; 2.1.268 and 2.1.269
+were deleted by VS Code once nothing was serving them, which is the behaviour D4 exists for, and all
+four are in the corpus. 2.1.278's `extension.js` is patched and has not been reloaded — worktree-prefix
+is the one plugin that declares a host patch, and a host patch takes effect only after *Developer:
+Reload Window*, which ends every Claude session in that window. `pnpm rigline restore` puts a version
+back to the extension's own bytes and needs neither VS Code nor the extension to be working.
+
+The harness is still pinned to 2.1.270 in each of its four test files. Now that 2.1.278 is in the
+corpus it could move, and whether it should on every extension release — reproducibility against
+testing what people run — is a policy nobody has set.
 
 **What the live read is for.** The panel now groups by contributor, so the first question is whether
 each group says what it should on each surface: `core` above the plugins, `n/a` where a capability
@@ -626,6 +630,16 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   *one preview line at a time* as the constraint the wider naming now makes it possible to
   violate. [releasing.md](releasing.md) gains what the machine needs, the three runbooks — steady
   state, a preview line and its promotion, two lines at once — and no longer contradicts D61.
+- 2026-09-21: 2.1.278 landed mid-session, eight versions on from 2.1.270, and every plugin survived
+  it untouched: react anchors, messages, replies and payload fields all 100% kept, classes 99.4%
+  (six gone, all but one from the same usage-popup module, and the exception carries a successor).
+  Snapshotted to the corpus and `generated.ts` regenerated. The first unplanned extension update
+  Rigline has seen, and it cost a codegen and a reload.
+- 2026-09-20: Phase 6's first live read found two mistakes, which is the phase justifying itself on
+  the day it was built (D67, D68). A check with no "not yet" state flashed red at boot; the split is
+  by who can answer, so the host's watches check waits and a plugin's says `n/a` until it is handed
+  something. session-id claimed all three surfaces for a composer-footer badge, and the host was
+  ignoring the `surfaces` its own anchor table has recorded since it was written.
 - 2026-09-20: Phase 6 built. A check is contributed rather than written into the probe (D63 to D66):
   nine lines from the kernel, nine from the capability modules, six left in the probe, and
   `ctx.check` for everybody else. Pulled rather than pushed, so a verdict cannot go stale; a
