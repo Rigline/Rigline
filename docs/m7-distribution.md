@@ -63,10 +63,17 @@ It owns a bin, `rigline-engine`, and it carries `dist/bundled/`:
 
     dist/bundled/pre.js
     dist/bundled/post.js
-    dist/bundled/plugins/{session-id,time-marks,worktree-prefix,probe}/{rigline.json,index.js}
+    dist/bundled/plugins/{session-id,time-marks,worktree-prefix,probe}/rigline.json
+    dist/bundled/plugins/{session-id,time-marks,worktree-prefix,probe}/dist/index.js
 
 Core rather than the wrapper, because core is what injects and discovers, and the phase 5 companion
 extension consumes core and will need the same assets (D31).
+
+**A bundled plugin keeps its manifest's own `entry` path**, `dist/index.js`, rather than being
+flattened to `index.js` beside the manifest. Flattening would mean rewriting `entry` during the
+copy, so the manifest a user's engine validates would not be the bytes any test ran against — and
+the copy stops being a copy. `dist` inside `dist` reads oddly and costs nothing; a transform in the
+one step that exists to move bytes faithfully costs the property the step is for.
 
 ### The line between them
 
@@ -124,6 +131,12 @@ only the bundled set holds**, because overriding a bundled plugin is the point (
 roots). It also refuses when the same name is already recorded against a *different* source, naming
 both, with a flag to replace.
 
+`addPlugin` and `removePlugin` already take the roots they do not own as `otherRoots`, and the
+bundled root goes in that list for both with one extra field naming it: `add` skips it, because
+taking a bundled name is allowed, and `remove` reads it, because a bundled plugin is exactly the
+case whose refusal has somewhere better to send you. Two lists would put the carve-out in the
+caller, where the next root added is one somebody has to remember to file twice.
+
 ### The bundled plugins
 
 session-id, time-marks, worktree-prefix and probe ship inside core and are discovered **in place** —
@@ -170,6 +183,15 @@ In this workspace all four first-party plugins are therefore found twice, root 1
 every installed version, so without a carve-out every `pnpm rigline install` grows eight lines of
 noise. A bundled plugin shadowed by a same-named non-bundled one is reported once, not per version,
 and never as a problem.
+
+**So overriding a bundled plugin is a fact about the winner, not an event in a log.** Discovery is
+told which root is the bundled one and records `overridesBundled` on the plugin that won; it emits
+no line at all. The two places a person is actually asking then carry it: `list`, which is where
+somebody looks to find out what is loaded and from where, and `add`, at the moment they take a
+bundled name. That is the "once" — it costs a boolean on a structure discovery already builds,
+rather than a second discovery pass to collect lines nobody asked for. The alternative, a line in
+the install report, is per-version by construction: `install` discovers once per extension
+directory, so there is no "once" available to it.
 
 Because a bundled plugin can only be declined by switching it off, this milestone adds `rigline
 disable NAME` and `rigline enable NAME` — engine commands, since they change what gets baked, and
@@ -268,6 +290,18 @@ Rules it follows:
 `<ext>/webview/rigline/`, alongside `generated.js` and `registry.js`, so a stale injection stops
 looking identical to a current one (D75).
 
+**The stamp is `registry.js`, and it lands in 7a.** The phase list below does not name it, and it
+belongs there rather than in 7b for the reason 7a ends the way it does: its acceptance is a live
+read on a machine that installed from npm, and "the badge is green" is a weaker reading than "the
+badge is green and says the engine that wrote this payload is the version I just installed". The
+7b half is only the wrapper passing its own version down so the report names both.
+
+`registry.js` rather than a JSON file beside it, which was the other candidate. The webview cannot
+fetch (no `connect-src`), so anything the probe reads has to be a module the post hook already
+imports — and `registry.js` is baked by the same `install` that knows the version. One fact, one
+file. The Node-side readers pay for that with a bounded regex over a line this repository writes
+itself, which is cheaper than two writes of one version that can disagree.
+
 Three readers, and the plumbing each needs:
 
 - `doctor` already inspects the payload directory and lists its files
@@ -275,9 +309,10 @@ Three readers, and the plumbing each needs:
   `CORE_VERSION`, and the wrapper passes its own version down so the report names both.
 - `check` reads the injected stamp — it touches only `harvestOne` today, so this is new wiring, not a
   field on `FlowOptions`.
-- The probe reads it through `registry.js` or the diagnostics object, never by importing the host: a
-  plugin may not reach past `ctx`, and an undeclared member may not widen what a plugin can reach
-  (D18, D63). Pick one of the two when the stamp lands; it is a host-provided value like any other.
+- The probe reads it through the diagnostics object, never by importing the host: a plugin may not
+  reach past `ctx`, and an undeclared member may not widen what a plugin can reach (D18, D63). The
+  kernel puts what `registry.js` exports onto diagnostics, which is the read path the probe already
+  has for every other host-provided value.
 
 ## Recovery without the CLI
 
@@ -288,8 +323,8 @@ un-patching is a file copy. Write it down where a person can find it when the pa
 ## Phases
 
 Both phases carry `CHANGELOG.md` entries under `## Unreleased` in the same commit as the change
-(D60). 7a ships four plugins, two commands, a discovery root and a `list` column; 7b changes a bin
-name, a spec spelling, and what the scaffold depends on. All user-visible.
+(D60). 7a ships four plugins, two commands, a discovery root, a `list` column, a payload stamp and
+a scaffold dependency; 7b changes a bin name and a spec spelling. All user-visible.
 
 ### 7a: the published artefact works
 
@@ -298,8 +333,8 @@ core here; 7b is what separates them.
 
 - Core's published `dist/bundled/` carries `pre.js`, `post.js` and the four built plugins. The copy
   is a **workspace step**, not core's own build: plugins build through `rigline build`, so a
-  build-order edge from core to the plugins would be a cycle. It lives in `scripts/`, the root
-  `build` becomes `pnpm -r build && node scripts/<name>.mjs`, and all three callers already run
+  build-order edge from core to the plugins would be a cycle. It is `scripts/bundle-assets.mjs`, the
+  root `build` becomes `pnpm -r build && node scripts/bundle-assets.mjs`, and all three callers run
   `pnpm build` first — `ci.yml`, `release.yml`, and `release.mjs`'s pre-cut gate. `tsc` does not
   clean `packages/core/dist`, so `dist/bundled` survives a later core-only rebuild — which is exactly
   why the guard below is needed.
@@ -316,6 +351,13 @@ core here; 7b is what separates them.
   `preparePayload` carries the second link today
   ([harness/src/payload.ts:54-70](../packages/harness/src/payload.ts#L54-L70)); the resolver carries
   the first and must not be mistaken for it. Name the build command in the refusal.
+
+  **Both links live in the resolver, and `preparePayload` loses its own check** rather than keeping
+  half a chain beside a whole one. The harness is about to copy from `dist/bundled`, so the question
+  it needs answered is the resolver's question, and a second mtime scan in `payload.ts` would be a
+  rule that agrees with the resolver until the day somebody changes one of them. The guard runs only
+  where it can: a published install has no `packages/host/src` to compare against, so the chain is
+  checked when the workspace marker holds and skipped when it does not.
 - **The harness copies from `dist/bundled`**, so tier 2 drives the bytes a user gets rather than a
   second source of truth. CLAUDE.md's "rebuild the host before running the harness tests" rule moves
   with it.
@@ -326,16 +368,31 @@ core here; 7b is what separates them.
   `buildPlugin` uses `await import("rolldown")` inside a try/catch producing a named install message,
   rolldown stays a devDependency so `tsc` resolves its types, and the packed CLI stops carrying 20 MB
   of native binding. Doing it here rather than in 7b is what makes the test below work offline.
+- **The scaffold's template gains rolldown in this phase, not 7b.** A scaffolded workspace gets
+  rolldown today only because it depends on `rigline`, which depends on rolldown; the bullet above
+  removes that the moment 7a is published. The template's hand-written devDependency range is the
+  same edit whenever it is made, and made a phase late it is a released version where `pnpm build`
+  in a fresh scaffold fails on the first command the guide tells an author to run — which is
+  precisely the failure D50 already records happening once.
 - `rigline disable NAME` and `rigline enable NAME`, both re-injecting.
 - `list` gains an origin of `bundled` and a version column, sourced from `CORE_VERSION` for a bundled
   plugin, from the recorded source for an installed one, and empty for a hand-placed one.
+- **The payload stamp** (see "The payload says who wrote it"): `registry.js` carries the engine
+  version, `doctor` and `check` report it against `CORE_VERSION`, and the probe reads it off
+  diagnostics.
 - **The pack-and-install test.** `pnpm pack` — not `npm pack`, which leaves `workspace:*` in the
   manifest — then install the tarballs into a temporary prefix with `--ignore-scripts` and run
   `install` against a copied extension directory (never the live one, D39). With rolldown gone this
-  needs no registry. It is a fourth verification tier: give it a name, a row in
-  [verification.md](verification.md), and a line in D36, and say whether it runs under `pnpm test` or
-  beside it — `verification.md`'s "everything but the probe runs under one `pnpm test`" has to stay
-  true or change.
+  needs no registry.
+
+  It is a fourth verification tier: **tier 4, the tarballs, installed**, with a row in
+  [verification.md](verification.md) and a line in D36. **It runs under `pnpm test`**, so
+  `verification.md`'s "everything but the probe runs under one `pnpm test`" stays true as written.
+  The alternative — a script of its own and a fifth CI step — buys a faster inner loop and pays for
+  it with the one property this tier exists for: a check that has to be remembered is a check that
+  answers a question nobody asked on the day it mattered, which is the whole diagnosis of the
+  blocker. It lives at `packages/cli/test/packed.test.ts`, because the tarball a person installs and
+  the command they then run are the CLI's.
 - The CLI-free recovery procedure is documented.
 - README's "No plugins are published yet" paragraph goes.
 
@@ -359,8 +416,6 @@ step nobody has run is a defect rather than a gap.
 - The rest of the command surface moves from `packages/cli` into core, which gains the
   `rigline-engine` bin.
 - The wrapper refuses an engine major it does not know, and installs within its own major.
-- **The scaffold's template gains rolldown** as a hand-written devDependency range —
-  `__RIGLINE_RANGE__` is derived from the scaffolder's own version (D50) and cannot supply it.
 - **What actually has to change is narrower than "every `rigline <verb>`".** The user-facing command
   stays `rigline` for every verb, because the wrapper forwards, so prose that types `rigline check`
   is correct as it stands. What changes is a `package.json` script or a `pnpm rigline` invocation
