@@ -24,40 +24,99 @@ running when the update lands, which today means a terminal somebody remembered 
 The companion extension is that process, hosted by the one program that is definitely running when
 VS Code updates a VS Code extension.
 
-## The fork everything derives from: run the engine, do not become one
+## The fork everything derives from: the companion is a second retrieval layer
 
-Two shapes, and the rest of the design follows whichever is chosen, so it is settled first and
-separately.
+Settled with Leo, 2026-09-21. The companion is what `rigline` is, in a different shell: acquisition,
+not engine. It installs and updates `@rigline/core` under `<RIGLINE_HOME>/engine` over npm, and runs
+that engine to do every piece of work. It is a peer of the `rigline` package, not a client of it.
 
-**(a) The companion embeds `@rigline/core`** and injects from inside the extension host. Core is a
-library and exports everything needed, so this works and is the shorter path.
+The alternative was a VSIX that embeds `@rigline/core` and injects from inside the extension host.
+Core is a library and exports everything needed, so it would have worked and been shorter. It is
+wrong for D69's reason, one layer up: a VSIX carrying its own copy puts a second engine on the
+machine, `rigline update` can move only one of them, and the injection on disk then depends on which
+engine last ran. D75 exists because a stale payload is indistinguishable from a current one by
+looking at it; embedding core manufactures exactly that condition, weekly, with two candidates and
+no way to tell which wrote what.
 
-**(b) The companion spawns the installed engine** at `<RIGLINE_HOME>/engine`, the same bin
-`rigline` drives.
+One engine owns bytes. Everything else acquires it.
 
-**(b), and the reason is D69 one layer up.** A VSIX that embeds core puts a second engine on the
-machine. `rigline update` moves `<RIGLINE_HOME>/engine`; it cannot move a copy sealed inside an
-extension VSIX, so the two drift the moment either is updated — and then the injection on disk
-depends on which of them last ran. D75 exists because a stale payload is indistinguishable from a
-current one by looking at it; embedding core manufactures exactly that condition, weekly, with no
-way to tell which engine wrote what.
+**This is what repairs D76's weakest point.** Sideloading's known cost is that VS Code does not
+auto-update a VSIX installed by hand. If the companion is a retrieval layer, that stops mattering:
+the shell is stable and the engine moves underneath it, so the VSIX needs republishing only when the
+*scheduling* changes, which is close to never. A user gets new engine behaviour, new anchor tables
+and updated plugins without the VSIX moving at all — the same bargain `rigline` already makes, and
+the reason not being on a marketplace costs so little.
 
-One engine owns bytes. The companion is a scheduler for it, not a second copy of it.
+Three more things fall out:
 
-Three things fall out, and each is worth more than it looks:
+- **The companion cannot disagree with the CLI**, because they drive the same program. `rigline
+  check` from a terminal describes exactly what the companion would do.
+- **The VSIX stays genuinely thin** — activation, a watcher, an acquisition step, a prompt, a status
+  item. No harvest, no anchor table, no payload, nothing version-derived.
+- **It works without the `rigline` package.** The VSIX is a complete Rigline for somebody who never
+  opens a terminal, which is a better story than "install the CLI first, then the extension."
 
-- **`rigline update` updates the companion's behaviour** without republishing the VSIX, because the
-  behaviour is the engine's. The VSIX moves only when the *scheduling* changes, which is rarely.
-- **The companion cannot disagree with the CLI**, because they are the same program. `rigline check`
-  from a terminal describes what the companion would do.
-- **The VSIX stays genuinely thin** — activation, a watcher, a prompt, a status item. No harvest, no
-  anchor table, no payload, nothing version-derived.
+The earlier draft of this document had the companion refuse when no engine was present, on the
+grounds that an extension quietly fetching code from npm is what a reviewer would object to. That is
+withdrawn. It is the same act `rigline` performs on first run, by a user who installed a VSIX called
+Rigline and can read what it says it does; and refusing would mean the companion could not be the
+thing that keeps an install current, which is the whole of its job. It says what it is fetching and
+reports the result — loud, not silent (P8) — rather than declining to fetch.
 
-The cost is that the companion must locate and spawn Node, and must handle the engine being absent.
-Both are answered below, and the second one is answered by D76: the VSIX is installed *by* `rigline`,
-so an engine necessarily exists. A VSIX sideloaded by hand without one refuses by name and says
-which command to run — it does not bootstrap, because an extension that silently installs an engine
-from npm is the thing a reviewer would be right to object to.
+Two costs this shape creates, both real and neither fatal. They are the next two sections.
+
+## Cost one: there is no npm beside the extension host
+
+`findNpmCli` locates npm beside the running Node and deliberately never takes the shim on `PATH`,
+because under corepack, volta or fnm that shim is not necessarily the npm belonging to this Node
+(D73). In the extension host `process.execPath` is VS Code's Electron binary. There is no
+`node_modules/npm` beside `Code.exe` and no `../lib/node_modules/npm` either, so the wrapper's
+function finds nothing and would refuse every time.
+
+**D73's rule survives; what changes is where the pairing starts.** The rule is that npm must belong
+to the Node that will run it — not that `PATH` is untouchable. The wrapper starts from the Node it
+is already running and needs no search. The companion is not running a Node at all, so it has to
+find one first, and then take the npm beside *that*, which preserves the pairing rather than
+breaking it.
+
+So: resolve `node` on `PATH`, then `findNpmCli` against the resolved path, unchanged. A setting
+overrides the choice for anybody whose Node is somewhere a VS Code process does not see — which is
+common enough on macOS, where a GUI-launched application inherits a login shell's `PATH` only
+sometimes. Absent both, the companion refuses by name, says it could not find Node, and prints the
+one command that does the job from a terminal. That refusal is fine because it is loud and
+actionable; the withdrawn one was not, because it had no repair a user could reach.
+
+`ELECTRON_RUN_AS_NODE=1` makes VS Code's own binary behave as Node and is tempting as a fallback. It
+does not help: it supplies an interpreter, not an npm, and the npm it would then run is whichever
+one we found anyway. Recorded so it is not re-proposed.
+
+## Cost two: two retrieval layers, one directory
+
+`rigline update` from a terminal and the companion both write `<RIGLINE_HOME>/engine`. They can run
+at once — a user running the CLI while the extension is mid-update is not a corner case, it is
+Tuesday.
+
+Unresolved, and it is 8a's first real design question rather than something to settle here. The
+shape of the answer is a lock file in `<RIGLINE_HOME>`, where the loser of the race waits or reports
+that an update is already running, and never a second npm writing the same prefix. What must not
+happen is two npm installs interleaving into one directory, which is how `engine` ends up in the
+state the wrapper's README already tells people to delete.
+
+Worth noting that the *injection* half needs no locking: it is rebuild-from-backup and idempotent, so
+two processes injecting produce the same bytes. Only acquisition races.
+
+## Sharing the acquisition code, not copying it a third time
+
+D69 accepted duplication between `rigline` and core — `UserError` and the `$RIGLINE_HOME` rule as
+two files with a test holding them together — as the price of the wrapper declaring no Rigline
+dependency. A third copy in the companion is where that price stops being worth paying.
+
+The options, in order of preference, to be decided in 8a once the shape is real rather than
+imagined: the companion depends on the `rigline` package and imports its acquisition functions as a
+library, which is not what D69 forbids (D69 is about a *project* taking the CLI as a dependency to
+get its bin); or the acquisition logic moves to a small package both consume; or, last, a third copy
+with the same test discipline. What decides it is whether `rigline`'s internals are importable
+without dragging its CLI surface along.
 
 ## What the companion does
 
@@ -98,9 +157,14 @@ half-written directory.
 
 ## Installation, and the soft spot
 
-`rigline` installs the VSIX and `rigline update` moves it, which is the loop the wrapper already owns
-for the engine (D69, D76). The VSIX ships inside `@rigline/core`'s `dist/bundled` the way the four
-first-party plugins do (D71), so there is no second fetch and no second packaging decision.
+Two routes in, and neither is the other's prerequisite. `rigline` installs the VSIX and `rigline
+update` moves it, for somebody who already has the CLI; the VSIX ships inside `@rigline/core`'s
+`dist/bundled` the way the four first-party plugins do (D71), so there is no second fetch and no
+second packaging decision. Equally, a person can install the VSIX alone and never type a command —
+it acquires its own engine, so there is nothing to install first.
+
+The second route is worth protecting. It is the one for a user who does not live in a terminal, and
+the shape settled above is what makes it possible.
 
 The mechanism is `code --install-extension <path>.vsix`, which needs the `code` CLI on `PATH`.
 Reliable on Windows; on macOS it is a thing the user has to have added from the Command Palette. It
@@ -117,16 +181,24 @@ defensible one. Left as a refusal until somebody has a better idea.
 
 ### 8a: it re-injects, unattended
 
-The whole of the value. A companion that watches, spawns the engine, and re-injects — with no UI
-beyond a status item and the failure notification.
+The whole of the value. A companion that acquires an engine, watches, spawns it, and re-injects —
+with no UI beyond a status item and the failure notification.
 
-Acceptance: install Claude Code over itself on a machine with the companion running, reload the
-window, and Rigline is there. Confirmed by reading, live, on a real update rather than a simulated
-one — the same bar phase 6 was held to, and for the same reason: every green harness in this project
-has at some point described a thing that was not happening.
+It opens with the two costs above, because both are load-bearing and neither is visible from a test
+that runs in Node: finding a Node and its npm from inside the extension host, and a lock so the CLI
+and the companion cannot install over each other. Then the acquisition-code question, once the shape
+is real enough to choose against.
 
-Also acceptance: with the engine absent, the companion refuses by name and says which command to
-run, and the extension host is otherwise unaffected.
+Acceptance: **on a machine with no Rigline at all**, install the VSIX alone, and it fetches the
+engine, injects, and says so. Then install Claude Code over itself with the companion running, reload
+the window, and Rigline is still there. Confirmed by reading, live, on a real update rather than a
+simulated one — the same bar phase 6 was held to, and for the same reason: every green harness in
+this project has at some point described a thing that was not happening.
+
+Also acceptance: with no Node findable, the companion refuses by name, says what it looked for, names
+the setting that overrides it, and leaves the extension host otherwise unaffected. And `rigline
+update` run from a terminal while the companion is updating leaves one good engine directory, not a
+half-written one.
 
 ### 8b: the reload, offered
 
@@ -148,19 +220,24 @@ synchronisation problem nobody asked for.
 
 ## Decisions to record
 
-D76 (the shape and the channel), D77 (the compliance position) and D78 (the signature-verification
-premise) are recorded. What this milestone will add:
+D76 (the shape and the channel), D77 (the compliance position), D78 (the signature-verification
+premise) and **D80 (the companion is a second retrieval layer)** are recorded. What this milestone
+will add:
 
-- **The companion spawns the engine rather than embedding core**, with the version-skew argument
-  above. Owed once 8a proves the spawn works on a real machine.
+- **How acquisition code is shared** between the wrapper and the companion, once 8a shows whether
+  `rigline`'s internals import cleanly without its CLI surface.
+- **Where the engine lock lives and what the loser does**, once the race has been provoked rather
+  than reasoned about.
 - **Whether `extensionUri` is passed down or re-derived**, once it is known whether the engine's
   locate step wants a hint or an override.
 
 ## Deferred, with triggers
 
-- **Auto-update of the companion itself.** A sideloaded VSIX does not auto-update; `rigline update`
-  moves it instead. That is sufficient and keeps the channel decision (D76) intact. Revisit only if
-  the Anthropic conversation (D77) resolves in a way that makes a registry listing wanted.
+- **Auto-update of the companion itself.** A sideloaded VSIX does not auto-update, and under D80 it
+  barely needs to: the engine and the plugins move underneath a shell that changes only when the
+  scheduling does. `rigline update` moves it for anybody who has the CLI. Revisit only if the VSIX
+  turns out to change more often than expected, or if the Anthropic conversation (D77) resolves in a
+  way that makes a registry listing wanted.
 - **Forks other than VS Code.** Cursor, Windsurf and VSCodium have their own extensions directories
   and their own CLIs, and are plausibly where this is most wanted. Not in scope until one person
   asks, and cheap to add when they do, because the only fork-specific part is which CLI to call.

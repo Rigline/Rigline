@@ -381,18 +381,22 @@ older engine has not been run, because it needs two published versions carrying 
 
 ## Milestone 8: the companion extension
 
-**[m8-companion.md](m8-companion.md)** owns it: the fork it derives from — the companion spawns the
-installed engine rather than embedding core — what it watches, what it may and may not reload, how
-it is installed, and the three phases with their acceptance criteria.
+**[m8-companion.md](m8-companion.md)** owns it: the fork it derives from — the companion is a second
+retrieval layer, acquiring and running `@rigline/core` the way `rigline` does rather than embedding
+it (D80) — the two costs that shape creates, what it watches, what it may and may not reload, how it
+is installed, and the three phases with their acceptance criteria.
 
 The problem is the last silent failure in the project. An extension update installs a fresh
 directory and deletes the old one, so the injection reverts with nothing said: no badge, no plugins,
 no error, weekly. `rigline watch` already fixes it and nobody is running it; the companion is a
 process that is.
 
-**8a is next**: watch, spawn, re-inject, unattended, with no UI beyond a status item and a failure
-notification. It is not published to a marketplace (D76), Anthropic's terms rather than Microsoft's
-are the live constraint (D77), and D78 records the premise underneath all of it.
+**8a is next**: acquire, watch, spawn, re-inject, unattended, with no UI beyond a status item and a
+failure notification. It opens with the two things D80 makes load-bearing and no Node-side test can
+see — finding a Node and its npm from inside the extension host, and a lock so the CLI and the
+companion cannot install over each other. It is not published to a marketplace (D76), Anthropic's
+terms rather than Microsoft's are the live constraint (D77), and D78 records the premise underneath
+all of it.
 
 ## Open questions, not blocking
 

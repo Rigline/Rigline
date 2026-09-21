@@ -14,8 +14,9 @@ from. Update the plan before writing code; log status there, not here.
 - [docs/plan.md](docs/plan.md): what Rigline is, the physics that shape it, the architecture,
   phases with acceptance criteria, status log.
 - [docs/m8-companion.md](docs/m8-companion.md): the open milestone. The companion extension that
-  stops an update silently reverting the injection — the fork it derives from (it spawns the
-  installed engine, never embeds core), what it watches, what it may reload, and the three phases.
+  stops an update silently reverting the injection — the fork it derives from (it is a second
+  retrieval layer acquiring and running the engine, never a copy of it, D80), the two costs that
+  creates, what it watches, what it may reload, and the three phases.
 - [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D75.
 
 The internals, for a contributor to Rigline itself. The shape, not the argument — the argument is in

@@ -1358,9 +1358,43 @@ a plugin that imports types and calls `ctx` is a weak candidate for a derivative
 that work without a licence change are the boundary, the manifest, what we choose to bundle and
 recommend, and permission to use the name — the last being what gets withdrawn first.
 
-Surfaced where an author actually is: the scaffold's README before its publishing section, the
-`create-rigline-plugin` next-steps output, [authoring.md](authoring.md) in the section that already
-covered trust, and a plugins section in the compliance document itself.
+Surfaced where an author actually is: the scaffold's README where it learns what a plugin declares,
+the `create-rigline-plugin` next-steps output, [authoring.md](authoring.md) in the section that
+already covered trust, `rigline add` for whoever installs a plugin that is not ours, and a plugins
+section in the compliance document itself. None of it conditional on publishing: a plugin somebody
+wrote for themselves modifies Anthropic's extension exactly as much as a published one, and a policy
+filed under "before you publish" is one a personal-plugin author never reads.
+
+**D80. The companion extension is a second retrieval layer, not a scheduler (2026-09-21).**
+Confirmed by Leo: it plays the role `rigline` plays, in a different shell. It installs and updates
+`@rigline/core` under `<RIGLINE_HOME>/engine` over npm and runs that engine for every piece of work
+— a peer of the `rigline` package rather than a client of it, and never a copy of the engine.
+
+Embedding core in the VSIX was the shorter path and is wrong for D69's reason one layer up. A VSIX
+carrying its own copy puts a second engine on the machine; `rigline update` can move only one of
+them; the injection on disk then depends on which ran last. That is D75's condition — a stale payload
+indistinguishable from a current one — manufactured weekly with two candidates and no way to tell
+which wrote what. One engine owns bytes, and everything else acquires it.
+
+**This repairs D76's weakest point.** Sideloading's known cost is that VS Code does not auto-update a
+hand-installed VSIX. Under D80 that stops mattering: the shell is stable and the engine moves
+underneath it, so a user gets new engine behaviour, new anchor tables and updated plugins without the
+VSIX moving at all. It also makes the VSIX a complete Rigline for somebody who never opens a
+terminal, which is a better story than requiring the CLI first.
+
+Two costs, both recorded in [m8-companion.md](m8-companion.md) rather than here because they are
+design work rather than settled rules. **There is no npm beside the extension host**: `process
+.execPath` is VS Code's Electron binary, so `findNpmCli` finds nothing. D73's rule survives —
+npm must belong to the Node that runs it — and only the starting point moves: resolve `node` first,
+then take the npm beside *that*. `ELECTRON_RUN_AS_NODE` supplies an interpreter, not an npm, and does
+not help. **And two retrieval layers write one directory**, so acquisition needs a lock; injection
+does not, being rebuild-from-backup and idempotent.
+
+The earlier draft had the companion refuse when no engine was present, reasoning that an extension
+quietly fetching from npm is what a reviewer would object to. Withdrawn: it is the same act `rigline`
+performs on first run, for a user who installed a VSIX called Rigline, and refusing would mean the
+companion could not do the one job it exists for. It says what it fetches and reports the result
+rather than declining to fetch — which is P8 rather than an exception to it.
 
 ### Toolchain and verification
 
