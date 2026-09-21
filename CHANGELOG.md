@@ -10,6 +10,13 @@ anything may change between releases.
 
 ## Unreleased
 
+### Added
+
+- `rigline list --json` emits the same listing as data, for anything driving Rigline rather than
+  reading it.
+- `@rigline/core` carries a `rigline-engine` command. It is what `rigline` will run once the two
+  separate, and not a surface you are asked to type; `rigline` remains the command for every verb.
+
 ### Fixed
 
 - The probe's copied report no longer says a meter is still busy when it has gone quiet. The "now"
