@@ -13,7 +13,7 @@ from. Update the plan before writing code; log status there, not here.
 
 - [docs/plan.md](docs/plan.md): what Rigline is, the physics that shape it, the architecture,
   phases with acceptance criteria, status log.
-- [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D58.
+- [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D75.
 
 The internals, for a contributor to Rigline itself. The shape, not the argument — the argument is in
 decisions.md, and each doc cites the decisions it rests on.
@@ -31,8 +31,8 @@ decisions.md, and each doc cites the decisions it rests on.
   exists, rebuild-from-backup, the three refusals, and how to write one.
 - [docs/transcript.md](docs/transcript.md): the three-way join behind an entry, row identity through
   React, the sweep, and what a decoration must never do to a row.
-- [docs/verification.md](docs/verification.md): the three tiers, the corpus, the harness, the probe,
-  and which tier a question belongs to.
+- [docs/verification.md](docs/verification.md): the four tiers, the corpus, the harness, the probe,
+  the packed install, and which tier a question belongs to.
 - [docs/ci.md](docs/ci.md): the delivery model. The branching rule, why versions and both dist-tags
   are derived rather than chosen, the three release commands, the two workflows, and what is still
   outstanding.
@@ -86,23 +86,27 @@ Written for somebody else, so don't rewrite them for us:
 - **Keep `index.js.orig` and `extension.js.orig` intact.** They are the only recovery from a blank
   panel or a broken extension host.
 - **Never point a test at the live extension directory.** Copies only.
-- **Rebuild the host before running the harness tests.** They drive the *real* bundle in a browser
-  and `preparePayload` copies `packages/host/dist/{pre,post}.js`, so vitest alone exercises whatever
-  was last built, not your source. `preparePayload` refuses when `host/src` is newer than
-  `host/dist`, naming the build command — so this costs you a re-run rather than a green result
-  about code that is not loaded, but the rebuild is still yours to do.
+- **Run `pnpm build` before the harness tests.** They drive the *real* bundle in a browser and
+  `preparePayload` copies `dist/bundled/{pre,post}.js`, so vitest alone exercises whatever was last
+  built, not your source. `dist/bundled` is a copy, so the chain is `src` -> each `dist` ->
+  `dist/bundled`, and a break anywhere in it means the payload is not what your source says.
+  `bundledDir()` checks the whole chain and refuses with the build command — so this costs you a
+  re-run rather than a green result about code that is not loaded, but the rebuild is still yours to
+  do. `pnpm -r build` alone will not do it: the copy is the root `build` script's second step.
 - **A plugin's problem never blocks the install.** Report it by name, inject around it, refuse it
   at load. Only a collapsed harvest or Rigline's own build failure blocks.
 
 ## Working on the live extension
 
-    pnpm build              # host, core, cli, and the first-party plugins
+    pnpm build              # host, core, cli, the first-party plugins, then core's dist/bundled
     pnpm rigline install    # inject every version, bake plugins, report drift, record the baseline
     pnpm rigline check      # the same report, writing nothing
     pnpm rigline add SPEC   # install a plugin from a directory or npm, name it, re-inject
     pnpm rigline update     # move each npm plugin to what its tag resolves to, and re-inject
     pnpm rigline remove N   # delete a plugin rigline installed, and re-inject
-    pnpm rigline list       # every plugin, in load order: origin, source, switch, what it can do
+    pnpm rigline disable N  # switch a plugin off in config.json, and re-inject
+    pnpm rigline enable N   # switch it back on, and re-inject
+    pnpm rigline list       # every plugin, in load order: version, origin, source, switch, uses
     pnpm rigline status     # per version: vanilla or patched, by backup
     pnpm rigline restore    # every version back to the extension's bytes
     pnpm rigline codegen    # regenerate plugin-api's generated.ts
@@ -118,10 +122,15 @@ Rebuilding the payload or a plugin and running `install` again refreshes the fil
 without rewriting the bundle. `restore` is the undo and the recovery from a blank panel; it needs
 only Node and this checkout.
 
-`install` is the one write command about the injection, and `check` is its read-only half. `add`
-and `remove` change the plugin set and re-inject afterwards, so a plugin is one reload away rather
-than one reload and a command a person has to know about (D56). `update` means *update my plugins*,
-as it does in every package manager (D55), and never touches the injection on its own.
+`install` is the one write command about the injection, and `check` is its read-only half. `add`,
+`remove`, `disable` and `enable` change the plugin set and re-inject afterwards, so a plugin is one
+reload away rather than one reload and a command a person has to know about (D55, D56). `update`
+means *update my plugins*, as it does in every package manager (D55), and never touches the
+injection on its own.
+
+The four first-party plugins are bundled inside `@rigline/core` and discovered in place, so this
+checkout's `plugins/` shadows them and `disable` is the only way to decline one (D71, D72). In a
+published install they are the only root that has them; here they are found twice, quietly.
 
 An update installs a new versioned directory and deletes the old one, so it silently reverts the
 injection. A window that was open keeps running the old directory until *Developer: Reload Window*.

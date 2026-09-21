@@ -42,12 +42,26 @@ each host patch is carried into `registry.js` rather than derived: nothing in a 
 | path | package | what it is |
 | --- | --- | --- |
 | `packages/plugin-api` | `@rigline/plugin-api` | The shared vocabulary: `PluginContext`, the manifest type and its JSON schema, the anchor names and specs, the capability *contracts*, and the pure derivations (session rule, stream shape, transcript join). Pure data and pure functions, so both machines import it. |
-| `packages/core` | `@rigline/core` | Node: locate, harvest, codegen, inject, restore, discover, bake, the install flow, the anchor table, the plugin manager. |
+| `packages/core` | `@rigline/core` | Node: locate, harvest, codegen, inject, restore, discover, bake, the install flow, the anchor table, the plugin manager. Also ships the assets — see below. |
 | `packages/cli` | `rigline` | The commands. Argument parsing and printing; the work is core's. |
 | `packages/host` | `@rigline/host` (private) | The injected runtime: `pre.js` and `post.js`. |
 | `packages/create-plugin` | `create-rigline-plugin` | The scaffold, as real files under `template/`. |
 | `packages/harness` | (private) | Playwright over the real bundle. See [verification.md](verification.md). |
 | `plugins/*` | first-party plugins | `session-id`, `worktree-prefix`, `time-marks`, `probe`. |
+
+**Core carries the assets, in `dist/bundled/`** (D71): `pre.js`, `post.js`, and each first-party
+plugin's `rigline.json` and built entry. `@rigline/host` is private and `plugins/*` are not
+published, so without this nothing a person installs holds the thing that gets injected — which is
+what `rigline install` threw `payload is missing pre.js` over. Core rather than the CLI, because
+core is what injects and what discovers, and the phase 5 companion extension consumes core and will
+need the same assets (D31).
+
+The copy is a workspace step, `scripts/bundle-assets.mjs`, run by the root `build` after `pnpm -r
+build`: the plugins are built by `rigline build`, which is the CLI, which depends on core, so a
+build-order edge from core to the plugins would be a cycle. `bundledDir()` in
+[assets.ts](../packages/core/src/assets.ts) resolves it — by walking up to core's own
+`package.json`, which is one answer under vitest's alias, in `dist`, and in `node_modules` — and
+refuses a bundle older than the builds it was copied from.
 
 `plugin-api` is the load-bearing one, and the rule that keeps it honest is that it may import
 nothing from core or host and must run in both. A capability's *contract* lives there — the manifest
@@ -168,7 +182,16 @@ this repo is for developing Rigline, not for using it.
 
 **In the extension directory**, everything under `webview/rigline/` plus the two `.orig` backups.
 All of it is derived and all of it is disposable — except the backups, which are the only recovery
-from a blank panel or a broken extension host.
+from a blank panel or a broken extension host. `registry.js` also carries the engine version that
+wrote it (D75), which is the one thing there that is not derivable from the directory: without it a
+payload three releases old is indistinguishable from the one this engine would write, and after an
+upgrade that is exactly the question.
+
+**Discovery roots**, in precedence and load order (D56, D71): this checkout's `plugins/` when the
+engine is running from it, then `~/.rigline/plugins`, then core's `dist/bundled/plugins`. The user's
+directory outranks the bundled set, so a fork installed over a bundled name wins — the escape hatch
+that repairs a broken first-party plugin without waiting for a release. A bundled plugin cannot be
+removed, only switched off, which is what `rigline disable` is for (D72).
 
 ## What a change costs to see
 

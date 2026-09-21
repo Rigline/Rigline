@@ -56,8 +56,8 @@ pnpm workspace, TypeScript throughout, every package a real package with its own
 
 | path | package | what it is |
 | --- | --- | --- |
-| `packages/core` | `@rigline/core` | Node library: locate installed extensions, harvest identifier layers, generate types and runtime tables, inject and restore, discover plugins and bake the registry, run the install flow, watch for updates, hold the curated anchor table. The CLI and a future companion extension both consume it. |
-| `packages/cli` | `rigline` | Thin command surface over core: `install`, `check`, `status`, `restore`, `add`, `remove`, `update`, `list`, `watch`, `doctor`, `codegen`, `diff`, `build`, `dev`. |
+| `packages/core` | `@rigline/core` | Node library: locate installed extensions, harvest identifier layers, generate types and runtime tables, inject and restore, discover plugins and bake the registry, run the install flow, watch for updates, hold the curated anchor table. Ships `dist/bundled` — the payload and the four first-party plugins (D71) — so it is what a published install injects from. The CLI and a future companion extension both consume it. |
+| `packages/cli` | `rigline` | Thin command surface over core: `install`, `check`, `status`, `restore`, `add`, `remove`, `disable`, `enable`, `update`, `list`, `watch`, `doctor`, `codegen`, `diff`, `build`, `dev`. |
 | `packages/host` | `@rigline/host` (private) | The injected runtime: `pre.js` (bus tap, buffer, rewrite chain, React devtools hook, meters) and `post.js` (kernel plus capability modules). Built to exactly two files. |
 | `packages/plugin-api` | `@rigline/plugin-api` | What a plugin is written against: `PluginContext`, the manifest type and JSON schema, `definePlugin`, the anchor names, and the pure helpers shared by host and core (capability contracts, session rule, stream shape, transcript derivations). |
 | `packages/create-plugin` | `create-rigline-plugin` | The scaffold: `template/` as real files, copied and substituted. Published, and the only package here whose payload is not code. |
@@ -200,6 +200,12 @@ packages carrying a `rigline.json` and a built entry, installed with `rigline ad
 local directory during development. The version-specific half (identifier tables, registry, resolved
 anchors) is derived on the installing machine from the bundle in front of it, so there is no version
 matrix to ship, and no published type union doubles as an extension-version pin (D40).
+
+**The four first-party plugins are not among those npm packages**: they ship inside `@rigline/core`
+as bundled assets and are discovered in place, versioned with the engine (D71, D72). They are the
+product rather than demonstrations of it, so a default install has them, and an update to Rigline is
+an update to them. Installing your own of the same name shadows one, which is the escape hatch;
+`rigline disable` is the only other way to decline one.
 
 `add` resolves the version, refuses anything younger than the minimum release age unless `--now` is
 passed, fetches and integrity-checks the tarball, and extracts it — no package manager runs, because
@@ -360,17 +366,21 @@ phase justifying itself on the two days it took to build.
 [host.md](host.md), [verification.md](verification.md) and [authoring.md](authoring.md), and the
 argument is D63 to D68.
 
-## Blocking: Rigline does not reach a user
+## Milestone 7: distribution
 
-`npm install -g rigline && rigline install` does not inject at all — no published package carries
-the payload, and none carries a plugin. Nothing downstream of this is worth doing: a person who
-installs from npm cannot tell a correct install from a broken one, because the badge that would tell
-them is itself unpublished.
+**[m7-distribution.md](m7-distribution.md)** owns it: the split between the `rigline` retrieval
+layer and the `@rigline/core` engine, the payload and the four first-party plugins as bundled
+assets, the engine's own install path, and the phases with their acceptance criteria.
 
-The shape is settled. **[m7-distribution.md](m7-distribution.md)** owns it: the split between the
-`rigline` retrieval layer and the `@rigline/core` engine, the payload and the four first-party
-plugins as bundled assets, the engine's own install path, and the phases with their acceptance
-criteria.
+**7a is built and green, and is not done until it is released and read live.** `@rigline/core` now
+ships `dist/bundled`, discovery has the bundled root, `disable` and `enable` exist, `list` has a
+version column, the payload carries the engine version, rolldown is a lazy import, and tier 4 packs
+the tarballs and runs `install` out of them. What remains is the acceptance the phase was written
+with: a cut release, then `npm i -g rigline@<version>` on a machine with no checkout, injecting and
+reporting green from the `RIG` badge. A pipeline step nobody has run is a defect rather than a gap.
+
+**7b is next**: `packages/cli` becomes the wrapper, core gains the `rigline-engine` bin, and D69,
+D70, D73 and D74 are recorded with the work they cover.
 
 ## Open questions, not blocking
 
@@ -397,9 +407,9 @@ criteria.
 Phases 0 to 4b and phase 6 are done, and `1.0.0-alpha.4` is published to `latest`, read live on
 2.1.278 across both surfaces.
 
-**Start with "Blocking: the first-party plugins do not reach a user" above.** It is the one thing in
-the way of Rigline being installable by anybody, it wants a decision rather than code, and everything
-below is worth less until it is answered.
+**Cut the release 7a is waiting on, then read it live**: `npm i -g rigline@<version>` on a machine
+with no checkout must inject, bake four plugins, and show a green `RIG` badge after a reload.
+7a's code is in; that read is the phase. Then 7b, in [m7-distribution.md](m7-distribution.md).
 
 **The release pipeline has not been driven end to end yet**, and [ci.md](ci.md) carries that along
 with the rest of what delivery still owes.
@@ -693,3 +703,13 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   through the plugin-facing API rather than a privileged one, which is what tested it, and each
   turned out to have a failure that was silent — time-marks most completely, since it can be loaded,
   toggled on and decorating nothing while every other line says it is fine. Live read outstanding.
+- 2026-09-21: M7 phase 7a built. `@rigline/core` ships `dist/bundled` — the payload and the four
+  first-party plugins, copied by a workspace step and resolved by walking up to core's own
+  `package.json`, which is the one rule that answers correctly under vitest's alias, in `dist` and in
+  `node_modules`. Discovery gained the bundled root and records an override rather than logging a
+  collision; `disable` and `enable` switch a bundled plugin off and on; `list` gained a version
+  column; `registry.js` carries the engine that wrote it, read by `doctor`, `check` and the probe;
+  rolldown became a lazy import and a devDependency, with the scaffold declaring its own. Tier 4
+  packs the three tarballs, installs them offline into a clean prefix and runs `install` out of it —
+  the thing that had never been done, and the reason this was broken for two releases. 785 tests
+  green. Release and live read outstanding, and they are the phase's acceptance, not a formality.

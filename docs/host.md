@@ -269,6 +269,7 @@ The manifest is read as data and never evaluated (D12, D14). Package metadata li
 Baked by the injector per extension directory:
 
 ```js
+export const engine = "<the rigline version that wrote this>";
 export const plugins = [
   { name, entry: "./plugins/<name>/<entry>", surfaces, uses, patchRefusal: null | "reason" },
 ];
@@ -278,6 +279,14 @@ export const patches = [{ plugin, why, required, applied, reason? }];
 Registry order is discovery order: the configured plugin directories in order, each `readdirSync`
 sorted, with the probe last. It is the order mounts sharing an anchor appear in and the order
 rewriters compose in.
+
+`engine` is the payload's stamp (D75), and it is here rather than in a file of its own because the
+webview cannot fetch: anything the probe reads has to be a module the post hook already imports, and
+this is the one `install` bakes. The kernel copies it onto `diagnostics.engine`, so a plugin reads
+it the way it reads every other host-provided value and never imports the host (D18, D63). Node-side,
+`parseRegistry` reads it back out with a bounded regex and `doctor` reports it against `CORE_VERSION`;
+absent means a payload injected before the stamp existed, which is a fact about its age and never a
+problem with the registry.
 
 ## Diagnostics
 

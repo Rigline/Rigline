@@ -1,12 +1,16 @@
-# Verification: three tiers, and knowing which one a question belongs to
+# Verification: four tiers, and knowing which one a question belongs to
 
-Rigline's tests answer three different kinds of question, against three different things, and most
+Rigline's tests answer four different kinds of question, against four different things, and most
 of the work is putting a question in the right place. A question about a regex against a real bundle
 belongs to the corpus; a question about whether a decoration survives a re-render belongs to a
-browser; a question about whether the whole thing works in the actual extension belongs to the
-probe, and nothing else can answer it. The reasoning is D36 and D39 in [decisions.md](decisions.md).
+browser; a question about what a person who installed from npm actually gets belongs to the tarball;
+and a question about whether the whole thing works in the actual extension belongs to the probe, and
+nothing else can answer it. The reasoning is D36 and D39 in [decisions.md](decisions.md).
 
 Everything but the probe runs under one `pnpm test`.
+
+A tier's number is what it is called, not how close it is to a real editor. Tier 4 arrived last and
+is the cheapest of the four; it sits at the end because that is where a new one goes.
 
 ## The rule that comes before the tiers
 
@@ -81,9 +85,10 @@ Four pieces:
   that is what makes the app's own tab-title effect actually call `renameTab()`, turning a dead
   branch into something a rewrite test can observe.
 - **`preparePayload`** writes exactly what a real injector would leave on disk: `pre.js` and
-  `post.js` copied from the host build, `generated.js` harvested fresh from the corpus version, a
-  `registry.js` baking whichever fixture plugins the test wants, and each plugin's source as a
-  module string.
+  `post.js` copied from `@rigline/core`'s `dist/bundled`, `generated.js` harvested fresh from the
+  corpus version, a `registry.js` baking whichever fixture plugins the test wants, and each plugin's
+  source as a module string. From `dist/bundled` rather than from `packages/host/dist`, so this tier
+  drives the bytes a user gets rather than a second source of truth (D71).
 - **`register(version)`** launches one browser per file and gives each test its own payload, server
   and page. Per-test on purpose: a plugin deliberately made to fail writes an expected
   `console.error`, and a shared page would leak it into an unrelated test's assertions.
@@ -105,13 +110,16 @@ with, and a state no harvest would ever produce. An anchor is removed from all t
 (class, selector and reason), because an anchor that resolved to no class but still to a selector
 would leave `watch` finding the element the test says has gone.
 
-**Rebuild the host before running these.** `preparePayload` copies
-`packages/host/dist/{pre,post}.js`, so vitest alone exercises whatever was last built. A change to
+**Rebuild before running these.** `preparePayload` copies `dist/bundled/{pre,post}.js`, so vitest
+alone exercises whatever was last built. A change to
 the host with no `pnpm build` would give a green run against the previous payload — a result about
 code that is not loaded, which is worse than a red one — or a failure you then debug in source that
-was never running. `preparePayload` refuses rather than letting either happen: it compares the
-newest mtime under `host/src` against the older of the two built files and throws with the build
-command. The rule used to live in `CLAUDE.md` and rely on everybody remembering it.
+was never running. `bundledDir()` refuses rather than letting either happen, and it carries the
+whole chain rather than the half `preparePayload` used to: `dist/bundled` newer than
+`packages/host/dist` and each `plugins/*/dist`, *and* each of those newer than its own `src` — since
+a stale `host/dist` copied faithfully into a newer `bundled` passes the first link on its own. The
+refusal names the build command. The rule used to live in `CLAUDE.md` and rely on everybody
+remembering it.
 
 A file skips, with a reason, when the corpus lacks its version or Chromium will not launch — and the
 reason says which.
@@ -158,6 +166,42 @@ was flickering before it went.
 `rigline doctor` is the other half of a bug report: install state per version, as a pasteable
 report, from files we wrote. VS Code's own logs are deliberately out of scope (D53).
 
+## Tier 4: the tarballs, installed
+
+`packages/cli/test/packed.test.ts` packs what a release would publish, installs those tarballs into
+a temporary prefix with nothing else on the machine, and runs `install` out of that prefix against a
+fixture extension directory.
+
+It exists because of a failure the other three could not see. Every one of them drives this
+workspace, where a relative path from `packages/cli/dist` happens to reach `packages/host/dist` and
+`plugins/`. Installed from npm those paths reach nothing, and `rigline install` threw `payload is
+missing pre.js` for two releases while every tier was green. The question it owns is therefore
+narrow and nothing else asks it: **does what a person downloads do its job?**
+
+Three details are load-bearing:
+
+- **`pnpm pack`, never `npm pack`.** npm leaves `workspace:*` in the packed manifest, which installs
+  as a dependency npm cannot resolve. pnpm substitutes the exact version, which is also what lets
+  the three tarballs resolve each other (D46).
+- **`--offline`**, so a run that silently reached for the registry would fail rather than becoming a
+  test of the network. Nothing needs it: rolldown is a devDependency now, and the three packages'
+  only dependencies are each other.
+- **`--ignore-scripts`**, because nothing here has an install script and the surface is declined
+  rather than defended (D47). And `RIGLINE_HOME` points into the temporary directory, so the run
+  cannot read or write the developer's own config, plugins or baseline.
+
+It asserts what the command *did* — the payload beside the bundle, the four plugins baked into
+`registry.js` with their entry files present, "injected" printed — and deliberately not its exit
+code. A synthetic bundle carries none of the curated anchors, so every plugin's declaration check
+fails against it and `install` exits 1 to say a person is needed. That is D27 working rather than a
+failure: a refused plugin is still copied, still baked, and never blocks the injection.
+
+It runs under `pnpm test` with everything else, and costs about a second. A script of its own and a
+fifth CI step would buy a faster inner loop and give up the one property it exists for — a check
+that has to be remembered is a check that answers a question nobody asked on the day it mattered,
+which is the whole diagnosis of what it catches. It needs no corpus and no browser, so unlike tier 2
+it is one of the few things a CI run proves as fully as a local one.
+
 ## In CI, and what it cannot reach
 
 `.github/workflows/ci.yml` runs `lint`, `typecheck`, `build` and `test` on every push to `main` and
@@ -167,10 +211,14 @@ that a pull request would not already have failed on.
 
 What CI cannot reach is the corpus, which lives outside the repository: tier 2 skips in full, and
 the corpus-backed half of tier 1 skips with it. So a green run there is the pure functions, the
-transforms and the synthetic fixtures, on four runners — and every line of the table below that
-says *corpus* or *harness* is answered on a maintainer's machine or nowhere. That is the reason
+transforms, the synthetic fixtures and tier 4, on four runners — and every line of the table below
+that says *corpus* or *harness* is answered on a maintainer's machine or nowhere. That is the reason
 [releasing.md](releasing.md) asks for a local run before a release, and the reason the skip carries
 a reason rather than passing quietly.
+
+Tier 4 is the exception, and worth naming as one. It needs no corpus, no browser and no registry, so
+it runs in full on every rung — which matters because the question it asks is about the artefact CI
+is about to stage.
 
 The floor rung is the one part of the matrix that is not free to move: 22.12.0 is what the four
 published packages declare in `engines`, so lowering or raising it means moving the rung first and
@@ -186,6 +234,7 @@ then the same number in the workspace root and the scaffolder's template (D59).
 | does the compiler catch a wrong pair | the compile test |
 | does this node land in the right place, survive a re-render, keep its order | the harness |
 | what happens to a plugin the day an identifier goes | the harness, with `remove` |
+| is it in the tarball, and does it work from there | tier 4, the packed install |
 | does it work in the actual extension | the probe, and only the probe |
 
 When a tier cannot answer a question, say so rather than approximating it in a cheaper one. The

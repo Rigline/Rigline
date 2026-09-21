@@ -27,15 +27,37 @@ Writing a plugin: [docs/authoring.md](docs/authoring.md). Repairing one an exten
 
 `install` finds every installed version of the extension itself, harvests the identifiers from it,
 and injects the loader — keeping a byte-faithful backup of every bundle it touches. Then reload the
-webview from the Command Palette with *Developer: Reload Webviews*. `rigline restore` puts
-everything back, and needs nothing but Node and those backups.
+webview from the Command Palette with *Developer: Reload Webviews*.
 
-**No plugins are published yet**, so that alone injects a loader with nothing in it and you will see
-no change in the panel. Until some are, the way to get the first-party ones — the session-id pill,
-time marks, the worktree tab prefix, and the `RIG` diagnostics badge that tells you whether any of
-it is working — is to clone this repository and install from the checkout, which
-[CONTRIBUTING.md](CONTRIBUTING.md) covers. Writing your own is
+Four plugins come with it and are switched on: the **session-id** pill in the composer footer,
+**time marks** on transcript rows, the **worktree prefix** on session tab labels, and the `RIG`
+badge, which is the diagnostics panel and the thing that tells you whether the rest of it is
+working. `rigline list` names them; `rigline disable NAME` switches one off. Writing your own is
 [docs/authoring.md](docs/authoring.md).
+
+Run `rigline install` again after the extension updates — an update installs a fresh copy of the
+extension beside the old one, which quietly leaves the loader behind.
+
+## If the panel goes blank
+
+`rigline restore` puts every installed version back to the bytes the extension shipped with. It
+needs nothing but Node: not VS Code, not a working extension, and not this repository.
+
+If `rigline` itself is gone or will not run, the undo is a file copy, because the backup of every
+bundle sits beside the bundle it came from. Each installed version is a directory under
+`~/.vscode/extensions/` named `anthropic.claude-code-<version>`, on every platform, and there may be
+more than one — do all of them, then reload the window.
+
+    cd ~/.vscode/extensions/anthropic.claude-code-<version>
+    cp webview/index.js.orig webview/index.js
+    cp extension.js.orig extension.js          # only if this file is there
+
+The first is the one that matters: `webview/index.js` is what renders the panel.
+`extension.js.orig` exists only where a plugin patched the extension host, and there is nothing to
+undo when it is absent.
+
+Failing all of that, uninstalling and reinstalling Claude Code from the Extensions view replaces
+both files with the originals.
 
 ## Layout
 
