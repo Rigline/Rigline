@@ -21,8 +21,11 @@ indexed in [CLAUDE.md](CLAUDE.md).
     pnpm typecheck
     pnpm lint
 
-`rigline` is on npm, but `pnpm install` links this checkout's own build as a workspace bin, so
-`pnpm rigline <command>` runs what you just built rather than what is published — no path needed.
+`pnpm rigline <command>` runs what you just built: it is a root script forwarding to
+`rigline-engine`, the bin `@rigline/core` carries. **This checkout does not use the published
+`rigline` package**, and should not — that is the retrieval layer a user installs, and running it
+here would fetch an engine from the registry rather than driving the one in front of you. Every verb
+reads the same either way; `update` is the one the wrapper alone has, so it has no meaning here.
 
 Every push to `main` and every pull request runs `lint`, `typecheck`, `build` and `test` on Node
 22.12.0, 24 and 26, and once more on Windows at 22.12.0. The corpus those tests read real bundles

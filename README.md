@@ -25,9 +25,11 @@ Writing a plugin: [docs/authoring.md](docs/authoring.md). Repairing one an exten
     npm install -g rigline
     rigline install
 
-`install` finds every installed version of the extension itself, harvests the identifiers from it,
-and injects the loader — keeping a byte-faithful backup of every bundle it touches. Then reload the
-webview from the Command Palette with *Developer: Reload Webviews*.
+The first command fetches the engine, `@rigline/core`, into `~/.rigline/engine` and runs it from
+there; after that nothing reaches the network unless you ask it to. `install` then finds every
+installed version of the extension itself, harvests the identifiers from it, and injects the
+loader — keeping a byte-faithful backup of every bundle it touches. Then reload the webview from the
+Command Palette with *Developer: Reload Webviews*.
 
 Four plugins come with it and are switched on: the **session-id** pill in the composer footer,
 **time marks** on transcript rows, the **worktree prefix** on session tab labels, and the `RIG`
@@ -36,7 +38,9 @@ working. `rigline list` names them; `rigline disable NAME` switches one off. Wri
 [docs/authoring.md](docs/authoring.md).
 
 Run `rigline install` again after the extension updates — an update installs a fresh copy of the
-extension beside the old one, which quietly leaves the loader behind.
+extension beside the old one, which quietly leaves the loader behind. `rigline update` is the other
+one: it brings the engine and every plugin you installed from npm up to date, and re-injects behind
+both.
 
 ## If the panel goes blank
 
@@ -61,8 +65,9 @@ both files with the originals.
 
 ## Layout
 
-    packages/core         @rigline/core: harvest, codegen, inject, plugin discovery, update flow
-    packages/cli          rigline: the command-line surface over core
+    packages/core         @rigline/core: the engine — harvest, codegen, inject, plugin
+                          discovery, the install flow, and every verb but `update`
+    packages/cli          rigline: the retrieval layer that installs the engine and runs it
     packages/host         the injected loader, pre.js and post.js
     packages/plugin-api   @rigline/plugin-api: what a plugin is written against
     packages/create-plugin create-rigline-plugin: the scaffold a plugin author starts from

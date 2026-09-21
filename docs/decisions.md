@@ -949,9 +949,10 @@ whereas a single-plugin template cannot grow into a workspace without a restruct
 second plugin should be a directory copy. It also costs us close to nothing to write, being the
 shape of this repo. `pnpm stage publish -r` stages only packages whose version is not yet on the
 registry, so bumping one plugin releases one plugin and no changeset tooling is needed. The
-harvested `generated.ts` is produced once at the workspace root by `rigline codegen --out` and
-imported by every plugin in the repo, since they all compile against the same installed extension
-(D40, P7). pnpm is the template's package manager for what its defaults do rather than for
+harvested `generated.ts` is produced once at the workspace root by `rigline-engine codegen --out`
+and imported by every plugin in the repo, since they all compile against the same installed
+extension (D40, P7). A scaffolded workspace declares `@rigline/core` and spells the bin, never
+`rigline`, which is a delivery mechanism and not a dependency (D69). pnpm is the template's package manager for what its defaults do rather than for
 consistency with us: `minimumReleaseAge` defends the author's own machine and CI on exactly the
 reasoning D48 applies to that author's users, and `allowBuilds` turns a dependency's build script
 into an explicit grant. The cost of the shape is per-package npm setup — a trusted publisher is
@@ -974,13 +975,16 @@ by nothing at all. `ci.yml` runs typecheck, build and test on the same three Nod
 `engines` floor a scaffolded workspace declares is one its own CI stands on — and a scaffold that
 is cut back to a single rung should drop that claim to match.
 
-**One dependency is hand-written, and has to be: rolldown** (amended 2026-09-21). `rigline build` is
-a convenience over rolldown (D13), and rolldown stopped being a dependency of `rigline` when it
-became a lazy import — undeclared and static, it threw before the CLI had read its own arguments,
-and it put 20 MB of native binding in every published tarball. A scaffolded workspace had been
-getting it transitively, so it declares its own now. `__RIGLINE_RANGE__` cannot supply it: that
+**One dependency is hand-written, and has to be: rolldown** (amended 2026-09-21). `build` is a
+convenience over rolldown (D13), and rolldown stopped being a published dependency when it became a
+lazy import — undeclared and static, it threw before the command had read its own arguments, and it
+put 20 MB of native binding in every published tarball. A scaffolded workspace had been getting it
+transitively, so it declares its own now. The lazy import is also what makes `build` work after the
+split: the engine resolves rolldown from wherever it sits, which in an author's workspace walks up
+to that workspace's own `node_modules`, and in `<RIGLINE_HOME>/engine` finds nothing and fails by
+name — correctly, because a build happens in a workspace and never against a user's engine. `__RIGLINE_RANGE__` cannot supply it: that
 substitution is the scaffolder's own version, and this is the bundler's. It ships in the same
-release that removes it from the CLI, because a phase between the two is a published version where
+release that removed it from what a user installs, because a phase between the two is a published version where
 `pnpm build` fails on the first command the guide tells an author to run — which is the failure this
 decision already records happening once.
 
@@ -1146,7 +1150,7 @@ worktree-prefix and probe — each as its `rigline.json` and the entry that mani
 rewritten to a flatter path, because a transform in the one step whose job is to move bytes
 faithfully costs the property the step is for.
 
-Core rather than the CLI, because core is what injects and what discovers, and the phase 5 companion
+Core rather than the wrapper, because core is what injects and what discovers, and the phase 5 companion
 extension consumes core and will need the same assets (D31). The copy is a workspace step,
 `scripts/bundle-assets.mjs`, and not part of core's own build: plugins build through `rigline
 build`, so a build-order edge from core to the plugins would be a cycle.

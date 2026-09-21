@@ -1,7 +1,7 @@
 # rigline
 
-The command-line surface for [Rigline](https://github.com/Rigline/Rigline), a plugin layer for the
-Claude Code VS Code extension.
+The command for [Rigline](https://github.com/Rigline/Rigline), a plugin layer for the Claude Code
+VS Code extension.
 
 Rigline injects a small loader into the installed extension's webview, gives plugins a
 capability-scoped context to write against, and harvests the identifiers those plugins depend on
@@ -12,6 +12,11 @@ rather than a breakage to chase.
 
     npm install -g rigline
     rigline install
+
+The first command you run fetches the engine, [`@rigline/core`](https://www.npmjs.com/package/@rigline/core),
+into `~/.rigline/engine` and runs it from there. It takes a few seconds and needs the registry;
+after that nothing reaches the network unless you ask it to. If that directory is ever in a bad
+state, delete it and run any command again.
 
 `install` finds every installed version of the extension, harvests it, bakes the discovered plugins
 into a payload and injects the loader. It keeps a byte-faithful backup of each bundle it touches,
@@ -30,8 +35,10 @@ directory until *Developer: Reload Window*.
 
     rigline add SPEC   install a plugin from a directory or npm, and re-inject
     rigline remove N   delete a plugin rigline installed, and re-inject
-    rigline update     move each npm plugin to what its tag resolves to
-    rigline list       every plugin, in load order: origin, source, switch, what it can do
+    rigline disable N  switch a plugin off, and re-inject
+    rigline enable N   switch it back on, and re-inject
+    rigline update     move the engine and every npm plugin to what its tag resolves to
+    rigline list       every plugin, in load order: version, origin, source, switch, what it can do
 
     rigline build      build a plugin to one browser ES module
     rigline dev        rebuild and re-inject as you edit
@@ -39,9 +46,25 @@ directory until *Developer: Reload Window*.
     rigline diff A B   identifier drift between two extension directories
     rigline doctor     install state per version, as a pasteable report
 
-`add` never runs a package manager: a published plugin is one bundled ES module and a manifest, so
-there is nothing to resolve. A version must reach a minimum age (a day, by default) before `add` or
-`update` will take it, and a withheld version is named rather than skipped in silence.
+    rigline --version  this command's version and the installed engine's
+    rigline --help     the whole surface, from the engine
+
+`add` never runs a package manager for a plugin: a published plugin is one bundled ES module and a
+manifest, so there is nothing to resolve. A version must reach a minimum age (a day, by default)
+before `add` or `update` will take it, and a withheld version is named rather than skipped in
+silence. `update` applies the same rule to the engine, and says which version it moved from so
+going back is one command.
+
+## How it is put together
+
+`rigline` is a small retrieval layer. It fetches bytes — a plugin tarball, the engine — checks them,
+and hands them over; `@rigline/core` does everything else and answers every verb above. The split is
+not decoration: a process cannot replace the package it is running out of, so whatever performs an
+update has to sit above the thing being updated.
+
+**It belongs in no project's dependencies.** If you are writing plugins, your workspace declares
+`@rigline/core` and runs `rigline-engine`; `npm create rigline-plugin` scaffolds it that way. A
+project that can declare dependencies does not need a delivery mechanism.
 
 ## Writing a plugin
 

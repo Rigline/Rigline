@@ -57,7 +57,7 @@ pnpm workspace, TypeScript throughout, every package a real package with its own
 | path | package | what it is |
 | --- | --- | --- |
 | `packages/core` | `@rigline/core` | Node library: locate installed extensions, harvest identifier layers, generate types and runtime tables, inject and restore, discover plugins and bake the registry, run the install flow, watch for updates, hold the curated anchor table. Ships `dist/bundled` — the payload and the four first-party plugins (D71) — so it is what a published install injects from. The CLI and a future companion extension both consume it. |
-| `packages/cli` | `rigline` | Thin command surface over core: `install`, `check`, `status`, `restore`, `add`, `remove`, `disable`, `enable`, `update`, `list`, `watch`, `doctor`, `codegen`, `diff`, `build`, `dev`. |
+| `packages/cli` | `rigline` | The retrieval layer (D69): installs `@rigline/core` under `<RIGLINE_HOME>/engine`, spawns its `rigline-engine` bin, and forwards every verb but the two that are about acquiring bytes — `update` and the remote half of `add`. Answers `--version` itself. Depends on no Rigline package, and belongs in no project's dependencies. |
 | `packages/host` | `@rigline/host` (private) | The injected runtime: `pre.js` (bus tap, buffer, rewrite chain, React devtools hook, meters) and `post.js` (kernel plus capability modules). Built to exactly two files. |
 | `packages/plugin-api` | `@rigline/plugin-api` | What a plugin is written against: `PluginContext`, the manifest type and JSON schema, `definePlugin`, the anchor names, and the pure helpers shared by host and core (capability contracts, session rule, stream shape, transcript derivations). |
 | `packages/create-plugin` | `create-rigline-plugin` | The scaffold: `template/` as real files, copied and substituted. Published, and the only package here whose payload is not code. |
@@ -73,7 +73,7 @@ source strings the harness hands `preparePayload`, not a directory: nothing on d
 discovery could install (D17).
 
 Each first-party plugin: `rigline.json`, `package.json`, `src/index.ts`, `src/*.test.ts`,
-`README.md`, built by `rigline build` to `dist/index.js`. The distributed form of any plugin is one
+`README.md`, built by `rigline-engine build` to `dist/index.js`. The distributed form of any plugin is one
 browser ES module plus its manifest; the TypeScript and the preset are conveniences.
 
 ### Three registries
@@ -189,9 +189,11 @@ imports nothing. It carries the module augmentation D40 describes, `EXTENSION_VE
 the harvest reduced to its layer views, which is the baseline the install flow diffs against (D29).
 
 A user's machine keeps its own state under `~/.rigline/`: `config.json` (enabled plugins,
-per-plugin settings), `plugins/` (installed third-party plugins), `anchors.json` (local overrides
-and additions to the curated anchor table), and `baseline.json` (the last harvest). A clone of this
-repo is for developing Rigline, not for using it.
+per-plugin settings, and the source each installed plugin came from — the engine's to write, D74),
+`plugins/` (installed third-party plugins), `anchors.json` (local overrides and additions to the
+curated anchor table), `baseline.json` (the last harvest), and `engine/`, the npm prefix `rigline`
+installs `@rigline/core` into (D73). A clone of this repo is for developing Rigline, not for using
+it.
 
 ### Distribution
 
@@ -209,8 +211,10 @@ an update to them. Installing your own of the same name shadows one, which is th
 
 `add` resolves the version, refuses anything younger than the minimum release age unless `--now` is
 passed, fetches and integrity-checks the tarball, and extracts it — no package manager runs, because
-a plugin is one bundled ES module and a manifest (D47, D48). `config.json` records the source by
-kind, pinned version and integrity, which is what lets `update` fetch a newer one later (D49).
+a plugin is one bundled ES module and a manifest (D47, D48). That half is the wrapper's: it vets the
+container and hands the engine a directory, and the engine vets the content and writes the source
+record into `config.json` by kind, pinned version and integrity, which is what lets `update` fetch a
+newer one later (D49, D70, D74).
 
 Our own packages publish from CI: OIDC to npm so no credential sits in the repo, `npm stage publish`
 into a queue, a human approving with 2FA (D46). That is release hygiene for our packages and the
@@ -400,21 +404,19 @@ D70, D73 and D74 are recorded with the work they cover.
 
 ## Next session
 
-Phases 0 to 4b, phase 6 and milestone 7a are done. `1.0.0-alpha.5` is published to `latest` and
+Phases 0 to 4b, phase 6 and milestone 7 are done. `1.0.0-alpha.5` is published to `latest` and
 installs from npm on a machine with no checkout.
 
-**7b is at step 5 of five**, and its order is in [m7-distribution.md](m7-distribution.md). The
-separation is cut: `rigline` installs `@rigline/core` into `<RIGLINE_HOME>/engine`, spawns it,
-answers `--version` itself and forwards everything else, and declares no Rigline package at all.
-This repository's own scripts moved with it — root and the four plugins take `@rigline/core` and
-spell the bin `rigline-engine`, with a forwarding `rigline` script at the root — because `pnpm
-build` runs `rigline build` in four packages and there is no green tree between the halves.
+**7b is closed, all five steps.** `rigline` installs `@rigline/core` into `<RIGLINE_HOME>/engine`,
+spawns it, answers `--version` itself and forwards everything else, and declares no Rigline package
+at all; this repository and the scaffold both declare the engine and spell the bin `rigline-engine`.
+[m7-distribution.md](m7-distribution.md) is the milestone's record until it is condensed.
 
-**What is left is step 5, the docs.** m7-distribution.md lists what it owes —
-`packages/cli/README.md` is the wrapper's now and still documents all fourteen verbs,
-`packages/core/README.md` needs the command surface, the package tables here and in
-architecture.md still describe `packages/cli` as a thin surface over core, and `CLAUDE.md`'s
-command table has been corrected but its surroundings have not been re-read as a whole.
+**So the next release is the first one that ships the split**, and it is worth more than a routine
+cut: nothing about the wrapper's own path has been run against the registry except its refusals,
+because no published `@rigline/core` carries the bin. Both halves go up together, and
+[releasing.md](releasing.md) now asks for the pair by eye — a `rigline` published without its engine
+installs a version the registry has not got, on the first command anybody runs.
 
 **Unreleased and waiting**: the meter fix, `list --json`, and core's new bin. Cutting `alpha.6`
 before step 3, to be the older engine 7b's acceptance check needs to upgrade *from*, was offered and
@@ -769,3 +771,10 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   scaffold declares `rigline`, which otherwise fails slowly from inside pnpm with an error about a
   version rather than about the mistake. The run also found that a scaffold cannot install the
   release that produced it for a day; carried above rather than fixed.
+- 2026-09-21: M7 phase 7b step 5, the docs, and with it the milestone. Both package READMEs now say
+  what their package is — `rigline` a retrieval layer with the engine install spelled out, core the
+  engine with its bin and the scripts a plugin workspace runs — and the authoring guide, the two
+  scaffolder READMEs, the package tables, the state sections and CONTRIBUTING follow. releasing.md
+  gained the one thing the split takes away: `pnpm stage approve`'s dependency-order skip protects
+  every package whose dependency did not make it, and the wrapper no longer has one, so the pair is
+  checked by eye.

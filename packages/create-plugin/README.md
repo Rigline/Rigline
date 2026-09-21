@@ -29,6 +29,11 @@ Then:
 
 and *Developer: Reload Webviews*.
 
+The workspace declares `@rigline/core` — the engine, which carries the `rigline-engine` command its
+`build` and `codegen` scripts run — and never `rigline`, which is the layer a *user* installs to
+fetch that engine. `pnpm rigline <verb>` here is a script forwarding to the engine in your own
+`node_modules`, so the loop above needs nothing installed globally.
+
 `generated.ts` ships as a placeholder so a fresh scaffold typechecks before `codegen` has ever run.
 Once you run `codegen` it holds the identifiers *your* extension version actually has; commit it,
 and the diff when you run against a newer extension is how you find out what moved.

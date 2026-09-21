@@ -42,8 +42,8 @@ each host patch is carried into `registry.js` rather than derived: nothing in a 
 | path | package | what it is |
 | --- | --- | --- |
 | `packages/plugin-api` | `@rigline/plugin-api` | The shared vocabulary: `PluginContext`, the manifest type and its JSON schema, the anchor names and specs, the capability *contracts*, and the pure derivations (session rule, stream shape, transcript join). Pure data and pure functions, so both machines import it. |
-| `packages/core` | `@rigline/core` | Node: locate, harvest, codegen, inject, restore, discover, bake, the install flow, the anchor table, the plugin manager. Also ships the assets — see below. |
-| `packages/cli` | `rigline` | The commands. Argument parsing and printing; the work is core's. |
+| `packages/core` | `@rigline/core` | The engine. Node: locate, harvest, codegen, inject, restore, discover, bake, the install flow, the anchor table, the plugin manager, and every command but `update`, behind the bin `rigline-engine`. Also ships the assets — see below. |
+| `packages/cli` | `rigline` | The retrieval layer (D69). It installs the engine under `~/.rigline/engine`, spawns it, owns `update` and the remote half of `add`, and forwards the rest. Depends on no Rigline package. |
 | `packages/host` | `@rigline/host` (private) | The injected runtime: `pre.js` and `post.js`. |
 | `packages/create-plugin` | `create-rigline-plugin` | The scaffold, as real files under `template/`. |
 | `packages/harness` | (private) | Playwright over the real bundle. See [verification.md](verification.md). |
@@ -52,13 +52,13 @@ each host patch is carried into `registry.js` rather than derived: nothing in a 
 **Core carries the assets, in `dist/bundled/`** (D71): `pre.js`, `post.js`, and each first-party
 plugin's `rigline.json` and built entry. `@rigline/host` is private and `plugins/*` are not
 published, so without this nothing a person installs holds the thing that gets injected — which is
-what `rigline install` threw `payload is missing pre.js` over. Core rather than the CLI, because
+what `rigline install` threw `payload is missing pre.js` over. Core rather than the wrapper, because
 core is what injects and what discovers, and the phase 5 companion extension consumes core and will
 need the same assets (D31).
 
 The copy is a workspace step, `scripts/bundle-assets.mjs`, run by the root `build` after `pnpm -r
-build`: the plugins are built by `rigline build`, which is the CLI, which depends on core, so a
-build-order edge from core to the plugins would be a cycle. `bundledDir()` in
+build`: the plugins are built by `rigline-engine build`, which is core's own bin, so a build-order
+edge from core to the plugins would be a cycle. `bundledDir()` in
 [assets.ts](../packages/core/src/assets.ts) resolves it — by walking up to core's own
 `package.json`, which is one answer under vitest's alias, in `dist`, and in `node_modules` — and
 refuses a bundle older than the builds it was copied from.
@@ -176,9 +176,11 @@ package is a property of the layout, and so one file serves every plugin in the 
 the template needs (D50). It imports nothing.
 
 **On a user's machine**, under `~/.rigline/`: `config.json` (enabled plugins, per-plugin settings,
-and the `sources` record `update` reads), `plugins/` (installed third-party plugins), `anchors.json`
-(local overrides and additions to the anchor table), `baseline.json` (the last harvest). A clone of
-this repo is for developing Rigline, not for using it.
+and the `sources` record `update` reads — all of it the engine's to write, never the wrapper's,
+D74), `plugins/` (installed third-party plugins), `anchors.json` (local overrides and additions to
+the anchor table), `baseline.json` (the last harvest), and `engine/` (the npm prefix the wrapper
+installs `@rigline/core` into, D73 — the one directory here that `rm -rf` is the documented repair
+for). A clone of this repo is for developing Rigline, not for using it.
 
 **In the extension directory**, everything under `webview/rigline/` plus the two `.orig` backups.
 All of it is derived and all of it is disposable — except the backups, which are the only recovery

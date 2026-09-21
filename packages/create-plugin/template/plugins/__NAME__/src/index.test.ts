@@ -4,7 +4,7 @@
  * Verification splits three ways, and knowing which tier a question belongs to is most of writing
  * a test that is worth having. A pure function is this tier. Whether a decoration lands in the
  * right place, survives a re-render, or costs the row a line of height is a question about the app,
- * and only the app can answer it: build, `rigline add`, reload the webview, look.
+ * and only the app can answer it: `pnpm build`, `pnpm rigline add`, reload the webview, look.
  */
 import { describe, expect, it } from "vitest";
 import { badgeText } from "./index.ts";

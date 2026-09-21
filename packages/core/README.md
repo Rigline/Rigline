@@ -4,10 +4,34 @@ The Node library behind [Rigline](https://github.com/Rigline/Rigline), a plugin 
 Claude Code VS Code extension.
 
 **If you want to use Rigline, install [`rigline`](https://www.npmjs.com/package/rigline) instead.**
-This package is the machinery underneath it, published so that a companion extension or another
-front end can drive the same flows the CLI does.
+It fetches this package for you and runs it; that is the whole of what it does.
 
-    npm install @rigline/core
+This is the engine. It carries the loader that gets injected, the four first-party plugins, and
+every command that reads or drives an installed extension. `rigline` is a retrieval layer above it,
+because a process cannot replace the package it is running out of.
+
+    npm install -D @rigline/core
+
+**Declare it if you are writing plugins**, and never `rigline`: a project that can declare
+dependencies does not need a delivery mechanism. `npm create rigline-plugin` scaffolds a workspace
+that way.
+
+## The command
+
+It carries a bin, `rigline-engine`, which answers every verb `rigline` does except `update` — that
+one belongs to the layer above, for the reason this package is separate from it.
+
+    rigline-engine --help
+
+In a plugin workspace it is what `build` and `codegen` run:
+
+    "scripts": {
+      "codegen": "rigline-engine codegen",
+      "build": "rigline-engine build"
+    }
+
+`build` resolves [rolldown](https://www.npmjs.com/package/rolldown) lazily, from wherever the engine
+sits, so a workspace that runs it declares rolldown itself.
 
 ## What it does
 
@@ -23,8 +47,6 @@ front end can drive the same flows the CLI does.
   on how to undo it.
 - **Discover** plugins, validate each manifest as data without executing anything, check what it
   declares against what the installed extension actually contains, and bake a registry.
-- **Fetch** a plugin from npm: a tarball reader that refuses rather than reproduces, an integrity
-  check, and a minimum release age.
 - **Diff** two extension directories, so an update is a report naming what moved.
 
 Zero third-party runtime dependencies, which for a package that rewrites an editor's own bundle is

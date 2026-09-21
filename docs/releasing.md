@@ -23,6 +23,12 @@ dependency order, replacing each `workspace:*` with the exact version. So runnin
 nothing the second time, and the four are either internally consistent or they are not published at
 all. Approval takes the whole batch under a single authentication.
 
+**`rigline` is outside that guarantee**, and it is the one package where being outside it hurts. The
+consistency above is a property of the dependency graph, and the wrapper declares no Rigline package
+(D69) — but it installs `@rigline/core@<its own version>` at runtime, so a `rigline` that goes up
+without its engine is broken on the first command anybody runs. The two are checked together by eye
+at step 3.
+
 **The workflow filename is load-bearing.** Each npm trusted publisher names `release.yml` by path,
 so renaming the file breaks the OIDC exchange for all four packages until every entry is edited to
 match.

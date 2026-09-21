@@ -249,14 +249,18 @@ A plugin is an ordinary npm package carrying `rigline.json` and its built entry:
   "keywords": ["rigline-plugin"],
   "files": ["dist", "rigline.json"],
   "repository": { "type": "git", "url": "git+https://github.com/you/your-repo.git" },
-  "devDependencies": { "@rigline/plugin-api": "^1.0.0", "rigline": "^1.0.0" }
+  "devDependencies": { "@rigline/core": "^1.0.0", "@rigline/plugin-api": "^1.0.0" }
 }
 ```
 
-`@rigline/plugin-api` stays a **devDependency**: `rigline build` bundles everything your entry
-imports, so what you publish has no runtime dependency for anyone to install. Rigline runs no
+`@rigline/plugin-api` stays a **devDependency**: `rigline-engine build` bundles everything your
+entry imports, so what you publish has no runtime dependency for anyone to install. Rigline runs no
 package manager when it installs your plugin — it fetches the tarball, checks it against the
 registry's integrity hash, unpacks it and validates the manifest.
+
+`@rigline/core` is the other devDependency, and it is the engine: it carries `rigline-engine`, which
+is what your `build` and `codegen` scripts run. Never `rigline` — that is the layer a *user*
+installs to fetch the engine, and a workspace that can declare a dependency has no use for it.
 
 Two of those fields are not decoration. `keywords` carries `rigline-plugin` because that is how
 somebody finds a plugin on npm; nothing in Rigline reads it. `repository` is there because npm

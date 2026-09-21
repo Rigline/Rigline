@@ -103,9 +103,8 @@ still works: `add <path>` is an engine command, reachable from a workspace that 
 wrapper, which it writes into `config.json` (D74).
 
 An engine handed a source `kind` it does not recognise **refuses that one `add`, naming the kind**,
-and `readConfig` **skips** an unrecognised kind with a line rather than throwing
-([discover.ts:203-206](../packages/core/src/plugins/discover.ts#L203-L206) throws today). The
-wrapper is routinely newer than the engine — that is the point of an acquisition layer — so the
+and `readConfig` **skips** an unrecognised kind with a line rather than throwing, which is what it
+used to do. The wrapper is routinely newer than the engine — that is the point of an acquisition layer — so the
 first wrapper to write a new kind must not break `list` on every older engine.
 
 ## Plugins
@@ -349,7 +348,7 @@ Ends the blocker. Ships on its own, and keeps today's package structure — `rig
 core here; 7b is what separates them.
 
 - Core's published `dist/bundled/` carries `pre.js`, `post.js` and the four built plugins. The copy
-  is a **workspace step**, not core's own build: plugins build through `rigline build`, so a
+  is a **workspace step**, not core's own build: plugins build through `rigline-engine build`, so a
   build-order edge from core to the plugins would be a cycle. It is `scripts/bundle-assets.mjs`, the
   root `build` becomes `pnpm -r build && node scripts/bundle-assets.mjs`, and all three callers run
   `pnpm build` first — `ci.yml`, `release.yml`, and `release.mjs`'s pre-cut gate. `tsc` does not

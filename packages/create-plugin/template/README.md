@@ -51,9 +51,9 @@ says rather than resolving its own.
 ## Publishing
 
 A plugin is published as an ordinary npm package carrying `rigline.json` and its built entry, and
-installed with `rigline add <name>`. Nothing about publishing is special: `rigline build` bundles
-everything the entry imports, so a published plugin has no runtime dependency to install, and
-`@rigline/plugin-api` stays a *devDependency*.
+installed with `rigline add <name>`. Nothing about publishing is special: `rigline-engine build`
+bundles everything the entry imports, so a published plugin has no runtime dependency to install,
+and both `@rigline/core` and `@rigline/plugin-api` stay *devDependencies*.
 
 `.github/workflows/release.yml` does it from CI, with no npm token stored anywhere: GitHub
 authenticates to npm over OIDC, and what the workflow does is *stage* — a version nobody can
