@@ -32,6 +32,7 @@ import {
   readBundles,
   WEBVIEW_BACKUP,
   WEBVIEW_BUNDLE,
+  wholenessProblem,
 } from "../extension/bundles.ts";
 import { harvestAll } from "../layers/index.ts";
 import {
@@ -261,6 +262,18 @@ export function install(ext: string, options: InstallOptions): InstallReport {
     if (!existsSync(join(options.payloadDir, file))) {
       throw new UserError(`payload is missing ${file}: ${options.payloadDir}`);
     }
+  }
+
+  // Before anything is read or written. `settleWebviewBackup` makes live bytes the pristine backup
+  // whenever there is no backup yet — which is every new version's directory — so an install that
+  // races VS Code's own records a fragment as the only copy of what a restore could return to, and
+  // says nothing (D81).
+  const problem = wholenessProblem(ext);
+  if (problem !== null) {
+    throw new UserError(
+      `${ext} is not finished being written: ${problem}. An extension update is probably in ` +
+        "progress; try again in a moment. Nothing was changed.",
+    );
   }
 
   const state = inspect(ext);

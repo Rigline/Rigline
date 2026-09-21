@@ -1430,12 +1430,17 @@ twice — all correct for a Node process and all wrong inside Electron. `EngineO
 defaults to `process.execPath` and changes nothing for the CLI. Finding what to pass it is the
 companion's own module, because the wrapper never needs to search: it is already running the answer.
 
-**D81. Nothing reacts to an extension directory that is still being written (2026-09-21).** The
-injector's backup settlement ends with "live and backup share no relation, so the extension was
-replaced in place", and makes the live bytes the new pristine baseline. That is right for a real new
-version and catastrophic for a half-written one: the truncated bytes become what `extension.js.orig`
-holds, so `restore` restores a broken bundle and the harvest reads a fragment. It is silent in both
-directions — the backup looks like a backup, and the run reports success.
+**D81. Nothing reacts to an extension directory that is still being written (2026-09-21).**
+`settleWebviewBackup` makes the live bytes the pristine backup in two of its branches: when there is
+no backup yet, and when live and backup share no relation. Both are right about a real new version
+and catastrophic about a half-written one — the fragment becomes what `index.js.orig` holds, so
+`restore` restores a broken bundle and the harvest reads a prefix. It is silent in both directions:
+the backup looks like a backup, and the run reports success.
+
+**The first branch is the one that matters, and the first draft of this entry named the second.** An
+update installs a *new directory*, which by definition has no backup, so racing it takes the
+no-backup path every time. The replaced-in-place branch only applies to a reinstall over an existing
+directory, which is the rarer event.
 
 The CLI's watcher was accidentally safe: polling every thirty seconds, it lands long after an
 install. `extensions.onDidChange` is not, because it fires while VS Code may still be writing, so
@@ -1454,10 +1459,18 @@ this unnecessary — is deliberately not assumed either way. The cost of defendi
 an event that happens weekly; the cost of being wrong is a backup nobody can trust.
 
 **The same exposure exists in the CLI's watcher and in `install` itself**, where a person can run
-either mid-update. Not fixed here: the durable answer is for the injector to refuse bytes that do
-not look like a whole bundle, which is a change to the one file the recovery path depends on and
-deserves its own slice rather than being tacked onto this one.
-[partial-bundles.md](partial-bundles.md) is that slice, written and not yet built.
+either mid-update. `install` now refuses a directory that is not finished — every file present and
+non-empty, and a `package.json` that parses with a version — before it reads or writes anything.
+[partial-bundles.md](partial-bundles.md) is the slice, and carries what is still owed.
+
+**A content check was evidenced and then rejected**, which is worth recording so it is not
+re-proposed. Requiring each bundle to end on a closing brace works today — all four corpus versions,
+both bundles each, end `}` and a newline — and would catch a truncation that the structural checks
+miss. It was dropped because a build that appended a `//# sourceMappingURL=` line, the commonest
+tail in JavaScript, would make it refuse *every* install on the day of a version bump. Trading a
+rare silent bug for a certain loud outage is the wrong direction, and absent beats wrong (P8). A
+test asserts the check tolerates exactly that tail, so the reasoning is enforced rather than
+remembered.
 
 ### Toolchain and verification
 

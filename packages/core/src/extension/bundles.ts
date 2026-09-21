@@ -70,3 +70,45 @@ export function readBundles(ext: string): Bundles {
 export function isExtensionDir(dir: string): boolean {
   return existsSync(join(dir, WEBVIEW_BUNDLE)) && existsSync(join(dir, "package.json"));
 }
+
+/** What `wholenessProblem` found wrong, as the sentence a person is shown. */
+export type WholenessProblem = string;
+
+/**
+ * Whether an extension directory is finished being written, or a reason it is not.
+ *
+ * Asked before anything is injected, because the injector's backup settlement makes live bytes the
+ * pristine baseline whenever there is no backup — which is every new version's directory — so an
+ * install racing VS Code's own records a fragment as the only copy of what a restore could return
+ * to, and says nothing (D81).
+ *
+ * **Structure only, deliberately.** An earlier draft also required each bundle to end on a closing
+ * brace, and the corpus agreed: all four versions, both bundles each, end `}` and a newline. It was
+ * dropped anyway. The rule holds for what Claude Code's bundler emits *today*, and a build that
+ * appended a `//# sourceMappingURL=` line — the commonest tail in all of JavaScript — would make
+ * this refuse every install on the day of a version bump. That is a self-inflicted outage in place
+ * of a rare silent bug, and absent beats wrong (P8).
+ *
+ * What is left catches the commoner shape anyway: an install part-way through has *some* of its
+ * files, and both bundles are megabytes that do not appear atomically. What it does not catch is a
+ * directory whose files are all present and one still growing; the companion's settle (D81) is the
+ * half that covers that, and [partial-bundles.md](../../../../docs/partial-bundles.md) has what a
+ * stability check here would cost.
+ */
+export function wholenessProblem(dir: string): WholenessProblem | null {
+  for (const name of [WEBVIEW_BUNDLE, HOST_BUNDLE, WEBVIEW_CSS, "package.json"]) {
+    const path = join(dir, name);
+    if (!existsSync(path)) return `${name} is not there yet`;
+    if (statSync(path).size === 0) return `${name} is empty`;
+  }
+
+  try {
+    const manifest: unknown = JSON.parse(readFileSync(join(dir, "package.json"), "utf8"));
+    if (typeof (manifest as { version?: unknown }).version !== "string") {
+      return "package.json has no version";
+    }
+  } catch {
+    return "package.json is not readable JSON yet";
+  }
+  return null;
+}

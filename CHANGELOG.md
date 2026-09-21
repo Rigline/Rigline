@@ -45,6 +45,11 @@ anything may change between releases.
 
 ### Fixed
 
+- `rigline install` refuses an extension directory that is still being written, instead of recording
+  part of it as the backup. Running it while VS Code was mid-update could make a half-written bundle
+  the pristine copy `rigline restore` returns to — silently, since the backup then looks like any
+  other, and the harvest reads a prefix without saying so. It now names what is missing and says an
+  update is probably in progress, before reading or writing anything.
 - `rigline update` on a machine with no engine yet no longer refuses the engine as too young and
   then installs it anyway. The release-age gate is about staying on what you have, so it does not
   apply when there is nothing to stay on: a first run takes what the tag resolves to and says

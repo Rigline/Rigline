@@ -10,6 +10,7 @@ import {
   pristineHostPath,
   pristineWebviewPath,
   readBundles,
+  wholenessProblem,
 } from "./bundles.ts";
 
 const dirs: string[] = [];
@@ -138,5 +139,59 @@ describe("isExtensionDir", () => {
   it("is false when the webview bundle is missing", () => {
     const ext = tempExtension();
     expect(isExtensionDir(ext)).toBe(false);
+  });
+});
+
+/** A directory that passes every wholeness check, so each test can spoil exactly one thing. */
+function wholeExtension(): string {
+  const ext = tempExtension();
+  writeFileSync(join(ext, "webview", "index.js"), "var a={};\n");
+  writeFileSync(join(ext, "extension.js"), "var b={};\n");
+  writeFileSync(join(ext, "webview", "index.css"), ".a{}");
+  return ext;
+}
+
+describe("wholenessProblem", () => {
+  it("says nothing is wrong with a finished directory", () => {
+    expect(wholenessProblem(wholeExtension())).toBeNull();
+  });
+
+  it("names the file that has not arrived", () => {
+    const ext = wholeExtension();
+    rmSync(join(ext, "extension.js"));
+    expect(wholenessProblem(ext)).toMatch(/extension\.js is not there yet/);
+  });
+
+  it("names an empty file, which is a created-but-unwritten one", () => {
+    const ext = wholeExtension();
+    writeFileSync(join(ext, "webview", "index.js"), "");
+    expect(wholenessProblem(ext)).toMatch(/is empty/);
+  });
+
+  it("refuses a manifest that is not JSON yet", () => {
+    const ext = wholeExtension();
+    writeFileSync(join(ext, "package.json"), '{"version": "2.1.2');
+    expect(wholenessProblem(ext)).toMatch(/not readable JSON/);
+  });
+
+  it("refuses a manifest with no version", () => {
+    const ext = wholeExtension();
+    writeFileSync(join(ext, "package.json"), "{}");
+    expect(wholenessProblem(ext)).toMatch(/no version/);
+  });
+
+  it("accepts a bundle that is merely odd, because content is not what this judges", () => {
+    // The dropped tail check would have refused this. Recorded as a test so the reasoning in
+    // `wholenessProblem` is enforced rather than merely written down: structure only, because a
+    // content rule that fits today's bundler refuses everybody on the day it changes (P8).
+    const ext = wholeExtension();
+    writeFileSync(join(ext, "extension.js"), "var b={};\n//# sourceMappingURL=extension.js.map\n");
+    expect(wholenessProblem(ext)).toBeNull();
+  });
+
+  it("checks the css too, since a part-written install often has some files and not others", () => {
+    const ext = wholeExtension();
+    rmSync(join(ext, "webview", "index.css"));
+    expect(wholenessProblem(ext)).toMatch(/index\.css is not there yet/);
   });
 });
