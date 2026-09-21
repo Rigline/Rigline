@@ -10,6 +10,15 @@ anything may change between releases.
 
 ## Unreleased
 
+### Fixed
+
+- The companion's status bar no longer reports success when there is nothing to inject into.
+  Installing it before the Claude Code extension left a green `Rigline` badge over a Rigline
+  that had done nothing, because the engine's `install` exits 0 when no extension is present
+  — correctly, since nothing to do is not an error. The companion now asks the editor rather
+  than reading the exit code, and says `Rigline: no Claude Code` until there is something to
+  work on.
+
 ## 1.0.0-alpha.8 — 2026-09-21
 
 _1.0.0-alpha.7 was tagged and never published: its staging run failed, and a version cut on a red

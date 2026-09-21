@@ -15,6 +15,7 @@ import { watchExtension } from "./watch.ts";
 const HEALTH: Record<Health, { icon: string; background?: string }> = {
   ok: { icon: "$(check)" },
   working: { icon: "$(sync~spin)" },
+  idle: { icon: "$(circle-outline)" },
   attention: { icon: "$(warning)", background: "statusBarItem.warningBackground" },
 };
 

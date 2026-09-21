@@ -9,7 +9,7 @@
  * needs from the world arrives as functions, so the sequence is driven by vitest rather than
  * inferred from a live run.
  */
-import type { Editor } from "./editor.ts";
+import { CLAUDE_CODE, type Editor } from "./editor.ts";
 import { findNode, NoNodeError } from "./node.ts";
 
 /**
@@ -49,6 +49,8 @@ export const LABEL = "the Rigline companion extension";
 
 export type AcquireResult =
   | { readonly kind: "injected"; readonly engine: string }
+  /** The engine ran and had nothing to inject into. Not a failure, and not a success either. */
+  | { readonly kind: "waiting"; readonly engine: string }
   | { readonly kind: "no-node"; readonly message: string }
   | { readonly kind: "failed"; readonly message: string };
 
@@ -96,6 +98,19 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
       const message = `the engine exited ${code} injecting. See the Rigline output for what it said.`;
       editor.status("attention", "Rigline: install failed", message);
       return { kind: "failed", message };
+    }
+
+    // The exit code cannot tell these apart and the editor can. `install` exits 0 having done
+    // nothing when no Claude Code is installed, so reading the code alone paints a green badge over
+    // an absent feature — green while nothing works is exactly what P8 forbids.
+    if (editor.extensionPath(CLAUDE_CODE) === undefined) {
+      editor.status(
+        "idle",
+        "Rigline: no Claude Code",
+        "Rigline is ready, and will inject as soon as the Claude Code extension is installed.",
+      );
+      editor.log("nothing to inject into: the Claude Code extension is not installed");
+      return { kind: "waiting", engine: engine.version };
     }
 
     editor.status("ok", "Rigline", `Injected by engine ${engine.version}`);

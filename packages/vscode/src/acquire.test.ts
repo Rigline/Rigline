@@ -17,12 +17,15 @@ const abs = (...parts: string[]) => join(process.platform === "win32" ? "C:\\" :
 const NODE_DIR = abs("Program Files", "nodejs");
 const NODE = join(NODE_DIR, process.platform === "win32" ? "node.exe" : "node");
 
-function editor(setting?: string) {
+const CLAUDE_DIR = abs("ext", "anthropic.claude-code-2.1.278");
+
+/** Claude Code present by default: the tests below are about acquisition, not about its absence. */
+function editor(setting?: string, claudeCode: string | null = CLAUDE_DIR) {
   const statuses: { health: Health; text: string }[] = [];
   const lines: string[] = [];
   const it: Editor = {
     setting: () => setting,
-    extensionPath: () => undefined,
+    extensionPath: () => claudeCode ?? undefined,
     onExtensionsChanged: () => ({ dispose() {} }),
     status: (health, text) => {
       statuses.push({ health, text });
@@ -189,5 +192,23 @@ describe("acquireAndInject", () => {
       env: {},
     });
     expect(e.lines[0]).toContain(chosen);
+  });
+
+  it("does not report success when there is nothing to inject into", async () => {
+    // Leo's laptop: `vscode-setup` run before Claude Code was installed. The engine's `install`
+    // exits 0 having done nothing, so reading the exit code alone painted a green badge over an
+    // absent feature — and a green badge that means nothing is the failure P8 exists against.
+    const e = editor(undefined, null);
+    const a = acquisition();
+    const result = await acquireAndInject({
+      editor: e.editor,
+      acquisition: a.acquisition,
+      version: "1.0.0-alpha.8",
+      exists: (p) => p === NODE,
+      env: { PATH: NODE_DIR },
+    });
+
+    expect(result).toEqual({ kind: "waiting", engine: "1.0.0-alpha.7" });
+    expect(e.statuses.at(-1)).toEqual({ health: "idle", text: "Rigline: no Claude Code" });
   });
 });

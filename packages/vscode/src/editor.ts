@@ -13,7 +13,13 @@ export interface Disposable {
 }
 
 /** Where a status line sits: green, working, or wanting somebody. */
-export type Health = "ok" | "working" | "attention";
+/**
+ * `idle` exists because green was lying. The engine's `install` exits 0 when no Claude Code is
+ * installed — nothing to do is not an error for the CLI — so a companion reading the exit code
+ * alone reported success over an absent feature, which is the one thing P8 forbids. The companion
+ * knows better than the exit code does: it can ask the editor whether the extension is there.
+ */
+export type Health = "ok" | "working" | "idle" | "attention";
 
 export interface Editor {
   /** A `rigline.*` setting, or undefined when unset or blank. */
