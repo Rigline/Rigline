@@ -4,7 +4,7 @@
  * The search and the argv are the parts worth holding: everything else is one `spawn` whose
  * behaviour belongs to VS Code.
  */
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { UserError } from "../errors.ts";
 import {
@@ -16,7 +16,13 @@ import {
   setupCompanion,
 } from "./setup.ts";
 
-const VSIX = join("C:", "engine", "dist", "bundled", "rigline.vsix");
+// Absolute wherever this runs, and PATH joined with this platform's separator. A Windows path is
+// relative on Linux and `findEditors` drops a relative entry, so hardcoding one asserts nothing in
+// CI — which is exactly how 1.0.0-alpha.7 was spent.
+const abs = (...parts: string[]) => join(process.platform === "win32" ? "C:\\" : "/", ...parts);
+const pathOf = (...dirs: string[]) => dirs.join(delimiter);
+
+const VSIX = abs("engine", "dist", "bundled", "rigline.vsix");
 
 const only =
   (...paths: string[]) =>
@@ -29,7 +35,7 @@ function editor(cli: string, label: string, path: string): FoundEditor {
 
 describe("findEditors", () => {
   it("finds every editor on PATH, in the order the table lists them", () => {
-    const bin = join("C:", "bin");
+    const bin = abs("bin");
     const found = findEditors({
       env: { PATH: bin },
       platform: "win32",
@@ -39,7 +45,7 @@ describe("findEditors", () => {
   });
 
   it("takes the shim on Windows, which is how the CLI ships", () => {
-    const bin = join("C:", "bin");
+    const bin = abs("bin");
     const found = findEditors({
       env: { PATH: bin },
       platform: "win32",
@@ -59,10 +65,10 @@ describe("findEditors", () => {
   });
 
   it("takes one path per editor, not one per PATH entry", () => {
-    const first = join("C:", "one");
-    const second = join("C:", "two");
+    const first = abs("one");
+    const second = abs("two");
     const found = findEditors({
-      env: { PATH: [first, second].join(";") },
+      env: { PATH: pathOf(first, second) },
       platform: "win32",
       exists: only(join(first, "code.cmd"), join(second, "code.cmd")),
     });
@@ -72,7 +78,7 @@ describe("findEditors", () => {
 
   it("skips a relative or empty PATH entry", () => {
     const found = findEditors({
-      env: { PATH: ["", "node_modules/.bin"].join(";") },
+      env: { PATH: pathOf("", "node_modules/.bin") },
       platform: "win32",
       exists: () => true,
     });
@@ -101,8 +107,8 @@ describe("setupCompanion", () => {
     const outcomes = await setupCompanion({
       vsix: VSIX,
       editors: [
-        editor("code", "VS Code", join("C:", "bin", "code.cmd")),
-        editor("cursor", "Cursor", join("C:", "bin", "cursor.cmd")),
+        editor("code", "VS Code", join(abs("bin"), "code.cmd")),
+        editor("cursor", "Cursor", join(abs("bin"), "cursor.cmd")),
       ],
       run: async (command, argv) => {
         calls.push({ command, argv });
@@ -111,8 +117,8 @@ describe("setupCompanion", () => {
     });
 
     expect(calls.map((c) => c.command)).toEqual([
-      join("C:", "bin", "code.cmd"),
-      join("C:", "bin", "cursor.cmd"),
+      join(abs("bin"), "code.cmd"),
+      join(abs("bin"), "cursor.cmd"),
     ]);
     expect(outcomes).toHaveLength(2);
   });
@@ -139,8 +145,8 @@ describe("setupCompanion", () => {
     const outcomes = await setupCompanion({
       vsix: VSIX,
       editors: [
-        editor("code", "VS Code", join("C:", "bin", "code.cmd")),
-        editor("cursor", "Cursor", join("C:", "bin", "cursor.cmd")),
+        editor("code", "VS Code", join(abs("bin"), "code.cmd")),
+        editor("cursor", "Cursor", join(abs("bin"), "cursor.cmd")),
       ],
       run: async (command) =>
         command.includes("cursor") ? { code: 1, output: "no" } : { code: 0, output: "" },

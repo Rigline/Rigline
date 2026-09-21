@@ -10,7 +10,12 @@ import { describe, expect, it } from "vitest";
 import { type AcquireOptions, acquireAndInject, LABEL } from "./acquire.ts";
 import type { Editor, Health } from "./editor.ts";
 
-const NODE = join("C:", "Program Files", "nodejs", "node.exe");
+// Absolute on whichever platform runs this. A Windows path is merely relative on Linux, and
+// `findNode` drops a relative PATH entry by design — so Windows paths here assert nothing in CI.
+const abs = (...parts: string[]) => join(process.platform === "win32" ? "C:\\" : "/", ...parts);
+
+const NODE_DIR = abs("Program Files", "nodejs");
+const NODE = join(NODE_DIR, process.platform === "win32" ? "node.exe" : "node");
 
 function editor(setting?: string) {
   const statuses: { health: Health; text: string }[] = [];
@@ -55,8 +60,7 @@ describe("acquireAndInject", () => {
       acquisition: a.acquisition,
       version: "1.0.0-alpha.6",
       exists: (p) => p === NODE,
-      env: { PATH: join("C:", "Program Files", "nodejs") },
-      platform: "win32",
+      env: { PATH: NODE_DIR },
     });
 
     expect(result).toEqual({ kind: "injected", engine: "1.0.0-alpha.7" });
@@ -83,8 +87,7 @@ describe("acquireAndInject", () => {
       acquisition: a.acquisition,
       version: "1.0.0-alpha.6",
       exists: (p) => p === NODE,
-      env: { PATH: join("C:", "Program Files", "nodejs") },
-      platform: "win32",
+      env: { PATH: NODE_DIR },
     });
 
     // The version travels with them, and that is not cosmetic. The wrapper's own default reads
@@ -104,8 +107,7 @@ describe("acquireAndInject", () => {
       acquisition: a.acquisition,
       version: "1.0.0-alpha.6",
       exists: () => false,
-      env: { PATH: join("C:", "nothing") },
-      platform: "win32",
+      env: { PATH: abs("nothing") },
     });
 
     expect(result.kind).toBe("no-node");
@@ -129,8 +131,7 @@ describe("acquireAndInject", () => {
       acquisition: a.acquisition,
       version: "1.0.0-alpha.6",
       exists: (p) => p === NODE,
-      env: { PATH: join("C:", "Program Files", "nodejs") },
-      platform: "win32",
+      env: { PATH: NODE_DIR },
     });
 
     expect(result).toEqual({ kind: "injected", engine: "1.0.0-alpha.7" });
@@ -149,8 +150,7 @@ describe("acquireAndInject", () => {
       acquisition: a.acquisition,
       version: "1.0.0-alpha.6",
       exists: (p) => p === NODE,
-      env: { PATH: join("C:", "Program Files", "nodejs") },
-      platform: "win32",
+      env: { PATH: NODE_DIR },
     });
 
     expect(result.kind).toBe("failed");
@@ -170,8 +170,7 @@ describe("acquireAndInject", () => {
       acquisition: a.acquisition,
       version: "1.0.0-alpha.6",
       exists: (p) => p === NODE,
-      env: { PATH: join("C:", "Program Files", "nodejs") },
-      platform: "win32",
+      env: { PATH: NODE_DIR },
     });
 
     expect(result).toEqual({ kind: "failed", message: "npm exited 1" });
@@ -179,7 +178,7 @@ describe("acquireAndInject", () => {
   });
 
   it("takes the setting over PATH, which is the macOS repair", async () => {
-    const chosen = join("/opt", "homebrew", "bin", "node");
+    const chosen = abs("opt", "homebrew", "bin", "node");
     const e = editor(chosen);
     const a = acquisition();
     await acquireAndInject({
@@ -188,7 +187,6 @@ describe("acquireAndInject", () => {
       version: "1.0.0-alpha.6",
       exists: (p) => p === chosen,
       env: {},
-      platform: "darwin",
     });
     expect(e.lines[0]).toContain(chosen);
   });
