@@ -65,7 +65,12 @@ interface ProbeDiagnostics {
   };
   readonly meters: Record<
     string,
-    { readonly peak: number; readonly peakAt: number | null; readonly recent: number }
+    {
+      readonly peak: number;
+      readonly peakAt: number | null;
+      readonly recent: number;
+      readonly recentAt: number | null;
+    }
   >;
   readonly storage: {
     readonly available: boolean;
@@ -244,6 +249,7 @@ export default definePlugin({
         {
           extension: diag.identifiersFor,
           engine: diag.engine,
+          at: Date.now(),
           surface: ctx.surface,
           preAt: diag.preAt,
           postAt: diag.postAt,

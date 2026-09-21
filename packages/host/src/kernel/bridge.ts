@@ -89,7 +89,10 @@ export interface Diagnostics {
      */
     abandoned: string[];
   };
-  readonly meters: Record<string, { peak: number; peakAt: number | null; recent: number }>;
+  readonly meters: Record<
+    string,
+    { peak: number; peakAt: number | null; recent: number; recentAt: number | null }
+  >;
   readonly storage: {
     available: boolean;
     writes: number;

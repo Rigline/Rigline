@@ -180,6 +180,13 @@ export interface ReportFacts {
   readonly extension: string | null;
   /** The engine that wrote this payload (D75), or null for one injected before the stamp. */
   readonly engine: string | null;
+  /**
+   * Wall-clock when the report was taken, which is what tells a live rate from a frozen one.
+   *
+   * Passed in rather than read here, because a formatter that calls `Date.now()` cannot be put in
+   * the past by a test — and the case worth testing is precisely a panel that has been idle.
+   */
+  readonly at: number;
   readonly surface: string;
   readonly preAt: number;
   readonly postAt: number | null;
@@ -213,7 +220,12 @@ export interface ReportFacts {
   };
   readonly meters: Record<
     string,
-    { readonly peak: number; readonly peakAt: number | null; readonly recent: number }
+    {
+      readonly peak: number;
+      readonly peakAt: number | null;
+      readonly recent: number;
+      readonly recentAt: number | null;
+    }
   >;
   readonly plugins: readonly PluginStatusLike[];
   readonly hostPatches: readonly {
@@ -253,6 +265,34 @@ function previousRow(entry: Record<string, unknown>): string {
  * filtering (D53). The session id is the one identifier present, already truncated to eight
  * characters by its own check, and already on screen in the panel.
  */
+/**
+ * How long a closed window stays a description of *now* before it becomes one of the past.
+ *
+ * Two seconds rather than one: a window closes when the next event arrives, so a meter running at a
+ * steady one per second closes its window slightly *after* the second is up, and a one-second
+ * threshold would flap between the true rate and zero on exactly the traffic that is fine.
+ */
+const RATE_IS_STALE_MS = 2000;
+
+/**
+ * What a meter is doing now, which is not always what it last did.
+ *
+ * `recent` is the last window that closed, and only `meter()` closes one — so a meter that stops
+ * firing keeps its last value for the life of the panel. A boot burst then reads as sustained load
+ * hours later, which is the misreading the rates were introduced to end (D53): a number nobody can
+ * act on is worse here than no number, because this one looks actionable.
+ *
+ * So a window that closed a while ago describes a meter that has gone quiet, and quiet is zero.
+ * Pure, and given the clock rather than reading one, so a test can put the panel in the past.
+ */
+export function currentRate(
+  meter: { readonly recent: number; readonly recentAt: number | null },
+  now: number,
+): number {
+  if (meter.recentAt === null) return 0;
+  return now - meter.recentAt > RATE_IS_STALE_MS ? 0 : meter.recent;
+}
+
 export function formatReport(facts: ReportFacts, groups: readonly CheckGroup[]): string {
   const out: string[] = ["rigline probe report"];
 
@@ -293,7 +333,9 @@ export function formatReport(facts: ReportFacts, groups: readonly CheckGroup[]):
   if (busy.length === 0) out.push("  (nothing has been counted yet)");
   for (const [name, m] of busy) {
     const at = m.peakAt === null ? "" : ` at ${clock(m.peakAt)}`;
-    out.push(`  ${name.padEnd(10)} ${String(m.peak).padStart(6)}/s${at}, now ${m.recent}/s`);
+    out.push(
+      `  ${name.padEnd(10)} ${String(m.peak).padStart(6)}/s${at}, now ${currentRate(m, facts.at)}/s`,
+    );
   }
 
   out.push("", "plugins");

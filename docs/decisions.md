@@ -1193,6 +1193,22 @@ mount re-placements, outbound messages, tap clones — carries a per-second rate
 moment it peaked. The probe already polls at 1 Hz, so that is the bucket and the cost is a counter
 reset per second.
 
+**A rate needs a timestamp, or it is a cumulative counter wearing a better label** (amended
+2026-09-21, from the first live read of a published install). Counting one event is the only thing
+that closes a window, so a meter that *stops* firing never closes another one and keeps its last
+value for the life of the panel. The first probe report off a fresh install said `tapClone 18/s` on
+a session list that had been idle since boot — a boot burst read as sustained load, which is this
+decision's own failure mode reintroduced by the mechanism meant to fix it, and worse than a total
+because it looks actionable.
+
+No timer can expire it without a timer per meter on a path that already clones payloads, so the
+window's closing time is recorded — one assignment beside the one already there — and the *reader*
+decides: a window that closed more than two seconds ago describes a meter that has gone quiet, and
+quiet is zero. Two rather than one because a window closes when the next event arrives, so a steady
+one-per-second closes slightly late and a one-second threshold would flap on exactly the traffic
+that is fine. The peak is untouched, because what a meter got to is a fact about the session rather
+than about this second.
+
 **Persistence is `localStorage`, because it is the only route out of the webview and it does
 survive.** The CSP is `default-src 'none'` with no `connect-src`, so nothing in there can write a
 file or fetch; D20 forbids a plugin originating a bus message, so the extension host cannot be asked

@@ -10,6 +10,14 @@ anything may change between releases.
 
 ## Unreleased
 
+### Fixed
+
+- The probe's copied report no longer says a meter is still busy when it has gone quiet. The "now"
+  rate beside each peak was the last second in which anything happened, so a burst at boot went on
+  being reported as sustained load for as long as the panel stayed open — on the session list, an
+  idle panel claimed 18 tap clones a second. A rate with nothing behind it now reads as zero; the
+  peak, which is a fact about the session rather than about this second, is unchanged.
+
 ## 1.0.0-alpha.5 — 2026-09-21
 
 ### Fixed

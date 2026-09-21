@@ -372,12 +372,8 @@ argument is D63 to D68.
 layer and the `@rigline/core` engine, the payload and the four first-party plugins as bundled
 assets, the engine's own install path, and the phases with their acceptance criteria.
 
-**7a is built and green, and is not done until it is released and read live.** `@rigline/core` now
-ships `dist/bundled`, discovery has the bundled root, `disable` and `enable` exist, `list` has a
-version column, the payload carries the engine version, rolldown is a lazy import, and tier 4 packs
-the tarballs and runs `install` out of them. What remains is the acceptance the phase was written
-with: a cut release, then `npm i -g rigline@<version>` on a machine with no checkout, injecting and
-reporting green from the `RIG` badge. A pipeline step nobody has run is a defect rather than a gap.
+**7a is done — released as `1.0.0-alpha.5` and read live on a machine with no checkout.** The
+blocker it existed for is gone: `npm i -g rigline && rigline install` injects.
 
 **7b is next**: `packages/cli` becomes the wrapper, core gains the `rigline-engine` bin, and D69,
 D70, D73 and D74 are recorded with the work they cover.
@@ -404,20 +400,16 @@ D70, D73 and D74 are recorded with the work they cover.
 
 ## Next session
 
-Phases 0 to 4b and phase 6 are done, and `1.0.0-alpha.4` is published to `latest`, read live on
-2.1.278 across both surfaces.
+Phases 0 to 4b, phase 6 and milestone 7a are done. `1.0.0-alpha.5` is published to `latest` and
+installs from npm on a machine with no checkout.
 
-**`1.0.0-alpha.5` is cut, pushed and staged, and is waiting to be approved.** Both workflows are
-green — the release staged all four packages, and CI passed every rung including Windows, with tier
-4 packing the tarballs and running `install` out of them. Do not cut another version: run `pnpm
-release:finish`, which needs the 2FA only a person has.
+**Start with 7b**, in [m7-distribution.md](m7-distribution.md): `packages/cli` becomes the wrapper,
+core gains the `rigline-engine` bin, and D69, D70, D73 and D74 are recorded with the work each
+covers.
 
-Then read it live, which is 7a's actual acceptance: `npm i -g rigline@1.0.0-alpha.5` on a machine
-with no checkout must inject, bake four plugins, and show a green `RIG` badge after *Developer:
-Reload Webviews*. Then 7b, in [m7-distribution.md](m7-distribution.md).
-
-**The release pipeline has not been driven end to end yet**, and [ci.md](ci.md) carries that along
-with the rest of what delivery still owes.
+**The release pipeline has now been driven end to end**, tag through approval, with one step that
+is irreducibly a person's: `pnpm release:finish` needs 2FA. [ci.md](ci.md) carries the rest of what
+delivery still owes.
 
 After that, what is open is phase 5 and the loose ends below. Phase 5 is the larger lift and turns on
 a question nobody here can answer from the code — Marketplace policy on an extension that patches
@@ -717,5 +709,11 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   rolldown became a lazy import and a devDependency, with the scaffold declaring its own. Tier 4
   packs the three tarballs, installs them offline into a clean prefix and runs `install` out of it —
   the thing that had never been done, and the reason this was broken for two releases. 789 tests
-  green. `1.0.0-alpha.5` cut, pushed and staged; approval and the live read outstanding, and they
-  are the phase's acceptance rather than a formality.
+  green. Released as `1.0.0-alpha.5`.
+- 2026-09-21: **M7 phase 7a done, on the read rather than on the run.** `npm i -g rigline` on a
+  machine with no checkout injected 2.1.269 and 2.1.278, applied worktree-prefix's host patch,
+  resolved 27 of 27 anchors on each, and baked all four plugins. The `RIG` badge is green on both
+  surfaces: four loaded on the editor, three `inactive` and probe loaded on the session list (D68),
+  no host errors, and the session-id pill and time marks visible. The payload stamp reads
+  `engine 1.0.0-alpha.5` (D75), which is what makes this a reading rather than an impression — the
+  badge alone cannot say whether the payload is the one the installed engine would write.

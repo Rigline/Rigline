@@ -174,6 +174,7 @@ describe("rewriteBookkeepingVerdict", () => {
 });
 
 describe("formatReport", () => {
+  const NOW = Date.parse("2026-09-14T06:26:41Z");
   const facts = {
     extension: "2.1.270",
     surface: "editor",
@@ -190,10 +191,21 @@ describe("formatReport", () => {
       cloneMaxMs: 31.2,
       cloneMaxType: "list_sessions_response",
     },
+    at: NOW,
     meters: {
-      commit: { peak: 142, peakAt: Date.parse("2026-09-14T06:26:38Z"), recent: 3 },
-      sweep: { peak: 12, peakAt: Date.parse("2026-09-14T06:26:38Z"), recent: 0 },
-      resend: { peak: 0, peakAt: null, recent: 0 },
+      commit: {
+        peak: 142,
+        peakAt: Date.parse("2026-09-14T06:26:38Z"),
+        recent: 3,
+        recentAt: NOW - 500,
+      },
+      sweep: {
+        peak: 12,
+        peakAt: Date.parse("2026-09-14T06:26:38Z"),
+        recent: 0,
+        recentAt: NOW - 500,
+      },
+      resend: { peak: 0, peakAt: null, recent: 0, recentAt: null },
     },
     plugins: [{ name: "session-id", status: "loaded" as const }],
     hostPatches: [{ plugin: "worktree-prefix", applied: true, required: false }],
@@ -211,6 +223,25 @@ describe("formatReport", () => {
     expect(text).toContain("2.1.270, surface editor");
     expect(text).toContain("6 active, 1 re-placed, 0 lost, on commit");
     expect(text).toContain("14 writes");
+  });
+
+  it("reads a meter that has gone quiet as zero, not as its last burst", () => {
+    // `recent` is the last window that *closed*, and only a new event closes one — so a meter
+    // that stops firing keeps its last value for the life of the panel. Read straight, a boot
+    // burst is still being reported as sustained load an hour later, which is the misreading the
+    // rates exist to end (D53).
+    const idle = {
+      ...facts,
+      at: NOW + 60_000,
+      meters: { commit: { peak: 142, peakAt: NOW, recent: 18, recentAt: NOW } },
+    };
+    expect(formatReport(idle, groups)).toContain("now 0/s");
+    // The peak is untouched: what it got to is a fact about the session, not about this second.
+    expect(formatReport(idle, groups)).toContain("142/s");
+  });
+
+  it("reads a meter still firing as its real rate", () => {
+    expect(formatReport(facts, groups)).toContain("now 3/s");
   });
 
   it("ranks peaks by how busy they got and omits the ones that never fired", () => {
@@ -259,6 +290,7 @@ describe("formatReport", () => {
     const bare = {
       ...facts,
       storage: { ...facts.storage, available: false },
+      at: NOW,
       meters: {},
       previous: null,
     };

@@ -45,6 +45,24 @@ type Handler = (payload: unknown) => void;
  */
 type Rewriter = (payload: Readonly<Record<string, unknown>>) => Record<string, unknown> | null;
 
+/**
+ * One hot path's rate, its worst second, and when each was (D53).
+ *
+ * `recent` and `recentAt` are read together or not at all: see `meter`, which is the only thing
+ * that writes them and the reason a `recent` with no `recentAt` beside it is a number about the
+ * past being read as a number about now.
+ */
+interface Meter {
+  /** The busiest one-second window seen, raised as the window fills rather than when it closes. */
+  peak: number;
+  /** Wall-clock start of that window, so a peak can be lined up against VS Code's own logs. */
+  peakAt: number | null;
+  /** The count in the last window that closed. Meaningless without `recentAt`. */
+  recent: number;
+  /** When that window closed, or null before any has. Stale means the meter has gone quiet. */
+  recentAt: number | null;
+}
+
 interface RiglineBridge {
   readonly diagnostics: {
     /** An explicit version tag on the bridge shape, so a consumer can tell what it is reading. */
@@ -215,7 +233,7 @@ interface RiglineBridge {
      * own concepts above; this is the only place a *rate* is recorded, and the only thing that can
      * distinguish a quiet hour from a bad four seconds after the fact.
      */
-    meters: Record<string, { peak: number; peakAt: number | null; recent: number }>;
+    meters: Record<string, Meter>;
     /**
      * What became of the crash-surviving ring in `localStorage`, and what the previous run left
      * there. Published by post.ts, which owns the writing; declared here because this is where the
@@ -589,10 +607,10 @@ try {
     "rebind",
   ] as const;
 
-  const meters = {} as Record<string, { peak: number; peakAt: number | null; recent: number }>;
+  const meters = {} as Record<string, Meter>;
   const windows = {} as Record<string, { start: number; count: number }>;
   for (const name of METERS) {
-    meters[name] = { peak: 0, peakAt: null, recent: 0 };
+    meters[name] = { peak: 0, peakAt: null, recent: 0, recentAt: null };
     windows[name] = { start: Date.now(), count: 0 };
   }
 
@@ -605,6 +623,14 @@ try {
    * exists to catch, and report zero. `recent` is the last *closed* window, which is the honest
    * number for "what is it doing now" and is meaningless mid-window.
    *
+   * **`recentAt` is what makes `recent` readable, and it is not optional.** This function is the
+   * only thing that rolls a window, so a meter that stops firing never closes another one and
+   * `recent` keeps its last value for the life of the panel — reporting a boot burst as sustained
+   * load, hours later, which is the exact misreading D53 introduced these rates to end. Nothing here
+   * can expire it on a timer without a timer per meter on the hot path, so the closing time is
+   * recorded and the reader decides: a window that closed a while ago describes a meter that has
+   * gone quiet, and quiet is zero.
+   *
    * `Date.now()` rather than `performance.now()` because a peak is only useful if it can be lined up
    * against VS Code's own logs, which are wall-clock. Roughly twenty nanoseconds a call, against
    * paths that already clone a payload or touch the DOM.
@@ -616,6 +642,7 @@ try {
     const now = Date.now();
     if (now - w.start >= 1000) {
       m.recent = w.count;
+      m.recentAt = now;
       w.start = now;
       w.count = 0;
     }
