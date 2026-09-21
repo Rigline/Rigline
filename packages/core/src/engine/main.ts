@@ -127,10 +127,11 @@ const USAGE = `rigline ${CORE_VERSION}
 
   rigline vscode-setup [--remove]
       Install the companion extension into every VS Code found on PATH — including Insiders,
-      VSCodium, Cursor and Windsurf — from the VSIX bundled in this engine. Nothing is
-      downloaded, and the companion moves when the engine does. It re-injects after an
-      extension update without you running anything. --remove takes it out again. Reload the
-      window afterwards.
+      VSCodium, Cursor and Windsurf — from the VSIX bundled in this engine, and inject.
+      Nothing is downloaded, and the companion moves when the engine does. From then on it
+      re-injects after every extension update without you running anything, so this is the
+      whole of the setup: you do not need install as well. --remove takes it out again, and
+      leaves the injection alone. Reload the window afterwards.
 
   rigline status
       Per installed version: is each bundle vanilla or patched, judged against its backup.
@@ -454,7 +455,19 @@ async function vscodeSetupCommand(args: string[]): Promise<number> {
   });
 
   console.log(formatSetup(outcomes, values.remove));
-  return outcomes.some((o) => o.code !== 0) ? 1 : 0;
+  const failed = outcomes.some((o) => o.code !== 0) ? 1 : 0;
+
+  // And inject, on `add`'s rule (D55, D56): a command that changes what is installed re-injects, so
+  // the user is one reload away rather than one reload and a command they have to know about.
+  //
+  // It matters more here than anywhere else. The companion injects on activation, but it activates
+  // only after the reload, by which time the panel may already have rendered from an unpatched
+  // bundle — so without this the first reload is the one that does not work, on the one path that
+  // exists so nobody has to think about reloading. `install` stays the verb; this is the same work
+  // done at the moment somebody would otherwise have to be told about it.
+  if (values.remove) return failed;
+  console.log("");
+  return reinject() === 0 ? failed : 1;
 }
 
 function statusCommand(): number {

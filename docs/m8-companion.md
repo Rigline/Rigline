@@ -220,8 +220,19 @@ the engine's `dist/bundled` beside the payload and the plugins (D71) — so inst
 is a verb, and asking a person to find a file on disk and type `code --install-extension` is a
 worse answer to a question we can already answer for them.
 
-    rigline vscode-setup            # install the companion into every VS Code found
-    rigline vscode-setup --remove   # take it out again
+    rigline vscode-setup            # install the companion into every VS Code found, and inject
+    rigline vscode-setup --remove   # take it out again, leaving the injection alone
+
+**It injects as well, so `install` is not a second step.** That is `add`'s rule (D55, D56): a
+command that changes what is installed re-injects, so the user is one reload away rather than one
+reload and a command they have to know about. It matters more here than anywhere else, because the
+companion injects on *activation* and activates only after the reload — by which time the panel may
+already have rendered from an unpatched bundle. Without it the first reload is the one that does not
+work, on the single path that exists so nobody has to think about reloading.
+
+`--remove` deliberately does not restore. Taking the companion out is a statement about who drives
+the injection, not about whether there should be one; `rigline restore` is the verb for that and
+saying so is better than guessing.
 
 **It goes in the engine, and the wrapper forwards it.** `rigline` holds no verb list (D69), so a
 new engine verb reaches a user through an engine update with no wrapper release — which is that
@@ -244,7 +255,6 @@ version, which matters because `rigline update` will want to call this.
 ## Reading 8a, on a machine that has never seen Rigline
 
     npm i -g rigline
-    rigline install
     rigline vscode-setup
 
 Then *Developer: Reload Window*, and watch the status bar and the **Rigline** output channel. On a

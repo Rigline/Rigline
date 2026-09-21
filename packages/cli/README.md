@@ -32,16 +32,19 @@ The extension updates about weekly and an update installs a fresh directory, whi
 the injection. Run `install` again afterwards; a window that is already open keeps running the old
 directory until *Developer: Reload Window*.
 
-## Stop having to remember that
+## Or stop having to remember that
 
+    npm install -g rigline
     rigline vscode-setup
 
-Installs the companion extension into every VS Code found on your `PATH` — Insiders, VSCodium,
-Cursor and Windsurf too — from a VSIX that ships inside the engine. Nothing is downloaded, and it
-moves when the engine does.
+The whole of the setup, in place of `install` rather than after it. It puts the companion extension
+into every VS Code found on your `PATH` — Insiders, VSCodium, Cursor and Windsurf too — from a VSIX
+that ships inside the engine, and injects. Nothing is downloaded, and the companion moves when the
+engine does.
 
-It watches for the extension update and re-injects behind it, so `install` stops being something you
-have to remember. `rigline vscode-setup --remove` takes it out again. Reload the window after either.
+From then on it watches for the extension update and re-injects behind it, so there is nothing to
+remember after one. `rigline vscode-setup --remove` takes it out again and leaves the injection
+alone; `rigline restore` is what undoes that.
 
 ## Commands
 
