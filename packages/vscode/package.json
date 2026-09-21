@@ -1,0 +1,13 @@
+{
+  "name": "@rigline/vscode",
+  "version": "1.0.0-alpha.6",
+  "description": "The companion VS Code extension: acquires the engine, watches for an extension update, re-injects",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "rigline": "workspace:*"
+  }
+}

@@ -111,12 +111,31 @@ D69 accepted duplication between `rigline` and core — `UserError` and the `$RI
 two files with a test holding them together — as the price of the wrapper declaring no Rigline
 dependency. A third copy in the companion is where that price stops being worth paying.
 
-The options, in order of preference, to be decided in 8a once the shape is real rather than
-imagined: the companion depends on the `rigline` package and imports its acquisition functions as a
-library, which is not what D69 forbids (D69 is about a *project* taking the CLI as a dependency to
-get its bin); or the acquisition logic moves to a small package both consume; or, last, a third copy
-with the same test discipline. What decides it is whether `rigline`'s internals are importable
-without dragging its CLI surface along.
+**Settled: the companion takes `rigline` as a `workspace:*` dependency and bundles its acquisition
+module.** `packages/vscode` is private and bundled, exactly as `@rigline/host` is, so a workspace
+dependency is inlined at build time and nothing has to resolve at runtime.
+
+What decided it is a constraint that only shows up once the packaging is looked at rather than
+reasoned about. `rigline` publishes **unbundled** tsc output with `files: ["dist"]`, so it cannot
+consume a private workspace package — that is the `@rigline/host` trap m7 opens with, where
+`node_modules/host/dist` does not exist in a published install. So "move acquisition into a small
+package both consume" costs either a fifth published package, with its own manifest, trusted
+publisher and CI rung, or a change to how `rigline` builds. Neither is worth it for one consumer,
+and the second is m7's territory reopened mid-milestone.
+
+The companion has no such constraint, because it bundles. So the sharing goes one way: the thing
+that bundles imports from the thing that does not.
+
+`rigline` gains a narrow `exports` map — one subpath for the acquisition module, nothing else.
+Adding `exports` to a package that has none *narrows* rather than widens: every other subpath becomes
+inaccessible, which is the right direction and is why this does not contradict D69. D69 forbids a
+*project* taking `rigline` as a dependency to get its bin, and the README still says so; a sibling in
+the same repository importing one module to avoid a third copy of `findNpmCli` is not that.
+
+The cost, stated so it is not a surprise: the VSIX carries a snapshot of acquisition logic and can
+only update it by republishing. That is not a flaw in the choice — it is D69's own physics, since
+acquisition is exactly the layer that cannot update itself. It is also why acquisition is the one
+part of Rigline that should stay small enough to be worth freezing.
 
 ## What the companion does
 

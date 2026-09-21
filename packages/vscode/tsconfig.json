@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["esnext"],
+    "types": ["node"],
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    // The companion bundles, so it may reach the wrapper's source directly (D80). The wrapper
+    // cannot return the favour: it publishes unbundled, so a private package in its imports would
+    // resolve here and be missing in a tarball.
+    "paths": {
+      "rigline/engine": ["../cli/src/engine.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"]
+}

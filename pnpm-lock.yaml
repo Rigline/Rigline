@@ -175,6 +175,12 @@ importers:
 
   packages/plugin-api: {}
 
+  packages/vscode:
+    dependencies:
+      rigline:
+        specifier: workspace:*
+        version: link:../cli
+
   plugins/probe:
     devDependencies:
       '@rigline/core':

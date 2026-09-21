@@ -1315,6 +1315,13 @@ final release that restores every install to Anthropic's own bytes. That costs n
 `rigline restore` is already the recovery path and is exercised on every uninstall — and it is the
 difference between a project that has thought about this and one that is hoping not to be noticed.
 
+**Silence is the expected answer, and it blocks nothing.** Leo owns the approach to Anthropic and
+expects no reply; a project this size is unlikely to reach anybody's desk. So no phase waits on one,
+and no session should treat the absence of a response as an open question to chase. Nor is it
+approval: if somebody later writes that Anthropic were fine with this, the honest sentence is that
+they were asked and did not answer. What a reply would change is recorded where it lands — D78's
+trigger if they object, D76's channel decision if they would rather it were listed.
+
 **D78. Install-time-only signature verification is a premise, not a guarantee (2026-09-21).** VS
 Code verifies an extension's signature when it installs it and not afterwards, which is the fact the
 entire project rests on — CLI and companion alike. It is not a commitment Microsoft has made, it is
@@ -1395,6 +1402,21 @@ quietly fetching from npm is what a reviewer would object to. Withdrawn: it is t
 performs on first run, for a user who installed a VSIX called Rigline, and refusing would mean the
 companion could not do the one job it exists for. It says what it fetches and reports the result
 rather than declining to fetch — which is P8 rather than an exception to it.
+
+**This amends D69, which said `rigline` appears in no project's dependencies.** `packages/vscode`
+declares it, and the guard test now allows that one package by name and exactly — a second entry
+fails there rather than passing quietly. The amendment is narrow because D69's argument is narrow: a
+project that can declare dependencies should declare `@rigline/core`, since taking the shell when
+you can have the substance is the payload mistake one layer down. The companion is the case where
+the substance is what must be avoided. It never runs the wrapper's bin; it bundles one module for
+acquisition, so nothing reaches a registry at build time and the slow pnpm failure D69 warns about
+cannot happen.
+
+**Reuse cost the wrapper a parameter, which is the whole of what sharing meant here.** `engine.ts`
+had `process.execPath` baked into four call sites — locating npm, running it, and running the engine
+twice — all correct for a Node process and all wrong inside Electron. `EngineOptions.nodePath`
+defaults to `process.execPath` and changes nothing for the CLI. Finding what to pass it is the
+companion's own module, because the wrapper never needs to search: it is already running the answer.
 
 ### Toolchain and verification
 

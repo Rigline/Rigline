@@ -215,6 +215,33 @@ describe("updateEngine", () => {
     expect(calls[0]).toContain(`${ENGINE_PACKAGE}@1.0.0-alpha.7`);
   });
 
+  it("runs npm with the Node it was given rather than this process (D80)", async () => {
+    // What the companion extension needs: there `process.execPath` is VS Code's Electron binary,
+    // which has no npm beside it and cannot run the engine's entry. `findNpmCli` still pairs npm to
+    // that Node, which is why the fake one gets a real npm beside it rather than a stubbed `exists`.
+    const prefix = temp();
+    const beside = temp();
+    const node = join(beside, "node.exe");
+    mkdirSync(join(beside, "node_modules", "npm", "bin"), { recursive: true });
+    writeFileSync(join(beside, "node_modules", "npm", "bin", "npm-cli.js"), "");
+
+    const commands: string[] = [];
+    const update = await updateEngine({
+      home: prefix,
+      nodePath: node,
+      version: "1.0.0-alpha.7",
+      registry: npm("1.0.0-alpha.7"),
+      spawnImpl: (command, _args) => {
+        commands.push(command);
+        writeEngine(engineDir(prefix), core("1.0.0-alpha.7"));
+        return fakeChild(0);
+      },
+    });
+
+    expect(update).toMatchObject({ outcome: "installed", to: "1.0.0-alpha.7" });
+    expect(commands).toEqual([node]);
+  });
+
   it("leaves an engine already on what its tag resolves to, and spawns nothing", async () => {
     const prefix = temp();
     writeEngine(engineDir(prefix), core("1.0.0-alpha.7"));

@@ -172,6 +172,14 @@ export interface EngineOptions {
   readonly spawnImpl?: SpawnLike;
   /** This wrapper's version, for the major check. Read from its own manifest by default. */
   readonly version?: string;
+  /**
+   * The Node that runs npm and the engine, and the one `findNpmCli` pairs against (D73).
+   *
+   * Defaults to this process, which is right for the CLI and wrong for the companion extension:
+   * there `process.execPath` is VS Code's Electron binary, with no npm beside it and no ability to
+   * run the engine's entry (D80).
+   */
+  readonly nodePath?: string;
 }
 
 /** A located engine, and the two ways the wrapper runs it. */
@@ -240,8 +248,9 @@ async function resolveEngine(options: EngineOptions) {
 /** Run npm. Its output is held back and printed only if it fails, where it is the whole diagnosis. */
 async function installEngine(prefix: string, spec: string, options: EngineOptions): Promise<void> {
   mkdirSync(prefix, { recursive: true });
-  const argv = engineInstallArgv({ npmCli: findNpmCli(), prefix, specs: [spec] });
-  const run = await capture(process.execPath, argv, options.spawnImpl);
+  const node = options.nodePath ?? process.execPath;
+  const argv = engineInstallArgv({ npmCli: findNpmCli(node), prefix, specs: [spec] });
+  const run = await capture(node, argv, options.spawnImpl);
   if (run.code !== 0) {
     throw new UserError(
       `installing ${spec} into ${prefix} failed (npm exited ${run.code}).\n${run.output.trim()}`,
@@ -251,19 +260,20 @@ async function installEngine(prefix: string, spec: string, options: EngineOption
 
 function engineAt(state: { version: string; entry: string }, options: EngineOptions): Engine {
   const spawnImpl = options.spawnImpl ?? nodeSpawn;
+  const node = options.nodePath ?? process.execPath;
   return {
     version: state.version,
     entry: state.entry,
     run: (argv) =>
       new Promise((done, fail) => {
-        const child = spawnImpl(process.execPath, [state.entry, ...argv], {
+        const child = spawnImpl(node, [state.entry, ...argv], {
           stdio: ["inherit", "inherit", "inherit"],
         });
         child.on("error", fail);
         child.on("close", (code) => done(code ?? 1));
       }),
     json: async (argv) => {
-      const run = await capture(process.execPath, [state.entry, ...argv], spawnImpl, "inherit");
+      const run = await capture(node, [state.entry, ...argv], spawnImpl, "inherit");
       if (run.code !== 0) {
         throw new UserError(`the engine exited ${run.code} for \`${argv.join(" ")}\``);
       }
