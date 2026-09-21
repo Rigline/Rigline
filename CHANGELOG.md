@@ -12,6 +12,12 @@ anything may change between releases.
 
 ### Fixed
 
+- The companion declares that it needs a trusted workspace, and its VS Code floor drops to
+  1.75. Saying nothing about workspace trust is itself a choice, and the worst one available:
+  VS Code disables an undeclared extension in an untrusted workspace while still listing it as
+  installed, so the symptom is an extension that is present, enabled, compatible and entirely
+  silent. The floor was a guess at `^1.90.0` and nothing needed it — an output channel, a
+  status bar item and `extensions.onDidChange` are all long-standing API.
 - The companion's status bar no longer reports success when there is nothing to inject into.
   Installing it before the Claude Code extension left a green `Rigline` badge over a Rigline
   that had done nothing, because the engine's `install` exits 0 when no extension is present

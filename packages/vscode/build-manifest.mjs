@@ -25,8 +25,22 @@ const manifest = {
   publisher: "rigline",
   license: "MIT",
   repository: { type: "git", url: "git+https://github.com/Rigline/Rigline.git" },
-  engines: { vscode: "^1.90.0" },
+  // The floor is what the API needs, which is very little: `extensions.onDidChange`, a status bar
+  // item and an output channel are all old. Kept low on purpose — a compatibility shim that refuses
+  // to load on the editor it is meant to shim would be a poor joke.
+  engines: { vscode: "^1.75.0" },
   categories: ["Other"],
+  // Declared because *not* declaring it is a decision too, and a worse one: VS Code disables an
+  // extension that says nothing here in an untrusted workspace, listing it all the while, so the
+  // symptom is an extension that is installed, enabled, compatible and silent. Claude Code says the
+  // same thing about itself, which settles the question — there is nothing for the companion to do
+  // in a workspace the extension it patches will not run in either.
+  capabilities: {
+    untrustedWorkspaces: {
+      supported: false,
+      description: "Rigline runs npm and patches the installed Claude Code extension.",
+    },
+  },
   // Not an activation on the Claude Code extension itself: the companion must run when that
   // extension is *replaced*, which is exactly when nothing of it is activating (D80).
   activationEvents: ["onStartupFinished"],
