@@ -139,16 +139,16 @@ importers:
       '@rigline/core':
         specifier: workspace:*
         version: link:../core
-    devDependencies:
-      rolldown:
-        specifier: ^1.2.8
-        version: 1.2.8
 
   packages/core:
     dependencies:
       '@rigline/plugin-api':
         specifier: workspace:*
         version: link:../plugin-api
+    devDependencies:
+      rolldown:
+        specifier: ^1.2.8
+        version: 1.2.8
 
   packages/create-plugin:
     devDependencies:

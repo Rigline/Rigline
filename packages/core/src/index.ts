@@ -30,6 +30,7 @@ export { collect } from "./doctor/collect.ts";
 export type { BakedPlugin, BakedRegistry, FileFact, InstallState } from "./doctor/install.ts";
 export { fileFact, installState, installStates, parseRegistry } from "./doctor/install.ts";
 export { formatBytes, formatDoctor, formatTime } from "./doctor/report.ts";
+export { runEngine } from "./engine/main.ts";
 export { UserError } from "./errors.ts";
 export {
   HOST_BACKUP,

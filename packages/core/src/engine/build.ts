@@ -11,8 +11,8 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
-import { UserError } from "@rigline/core";
 import type { build as bundle } from "rolldown";
+import { UserError } from "../errors.ts";
 
 /**
  * Rolldown, loaded when a build is actually asked for.

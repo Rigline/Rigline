@@ -34,11 +34,17 @@
       "default": "./dist/index.js"
     }
   },
+  "bin": {
+    "rigline-engine": "./dist/engine/bin.js"
+  },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "node ../../scripts/clean-dist.mjs --keep bundled && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "@rigline/plugin-api": "workspace:*"
+  },
+  "devDependencies": {
+    "rolldown": "^1.2.8"
   }
 }
