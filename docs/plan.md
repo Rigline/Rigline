@@ -360,24 +360,17 @@ phase justifying itself on the two days it took to build.
 [host.md](host.md), [verification.md](verification.md) and [authoring.md](authoring.md), and the
 argument is D63 to D68.
 
-## Blocking: the first-party plugins do not reach a user
+## Blocking: Rigline does not reach a user
 
-`npm install -g rigline && rigline install` injects a loader with nothing in it. All four
-first-party plugins are `private: true` and have never been published, so the only route to a
-working Rigline is a clone of this repository — which the distribution model says is for developing
-Rigline, not for using it. There is no recorded decision behind any of that; they are private
-because nobody has said otherwise.
+`npm install -g rigline && rigline install` does not inject at all — no published package carries
+the payload, and none carries a plugin. Nothing downstream of this is worth doing: a person who
+installs from npm cannot tell a correct install from a broken one, because the badge that would tell
+them is itself unpublished.
 
-That makes the published `rigline` a delivery mechanism with nothing to deliver, which is backwards
-for the reason the opening section gives: these three plugins are the point. Nothing downstream of
-this is worth doing until it is settled — a person who installs from npm today cannot tell a correct
-install from a broken one, because the badge that would tell them is itself unpublished.
-
-Settle the shape before writing anything. The known forks: whether the three ship *with* the CLI or
-are installed by name; whether the probe is a plugin like the others or part of Rigline proper;
-whether plugin versions stay pinned to the workspace version or move independently; and what each
-answer costs at release time, since every published package is another approval click and the four
-are already the slowest part of a release (D61, amended).
+The shape is settled. **[m7-distribution.md](m7-distribution.md)** owns it: the split between the
+`rigline` retrieval layer and the `@rigline/core` engine, the payload and the four first-party
+plugins as bundled assets, the engine's own install path, and the phases with their acceptance
+criteria.
 
 ## Open questions, not blocking
 
