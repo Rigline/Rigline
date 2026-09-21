@@ -5,16 +5,13 @@
  * name is not the plugin's, a name already taken somewhere `add` does not own, a `config.json`
  * carrying something this code has never heard of, and a `remove` pointed at a checkout.
  */
-import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { packageTarball } from "../../test/tar.ts";
 import { UserError } from "../errors.ts";
 import { readConfig } from "./discover.ts";
-import { addFromNpm, addPlugin, removePlugin, setPluginEnabled, updatePlugins } from "./manage.ts";
-import type { FetchLike, RegistryOptions } from "./registry.ts";
+import { addPlugin, parseSource, removePlugin, setPluginEnabled } from "./manage.ts";
 
 const dirs: string[] = [];
 
@@ -71,101 +68,6 @@ const AT = new Date("2026-09-18T11:00:00.000Z");
  * A registry serving one package, built from these tarballs. The `fetch` is the whole of the
  * network: no test in this file reaches one.
  */
-const REGISTRY = "https://registry.example";
-const NOW = Date.parse("2026-09-18T12:00:00.000Z");
-const AGES_AGO = "2026-09-01T12:00:00.000Z";
-const MINUTES_AGO = "2026-09-18T11:20:00.000Z";
-const CODE = "export default { setup() {} };";
-
-interface PublishedVersion {
-  readonly files: Readonly<Record<string, string>>;
-}
-
-/** A published version carrying a valid plugin, unless told to carry something else. */
-function plugin(
-  options: { readonly name?: string; readonly extra?: Readonly<Record<string, string>> } = {},
-): PublishedVersion {
-  return {
-    files: {
-      "rigline.json": JSON.stringify({
-        api: 1,
-        name: options.name ?? "clock",
-        description: "Clock.",
-        entry: "dist/index.js",
-        uses: { mount: true },
-      }),
-      "dist/index.js": CODE,
-      ...options.extra,
-    },
-  };
-}
-
-const published: Record<string, PublishedVersion> = {
-  "1.1.0": plugin(),
-  "1.2.0": plugin(),
-};
-
-function tarballOf(version: PublishedVersion): Buffer {
-  return packageTarball(version.files);
-}
-
-function integrityOf(version: PublishedVersion): string {
-  return `sha512-${createHash("sha512").update(tarballOf(version)).digest("base64")}`;
-}
-
-interface NpmOptions {
-  readonly name?: string;
-  readonly versions?: Readonly<Record<string, PublishedVersion>>;
-  readonly tags?: Readonly<Record<string, string>>;
-  readonly publishedAt?: string;
-  /** Serve bytes that are not the ones the packument described. */
-  readonly corrupt?: boolean;
-}
-
-function npm(options: NpmOptions = {}): RegistryOptions {
-  const name = options.name ?? "clock";
-  const versions = options.versions ?? published;
-  const tags = options.tags ?? { latest: Object.keys(versions).sort().at(-1) as string };
-  const time = Object.fromEntries(
-    Object.keys(versions).map((v) => [v, options.publishedAt ?? AGES_AGO]),
-  );
-  const packument = {
-    "dist-tags": tags,
-    time,
-    versions: Object.fromEntries(
-      Object.entries(versions).map(([v, release]) => [
-        v,
-        { dist: { tarball: `${REGISTRY}/${name}/-/${v}.tgz`, integrity: integrityOf(release) } },
-      ]),
-    ),
-  };
-
-  const fetchImpl: FetchLike = async (url: string) => {
-    if (url === `${REGISTRY}/${name.replace("/", "%2F")}`) return serve(200, packument);
-    const match = /-\/([^/]+)\.tgz$/.exec(url);
-    const release = match ? versions[match[1] as string] : undefined;
-    if (release === undefined) return serve(404, {});
-    return serve(200, options.corrupt ? Buffer.from("not the bytes") : tarballOf(release));
-  };
-  return { registry: REGISTRY, fetchImpl, clock: () => NOW };
-}
-
-function serve(status: number, body: unknown) {
-  const bytes = Buffer.isBuffer(body) ? body : Buffer.from(JSON.stringify(body), "utf8");
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    json: async () => JSON.parse(bytes.toString("utf8")) as unknown,
-    arrayBuffer: async () =>
-      bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
-  };
-}
-
-/** A plugin directory on disk, for the cases that mix a local source in with a registry one. */
-function localPlugin(name: string): string {
-  return source({ name });
-}
-
 describe("addPlugin", () => {
   it("copies the plugin in, records where it came from, and says what it can do", () => {
     const paths = home();
@@ -337,225 +239,6 @@ describe("removePlugin", () => {
   });
 });
 
-describe("addFromNpm", () => {
-  it("unpacks, validates and records the version and the tag it followed", async () => {
-    const paths = home();
-    const result = await addFromNpm({
-      spec: "clock",
-      ...paths,
-      registry: npm(),
-      now: () => AT,
-    });
-
-    expect(result.name).toBe("clock");
-    expect(result.from).toBe("clock@1.2.0");
-    expect(readFileSync(join(paths.pluginsDir, "clock", "dist", "index.js"), "utf8")).toBe(CODE);
-    expect(readConfig(paths.configPath).sources.clock).toEqual({
-      kind: "npm",
-      name: "clock",
-      version: "1.2.0",
-      tag: "latest",
-      integrity: integrityOf(published["1.2.0"] as PublishedVersion),
-      addedAt: AT.toISOString(),
-    });
-  });
-
-  it("records no tag when a person named the version, which is how they pin it", async () => {
-    const paths = home();
-    await addFromNpm({ spec: "clock@1.1.0", ...paths, registry: npm() });
-    const source = readConfig(paths.configPath).sources.clock;
-    expect(source).toMatchObject({ kind: "npm", version: "1.1.0", tag: null });
-  });
-
-  it("takes the plugin's name from its manifest, not from the package it shipped in", async () => {
-    // An npm package is named for a registry and a plugin is named for itself (D58).
-    const paths = home();
-    const result = await addFromNpm({
-      spec: "rigline-plugin-clock",
-      ...paths,
-      registry: npm({
-        name: "rigline-plugin-clock",
-        versions: { "1.0.0": plugin({ name: "clock" }) },
-        tags: { latest: "1.0.0" },
-      }),
-    });
-    expect(result.name).toBe("clock");
-    expect(result.dir).toBe(join(paths.pluginsDir, "clock"));
-    expect(readConfig(paths.configPath).sources.clock).toMatchObject({
-      name: "rigline-plugin-clock",
-    });
-  });
-
-  it("writes nothing when the version is too young (D48)", async () => {
-    const paths = home();
-    await expect(
-      addFromNpm({
-        spec: "clock",
-        ...paths,
-        registry: npm({ publishedAt: MINUTES_AGO }),
-      }),
-    ).rejects.toThrow(/was published 40 minutes ago/);
-    expect(existsSync(join(paths.pluginsDir, "clock"))).toBe(false);
-    expect(existsSync(paths.configPath)).toBe(false);
-  });
-
-  it("takes a young version on --now, having said what it is", async () => {
-    const paths = home();
-    const result = await addFromNpm({
-      spec: "clock",
-      ...paths,
-      registry: { ...npm({ publishedAt: MINUTES_AGO }), ignoreReleaseAge: true },
-    });
-    expect(result.name).toBe("clock");
-  });
-
-  it("writes nothing when the package is not a plugin at all", async () => {
-    const paths = home();
-    await expect(
-      addFromNpm({
-        spec: "clock",
-        ...paths,
-        registry: npm({ versions: { "1.2.0": { files: { "index.js": CODE } } } }),
-      }),
-    ).rejects.toThrow(/has no rigline.json, so it is not a Rigline plugin/);
-    expect(existsSync(join(paths.pluginsDir, "clock"))).toBe(false);
-  });
-
-  it("writes nothing when the manifest inside does not hold up", async () => {
-    const paths = home();
-    await expect(
-      addFromNpm({
-        spec: "clock",
-        ...paths,
-        registry: npm({
-          versions: { "1.2.0": { files: { "rigline.json": '{"api":1,"name":"clock"}' } } },
-        }),
-      }),
-    ).rejects.toThrow(/is not a valid manifest/);
-    expect(existsSync(join(paths.pluginsDir, "clock"))).toBe(false);
-  });
-
-  it("writes nothing when the bytes are not the ones the registry described", async () => {
-    const paths = home();
-    await expect(
-      addFromNpm({ spec: "clock", ...paths, registry: npm({ corrupt: true }) }),
-    ).rejects.toThrow(/does not match its recorded integrity/);
-    expect(existsSync(join(paths.pluginsDir, "clock"))).toBe(false);
-  });
-
-  it("drops a test file from the tarball, as every other route into the directory does", async () => {
-    const paths = home();
-    await addFromNpm({
-      spec: "clock",
-      ...paths,
-      registry: npm({
-        versions: {
-          "1.2.0": plugin({ extra: { "src/index.test.js": "test", "README.md": "docs" } }),
-        },
-      }),
-    });
-    const dir = join(paths.pluginsDir, "clock");
-    expect(existsSync(join(dir, "README.md"))).toBe(true);
-    expect(existsSync(join(dir, "src", "index.test.js"))).toBe(false);
-  });
-});
-
-describe("updatePlugins", () => {
-  it("moves a plugin to what its tag resolves to now, keeping the tag", async () => {
-    const paths = home();
-    await addFromNpm({ spec: "clock@1.1.0", ...paths, registry: npm() });
-    // Re-record it as following a tag, which is what `add clock` would have written.
-    await addFromNpm({ spec: "clock", ...paths, registry: npm({ tags: { latest: "1.1.0" } }) });
-
-    const updates = await updatePlugins({ ...paths, registry: npm() });
-
-    expect(updates).toEqual([{ name: "clock", outcome: "updated", from: "1.1.0", to: "1.2.0" }]);
-    expect(readConfig(paths.configPath).sources.clock).toMatchObject({
-      version: "1.2.0",
-      tag: "latest",
-    });
-  });
-
-  it("says so and moves nothing when the tag resolves where you already are", async () => {
-    const paths = home();
-    await addFromNpm({ spec: "clock", ...paths, registry: npm() });
-    const updates = await updatePlugins({ ...paths, registry: npm() });
-    expect(updates).toEqual([{ name: "clock", outcome: "current", from: "1.2.0" }]);
-  });
-
-  it("leaves a pinned plugin pinned", async () => {
-    const paths = home();
-    await addFromNpm({ spec: "clock@1.1.0", ...paths, registry: npm() });
-    const updates = await updatePlugins({ ...paths, registry: npm() });
-    expect(updates).toEqual([{ name: "clock", outcome: "pinned", from: "1.1.0" }]);
-  });
-
-  it("names a newer version it is holding back rather than hiding it (D48)", async () => {
-    const paths = home();
-    await addFromNpm({ spec: "clock", ...paths, registry: npm({ tags: { latest: "1.1.0" } }) });
-
-    const updates = await updatePlugins({ ...paths, registry: npm({ publishedAt: MINUTES_AGO }) });
-
-    expect(updates[0]).toMatchObject({
-      name: "clock",
-      outcome: "withheld",
-      from: "1.1.0",
-      to: "1.2.0",
-    });
-    expect(updates[0]?.reason).toContain("--now");
-    expect(readConfig(paths.configPath).sources.clock).toMatchObject({ version: "1.1.0" });
-  });
-
-  it("follows the tag backwards, because a maintainer who moved it meant to", async () => {
-    const paths = home();
-    await addFromNpm({ spec: "clock", ...paths, registry: npm() });
-    const updates = await updatePlugins({ ...paths, registry: npm({ tags: { latest: "1.1.0" } }) });
-    expect(updates).toEqual([{ name: "clock", outcome: "updated", from: "1.2.0", to: "1.1.0" }]);
-  });
-
-  it("reports what it cannot update rather than skipping it in silence", async () => {
-    const paths = home();
-    addPlugin({ from: localPlugin("local"), ...paths });
-    mkdirSync(join(paths.pluginsDir, "by-hand"), { recursive: true });
-    writeFileSync(join(paths.pluginsDir, "by-hand", "rigline.json"), "{}");
-
-    const updates = await updatePlugins({ ...paths, registry: npm() });
-
-    expect(updates.map((u) => [u.name, u.outcome])).toEqual([
-      ["by-hand", "unmanaged"],
-      ["local", "local"],
-    ]);
-  });
-
-  it("carries on past a plugin whose registry is unreachable", async () => {
-    const paths = home();
-    await addFromNpm({ spec: "clock", ...paths, registry: npm() });
-    addPlugin({ from: localPlugin("local"), ...paths });
-
-    const updates = await updatePlugins({
-      ...paths,
-      registry: {
-        registry: REGISTRY,
-        fetchImpl: () => Promise.reject(new Error("ECONNREFUSED")),
-      },
-    });
-
-    expect(updates.map((u) => [u.name, u.outcome])).toEqual([
-      ["clock", "failed"],
-      ["local", "local"],
-    ]);
-    expect(updates[0]?.reason).toContain("ECONNREFUSED");
-    // Still installed, on the version it was on: a failed fetch is not a reason to lose a plugin.
-    expect(readConfig(paths.configPath).sources.clock).toMatchObject({ version: "1.2.0" });
-  });
-
-  it("names a plugin asked for that is not installed", async () => {
-    const paths = home();
-    const updates = await updatePlugins({ ...paths, names: ["ghost"], registry: npm() });
-    expect(updates[0]).toMatchObject({ name: "ghost", outcome: "failed" });
-  });
-});
-
 describe("the bundled set", () => {
   /** A stand-in for core's `dist/bundled/plugins`: a root whose names may be taken (D71). */
   function bundledRootWith(name: string): string {
@@ -664,5 +347,37 @@ describe("setPluginEnabled", () => {
       ),
     ).toThrow(UserError);
     expect(readConfig(paths.configPath).disabled).toEqual([]);
+  });
+});
+
+describe("parseSource", () => {
+  it("takes a record this engine can read back", () => {
+    const source = {
+      kind: "npm",
+      name: "clock",
+      version: "1.0.0",
+      tag: "latest",
+      integrity: "sha512-x",
+      addedAt: "2026-09-18T11:00:00.000Z",
+    };
+    expect(parseSource(JSON.stringify(source))).toEqual(source);
+  });
+
+  it("refuses a kind it does not know, naming it and the way out (D74)", () => {
+    // Refuses where `readConfig` skips: recording this would leave the plugin looking hand-placed
+    // to the very install that just added it.
+    expect(() => parseSource(JSON.stringify({ kind: "git", url: "x" }))).toThrow(/"git"/);
+    expect(() => parseSource(JSON.stringify({ kind: "git", url: "x" }))).toThrow(/rigline update/);
+  });
+
+  it("refuses a known kind that is missing fields, and says which problem it is", () => {
+    expect(() => parseSource(JSON.stringify({ kind: "npm", name: "clock" }))).toThrow(
+      /missing fields/,
+    );
+  });
+
+  it("refuses something that is not a record at all", () => {
+    expect(() => parseSource("not json")).toThrow(/not valid JSON/);
+    expect(() => parseSource(JSON.stringify({ from: "/x" }))).toThrow(/no `kind`/);
   });
 });

@@ -6,8 +6,8 @@
  */
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { packageTarball } from "../../test/tar.ts";
-import { UserError } from "../errors.ts";
+import { packageTarball } from "../test/tar.ts";
+import { UserError } from "./errors.ts";
 import {
   describeAge,
   type FetchLike,

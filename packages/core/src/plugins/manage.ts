@@ -12,36 +12,17 @@
  * Nothing here runs a package manager, resolves a dependency, or evaluates a line of the plugin
  * (D47, D12). A plugin that needs any of those is a plugin Rigline does not install.
  */
-import {
-  cpSync,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
-import { basename, dirname, join, relative, resolve } from "node:path";
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { basename, join, relative, resolve } from "node:path";
 import { describeUses, type Uses, type ValidManifest } from "@rigline/plugin-api";
 import { UserError } from "../errors.ts";
 import {
-  checkManifest,
   isPluginOutput,
-  type NpmSource,
+  isPluginSource,
   type PluginSource,
-  readConfig,
   readManifest,
   updateConfig,
 } from "./discover.ts";
-import {
-  fetchTarball,
-  parsePluginSpec,
-  type RegistryOptions,
-  releaseAgeProblem,
-  resolveVersion,
-} from "./registry.ts";
-import { readPackageTarball, type TarFile } from "./tarball.ts";
 
 export interface AddOptions {
   /** The plugin directory to copy from. */
@@ -62,6 +43,15 @@ export interface AddOptions {
    * lists would put the distinction in every caller.
    */
   readonly bundledRoot?: string;
+  /**
+   * Where this plugin came from, when somebody other than `add` established it (D74).
+   *
+   * The wrapper resolves, fetches and vets a remote plugin, stages it into a directory and hands
+   * that directory here — so the bytes arrive as a path like any other and the provenance arrives
+   * beside them, because a copy cannot say where it was copied from. Absent means what it says: a
+   * person pointed `add` at a directory, and that is recorded as a `path` source.
+   */
+  readonly source?: PluginSource;
   /** For a test that asserts on the recorded instant. */
   readonly now?: () => Date;
 }
@@ -123,7 +113,7 @@ export function addPlugin(options: AddOptions): AddResult {
     configPath: options.configPath,
     otherRoots: options.otherRoots,
     bundledRoot: options.bundledRoot,
-    source: { kind: "path", from, addedAt: stamp(options.now) },
+    source: options.source ?? { kind: "path", from, addedAt: stamp(options.now) },
     write: (dir) =>
       cpSync(from, dir, {
         recursive: true,
@@ -209,6 +199,36 @@ function place(placement: Placement): AddResult {
 
 function stamp(now?: () => Date): string {
   return (now?.() ?? new Date()).toISOString();
+}
+
+const KNOWN_SOURCE_KINDS = ["path", "npm"] as const;
+
+/**
+ * A source record handed in from outside, checked before it is written (D74).
+ *
+ * Refuses where `readConfig` skips: recording a kind this engine cannot read back would leave the
+ * plugin looking hand-placed to the install that just added it.
+ */
+export function parseSource(json: string): PluginSource {
+  let value: unknown;
+  try {
+    value = JSON.parse(json);
+  } catch (error) {
+    throw new UserError(`the source record is not valid JSON: ${(error as Error).message}`);
+  }
+  const kind = (value as { kind?: unknown } | null)?.kind;
+  if (typeof kind !== "string") {
+    throw new UserError("the source record has no `kind`, so nothing can be recorded from it");
+  }
+  if (!isPluginSource(value)) {
+    throw new UserError(
+      KNOWN_SOURCE_KINDS.includes(kind as (typeof KNOWN_SOURCE_KINDS)[number])
+        ? `the source record of kind "${kind}" is missing fields this needs`
+        : `this engine does not know source kind "${kind}"; a newer @rigline/core may. ` +
+            "Run `rigline update` to move the engine on, or add the plugin from a directory.",
+    );
+  }
+  return value;
 }
 
 export interface SwitchOptions {
@@ -348,254 +368,8 @@ function nameInJson(json: string): string | null {
   }
 }
 
-/**
- * A manifest's `entry` as a tarball spells its own paths.
- *
- * A manifest written on Windows may name its entry `dist\\index.js`, and the archive it ships in
- * will not: tar separates with a forward slash wherever it was made.
- */
-function normalizePath(path: string): string {
-  return path.replace(/\\/g, "/");
-}
-
 function asObject(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
-}
-
-export interface AddFromNpmOptions {
-  /** `clock`, `clock@1.2.0`, `clock@next`, `@scope/clock` (D58). */
-  readonly spec: string;
-  readonly pluginsDir: string;
-  readonly configPath: string;
-  readonly otherRoots?: readonly string[];
-  /** Which of `otherRoots` is the bundled set, which `add` may take a name from (D71). */
-  readonly bundledRoot?: string;
-  readonly registry?: RegistryOptions;
-  readonly now?: () => Date;
-}
-
-/**
- * Installs a plugin from a registry: resolve, fetch, check the bytes, read the tarball in memory,
- * validate the manifest, and only then write (D47, D48, D49).
- *
- * The order is the point. Nothing is written until the version has cleared the release-age gate,
- * the bytes have matched their integrity hash, the archive has been read by a reader that refuses
- * everything but plain files under `package/` (D57), and the manifest inside it has been held to
- * exactly the rules a plugin discovered on disk is held to. A tarball that fails any of those
- * leaves the plugins directory as it found it.
- */
-export async function addFromNpm(options: AddFromNpmOptions): Promise<AddResult> {
-  const spec = parsePluginSpec(options.spec);
-  const resolved = await resolveVersion(spec, options.registry);
-  const label = `${resolved.name}@${resolved.version}`;
-
-  const withheld = releaseAgeProblem(resolved, options.registry);
-  if (withheld !== null) throw new UserError(withheld);
-
-  const files = readPackageTarball(await fetchTarball(resolved, options.registry), label).filter(
-    (file) => isPluginOutput(file.path),
-  );
-
-  const manifest = manifestIn(files, label);
-  const source: NpmSource = {
-    kind: "npm",
-    name: resolved.name,
-    version: resolved.version,
-    tag: resolved.tag,
-    integrity: resolved.integrity,
-    addedAt: stamp(options.now),
-  };
-
-  return place({
-    manifest,
-    from: label,
-    pluginsDir: options.pluginsDir,
-    configPath: options.configPath,
-    otherRoots: options.otherRoots,
-    bundledRoot: options.bundledRoot,
-    source,
-    write: (dir) => {
-      for (const file of files) {
-        const target = join(dir, file.path);
-        mkdirSync(dirname(target), { recursive: true });
-        writeFileSync(target, file.bytes);
-      }
-    },
-  });
-}
-
-/** The manifest carried by an unpacked tarball, held to the same rules as one read off disk. */
-function manifestIn(files: readonly TarFile[], label: string): ValidManifest {
-  const found = files.find((file) => file.path === "rigline.json");
-  if (found === undefined) {
-    throw new UserError(
-      `${label} has no rigline.json, so it is not a Rigline plugin. Check the package name.`,
-    );
-  }
-  const present = new Set(files.map((file) => file.path));
-  const json = found.bytes.toString("utf8");
-  // The name to check against is the one the manifest gives itself: an npm package is named for a
-  // registry and a plugin is named for itself, and the two need not agree (D58).
-  return checkManifest({
-    json,
-    expectedName: nameInJson(json) ?? label,
-    label: `${label}: rigline.json`,
-    hasFile: (path) => present.has(normalizePath(path)),
-  });
-}
-
-/** What `update` did about one plugin. */
-export interface PluginUpdate {
-  readonly name: string;
-  readonly outcome:
-    | "updated"
-    | "current"
-    | "pinned"
-    | "local"
-    | "unmanaged"
-    | "withheld"
-    | "failed";
-  /** The version it was on, for an npm source. */
-  readonly from?: string;
-  /** The version it is on now, or the one that was withheld. */
-  readonly to?: string;
-  /** Why, where the outcome is not self-explanatory. */
-  readonly reason?: string;
-}
-
-export interface UpdatePluginsOptions {
-  readonly pluginsDir: string;
-  readonly configPath: string;
-  readonly otherRoots?: readonly string[];
-  /** Which of `otherRoots` is the bundled set, which `add` may take a name from (D71). */
-  readonly bundledRoot?: string;
-  readonly registry?: RegistryOptions;
-  /** Only these plugins. Absent means every one in the plugins directory. */
-  readonly names?: readonly string[];
-  readonly now?: () => Date;
-}
-
-/**
- * Moves every plugin with an npm source to whatever its tag resolves to now (D49, D58).
- *
- * It never stops at the first failure, for the same reason the install flow does not: a registry
- * that is down, or one plugin whose package has been unpublished, must not cost every other plugin
- * its update. Each becomes a line with a reason, and the caller decides what that is worth.
- *
- * It never asks about what the new version declares, either. A user who installed a plugin should
- * not be re-asked because its author shipped a feature, and a fetch that halts on a widened
- * declaration is the failure that makes people stop fetching (D49). The install-time declaration
- * check still runs afterwards and still refuses a plugin the extension cannot honour (D43).
- */
-export async function updatePlugins(options: UpdatePluginsOptions): Promise<PluginUpdate[]> {
-  const sources = readConfig(options.configPath).sources;
-  const installed = existsSync(options.pluginsDir)
-    ? readdirSync(options.pluginsDir, { withFileTypes: true })
-        .filter((entry) => entry.isDirectory())
-        .map((entry) => entry.name)
-        .sort()
-    : [];
-  const names = options.names ?? installed;
-  const updates: PluginUpdate[] = [];
-
-  for (const name of names) {
-    if (!installed.includes(name)) {
-      updates.push({ name, outcome: "failed", reason: `not installed in ${options.pluginsDir}` });
-      continue;
-    }
-    const source = sources[name];
-    if (source === undefined) {
-      updates.push({ name, outcome: "unmanaged" });
-      continue;
-    }
-    if (source.kind === "path") {
-      updates.push({ name, outcome: "local", reason: source.from });
-      continue;
-    }
-    if (source.tag === null) {
-      updates.push({ name, outcome: "pinned", from: source.version });
-      continue;
-    }
-    updates.push(await updateOne(name, source, options));
-  }
-  return updates;
-}
-
-async function updateOne(
-  name: string,
-  source: NpmSource,
-  options: UpdatePluginsOptions,
-): Promise<PluginUpdate> {
-  try {
-    const resolved = await resolveVersion(
-      { name: source.name, version: null, tag: source.tag },
-      options.registry,
-    );
-    if (resolved.version === source.version) {
-      return { name, outcome: "current", from: source.version };
-    }
-    const withheld = releaseAgeProblem(resolved, options.registry);
-    if (withheld !== null) {
-      return {
-        name,
-        outcome: "withheld",
-        from: source.version,
-        to: resolved.version,
-        reason: withheld,
-      };
-    }
-    const added = await addFromNpm({
-      spec: `${source.name}@${resolved.version}`,
-      pluginsDir: options.pluginsDir,
-      configPath: options.configPath,
-      otherRoots: options.otherRoots,
-      bundledRoot: options.bundledRoot,
-      registry: options.registry,
-      now: options.now,
-    });
-    // Naming a version is how a person pins one, so `add <name>@<version>` records no tag (D58).
-    // This is the tag being followed rather than a pin, so the record keeps it.
-    updateConfig(options.configPath, (config) => {
-      const recorded = asObject(config.sources);
-      const current = asObject(recorded[added.name]);
-      current.tag = source.tag;
-      recorded[added.name] = current;
-      config.sources = recorded;
-    });
-    return { name, outcome: "updated", from: source.version, to: resolved.version };
-  } catch (error) {
-    return {
-      name,
-      outcome: "failed",
-      from: source.version,
-      reason: error instanceof Error ? error.message : String(error),
-    };
-  }
-}
-
-/** A plain-text report of one `update` run, for the CLI. */
-export function formatUpdates(updates: readonly PluginUpdate[]): string {
-  if (updates.length === 0) return "no plugins are installed";
-  return updates.map(updateLine).join("\n");
-}
-
-function updateLine(update: PluginUpdate): string {
-  switch (update.outcome) {
-    case "updated":
-      return `${update.name}: ${update.from} -> ${update.to}`;
-    case "current":
-      return `${update.name}: ${update.from}, which is what its tag resolves to`;
-    case "pinned":
-      return `${update.name}: pinned to ${update.from}; add it again to move it`;
-    case "local":
-      return `${update.name}: added from ${update.reason}; run rigline add again to refresh it`;
-    case "unmanaged":
-      return `${update.name}: placed by hand, so there is nowhere to fetch a newer one from`;
-    case "withheld":
-      return `${update.name}: staying on ${update.from} — ${update.reason}`;
-    default:
-      return `${update.name}: FAILED — ${update.reason}`;
-  }
 }

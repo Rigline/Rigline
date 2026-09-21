@@ -19,7 +19,6 @@ import { basename, join, relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
   type AddResult,
-  addFromNpm,
   addPlugin,
   bundledDir,
   bundledPluginsDir,
@@ -35,7 +34,6 @@ import {
   formatDoctor,
   formatFlow,
   formatPlugins,
-  formatUpdates,
   type Generated,
   generate,
   harvestAll,
@@ -45,6 +43,7 @@ import {
   install,
   installedExtensions,
   listPlugins,
+  parseSource,
   readAnchorOverrides,
   readBundles,
   removePlugin,
@@ -54,7 +53,6 @@ import {
   setPluginEnabled,
   UserError,
   update,
-  updatePlugins,
   verdict,
   watch,
 } from "../index.ts";
@@ -119,9 +117,9 @@ const USAGE = `rigline ${CORE_VERSION}
       you decline one of the plugins bundled in the engine: there is nothing to delete, and
       an engine update would put it back.
 
-  rigline list
+  rigline list [--json]
       Every plugin found, in the order they load: its version, where it came from, whether
-      it is switched off, and what its manifest says it can do.
+      it is switched off, and what its manifest says it can do. --json emits the same as data.
 
   rigline status
       Per installed version: is each bundle vanilla or patched, judged against its backup.
@@ -240,26 +238,36 @@ function reinject(options: ReinjectOptions = {}): number {
  * plugin is the act that says yes, and nothing after it asks again, so the sentences belong here
  * rather than in a prompt nobody can answer usefully.
  */
-async function addCommand(args: string[]): Promise<number> {
+function addCommand(args: string[]): number {
   const { values, positionals } = parseArgs({
     args,
-    options: { now: { type: "boolean", default: false } },
+    options: { source: { type: "string" } },
     allowPositionals: true,
   });
-  if (positionals.length !== 1) {
-    throw new UserError("add needs exactly one plugin directory or npm package");
+  if (positionals.length !== 1) throw new UserError("add needs exactly one plugin directory");
+
+  const from = positionals[0] as string;
+  if (!isPathSpec(from)) {
+    // Reached only by somebody running `rigline-engine` directly, because the wrapper turns a spec
+    // into a path before it gets here (D70). Saying which command owns the other half beats
+    // "no such directory" about a string that was never meant to be one.
+    throw new UserError(
+      `"${from}" is not a directory. The engine's \`add\` takes a path; \`rigline add ${from}\` ` +
+        "is what fetches, checks and stages a published plugin before handing it over.",
+    );
   }
 
   const paths = riglinePaths();
-  const spec = positionals[0] as string;
-  const common = {
+  const result: AddResult = addPlugin({
+    from,
     pluginsDir: paths.plugins,
     configPath: paths.config,
     ...foreignRoots(),
-  };
-  const result: AddResult = isPathSpec(spec)
-    ? addPlugin({ from: spec, ...common })
-    : await addFromNpm({ spec, ...common, registry: { ignoreReleaseAge: values.now } });
+    // Where the bytes came from, when somebody other than this command established it (D74). The
+    // wrapper passes what it resolved; a person pointing at a directory passes nothing and gets a
+    // `path` source.
+    ...(values.source === undefined ? {} : { source: parseSource(values.source) }),
+  });
 
   console.log(`${result.replaced ? "replaced" : "added"} ${result.name} — ${result.dir}`);
   console.log(`  from ${result.from}`);
@@ -299,35 +307,16 @@ function isPathSpec(spec: string): boolean {
 }
 
 /**
- * Moves every plugin installed from npm to what its tag resolves to now (D49).
+ * Refuses, and says which command owns it (D69).
  *
- * `update` means plugins, which is the whole reason the injection flow is spelled `install` (D55).
+ * A process cannot replace the package it is running out of, so `update` belongs to the wrapper
+ * above this one. Reachable only by running `rigline-engine` directly.
  */
-async function updateCommand(args: string[]): Promise<number> {
-  const { values, positionals } = parseArgs({
-    args,
-    options: { now: { type: "boolean", default: false } },
-    allowPositionals: true,
-  });
-  const paths = riglinePaths();
-  const updates = await updatePlugins({
-    pluginsDir: paths.plugins,
-    configPath: paths.config,
-    ...foreignRoots(),
-    names: positionals.length > 0 ? positionals : undefined,
-    registry: { ignoreReleaseAge: values.now },
-  });
-  console.log(formatUpdates(updates));
-
-  const moved = updates.some((u) => u.outcome === "updated");
-  if (!moved) {
-    // Nothing changed on disk, so the payload is already what it should be and re-injecting would
-    // be a paragraph of report about a no-op.
-    return updates.some((u) => u.outcome === "failed") ? 1 : 0;
-  }
-  console.log("");
-  const code = reinject();
-  return updates.some((u) => u.outcome === "failed") ? 1 : code;
+function updateCommand(): number {
+  throw new UserError(
+    "`update` belongs to the rigline command, not the engine: it replaces this engine, and a " +
+      "process cannot replace what it is running out of. Run `rigline update`.",
+  );
 }
 
 /**
@@ -392,22 +381,22 @@ function installCommand(args: string[]): number {
 }
 
 /** The same roots `pluginOptions` discovers from, named for a report rather than for a loader. */
-function listCommand(): number {
+function listCommand(args: string[]): number {
+  const { values } = parseArgs({ args, options: { json: { type: "boolean", default: false } } });
   const paths = riglinePaths();
   const checkout = checkoutPluginsDir();
-  console.log(
-    formatPlugins(
-      listPlugins({
-        roots: [
-          ...(checkout === null ? [] : [{ label: "this checkout", path: checkout }]),
-          { label: paths.plugins, path: paths.plugins, managed: true },
-          { label: "bundled", path: bundledPluginsDir(), bundled: true },
-        ],
-        last: ["probe"],
-        configPath: paths.config,
-      }),
-    ),
-  );
+  const listings = listPlugins({
+    roots: [
+      ...(checkout === null ? [] : [{ label: "this checkout", path: checkout }]),
+      { label: paths.plugins, path: paths.plugins, managed: true },
+      { label: "bundled", path: bundledPluginsDir(), bundled: true },
+    ],
+    last: ["probe"],
+    configPath: paths.config,
+  });
+  // `--json` is how the wrapper learns what `update` can move: `config.json` is the engine's, so
+  // the wrapper asks rather than reads (D74).
+  console.log(values.json ? JSON.stringify(listings) : formatPlugins(listings));
   return 0;
 }
 
@@ -751,7 +740,7 @@ async function main(argv: string[]): Promise<number> {
     case "add":
       return addCommand(rest);
     case "update":
-      return updateCommand(rest);
+      return updateCommand();
     case "remove":
       return removeCommand(rest);
     case "disable":
@@ -759,7 +748,7 @@ async function main(argv: string[]): Promise<number> {
     case "enable":
       return switchCommand(rest, true);
     case "list":
-      return listCommand();
+      return listCommand(rest);
     case "status":
       return statusCommand();
     case "restore":

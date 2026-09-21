@@ -13,7 +13,7 @@
  * own `fetch`.
  */
 import { createHash } from "node:crypto";
-import { UserError } from "../errors.ts";
+import { UserError } from "./errors.ts";
 
 export const DEFAULT_REGISTRY = "https://registry.npmjs.org";
 

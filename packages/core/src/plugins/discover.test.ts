@@ -195,16 +195,30 @@ describe("readConfig", () => {
     expect(readConfig(path)).toEqual({ path, disabled: ["a", "b"], sources: {} });
   });
 
-  it("reads the sources add recorded, and refuses one it cannot", () => {
+  it("reads the sources add recorded", () => {
     const path = join(tempDir(), "config.json");
     const source = { kind: "path", from: "/somewhere/clock", addedAt: "2026-09-18T11:00:00.000Z" };
     writeFileSync(path, JSON.stringify({ sources: { clock: source } }));
     expect(readConfig(path).sources).toEqual({ clock: source });
+  });
 
-    // Dropping it silently would turn a plugin `add` brought in into one that looks hand-placed,
-    // which `update` cannot move (D49).
-    writeFileSync(path, JSON.stringify({ sources: { clock: { kind: "carrier pigeon" } } }));
-    expect(() => readConfig(path)).toThrow(/source recorded for "clock"/);
+  it("skips a source kind it does not know, names it, and keeps the rest (D74)", () => {
+    // A newer wrapper wrote it. Throwing would cost every command on every older engine, over one
+    // entry describing one plugin; dropping it in silence would make that plugin look hand-placed.
+    const path = join(tempDir(), "config.json");
+    const known = { kind: "path", from: "/somewhere/clock", addedAt: "2026-09-18T11:00:00.000Z" };
+    writeFileSync(
+      path,
+      JSON.stringify({ sources: { clock: known, pigeon: { kind: "carrier-pigeon" } } }),
+    );
+
+    const lines: string[] = [];
+    const config = readConfig(path, (line) => lines.push(line));
+
+    expect(config.sources).toEqual({ clock: known });
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain('"pigeon"');
+    expect(lines[0]).toContain("carrier-pigeon");
   });
 
   it("writes back without losing a key it has never heard of", () => {

@@ -70,6 +70,11 @@ Written for somebody else, so don't rewrite them for us:
   Footer decorations anchor to `footerSpacer`, which renders in every stage, via `mountBefore`
   (D54). The general rule the anchor table now carries: before mounting, ask what the parent does
   about its children.
+- **Cite a decision, never restate it.** The argument lives in [docs/decisions.md](docs/decisions.md);
+  a source comment gets the one sentence a reader needs *here* plus `(D74)`. Re-explaining the
+  reasoning inline gives it two homes that drift, and it is how a comment grows to four lines when
+  one was required. Comments here have been running long — keep them to the minimum the code and its
+  surroundings cannot supply.
 - **Bound any regex you run over a stringified record.** `JSON.stringify` output is one line;
   `.*` and `(.+?)` cross into unrelated fields. Exclude `"` and `\` and cap the length.
 - **Patch bundles byte-faithfully.** Read and write bytes; text-mode I/O rewrites every line

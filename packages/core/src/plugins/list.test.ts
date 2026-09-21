@@ -245,3 +245,45 @@ describe("the bundled set", () => {
     expect(formatPlugins([listing as PluginListing])).toContain("clock 2.1.0 —");
   });
 });
+
+describe("the shape `rigline list --json` emits", () => {
+  it("carries the fields the wrapper's `update` reads (D74)", () => {
+    // The wrapper cannot read `config.json`, so this listing is how it learns what it can move.
+    const plugins = tempDir();
+    writePlugin(plugins, "clock");
+    const configPath = join(tempDir(), "config.json");
+    const source = {
+      kind: "npm",
+      name: "clock",
+      version: "2.1.0",
+      tag: "latest",
+      integrity: "sha512-x",
+      addedAt: "2026-09-21T00:00:00.000Z",
+    };
+    writeFileSync(configPath, JSON.stringify({ sources: { clock: source } }));
+
+    const [listing] = JSON.parse(
+      JSON.stringify(
+        listPlugins({
+          roots: [{ label: plugins, path: plugins, managed: true }],
+          configPath,
+        }),
+      ),
+    ) as { name: string; managed: boolean; source: Record<string, unknown> | null }[];
+
+    expect(listing?.name).toBe("clock");
+    expect(listing?.managed).toBe(true);
+    expect(listing?.source).toEqual(source);
+  });
+
+  it("reports a plugin with no record as managed with a null source", () => {
+    const plugins = tempDir();
+    writePlugin(plugins, "dropped");
+    const [listing] = listPlugins({
+      roots: [{ label: plugins, path: plugins, managed: true }],
+      configPath: configWith([]),
+    });
+    expect(listing?.managed).toBe(true);
+    expect(listing?.source).toBeNull();
+  });
+});

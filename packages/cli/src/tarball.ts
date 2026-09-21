@@ -20,7 +20,7 @@
  * unacceptable halfway through leaves no half-unpacked directory behind.
  */
 import { gunzipSync } from "node:zlib";
-import { UserError } from "../errors.ts";
+import { UserError } from "./errors.ts";
 
 /** Tar's fixed block size: both the header and the padding every entry's body is rounded up to. */
 const BLOCK = 512;

@@ -216,8 +216,13 @@ export function discoverPlugins(
   return ordered;
 }
 
-/** `~/.rigline/config.json`. Absent means nothing is disabled; malformed is a person's mistake, loud. */
-export function readConfig(path: string): PluginsConfig {
+/**
+ * `~/.rigline/config.json`. Absent means nothing is disabled; malformed is a person's mistake, loud.
+ *
+ * A source whose `kind` this engine does not know is skipped with a line rather than thrown over
+ * (D74): the wrapper is routinely newer, and one unreadable entry must not cost every command.
+ */
+export function readConfig(path: string, log: (line: string) => void = () => {}): PluginsConfig {
   const value = readConfigJson(path);
   if (value === null) return { path, disabled: [], sources: {} };
 
@@ -231,11 +236,13 @@ export function readConfig(path: string): PluginsConfig {
   }
   const sources: Record<string, PluginSource> = {};
   for (const [name, source] of Object.entries(rawSources)) {
-    // Unreadable rather than absent, which is a distinction worth keeping: a record nothing can
-    // parse is a file somebody edited, and dropping it silently would turn a plugin `add` brought
-    // in into one that looks hand-placed, which `update` cannot move (D49).
+    // Named, not dropped in silence: a plugin whose record cannot be read looks hand-placed, and
+    // `update` cannot move one of those (D49).
     if (!isPluginSource(source)) {
-      throw new UserError(`${path}: the source recorded for "${name}" is not one this can read`);
+      log(
+        `${path}: the source recorded for "${name}" is ${describeKind(source)}, so it is ignored`,
+      );
+      continue;
     }
     sources[name] = source;
   }
@@ -275,7 +282,15 @@ function readConfigJson(path: string): Record<string, unknown> | null {
   return value as Record<string, unknown>;
 }
 
-function isPluginSource(value: unknown): value is PluginSource {
+/** What to call a source this cannot read: a kind it has not heard of, or an edited file. */
+function describeKind(source: unknown): string {
+  const kind = (source as { kind?: unknown } | null)?.kind;
+  return typeof kind === "string"
+    ? `of kind "${kind}", which this engine does not know — a newer rigline may`
+    : "not a source this can read";
+}
+
+export function isPluginSource(value: unknown): value is PluginSource {
   // Read as a bag of unknowns rather than as a partial of the union: the two members disagree about
   // `kind`, so their intersection has no value for it and every field reads as never.
   if (typeof value !== "object" || value === null) return false;

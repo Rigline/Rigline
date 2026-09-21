@@ -7,7 +7,7 @@
  */
 import { gzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
-import { packageTarball, tarball } from "../../test/tar.ts";
+import { packageTarball, tarball } from "../test/tar.ts";
 import { readPackageTarball } from "./tarball.ts";
 
 const LABEL = "clock@1.0.0";

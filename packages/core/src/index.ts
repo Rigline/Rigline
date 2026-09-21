@@ -110,43 +110,14 @@ export type {
 } from "./plugins/list.ts";
 export { formatPlugins, listPlugins } from "./plugins/list.ts";
 export type {
-  AddFromNpmOptions,
   AddOptions,
   AddResult,
-  PluginUpdate,
   RemoveOptions,
   RemoveResult,
   SwitchOptions,
   SwitchResult,
-  UpdatePluginsOptions,
 } from "./plugins/manage.ts";
-export {
-  addFromNpm,
-  addPlugin,
-  formatUpdates,
-  removePlugin,
-  setPluginEnabled,
-  updatePlugins,
-} from "./plugins/manage.ts";
-export type {
-  FetchLike,
-  FetchResponse,
-  PluginSpec,
-  RegistryOptions,
-  ResolvedVersion,
-} from "./plugins/registry.ts";
-export {
-  DEFAULT_REGISTRY,
-  describeAge,
-  fetchTarball,
-  integrityProblem,
-  MINIMUM_RELEASE_AGE_MINUTES,
-  parsePluginSpec,
-  releaseAgeProblem,
-  resolveVersion,
-} from "./plugins/registry.ts";
-export type { TarFile } from "./plugins/tarball.ts";
-export { readPackageTarball } from "./plugins/tarball.ts";
+export { addPlugin, parseSource, removePlugin, setPluginEnabled } from "./plugins/manage.ts";
 export type { BaselineSource } from "./update/baseline.ts";
 export {
   GENERATED_FILE,
