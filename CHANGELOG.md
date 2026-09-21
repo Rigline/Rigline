@@ -20,6 +20,13 @@ anything may change between releases.
   A plugin that has quietly stopped working can now say so, where before the badge stayed green.
 - Scaffolded plugins ship with a check, so a new plugin starts with one rather than adding it after
   the first silent failure.
+- A changelog, and `pnpm release <increment>` to cut and push a version with one command. A pushed
+  tag starts the release; `pnpm release:finish` approves it, moves `next` if the release is ahead of
+  it, and creates the GitHub release.
+- CI on every push and pull request, over Node 22.12.0, 24 and 26 on Linux plus 22.12.0 on Windows.
+- Scaffolded plugin workspaces ship a CI workflow alongside the release one, so an author's tests
+  run on a pull request rather than first running during a release.
+- Dependabot watches the GitHub Actions pins, one grouped pull request a week.
 
 ### Fixed
 
@@ -33,13 +40,6 @@ anything may change between releases.
 - `ctx.decorateTranscript` no longer starts the transcript sweep on a surface that renders no
   transcript rows. The session list had been searching for rows once per React commit, for the life
   of the window, on a page that cannot have any.
-- A changelog, and `pnpm release <increment>` to cut and push a version with one command. A pushed
-  tag starts the release; `pnpm release:finish` approves it, moves `next` if the release is ahead of
-  it, and creates the GitHub release.
-- CI on every push and pull request, over Node 22.12.0, 24 and 26 on Linux plus 22.12.0 on Windows.
-- Scaffolded plugin workspaces ship a CI workflow alongside the release one, so an author's tests
-  run on a pull request rather than first running during a release.
-- Dependabot watches the GitHub Actions pins, one grouped pull request a week.
 
 ## 1.0.0-alpha.2 — 2026-09-20
 
