@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 import { UserError } from "../errors.ts";
 import {
   EDITOR_CLIS,
+  editorSpawn,
   type FoundEditor,
   findEditors,
   formatSetup,
@@ -167,5 +168,58 @@ describe("formatSetup", () => {
   it("does not ask for a reload when nothing did", () => {
     const outcomes = [{ editor: editor("code", "VS Code", "code"), code: 1, output: "broke" }];
     expect(formatSetup(outcomes, false)).not.toMatch(/Reload the window/);
+  });
+
+  it("names the binary it used, because one machine holds several `code`s", () => {
+    // Leo's laptop: `code --list-extensions` listed it, the Extensions view never showed it, and
+    // nothing on screen said which editor had been installed into. `installed` alone is true and
+    // useless; the path is the whole diagnosis.
+    const cli = join(abs("other-vscode"), "bin", "code.cmd");
+    const outcomes = [{ editor: editor("code", "VS Code", cli), code: 0, output: "" }];
+    expect(formatSetup(outcomes, false, VSIX)).toContain(cli);
+  });
+
+  it("names the VSIX, because the repair is installing it by hand elsewhere", () => {
+    const outcomes = [{ editor: editor("code", "VS Code", "code"), code: 0, output: "" }];
+    const report = formatSetup(outcomes, false, VSIX);
+    expect(report).toContain(VSIX);
+    expect(report).toMatch(/Install from VSIX/);
+  });
+
+  it("offers neither on a removal, where there is nothing to install by hand", () => {
+    const outcomes = [{ editor: editor("code", "VS Code", "code"), code: 0, output: "" }];
+    expect(formatSetup(outcomes, true)).not.toMatch(/Install from VSIX/);
+  });
+});
+
+describe("editorSpawn", () => {
+  it("runs a Windows .cmd through cmd.exe, because Node will not spawn one", () => {
+    // Node throws EINVAL on a .cmd since the BatBadBut fix (CVE-2024-27980): a batch file can only
+    // be run by an interpreter, and `spawn` will not pick one for you. Every test here injects
+    // `run`, so the spawn itself had no coverage and `vscode-setup` had never worked on Windows.
+    const cmd = "C:VS Code\bincode.cmd";
+    const [file, argv, opts] = editorSpawn(
+      cmd,
+      ["--install-extension", "C:a b\r.vsix"],
+      "win32",
+      "cmd.exe",
+    );
+    expect(file).toBe("cmd.exe");
+    expect(argv.slice(0, 3)).toEqual(["/d", "/s", "/c"]);
+    expect(argv[3]).toBe('""C:VS Code\bincode.cmd" "--install-extension" "C:a b\r.vsix""');
+    expect(opts.windowsVerbatimArguments).toBe(true);
+  });
+
+  it("spawns a real executable directly, even on Windows", () => {
+    const [file, argv, opts] = editorSpawn("C:\bincode.exe", ["--version"], "win32");
+    expect(file).toBe("C:\bincode.exe");
+    expect(argv).toEqual(["--version"]);
+    expect(opts.windowsVerbatimArguments).toBeUndefined();
+  });
+
+  it("leaves POSIX alone, where code is an ordinary script", () => {
+    const [file, argv] = editorSpawn("/usr/bin/code", ["--version"], "linux");
+    expect(file).toBe("/usr/bin/code");
+    expect(argv).toEqual(["--version"]);
   });
 });

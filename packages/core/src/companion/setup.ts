@@ -90,6 +90,36 @@ export function setupArgv(vsix: string, remove: boolean): readonly string[] {
     : ["--install-extension", vsix, "--force"];
 }
 
+/**
+ * How to spawn an editor CLI, which on Windows is not "just spawn it".
+ *
+ * VS Code ships its CLI as `code.cmd`, and since the BatBadBut fix (CVE-2024-27980) Node refuses to
+ * spawn a `.cmd` or `.bat` directly: it throws `EINVAL` before the process exists, because the only
+ * way Windows runs a batch file is through a command interpreter, and passing arguments to one
+ * safely is not something `spawn` can do on the caller's behalf.
+ *
+ * So a batch file goes through `cmd.exe` explicitly. `/d` skips AutoRun scripts, `/s` fixes how the
+ * remainder is parsed, and `windowsVerbatimArguments` stops Node quoting a string that is already
+ * quoted. Everything is wrapped in one outer pair of quotes, which is what `/s` then strips — the
+ * shape `npm` and `cross-spawn` both use, and arrived at for the same reason rather than by taste.
+ *
+ * Exported and pure so a test can assert the argv on either platform. The spawn itself belongs to
+ * the caller; this only says what to spawn, which is the part that was wrong.
+ */
+export function editorSpawn(
+  command: string,
+  argv: readonly string[],
+  platform: NodeJS.Platform = process.platform,
+  comspec: string = process.env.ComSpec ?? "cmd.exe",
+): [string, string[], { stdio: ["ignore", "pipe", "pipe"]; windowsVerbatimArguments?: boolean }] {
+  const stdio: ["ignore", "pipe", "pipe"] = ["ignore", "pipe", "pipe"];
+  if (platform !== "win32" || !/\.(cmd|bat)$/i.test(command)) {
+    return [command, [...argv], { stdio }];
+  }
+  const line = [command, ...argv].map((part) => `"${part}"`).join(" ");
+  return [comspec, ["/d", "/s", "/c", `"${line}"`], { stdio, windowsVerbatimArguments: true }];
+}
+
 export interface SetupOutcome {
   readonly editor: FoundEditor;
   readonly code: number;
@@ -144,18 +174,49 @@ export async function setupCompanion(options: SetupOptions): Promise<readonly Se
   return outcomes;
 }
 
-/** What the command prints. One line per editor, and a reload reminder when anything changed. */
-export function formatSetup(outcomes: readonly SetupOutcome[], remove: boolean): string {
-  const lines = outcomes.map(({ editor, code, output }) =>
+/**
+ * What the command prints.
+ *
+ * **It names the binary it used, and the VSIX, and it does so on success.** One machine can hold
+ * several editors that share the name `code` and share nothing else — a second install, Insiders
+ * beside stable, a portable copy, a remote window whose extension host is somewhere else entirely —
+ * and `--install-extension` will cheerfully succeed into the one you are not looking at. `installed`
+ * on its own is then true and useless: the extension is listed by the CLI, absent from the editor,
+ * and there is nothing on screen to suggest where to look. The path is the whole diagnosis, and it
+ * costs one line.
+ *
+ * The VSIX path is printed for the same reason. When the CLI has picked the wrong editor the repair
+ * is *Extensions: Install from VSIX…* in the right one, and that needs a file the user would
+ * otherwise have to be told how to find.
+ */
+export function formatSetup(
+  outcomes: readonly SetupOutcome[],
+  remove: boolean,
+  vsix?: string,
+): string {
+  const lines = outcomes.flatMap(({ editor, code, output }) =>
     code === 0
-      ? `  ${editor.label}: ${remove ? "removed" : "installed"}`
-      : `  ${editor.label}: failed (${editor.cli} exited ${code})\n${indent(output.trim())}`,
+      ? [`  ${editor.label}: ${remove ? "removed" : "installed"}`, `    via ${editor.path}`]
+      : [`  ${editor.label}: failed (${editor.cli} exited ${code})`, indent(output.trim())],
   );
   const changed = outcomes.some((o) => o.code === 0);
   return [
     `${remove ? "Removing" : "Installing"} the companion in ${outcomes.length} editor${outcomes.length === 1 ? "" : "s"}:`,
     ...lines,
-    ...(changed ? ["", "Reload the window for it to take effect: Developer: Reload Window."] : []),
+    ...(changed
+      ? [
+          "",
+          "Reload the window for it to take effect: Developer: Reload Window.",
+          ...(remove || vsix === undefined
+            ? []
+            : [
+                "",
+                "If the editor you are using does not show it in the Extensions view, that `code` was",
+                "a different install. Use Extensions: Install from VSIX… in the right window, with:",
+                `  ${vsix}`,
+              ]),
+        ]
+      : []),
   ].join("\n");
 }
 

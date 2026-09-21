@@ -29,6 +29,7 @@ export type { FoundEditor, SetupOptions, SetupOutcome } from "./companion/setup.
 export {
   companionVsix,
   EDITOR_CLIS,
+  editorSpawn,
   findEditors,
   formatSetup,
   setupArgv,

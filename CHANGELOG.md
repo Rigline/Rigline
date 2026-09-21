@@ -12,6 +12,15 @@ anything may change between releases.
 
 ### Fixed
 
+- `rigline vscode-setup` works on Windows. It never had: Node refuses to `spawn` a `.cmd`
+  directly since the BatBadBut fix, and VS Code ships its CLI as `code.cmd`, so the command
+  died with `EINVAL` before any editor was touched. A batch file now goes through `cmd.exe`
+  the way npm does.
+- `rigline vscode-setup` names the editor binary it installed into, and the VSIX. One machine can
+  hold several editors that answer to `code` and share nothing else — a second install, a
+  remote window, Insiders beside stable — and `--install-extension` will succeed into the one
+  you are not looking at, leaving an extension the CLI lists and the editor has never heard
+  of. Saying which binary and where the VSIX is turns that from a mystery into a sentence.
 - The companion declares that it needs a trusted workspace, and its VS Code floor drops to
   1.75. Saying nothing about workspace trust is itself a choice, and the worst one available:
   VS Code disables an undeclared extension in an untrusted workspace while still listing it as

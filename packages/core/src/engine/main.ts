@@ -27,8 +27,10 @@ import {
   check,
   checkoutPluginsDir,
   collect,
+  companionVsix,
   diffScans,
   EXTENSIONS_DIR,
+  editorSpawn,
   extensionVersion,
   findExtension,
   formatDiff,
@@ -438,7 +440,7 @@ async function vscodeSetupCommand(args: string[]): Promise<number> {
   const outcomes = await setupCompanion({
     remove: values.remove,
     run: async (command, argv) => {
-      const child = spawn(command, [...argv], { stdio: ["ignore", "pipe", "pipe"] });
+      const child = spawn(...editorSpawn(command, argv));
       let output = "";
       child.stdout?.setEncoding("utf8");
       child.stdout?.on("data", (chunk: string) => {
@@ -455,7 +457,7 @@ async function vscodeSetupCommand(args: string[]): Promise<number> {
     },
   });
 
-  console.log(formatSetup(outcomes, values.remove));
+  console.log(formatSetup(outcomes, values.remove, values.remove ? undefined : companionVsix()));
   const failed = outcomes.some((o) => o.code !== 0) ? 1 : 0;
 
   // And inject, on `add`'s rule (D55, D56): a command that changes what is installed re-injects, so
