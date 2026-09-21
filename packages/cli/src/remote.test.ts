@@ -279,7 +279,7 @@ describe("updatePlugins", () => {
 
 describe("formatUpdates", () => {
   it("says so when there is nothing installed", () => {
-    expect(formatUpdates([])).toBe("no plugins are installed");
+    expect(formatUpdates([])).toContain("no plugins to update");
   });
 
   it("gives one line per plugin, naming both versions when one moved", () => {

@@ -789,3 +789,10 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   pnpm's staging output *does* carry stage ids now, retiring a claim this file, releasing.md and
   the summary script all made — the summary still prints none, deliberately, because what it says
   works whether or not one exists.
+- 2026-09-21: The first `rigline update` on a fresh machine, minutes after `alpha.6` went out,
+  refused the engine as too young and installed it anyway — and skipped the re-injection, because
+  the decision to re-inject reads the outcome the refusal had already written. The rule was right
+  and applied in one of the two places that needed it: the gate is about staying on what you have,
+  so `updateEngine` now skips it when nothing is installed, as `ensureEngine` always did. The
+  result type says which outcomes carry which versions, so `staying on undefined` is a shape the
+  compiler refuses rather than a string somebody has to notice.

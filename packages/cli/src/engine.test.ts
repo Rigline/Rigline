@@ -229,6 +229,24 @@ describe("updateEngine", () => {
     expect(update).toEqual({ outcome: "current", from: "1.0.0-alpha.7" });
   });
 
+  it("does not gate a first run, because there is nothing to stay on (D48, D73)", async () => {
+    // The shape Leo hit on a fresh machine: `update` on a day-old release refused the engine as too
+    // young, printed `staying on undefined`, and then `ensureEngine` installed it anyway seconds
+    // later — one run disagreeing with itself, and no re-inject, because the outcome said withheld.
+    const prefix = temp();
+    const update = await updateEngine({
+      home: prefix,
+      version: "1.0.0-alpha.6",
+      registry: npm("1.0.0-alpha.6", "2026-09-21T11:51:00.000Z"),
+      spawnImpl: (_command, _args) => {
+        writeEngine(engineDir(prefix), core("1.0.0-alpha.6"));
+        return fakeChild(0);
+      },
+    });
+    expect(update).toEqual({ outcome: "installed", to: "1.0.0-alpha.6" });
+    expect(formatEngineUpdate(update, prefix)).not.toContain("undefined");
+  });
+
   it("withholds a version too young and names what it stayed on (D48)", async () => {
     const prefix = temp();
     writeEngine(engineDir(prefix), core("1.0.0-alpha.6"));
@@ -257,8 +275,8 @@ describe("updateEngine", () => {
         throw new Error("nothing should have been spawned");
       },
     });
-    expect(update.outcome).toBe("failed");
-    expect(update.reason).toContain("cannot run engine 2.x");
+    expect(update).toMatchObject({ outcome: "failed" });
+    expect(update.outcome === "failed" && update.reason).toContain("cannot run engine 2.x");
   });
 
   it("reports a registry it cannot reach and leaves the engine where it is", async () => {

@@ -237,7 +237,9 @@ async function updateOne(
 
 /** A plain-text report of one `update` run. */
 export function formatUpdates(updates: readonly PluginUpdate[]): string {
-  if (updates.length === 0) return "no plugins are installed";
+  // Not "no plugins are installed": the bundled four always are, and they move with the engine
+  // rather than on their own (D71). What is empty here is the set `update` has anything to do about.
+  if (updates.length === 0) return "no plugins to update — the bundled ones move with the engine";
   return updates.map(updateLine).join("\n");
 }
 

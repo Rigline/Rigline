@@ -10,6 +10,18 @@ anything may change between releases.
 
 ## Unreleased
 
+### Fixed
+
+- `rigline update` on a machine with no engine yet no longer refuses the engine as too young and
+  then installs it anyway. The release-age gate is about staying on what you have, so it does not
+  apply when there is nothing to stay on: a first run takes what the tag resolves to and says
+  `engine: installed <version>`, where it used to say `engine: staying on undefined` and then
+  contradict itself two lines later. It also re-injects afterwards now, which the contradiction was
+  suppressing — so `rigline update` on a fresh machine leaves the extension patched rather than
+  untouched.
+- `rigline update` with no third-party plugins says the bundled ones move with the engine, rather
+  than `no plugins are installed` when four of them are.
+
 ## 1.0.0-alpha.6 — 2026-09-21
 
 ### Changed

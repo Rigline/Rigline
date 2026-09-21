@@ -302,12 +302,23 @@ async function capture(
 }
 
 /** What `update` did about the engine itself. */
-export interface EngineUpdate {
-  readonly outcome: "installed" | "moved" | "current" | "withheld" | "failed";
-  readonly from?: string;
-  readonly to?: string;
-  readonly reason?: string;
-}
+export type EngineUpdate =
+  /** No engine was installed, so this run is a first run and the age gate does not apply (D48). */
+  | { readonly outcome: "installed"; readonly to: string }
+  | { readonly outcome: "moved"; readonly from: string; readonly to: string }
+  | { readonly outcome: "current"; readonly from: string }
+  | {
+      readonly outcome: "withheld";
+      readonly from: string;
+      readonly to: string;
+      readonly reason: string;
+    }
+  | {
+      readonly outcome: "failed";
+      readonly from?: string;
+      readonly to?: string;
+      readonly reason: string;
+    };
 
 /**
  * Move the engine to whatever its tag resolves to, before any plugin is touched (D73).
@@ -346,14 +357,14 @@ export async function updateEngine(options: EngineOptions = {}): Promise<EngineU
     };
   }
 
-  const withheld = releaseAgeProblem(resolved, options.registry);
-  if (withheld !== null) {
-    return {
-      outcome: "withheld",
-      ...(installed === null ? {} : { from: installed }),
-      to: resolved.version,
-      reason: withheld,
-    };
+  // The gate needs something to stay on, so it does not apply where there is no engine (D48, D73).
+  // `ensureEngine` installs one regardless a moment later — a first run has to produce a working
+  // command — so gating here would only have this run refuse and then contradict itself.
+  if (installed !== null) {
+    const withheld = releaseAgeProblem(resolved, options.registry);
+    if (withheld !== null) {
+      return { outcome: "withheld", from: installed, to: resolved.version, reason: withheld };
+    }
   }
 
   try {
