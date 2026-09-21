@@ -9,7 +9,7 @@
  * `riglineHome()` because it depends on no Rigline package, so the two are compared here. The import
  * is relative and test-only — a dependency would put core where a `src/` import could reach it.
  */
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -27,6 +27,7 @@ import {
   riglineHome,
   updateEngine,
 } from "./engine.ts";
+import { lockPath } from "./lock.ts";
 import type { FetchLike, RegistryOptions } from "./registry.ts";
 
 const made: string[] = [];
@@ -240,6 +241,53 @@ describe("updateEngine", () => {
 
     expect(update).toMatchObject({ outcome: "installed", to: "1.0.0-alpha.7" });
     expect(commands).toEqual([node]);
+  });
+
+  it("holds the home lock across the npm run, not merely around it (D80)", async () => {
+    // The property worth asserting is not that a lock is taken but that it is still held while the
+    // thing it protects is happening, which is what a release in the wrong place would break.
+    const prefix = temp();
+    let heldDuringNpm: string | null = null;
+    await updateEngine({
+      home: prefix,
+      label: "the Rigline companion extension",
+      version: "1.0.0-alpha.7",
+      registry: npm("1.0.0-alpha.7"),
+      spawnImpl: () => {
+        heldDuringNpm = readFileSync(lockPath(prefix), "utf8");
+        writeEngine(engineDir(prefix), core("1.0.0-alpha.7"));
+        return fakeChild(0);
+      },
+    });
+
+    expect(JSON.parse(heldDuringNpm ?? "null")).toMatchObject({
+      what: "the Rigline companion extension",
+    });
+    expect(existsSync(lockPath(prefix))).toBe(false);
+  });
+
+  it("refuses rather than installing over a live holder (D80)", async () => {
+    const prefix = temp();
+    mkdirSync(prefix, { recursive: true });
+    writeFileSync(
+      lockPath(prefix),
+      JSON.stringify({ pid: process.pid, since: new Date().toISOString(), what: "rigline update" }),
+    );
+    const update = await updateEngine({
+      home: prefix,
+      version: "1.0.0-alpha.7",
+      registry: npm("1.0.0-alpha.7"),
+      lock: { waitMs: 0, sleep: async () => {} },
+      spawnImpl: () => {
+        throw new Error("npm should never have run");
+      },
+    });
+
+    // Reported rather than thrown, which is `update`'s existing contract and the right one here:
+    // the companion runs this unattended, and a contended lock is a thing to say, not to crash on.
+    expect(update).toMatchObject({ outcome: "failed" });
+    expect((update as { reason: string }).reason).toMatch(/rigline update \(pid \d+\)/);
+    expect(existsSync(lockPath(prefix))).toBe(true);
   });
 
   it("leaves an engine already on what its tag resolves to, and spawns nothing", async () => {

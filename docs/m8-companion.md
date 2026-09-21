@@ -96,14 +96,31 @@ one we found anyway. Recorded so it is not re-proposed.
 at once — a user running the CLI while the extension is mid-update is not a corner case, it is
 Tuesday.
 
-Unresolved, and it is 8a's first real design question rather than something to settle here. The
-shape of the answer is a lock file in `<RIGLINE_HOME>`, where the loser of the race waits or reports
-that an update is already running, and never a second npm writing the same prefix. What must not
-happen is two npm installs interleaving into one directory, which is how `engine` ends up in the
-state the wrapper's README already tells people to delete.
+**Settled and built.** `withHomeLock` in [lock.ts](../packages/cli/src/lock.ts) takes
+`<RIGLINE_HOME>/.lock` by exclusive create, which is atomic on both platforms and needs no
+dependency. The holder's pid, start time and name go in the file, so a waiter can say who it is
+waiting for and a person deciding whether to delete it can read it. A lock whose process is gone
+*and* whose age is past is taken; a young one is not, because a process that has not yet written its
+pid must not be robbed. A stealer unlinks and races for the exclusive create like everybody else, so
+two stealers still produce one winner.
 
-Worth noting that the *injection* half needs no locking: it is rebuild-from-backup and idempotent, so
-two processes injecting produce the same bytes. Only acquisition races.
+**It wraps `installEngine`, not a command.** That is the one act two processes must not interleave,
+and every verb can reach it — a first run installs an engine whatever was typed, so a lock around
+`update` alone would leave `list` racing it. The lock is held *across* the npm run rather than
+around its setup, which is the property the test asserts.
+
+The whole home rather than the engine directory, because `update` moves plugins in the same run and
+those collide the same way. The **injection** half is deliberately outside: rebuild-from-backup is
+idempotent, so two processes injecting write the same bytes, and holding a lock across the slow half
+would serialise it for nothing.
+
+A contended lock **reports rather than throws**, because `updateEngine`'s existing contract already
+answers with an outcome and a reason. That turns out to be exactly right for the companion, which
+runs unattended and needs a thing to say rather than something to crash on.
+
+Still open, and mild: plugin-level races. `add` and `updatePlugins` write `<RIGLINE_HOME>/plugins`
+through the engine, and two engines writing *different* plugin directories is not the corruption
+case above. Left until it bites rather than solved speculatively.
 
 ## Sharing the acquisition code, not copying it a third time
 
@@ -245,8 +262,6 @@ will add:
 
 - **How acquisition code is shared** between the wrapper and the companion, once 8a shows whether
   `rigline`'s internals import cleanly without its CLI surface.
-- **Where the engine lock lives and what the loser does**, once the race has been provoked rather
-  than reasoned about.
 - **Whether `extensionUri` is passed down or re-derived**, once it is known whether the engine's
   locate step wants a hint or an override.
 

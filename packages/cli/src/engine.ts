@@ -12,6 +12,7 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { UserError } from "./errors.ts";
+import { type LockOptions, withHomeLock } from "./lock.ts";
 import { type RegistryOptions, releaseAgeProblem, resolveVersion } from "./registry.ts";
 
 export const ENGINE_PACKAGE = "@rigline/core";
@@ -180,6 +181,10 @@ export interface EngineOptions {
    * run the engine's entry (D80).
    */
   readonly nodePath?: string;
+  /** What this process calls itself in the home lock, for whoever is waiting on it (D80). */
+  readonly label?: string;
+  /** The lock's timings, for tests. Its `home` and `what` are this call's. */
+  readonly lock?: Omit<LockOptions, "home" | "what">;
 }
 
 /** A located engine, and the two ways the wrapper runs it. */
@@ -245,17 +250,26 @@ async function resolveEngine(options: EngineOptions) {
   );
 }
 
-/** Run npm. Its output is held back and printed only if it fails, where it is the whole diagnosis. */
+/**
+ * Run npm. Its output is held back and printed only if it fails, where it is the whole diagnosis.
+ *
+ * Locked, and here rather than around a command, because this is the one act two processes must not
+ * interleave (D80) and every verb can reach it — a first run installs an engine whatever was typed.
+ * Injection is left outside deliberately: it is the slow half and it is idempotent.
+ */
 async function installEngine(prefix: string, spec: string, options: EngineOptions): Promise<void> {
-  mkdirSync(prefix, { recursive: true });
-  const node = options.nodePath ?? process.execPath;
-  const argv = engineInstallArgv({ npmCli: findNpmCli(node), prefix, specs: [spec] });
-  const run = await capture(node, argv, options.spawnImpl);
-  if (run.code !== 0) {
-    throw new UserError(
-      `installing ${spec} into ${prefix} failed (npm exited ${run.code}).\n${run.output.trim()}`,
-    );
-  }
+  const home = options.home ?? riglineHome();
+  await withHomeLock({ home, what: options.label ?? "rigline", ...options.lock }, async () => {
+    mkdirSync(prefix, { recursive: true });
+    const node = options.nodePath ?? process.execPath;
+    const argv = engineInstallArgv({ npmCli: findNpmCli(node), prefix, specs: [spec] });
+    const run = await capture(node, argv, options.spawnImpl);
+    if (run.code !== 0) {
+      throw new UserError(
+        `installing ${spec} into ${prefix} failed (npm exited ${run.code}).\n${run.output.trim()}`,
+      );
+    }
+  });
 }
 
 function engineAt(state: { version: string; entry: string }, options: EngineOptions): Engine {
