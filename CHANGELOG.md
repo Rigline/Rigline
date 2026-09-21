@@ -10,12 +10,27 @@ anything may change between releases.
 
 ## Unreleased
 
+### Changed
+
+- `rigline` is now a small retrieval layer over `@rigline/core`, which it installs into
+  `~/.rigline/engine` on first use and runs from there. Every verb works exactly as before and
+  `rigline` is still the only command to type — what changes is that the two can move independently,
+  and `rigline update` now brings the engine itself up to date alongside your plugins. Installing
+  takes a few seconds the first time and needs the registry; after that nothing phones home unless
+  you ask it to. If anything goes wrong there, delete `~/.rigline/engine` and run any command again.
+- `rigline update` takes `--tag` to follow a preview line for the engine instead of `latest`, and
+  re-injects after moving the engine even when no plugin moved.
+- `rigline` no longer belongs in a project's dependencies. A plugin workspace declares
+  `@rigline/core` and runs `rigline-engine build`; the scaffolder will be updated to match.
+
 ### Added
 
+- `rigline --version` prints the command's own version and the engine's, without installing
+  anything or reaching the network — so it still answers when something is already wrong.
 - `rigline list --json` emits the same listing as data, for anything driving Rigline rather than
   reading it.
-- `@rigline/core` carries a `rigline-engine` command. It is what `rigline` will run once the two
-  separate, and not a surface you are asked to type; `rigline` remains the command for every verb.
+- `@rigline/core` carries a `rigline-engine` command. It is what `rigline` runs, and not a surface
+  you are asked to type.
 
 ### Fixed
 

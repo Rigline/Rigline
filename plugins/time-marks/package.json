@@ -4,11 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "rigline build",
+    "build": "rigline-engine build",
     "typecheck": "tsc -p tsconfig.json"
   },
   "devDependencies": {
-    "@rigline/plugin-api": "workspace:*",
-    "rigline": "workspace:*"
+    "@rigline/core": "workspace:*",
+    "@rigline/plugin-api": "workspace:*"
   }
 }

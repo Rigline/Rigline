@@ -225,7 +225,15 @@ Mechanics that are not optional:
   ([core/src/paths.ts:14-17](../packages/core/src/paths.ts#L14-L17)) because it depends on nothing,
   so it reimplements the two-line rule — `$RIGLINE_HOME`, else `join(homedir(), ".rigline")` — and a
   test asserts the two agree. That duplication is the price of the split and it is cheaper than the
-  dependency.
+  dependency. The test reaches across by relative path into core's source, and the wrapper's
+  typecheck config drops its `@rigline/core` mapping in the same step: a devDependency would put
+  core in the wrapper's `node_modules`, where a stray import from `src/` typechecks, builds, and
+  fails only when somebody installs the tarball.
+- **The npm argv is a function, so a test can run it.** The wrapper exports what it would hand
+  `process.execPath` rather than only running it, which is what lets tier 4 install a packed core
+  tarball into a temporary engine prefix through the same construction the real thing uses, and then
+  drive the packed `rigline` against it. The registry resolve is the one inch left, and tier 1 fakes
+  it.
 - **Create the directory first.** Run against an empty directory, npm creates `node_modules`,
   `package-lock.json` and a `package.json`, resolves the full dependency graph as usual, and
   downgrades cleanly when handed an older version — all confirmed by running it, on npm as shipped
@@ -261,7 +269,7 @@ Mechanics that are not optional:
     rigline update
       -> resolve @rigline/core's tag; install into <RIGLINE_HOME>/engine if the version differs
       -> resolve each recorded plugin source; fetch, vet and stage the ones that moved
-      -> spawn the engine: add each staged plugin, then install
+      -> spawn the engine: add each staged plugin, then install if the engine moved
       -> "Developer: Reload Webviews"
 
 One command brings the engine, the four bundled plugins, every third-party plugin and every
@@ -278,9 +286,18 @@ Rules it follows:
   `resolveVersion` throws on any registry failure while `updatePlugins` is built never to stop at the
   first one; an unqualified resolve would make a registry outage fatal to the plugin half and the
   re-injection too.
+- **The final `install` is the engine's half of re-injecting.** `add` re-injects, so a run that
+  moved plugins has already rewritten the payload; a run that moved only the engine has not, and the
+  payload on disk is then the previous engine's — the exact staleness D75 exists to make visible.
+  So an engine that moved is followed by one `install` after the adds.
 - **The age gate applies to the engine** as to a plugin: 1440 minutes, `--now` to override, a
   withheld version reported by name with its age (D48). What made the delay affordable there holds
   here — the urgent repair is `~/.rigline/anchors.json`, which needs no publish (D44).
+
+  **It applies here and not to the first run.** D48's shape is refuse-and-name-the-flag, which needs
+  something to stay on; a machine with no engine has nothing, so gating the bootstrap would make
+  `rigline install` fail outright for a day after every release, on a verb with no `--now` to offer.
+  The first run takes what the tag resolves to and says which version it took.
 - **`latest` unless told otherwise**, with `--tag` for a preview line.
 - **A checkout is never touched.** `pnpm rigline` in this repository must not install an engine.
 
@@ -433,9 +450,17 @@ step nobody has run is a defect rather than a gap.
 
 Acceptance: the wrapper adds nothing to stdout for a forwarded verb once an engine is installed, and
 exits with the child's code; no project in the tree or in a generated scaffold depends on `rigline`;
-a generated scaffold builds and runs `add` with no global install; and, as a manual tier-3 check
-needing two published versions, one `rigline update` with an older engine installed leaves every
-installed extension version injected by the newer engine and says so.
+and a generated scaffold builds and runs `add` with no global install.
+
+**The upgrade-in-anger check is deliberately not run** (2026-09-21, Leo). It was to be a manual
+tier-3 pass — an older engine installed, one `rigline update`, every extension version left injected
+by the newer one — and it needs two published versions carrying `rigline-engine`. The registry has
+none: `@rigline/core@1.0.0-alpha.5` has no `bin` at all, so the oldest engine that can be downgraded
+to is whichever release ships this step. Cutting a version before the step, to be the older half,
+was offered and declined. So the path is covered at tier 1 with a faked spawn and at tier 4 against a
+packed tarball, and the one question neither answers — whether a *published* older engine upgrades
+cleanly — is carried as unrun rather than as passed. plan.md's rule about an unrun pipeline step
+applies: treat it as a defect, and the first release that follows one is where it gets discharged.
 
 #### Settled: the help, the typo, and the version
 
@@ -481,8 +506,13 @@ happens in a workspace and never against a user's engine.
 2. The registry client and the tarball reader move up into the wrapper; the engine's `add` takes an
    optional source record and refuses a kind it does not know; `readConfig` skips one.
 3. The wrapper drops `@rigline/core`: engine installation, forwarding, `update`, and the remote half
-   of `add`.
-4. Scripts and the template.
+   of `add` — **and this repository's own scripts move off the wrapper in the same step**. The root
+   and the four plugins take `@rigline/core` as the devDependency and spell the bin
+   `rigline-engine`, with a forwarding `rigline` script at the root so `pnpm rigline <verb>` keeps
+   working. Not deferrable to 4: the moment the wrapper stops calling core in-process, `pnpm build`
+   runs `rigline build` in four packages, which reaches for an engine from the registry. There is no
+   green tree between the two halves.
+4. The template, which has the same two changes and none of the urgency.
 5. Docs.
 
 ## Decisions to record

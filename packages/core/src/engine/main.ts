@@ -102,10 +102,11 @@ const USAGE = `rigline ${CORE_VERSION}
       must be a day old before it is installed; --now takes it anyway. No package manager
       runs, nothing is resolved, and none of the plugin's own code is evaluated.
 
-  rigline update [NAME...] [--now]
-      Move each plugin installed from npm to whatever its tag resolves to now, and
-      re-inject. A plugin pinned to a version, added from a directory, or placed by hand is
-      reported and left alone, as is a newer version too young to install.
+  rigline update [NAME...] [--now] [--tag TAG]
+      Move the engine, and each plugin installed from npm, to whatever its tag resolves to
+      now, and re-inject. A plugin pinned to a version, added from a directory, or placed by
+      hand is reported and left alone, as is a newer version too young to install. --tag
+      follows a preview line instead of latest, for the engine.
 
   rigline remove NAME
       Delete a plugin rigline installed, and re-inject. A plugin you did not install this

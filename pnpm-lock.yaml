@@ -112,15 +112,15 @@ importers:
       '@biomejs/biome':
         specifier: ^2.5.13
         version: 2.5.13
+      '@rigline/core':
+        specifier: workspace:*
+        version: link:packages/core
       '@types/node':
         specifier: ^26.5.1
         version: 26.5.1
       '@types/semver':
         specifier: ^7.8.0
         version: 7.8.0
-      rigline:
-        specifier: workspace:*
-        version: link:packages/cli
       rolldown:
         specifier: ^1.2.8
         version: 1.2.8
@@ -134,11 +134,7 @@ importers:
         specifier: ^5.0.0
         version: 5.0.0(@types/node@26.5.1)(vite@8.3.0(@types/node@26.5.1))
 
-  packages/cli:
-    dependencies:
-      '@rigline/core':
-        specifier: workspace:*
-        version: link:../core
+  packages/cli: {}
 
   packages/core:
     dependencies:
@@ -181,39 +177,39 @@ importers:
 
   plugins/probe:
     devDependencies:
+      '@rigline/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@rigline/plugin-api':
         specifier: workspace:*
         version: link:../../packages/plugin-api
-      rigline:
-        specifier: workspace:*
-        version: link:../../packages/cli
 
   plugins/session-id:
     devDependencies:
+      '@rigline/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@rigline/plugin-api':
         specifier: workspace:*
         version: link:../../packages/plugin-api
-      rigline:
-        specifier: workspace:*
-        version: link:../../packages/cli
 
   plugins/time-marks:
     devDependencies:
+      '@rigline/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@rigline/plugin-api':
         specifier: workspace:*
         version: link:../../packages/plugin-api
-      rigline:
-        specifier: workspace:*
-        version: link:../../packages/cli
 
   plugins/worktree-prefix:
     devDependencies:
+      '@rigline/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@rigline/plugin-api':
         specifier: workspace:*
         version: link:../../packages/plugin-api
-      rigline:
-        specifier: workspace:*
-        version: link:../../packages/cli
 
 packages:
 

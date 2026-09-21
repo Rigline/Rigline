@@ -107,7 +107,6 @@ Written for somebody else, so don't rewrite them for us:
     pnpm rigline install    # inject every version, bake plugins, report drift, record the baseline
     pnpm rigline check      # the same report, writing nothing
     pnpm rigline add SPEC   # install a plugin from a directory or npm, name it, re-inject
-    pnpm rigline update     # move each npm plugin to what its tag resolves to, and re-inject
     pnpm rigline remove N   # delete a plugin rigline installed, and re-inject
     pnpm rigline disable N  # switch a plugin off in config.json, and re-inject
     pnpm rigline enable N   # switch it back on, and re-inject
@@ -118,10 +117,12 @@ Written for somebody else, so don't rewrite them for us:
     pnpm rigline diff A B   # identifier drift between two extension dirs
     pnpm rigline doctor     # install state per version, as a pasteable report
 
-`rigline` is a workspace devDependency of the repo root (`workspace:*`, resolving to
-`packages/cli`), so `pnpm install` links its bin and `pnpm rigline <command>` runs the local
-build directly — no path to `packages/cli/dist/index.js` needed. `pnpm exec rigline <command>`
-is equivalent, if `pnpm <command>` ever collides with a real pnpm subcommand.
+`pnpm rigline <command>` is a root script forwarding to `rigline-engine`, core's bin, linked by the
+root's `@rigline/core` devDependency. **This checkout does not use the `rigline` package**, and must
+not: that is the retrieval layer a user installs, and running it here would fetch an engine from npm
+(D69). Every verb below is the engine's and reads the same either way — `rigline check` is what a
+user types, `pnpm rigline check` is what you type — and `update` is the one verb only the wrapper
+has, so it does not work here.
 
 Rebuilding the payload or a plugin and running `install` again refreshes the files in place
 without rewriting the bundle. `restore` is the undo and the recovery from a blank panel; it needs
@@ -129,9 +130,9 @@ only Node and this checkout.
 
 `install` is the one write command about the injection, and `check` is its read-only half. `add`,
 `remove`, `disable` and `enable` change the plugin set and re-inject afterwards, so a plugin is one
-reload away rather than one reload and a command a person has to know about (D55, D56). `update`
-means *update my plugins*, as it does in every package manager (D55), and never touches the
-injection on its own.
+reload away rather than one reload and a command a person has to know about (D55, D56). `rigline
+update` is the wrapper's: it moves the engine and the plugins, and re-injects behind both (D55,
+D69).
 
 The four first-party plugins are bundled inside `@rigline/core` and discovered in place, so this
 checkout's `plugins/` shadows them and `disable` is the only way to decline one (D71, D72). In a

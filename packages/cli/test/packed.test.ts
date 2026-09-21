@@ -1,20 +1,21 @@
 /**
  * Tier 4: the tarballs, installed (docs/verification.md, D36).
  *
- * Every other tier drives this workspace, where a relative path from `packages/cli/dist` happens
- * to reach `packages/host/dist` and `plugins/`. Installed from npm those paths reach nothing, and
- * `rigline install` threw `payload is missing pre.js` for two releases while every test was green —
- * because no test had ever exercised the published artefact. This is that test, and it is the part
- * of milestone 7 that stops the failure recurring rather than the part that fixes it.
+ * Every other tier drives this workspace, where a relative path from a package's `dist` happens to
+ * reach the files beside it. Installed from npm those paths reach nothing, and `rigline install`
+ * threw `payload is missing pre.js` for two releases while every test was green — because no test
+ * had ever exercised the published artefact. This is that test, and it is the part of milestone 7
+ * that stops the failure recurring rather than the part that fixes it.
  *
- * So it packs what a release would publish, installs those tarballs into a temporary prefix with
- * nothing else on the machine, and runs `install` out of that prefix against a fixture extension
- * directory (never a real one, D39). What it asserts is only what a user would notice: the loader
- * went in, the payload is beside the bundle, and the four first-party plugins are baked into it.
+ * Since the wrapper and the engine separated it builds **two** prefixes, because that is what a user
+ * has (D73): `rigline` alone, and `@rigline/core` under a temporary `RIGLINE_HOME/engine`. The engine
+ * goes in through `engineInstallArgv`, the wrapper's own construction, so what is asserted is the
+ * real npm invocation rather than a copy of it. The one step that cannot happen here is resolving a
+ * version against a registry, which is tier 1's.
  *
- * `pnpm pack` and not `npm pack`: npm leaves `workspace:*` in the packed manifest, which installs
- * as a dependency npm cannot resolve. pnpm substitutes the exact version, which is also what makes
- * the three tarballs resolve each other with no registry (D46).
+ * `pnpm pack` and not `npm pack`: npm leaves `workspace:*` in the packed manifest, which installs as
+ * a dependency npm cannot resolve. pnpm substitutes the exact version, which is also what makes the
+ * tarballs resolve each other with no registry (D46).
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -24,18 +25,22 @@ import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { bundledDir } from "../../core/src/assets.ts";
 import { writeFixtureExtension } from "../../core/test/fixtures.ts";
+import { engineDir, engineInstallArgv, findNpmCli, readEngineState } from "../src/engine.ts";
 
 const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 
-/** In dependency order, which is also the order npm is handed them. */
-const PACKAGES = ["plugin-api", "core", "cli"] as const;
+/** The engine's half, in dependency order, and the wrapper's. */
+const ENGINE_PACKAGES = ["plugin-api", "core"] as const;
+const WRAPPER_PACKAGE = "cli";
 
 /** The payload directory `install` writes under an extension's `webview/`. */
 const PAYLOAD = ["webview", "rigline"] as const;
 
 let work: string;
+/** `RIGLINE_HOME` for every run here, so nothing touches the developer's own state. */
+let home: string;
 let prefix: string;
-/** Where npm put the packages: the global node_modules, wherever this platform keeps it. */
+/** Where npm put the wrapper: the prefix's node_modules, wherever this platform keeps it. */
 let modules: string;
 
 /** Run a command, failing the test with everything it said rather than with an exit code. */
@@ -77,26 +82,43 @@ function attempt(
   }
 }
 
+function pack(name: string): string {
+  const out = run("pnpm", ["pack", "--pack-destination", work], join(ROOT, "packages", name));
+  // pnpm prints the path it wrote as the last non-empty line.
+  const path = out.trim().split(/\r?\n/).at(-1)?.trim() ?? "";
+  if (!existsSync(path)) throw new Error(`pnpm pack wrote no tarball for ${name}: ${out}`);
+  return path;
+}
+
 beforeAll(() => {
   // Asked first and through the resolver, so an unbuilt or stale workspace fails with the build
   // command rather than with an npm error about a tarball that has no `dist` in it.
   bundledDir();
 
   work = mkdtempSync(join(tmpdir(), "rigline-packed-"));
+  home = join(work, "home");
   prefix = join(work, "prefix");
+  const engine = engineDir(home);
   mkdirSync(prefix, { recursive: true });
+  mkdirSync(engine, { recursive: true });
 
-  const tarballs = PACKAGES.map((name) => {
-    const out = run("pnpm", ["pack", "--pack-destination", work], join(ROOT, "packages", name));
-    // pnpm prints the path it wrote as the last non-empty line.
-    const path = out.trim().split(/\r?\n/).at(-1)?.trim() ?? "";
-    if (!existsSync(path)) throw new Error(`pnpm pack wrote no tarball for ${name}: ${out}`);
-    return path;
-  });
+  // The engine, through the argv the wrapper itself would hand npm. `--offline` is the one addition,
+  // because with rolldown gone nothing here needs the registry and a run that silently reached for
+  // one would be a test of the network; `--ignore-scripts` is already in there (D47, D73).
+  run(
+    process.execPath,
+    [
+      ...engineInstallArgv({
+        npmCli: findNpmCli(),
+        prefix: engine,
+        specs: ENGINE_PACKAGES.map(pack),
+      }),
+      "--offline",
+      "--no-package-lock",
+    ],
+    work,
+  );
 
-  // `--ignore-scripts` because nothing here has an install script and the surface is declined
-  // rather than defended (D47); `--offline` because with rolldown gone nothing needs the registry,
-  // and a run that silently reached for one would be a test of the network.
   run(
     "npm",
     [
@@ -107,7 +129,7 @@ beforeAll(() => {
       "--offline",
       "--no-audit",
       "--no-fund",
-      ...tarballs,
+      pack(WRAPPER_PACKAGE),
     ],
     work,
   );
@@ -138,8 +160,13 @@ function riglineCommand(): { readonly path: string; readonly run: (args: string[
         ? execFileSync(process.env.COMSPEC ?? "cmd.exe", ["/d", "/s", "/c", path, ...args], {
             encoding: "utf8",
             stdio: "pipe",
+            env: { ...process.env, RIGLINE_HOME: home },
           })
-        : execFileSync(path, args, { encoding: "utf8", stdio: "pipe" }),
+        : execFileSync(path, args, {
+            encoding: "utf8",
+            stdio: "pipe",
+            env: { ...process.env, RIGLINE_HOME: home },
+          }),
   };
 }
 
@@ -148,24 +175,28 @@ afterAll(() => {
 });
 
 describe("the published tarballs, installed and run", () => {
-  it("injects and bakes the four first-party plugins, with no checkout anywhere", () => {
-    const ext = writeFixtureExtension(join(work, "ext"));
+  it("puts a startable engine in the home prefix, through the wrapper's own npm argv", () => {
+    // The engine is located the way the wrapper locates it: `bin["rigline-engine"]` in the installed
+    // manifest, never a hard-coded `dist/index.js`. An engine that installs and cannot be started is
+    // the exact shape of every @rigline/core published before this milestone.
+    const state = readEngineState(engineDir(home));
+    expect(state.kind).toBe("ready");
+  });
 
+  it("forwards install to that engine and bakes the four first-party plugins", () => {
+    const ext = writeFixtureExtension(join(work, "ext"));
     const cli = join(modules, "rigline", "dist", "index.js");
     expect(existsSync(cli)).toBe(true);
 
-    // Its own home, so the run cannot read or write the developer's config, plugins or baseline.
-    //
     // The exit code is deliberately not asserted, and this is the one place that reads as a gap and
     // is not. A synthetic bundle carries none of the curated anchors, so every plugin's declaration
     // check fails against it and `install` exits 1 to say a person is needed — which is D27 working:
     // a refused plugin is still copied, still baked, and never blocks the injection. What this tier
     // is asking is whether the published artefact can do its job at all, and every line below is
     // work that only happened because it could.
-    const { stdout } = attempt(process.execPath, [cli, "install", "--ext", ext], work, {
-      RIGLINE_HOME: join(work, "home"),
+    const { stdout: out } = attempt(process.execPath, [cli, "install", "--ext", ext], work, {
+      RIGLINE_HOME: home,
     });
-    const out = stdout;
 
     const payload = join(ext, ...PAYLOAD);
     for (const file of ["pre.js", "post.js", "generated.js", "registry.js"]) {
@@ -184,6 +215,10 @@ describe("the published tarballs, installed and run", () => {
     // The bundled set is the last root, so nothing shadows it and nothing is reported as shadowed:
     // a published install finding each name once is the arrangement this whole phase is about.
     expect(out).not.toContain("is shadowed by");
+
+    // Nothing of the wrapper's is in what the user reads. A forwarded verb is the engine's output
+    // and only the engine's, which is what "the wrapper adds nothing to stdout" means (D69).
+    expect(out).not.toContain("rigline: installing the engine");
   });
 
   it("is runnable by name, which is the first thing a person touches", () => {
@@ -197,16 +232,37 @@ describe("the published tarballs, installed and run", () => {
     expect(rigline.run(["--help"])).toContain("rigline install");
   });
 
-  it("prints its usage without a bundler installed, which the packed tarball has not got", () => {
-    // Rolldown is a devDependency, so it is not in this prefix at all. Before it was lazily
-    // imported, `packages/cli/dist/build.js` pulled it in from the head of the module graph and
-    // every command threw ERR_MODULE_NOT_FOUND before reading its own arguments.
+  it("answers --version itself, naming both packages and reaching nothing", () => {
+    // The one verb the wrapper does not forward (D69), and the reason is diagnostic: it is what
+    // somebody runs when something is already wrong, so it must work with no engine and no network.
     const cli = join(modules, "rigline", "dist", "index.js");
-    expect(existsSync(join(modules, "rolldown"))).toBe(false);
+    const empty = join(work, "no-home");
+    const bare = execFileSync(process.execPath, [cli, "--version"], {
+      encoding: "utf8",
+      stdio: "pipe",
+      env: { ...process.env, RIGLINE_HOME: empty },
+    });
+    expect(bare).toContain("rigline ");
+    expect(bare).toContain("the next command installs one");
+    expect(existsSync(join(empty, "engine", "node_modules"))).toBe(false);
 
+    const withEngine = riglineCommand().run(["--version"]);
+    expect(withEngine).toContain("@rigline/core ");
+  });
+
+  it("prints its usage without a bundler installed, which the packed tarballs have not got", () => {
+    // Rolldown is a devDependency, so it is in neither prefix. Before it was lazily imported it was
+    // pulled in from the head of the module graph and every command threw ERR_MODULE_NOT_FOUND
+    // before reading its own arguments. `rigline build` failing in a user's engine is correct and is
+    // not this: a build happens in a workspace, never against an installed engine.
+    expect(existsSync(join(modules, "rolldown"))).toBe(false);
+    expect(existsSync(join(engineDir(home), "node_modules", "rolldown"))).toBe(false);
+
+    const cli = join(modules, "rigline", "dist", "index.js");
     const out = execFileSync(process.execPath, [cli, "--help"], {
       encoding: "utf8",
       stdio: "pipe",
+      env: { ...process.env, RIGLINE_HOME: home },
     });
     expect(out).toContain("rigline install");
   });

@@ -5,8 +5,9 @@
     "types": ["node"],
     "noEmit": true,
     "allowImportingTsExtensions": true,
+    // No `@rigline/core`: the wrapper depends on no Rigline package (D69), and a mapping here
+    // would let a `src/` import typecheck, build and fail only for whoever installed the tarball.
     "paths": {
-      "@rigline/core": ["../core/src/index.ts"],
       "@rigline/plugin-api": ["../plugin-api/src/index.ts"]
     }
   },

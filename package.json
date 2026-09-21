@@ -15,7 +15,8 @@
   },
   "scripts": {
     "build": "pnpm -r build && node scripts/bundle-assets.mjs",
-    "codegen": "rigline codegen",
+    "rigline": "rigline-engine",
+    "codegen": "rigline-engine codegen",
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run",
     "release": "node scripts/release.mjs",
@@ -26,9 +27,9 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.13",
+    "@rigline/core": "workspace:*",
     "@types/node": "^26.5.1",
     "@types/semver": "^7.8.0",
-    "rigline": "workspace:*",
     "rolldown": "^1.2.8",
     "semver": "^7.8.5",
     "typescript": "^7.0.2",

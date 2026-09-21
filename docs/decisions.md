@@ -660,8 +660,94 @@ can be blamed for, and absent beats wrong.
 **D31. Distribution is `@rigline/core` plus the `rigline` CLI now, with a companion VS Code extension
 as a later phase; core is designed so either can be its consumer.** Confirmed by Leo 2026-09-13.
 
+**D69. The engine cannot update the engine, so `rigline` is a retrieval layer above `@rigline/core`
+and belongs in no project's dependencies (2026-09-21).** A process cannot replace the package it is
+running out of — that is the whole of the npm self-update failure record — so whatever performs an
+update sits above the thing being updated. `update` therefore cannot live in core, and the package
+that holds it is the one that installs the engine.
+
+So `rigline` owns bytes and nothing else: `update`, the remote half of `add` (D70), installing the
+engine (D73), and forwarding every other verb verbatim. It writes no user state beyond the engine
+directory and its own staging directory, reads no `config.json`, and opens no plugin manifest. It
+holds **no verb list**, which is what lets core add a command without a wrapper release; the price
+is that a typo reaches the engine and triggers a first-run install, and that is the right answer
+rather than a tolerated one, because the alternative goes stale in the direction that matters —
+refusing a verb that exists. The engine prints the usage for everything, its own refusals included,
+so the `rigline` surface is documented in one place.
+
+**`--version` is the one thing the wrapper answers itself**, printing its own version and the
+installed engine's, or naming the absence before a first run, and installing nothing. The line is
+not taste: a version is a question about what is on this machine, which the wrapper can answer from
+the manifest it already reads to find the bin, while a usage is a question about what the tool can
+do, which only the engine knows — and a version query is what somebody runs when something is
+already wrong, so making it reach the network first is the opposite of a diagnostic.
+
+It declares no dependency on any Rigline package, and appears in no project's dependencies — not
+this repository's root, not an author's workspace, not the scaffold. A project that can declare
+dependencies does not need a delivery mechanism: it declares `@rigline/core` and spells the bin
+`rigline-engine`. Taking `rigline` as a devDependency is the payload mistake one layer down,
+treating the shell as the substance. The price is duplication — `UserError` and the `$RIGLINE_HOME`
+rule are two files rather than one, each with a test holding the copies together — and it is
+cheaper than the dependency that would undo the split.
+
+**D70. The wrapper vets the container; the engine vets the content (2026-09-21).** There is exactly
+one `add`, in the engine, and it takes a path. The wrapper's remote handling is a prefix that turns
+a spec into one: resolve, fetch, check integrity, apply the release-age gate, read the archive
+through a reader that refuses (D57), unpack into a staging directory, hand over the path and a
+source record. `add ./dir` skips the prefix entirely and is forwarded.
+
+A wrapper that validated would hold an opinion about what a valid plugin is, and pinned to a
+different `@rigline/plugin-api` than the engine it could refuse a plugin the engine would have run —
+an updater vetoing working software, with no way to argue. So manifest shape, the entry file
+existing, capability declarations, anchor existence, the installed directory's name, `describeUses`
+and the collision check are all the engine's, which already reports a plugin it refuses by name
+without blocking the install (D27, D43).
+
+It is also what keeps an author's loop working with no wrapper anywhere: `add <path>` is an engine
+command, reachable from a workspace that depends only on `@rigline/core`.
+
+**D73. The engine installs into `<RIGLINE_HOME>/engine` through npm, never globally, and is the only
+engine on the machine (2026-09-21).** `npm install --prefix <RIGLINE_HOME>/engine --save-exact
+--ignore-scripts @rigline/core@<version>`, into a directory the user unconditionally owns. No
+`EACCES`, because it is their own home; no bin collision, because core's bin lands in that prefix
+rather than the global one; no PATH dependency and no package-manager detection, because the wrapper
+knows where it put it; and rollback is the same command with the previous version. Recovery is `rm
+-rf` on that directory and any command.
+
+**The wrapper carries no bundled copy**, so there is no precedence rule, no semver ordering and no
+way for the engine you ran to differ from the one you installed. It compares the installed version
+against the resolved one for equality, which is what "install only when it moved" means and is not
+the ordering D58 refuses.
+
+**Do not reach for a launcher, a versions directory, background update checks, release channels or
+staged upgrades.** Claude Code does all of those, on this machine, and is the nearest neighbour a
+reader will find — but that machinery exists because a session is open for hours and an update lands
+underneath it. `rigline` exits in seconds, having been asked to run.
+
+Mechanics that are not optional, each confirmed by running it on Windows under the npm that ships
+with Node 26. `--save-exact`, or npm writes a caret range into that manifest and a bare `npm install`
+there becomes a second mechanism deciding what is installed — what D58 refuses for a plugin source,
+and narrower than it looks on a prerelease (D50). `--ignore-scripts`, which is the workspace's own
+`allowBuilds: {}` posture and the carve-out D47 needs. npm found beside the running Node, never on
+PATH, because under corepack, volta or fnm the shim on PATH is not necessarily the npm beside this
+Node — and refused by name, with the command to run, when it is not there. `process.execPath` with
+an argv array and no shell, never a `.cmd` shim, which is what makes a prefix containing spaces safe
+and what avoids the `EINVAL` Windows has thrown since the 2024 CVE fix. And the entry read from
+`bin["rigline-engine"]` in the installed manifest, never hard-coded.
+
+**Majors move together.** The wrapper installs within its own major and refuses an installed engine
+outside it, saying so and naming `npm i -g rigline@latest`. On a fresh machine that is one command,
+and it is the only case where a first run cannot complete.
+
+The costs, stated: npm must be beside the running Node; the first run needs the registry, seconds
+after the user ran `npm i -g rigline`; and a user cannot override the engine with `npm i -g
+@rigline/core`, which is the price of never colliding.
+
 **D32. User state lives under `~/.rigline`**: config, installed plugins, anchor-table overrides
-(D44) and the harvest baseline. A clone of this repo is for developing Rigline, not for using it.
+(D44), the harvest baseline, and — since 2026-09-21 — `engine/`, the npm prefix the wrapper installs
+`@rigline/core` into (D73). A clone of this repo is for developing Rigline, not for using it. The
+engine directory is named here because the recovery instruction is `rm -rf` on it, and a person
+about to run that should be able to find out what else is in the neighbourhood first.
 
 **D33. Plugins are distributed as npm packages carrying `rigline.json` and a built entry, or as a
 local directory for development.** A git-repo source was weighed and deferred rather than
@@ -695,6 +781,13 @@ package whose version is not yet on the registry, in dependency order, so our fo
 stage approve` then takes the whole batch under a single OTP, skipping any package whose workspace
 dependency did not make it rather than publishing against a dependency the registry never got. A
 single-package plugin repo needs no flag.
+
+**That skip stopped covering `rigline` on 2026-09-21**, and the runbook carries the check it no
+longer performs. The protection is a property of the dependency graph: pnpm can only decline to
+publish a package whose workspace dependency was left behind. `rigline` now declares none (D69), so
+a staged release where `@rigline/core` failed to go up leaves a wrapper that installs an engine
+version the registry has not got — on the one package where the failure is invisible until a user
+runs it. [releasing.md](releasing.md) asks for the pair by hand.
 
 **pnpm completes the exchange itself**, verified against a stand-in registry rather than inferred:
 it reads `ACTIONS_ID_TOKEN_REQUEST_URL`, asks GitHub for a token with `audience=npm:<registry
@@ -730,6 +823,13 @@ against the registry's integrity hash, extracts it, and validates the manifest a
 defended, which is stronger than passing `--ignore-scripts`. A plugin that cannot be installed this
 way is a plugin we do not install.
 
+**The engine is the carve-out** (amended 2026-09-21). `@rigline/core` is an ordinary npm package with
+an ordinary dependency graph, and installing it is exactly what npm is for, so the wrapper shells out
+to npm for that one job and for nothing else (D73). The headline still holds unqualified — it is
+about `rigline add`, and no plugin install has ever run a package manager. The engine install passes
+`--ignore-scripts`, which is the weaker guarantee this decision prefers not to rely on, and relies on
+it only where the alternative is writing a package manager.
+
 **D48. A published version must reach a minimum age before `add` or `update` will take it: 1440
 minutes by default, `--now` to override.** The number matches pnpm's `minimumReleaseAge` default and
 rests on the same evidence — a compromised publish is generally caught within a day, and a day of
@@ -754,6 +854,27 @@ A plugin the user placed in `~/.rigline/plugins/` by hand has no source record a
 the next inject with everything it declares, and `update` cannot move it, which is the honest cost of
 dropping a directory in: the user owns the version because the user owns the provenance. `list`
 reports that rather than leaving it to be inferred from silence.
+
+**The engine writes the record it is handed, and skips a kind it cannot read** (amended
+2026-09-21). `add` takes an optional source alongside the path, which is how the wrapper's remote
+half reports what it fetched without writing `config.json` itself (D70, D74). An `add` handed a kind
+this engine does not know refuses that one plugin and names the kind; `readConfig` **skips** an
+unrecognised entry with a line and carries on, where it used to throw. The wrapper is routinely
+newer than the engine — that is what an acquisition layer is for — so the first wrapper to write a
+new kind must not break `list` on every engine that predates it.
+
+**D74. A plugin spec names its source; the manifest's `name` remains the identity; the engine owns
+`config.json` (2026-09-21).** `add` accepts a path, `npm:<name>[@<version|tag>]` and, when the
+deferred git work lands, a URL with an optional `#ref`. A bare name still means npm, as it always
+did, so nothing breaks and no surface is removed; the `npm:` spelling is the explicit form the other
+schemes need to sit beside. What a spec never decides is what the plugin is called: the manifest's
+`name` is the runtime identity and the installed directory's name, so two specs for one plugin are
+one plugin, and D56's collision rule has one thing to compare.
+
+**All of `config.json` is the engine's, sources included** — one writer, and the wrapper is not it.
+That is what makes `rigline-engine list --json` load-bearing rather than a convenience: `update`
+needs to know what it may move, and the wrapper asks instead of reading, because a second reader of
+that file is a second opinion about what is installed.
 
 **D56. A plugin name is unique across discovery roots, first root wins, and `add` refuses to make a
 collision it cannot undo.** Discovery flattens its roots into one ordered list, so two directories
@@ -1147,10 +1268,13 @@ webview, one check per capability, `n/a` where a check cannot apply on a surface
 tier that boots the real bundle from the corpus with a faked `acquireVsCodeApi` and a replayed bus,
 which is `packages/harness`.
 
-**The fourth is the tarballs, installed** (2026-09-21). `pnpm pack` — never `npm pack`, which leaves
-`workspace:*` in the manifest — then the three tarballs into a temporary prefix with
-`--ignore-scripts` and `--offline`, and `install` run out of that prefix against a fixture extension
-directory. It is a tier rather than a test because it asks a question none of the other three can:
+**The fourth is the tarballs, installed** (2026-09-21, amended the same day). `pnpm pack` — never
+`npm pack`, which leaves `workspace:*` in the manifest — then the tarballs into a temporary prefix
+with `--ignore-scripts` and `--offline`, and `install` run out of that prefix against a fixture
+extension directory. Since the wrapper and the engine separated it is **two** prefixes, because that
+is what a user has: `@rigline/core` and `@rigline/plugin-api` into a temporary `RIGLINE_HOME/engine`,
+through the same argv construction the wrapper would have used, and `rigline` on its own beside it.
+The registry resolve is the one step that cannot happen here and is tier 1's. It is a tier rather than a test because it asks a question none of the other three can:
 every one of them drives this workspace, where a relative path from `packages/cli/dist` happens to
 reach `packages/host/dist` and `plugins/`. Installed from npm those paths reach nothing, and
 `rigline install` threw `payload is missing pre.js` for two releases while every tier was green. It

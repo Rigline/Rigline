@@ -128,6 +128,12 @@ tier, so the local run is the stronger one.
    release:finish` will try to do it for you, and can only succeed for an account that can type a
    one-time password; a security key has none to give, and the website is the route that always
    works.
+
+   **Check `rigline` and `@rigline/core` by eye, together.** The dependency-order skip in step 4
+   protects every package whose dependency did not make it — and `rigline` no longer declares one
+   (D69), so it is the only package that can go up alone. A `rigline` published without the
+   `@rigline/core` beside it installs an engine version the registry has not got, on the first
+   command anybody runs, and nothing before a user's terminal would say so.
 4. `pnpm release:finish`. It approves the batch if it can — in dependency order, so a package whose
    workspace dependency could not be approved is skipped rather than published against a dependency
    the registry never received — then points `next` at this version if the release is ahead of it,

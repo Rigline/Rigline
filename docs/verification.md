@@ -169,22 +169,28 @@ report, from files we wrote. VS Code's own logs are deliberately out of scope (D
 ## Tier 4: the tarballs, installed
 
 `packages/cli/test/packed.test.ts` packs what a release would publish, installs those tarballs into
-a temporary prefix with nothing else on the machine, and runs `install` out of that prefix against a
-fixture extension directory.
+**two** temporary prefixes with nothing else on the machine, and runs `install` out of them against
+a fixture extension directory.
+
+Two prefixes because that is what a user has (D73): `rigline` on its own, and `@rigline/core` with
+its dependency under a temporary `RIGLINE_HOME/engine`. The engine goes in through
+`engineInstallArgv`, the construction the wrapper itself hands npm, so what runs here is the real
+invocation rather than a copy that can drift from it. Resolving a version against a registry is the
+one step of the path that cannot happen here, and tier 1 fakes it.
 
 It exists because of a failure the other three could not see. Every one of them drives this
-workspace, where a relative path from `packages/cli/dist` happens to reach `packages/host/dist` and
-`plugins/`. Installed from npm those paths reach nothing, and `rigline install` threw `payload is
-missing pre.js` for two releases while every tier was green. The question it owns is therefore
-narrow and nothing else asks it: **does what a person downloads do its job?**
+workspace, where a relative path from a package's `dist` happens to reach the files beside it.
+Installed from npm those paths reach nothing, and `rigline install` threw `payload is missing pre.js`
+for two releases while every tier was green. The question it owns is therefore narrow and nothing
+else asks it: **does what a person downloads do its job?**
 
 Three details are load-bearing:
 
 - **`pnpm pack`, never `npm pack`.** npm leaves `workspace:*` in the packed manifest, which installs
   as a dependency npm cannot resolve. pnpm substitutes the exact version, which is also what lets
-  the three tarballs resolve each other (D46).
+  the tarballs resolve each other (D46).
 - **`--offline`**, so a run that silently reached for the registry would fail rather than becoming a
-  test of the network. Nothing needs it: rolldown is a devDependency now, and the three packages'
+  test of the network. Nothing needs it: rolldown is a devDependency now, and the published packages'
   only dependencies are each other.
 - **`--ignore-scripts`**, because nothing here has an install script and the surface is declined
   rather than defended (D47). And `RIGLINE_HOME` points into the temporary directory, so the run

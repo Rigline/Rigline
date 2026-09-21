@@ -403,23 +403,27 @@ D70, D73 and D74 are recorded with the work they cover.
 Phases 0 to 4b, phase 6 and milestone 7a are done. `1.0.0-alpha.5` is published to `latest` and
 installs from npm on a machine with no checkout.
 
-**7b is at step 3 of five**, and its order is in [m7-distribution.md](m7-distribution.md). Steps 1
-and 2 are done: the command surface and the `rigline-engine` bin are core's, and the registry
-client, the tarball reader, `add`'s remote half and `update` are the wrapper's. Step 3 is the
-separation itself — install the engine under `<RIGLINE_HOME>/engine`, spawn it, drop the
-`@rigline/core` dependency — then scripts and the template, then docs. D69, D70, D73 and D74 are
-recorded with the work each covers, which is all step 3.
+**7b is at step 4 of five**, and its order is in [m7-distribution.md](m7-distribution.md). The
+separation is cut: `rigline` installs `@rigline/core` into `<RIGLINE_HOME>/engine`, spawns it,
+answers `--version` itself and forwards everything else, and declares no Rigline package at all.
+This repository's own scripts moved with it — root and the four plugins take `@rigline/core` and
+spell the bin `rigline-engine`, with a forwarding `rigline` script at the root — because `pnpm
+build` runs `rigline build` in four packages and there is no green tree between the halves.
 
-**The wrapper still calls the engine in-process**, so the seam is written but not cut: `RunEngine`
-takes an argv array and returns an exit code because step 3 makes it a spawn, and `listed()` in
-[cli/src/index.ts](../packages/cli/src/index.ts) is what `rigline-engine list --json` replaces.
-Leaving it here is the one state worse than either end — the code says "step 3 does this" in
-several places — so finish it or decide out loud to stop.
+**What is left is step 4, the template, and step 5, the docs.** The template needs the same two
+changes the repository just took: `@rigline/core` in place of `rigline`, and `rigline-engine` in the
+`build` and `codegen` scripts, at the root and in the member. m7-distribution.md lists the documents
+step 5 owes — `packages/cli/README.md` is the wrapper's now and still documents all fourteen verbs,
+`packages/core/README.md` needs the command surface, and `CLAUDE.md`'s command table has been
+corrected but its surroundings have not been re-read as a whole.
 
-**Unreleased and waiting**: the meter fix, `list --json`, and core's new bin. Publishing `alpha.6`
-before step 3 would give 7b's own acceptance check the older engine it needs to upgrade *from*;
-after step 3 there is nothing to downgrade to. Declined for now (2026-09-21) in favour of feature
-work, so the check needs another plan if it stays declined.
+**Unreleased and waiting**: the meter fix, `list --json`, and core's new bin. Cutting `alpha.6`
+before step 3, to be the older engine 7b's acceptance check needs to upgrade *from*, was offered and
+declined (2026-09-21, Leo). So that one check is carried as **unrun**: the registry's newest
+`@rigline/core` has no `bin` at all, which leaves no published engine a `rigline update` could move
+off. Everything else about the path is covered at tier 1 and tier 4, and the first release after
+step 3 is where a real upgrade becomes testable — treat it as owed, per this file's own rule about a
+pipeline step nobody has run.
 
 **The release pipeline has now been driven end to end**, tag through approval, with one step that
 is irreducibly a person's: `pnpm release:finish` needs 2FA. [ci.md](ci.md) carries the rest of what
@@ -738,3 +742,13 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   where `readConfig` skips one (D74), and `list --json` is how the wrapper will learn what `update`
   can move without reading `config.json`. Each published package now empties its own `dist` before
   `tsc` refills it, after a module cut a week earlier was found still compiled there. 798 green.
+- 2026-09-21: M7 phase 7b step 3: **the wrapper and the engine are separate processes.** `rigline`
+  declares no Rigline package, installs `@rigline/core` into `<RIGLINE_HOME>/engine` with npm and
+  spawns its bin, answering only `--version` itself (D69, D70, D73, D74). This repository's own
+  scripts moved in the same step, onto `@rigline/core` and `rigline-engine`, because `pnpm build`
+  runs `rigline build` in four packages and there is no green tree between the halves. Two things
+  the work decided that the plan had left open: the release-age gate is `update`'s and not a first
+  run's, since a machine with no engine has nothing to stay on; and an `update` that moves only the
+  engine now re-injects, which nothing else would have done. Tier 4 became the two prefixes a user
+  actually has, installing the engine through `engineInstallArgv`, the wrapper's own npm
+  construction, rather than a copy of it. 818 green.
