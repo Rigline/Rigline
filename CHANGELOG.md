@@ -10,6 +10,8 @@ anything may change between releases.
 
 ## Unreleased
 
+## 1.0.0-alpha.7 — 2026-09-21
+
 ### Added
 
 - `rigline vscode-setup`, an optional companion extension that watches for a Claude Code update and
