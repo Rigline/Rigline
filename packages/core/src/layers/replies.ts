@@ -56,8 +56,12 @@ function harvestResponseLiterals(hostJs: string): ReadonlySet<string> {
   return present;
 }
 
-/** Reply-name candidates for one outbound request, tried in order; first present one wins. */
-function replyCandidates(request: string): string[] {
+/**
+ * Reply-name candidates for one outbound request, tried in order; first present one wins. Exported
+ * because the harvest keeps only the flattened set of replies, so anything checking that a
+ * hand-written reply belongs to the request it answers has to pair them the same way.
+ */
+export function replyCandidates(request: string): string[] {
   const candidates = [`${request}_response`];
   if (request.endsWith("_request")) {
     candidates.push(`${request.slice(0, -"_request".length)}_response`);

@@ -4,12 +4,12 @@
  * codes no identifier from any bundle, only the boot contract every version relies on (`IS_*`,
  * `#root`, `acquireVsCodeApi`), so the same page serves every corpus version.
  *
- * The fake host is a reply table keyed by request type, seeded with the boot floor every surface
- * needs (docs/spikes/playwright-harness.md's ten replies) plus `rename_tab`, which this harness's
- * fixtures exercise. `get_claude_state`'s `config.openNewInTab` is set true rather than left `{}`:
- * the app's own tab-title effect only calls through to `renameTab()` when that flag is set, so
- * this is what turns "the app naturally renames its tab once a session exists" from a dead branch
- * into the thing a rewrite test can observe.
+ * The fake host is `REPLY_TABLE`, seeded with the boot floor every surface needs
+ * (docs/spikes/playwright-harness.md's ten replies) plus `rename_tab`, which this harness's
+ * fixtures exercise. `init`'s `state.openNewInTab` is true rather than absent: the app's tab-title
+ * effect only calls through to `renameTab()` when that flag is set, so it is what turns "the app
+ * naturally renames its tab once a session exists" from a dead branch into something a rewrite test
+ * can observe.
  */
 import type { Surface } from "@rigline/plugin-api";
 
@@ -18,40 +18,45 @@ export interface FixturePageOptions {
   readonly nonce: string;
 }
 
+/**
+ * Replies keyed by the outbound request's inner type. A plain table, not a stateful mock: the real
+ * host's behaviour is not what is under test, only "does the webview react correctly to this bus
+ * traffic" is. See docs/spikes/playwright-harness.md for how each body was found.
+ *
+ * Out here rather than inside the page's script so a test can check every `type` against the
+ * harvested replies layer. The bodies are hand-found and cannot be derived; the types can, and a
+ * wrong one is invisible until a plugin taps the message it should have carried.
+ */
+export const REPLY_TABLE: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
+  // authStatus must be non-null to pass the app's "is authenticated" gate, and the connection's
+  // "config" is fed from this reply's state rather than from get_claude_state's own field.
+  init: {
+    type: "init_response",
+    state: { authStatus: {}, experimentGates: {}, openNewInTab: true },
+  },
+  get_claude_state: { type: "get_claude_state_response", cached: false, config: {} },
+  // Deliberate: this one follows the "_request" to "_response" exception, not the general rule.
+  list_sessions_request: { type: "list_sessions_response", sessions: [] },
+  list_remote_sessions: { type: "list_remote_sessions_response", sessions: [] },
+  get_session_groups: { type: "get_session_groups_response", groups: [] },
+  get_collapsed_panel_sections: { type: "get_collapsed_panel_sections_response", sections: [] },
+  get_asset_uris: { type: "asset_uris_response", uris: {} },
+  get_current_selection: { type: "get_current_selection_response", selection: null },
+  webview_focused: { type: "webview_focused_response" },
+  get_mcp_servers: { type: "get_mcp_servers_response", mcpServers: [] },
+  rename_tab: { type: "rename_tab_response" },
+};
+
+/**
+ * `REPLY_TABLE` as a literal for the page's inline script. `</` is split because the browser ends a
+ * `<script>` at the first one, whatever the JavaScript around it means.
+ */
+function replyTableLiteral(): string {
+  return JSON.stringify(REPLY_TABLE).split("</").join("<\\/");
+}
+
 const FAKE_HOST = `
-  // Reply table keyed by the outbound request's inner type. A plain table, not a stateful mock:
-  // the real host's behaviour is not what is under test, only "does the webview react correctly
-  // to this bus traffic" is. See docs/spikes/playwright-harness.md for how each reply was found.
-  const replyTable = {
-    // authStatus must be non-null (any object) to pass the app's "is authenticated" gate.
-    // openNewInTab: true is what makes the app's tab-title effect actually call renameTab() —
-    // the connection's "config" reactive value is fed from this reply's state, not from
-    // get_claude_state's own "config" field (which feeds a separate reactive value).
-    init: () => ({
-      type: "init_response",
-      state: { authStatus: {}, experimentGates: {}, openNewInTab: true },
-    }),
-    get_claude_state: () => ({ type: "get_claude_state_response", cached: false, config: {} }),
-    // The naming convention this reply follows is the "_request"
-    // to "_response" exception, not the general "append _response" rule: the real extension answers
-    // list_sessions_request with list_sessions_response, which is also the one confirmed message
-    // type any plugin (worktree-prefix) taps for it. A stand-in "list_sessions_request_response" here
-    // silenced the app's console warning just as well, since the app itself never reads the reply's
-    // own type field, but it meant onMessage("list_sessions_response", ..) could never fire from this
-    // boot-time reply — a latent harness-fidelity gap nothing had caught before a plugin needed it.
-    list_sessions_request: () => ({ type: "list_sessions_response", sessions: [] }),
-    list_remote_sessions: () => ({ type: "list_remote_sessions_response", sessions: [] }),
-    get_session_groups: () => ({ type: "get_session_groups_response", groups: [] }),
-    get_collapsed_panel_sections: () => ({
-      type: "get_collapsed_panel_sections_response",
-      sections: [],
-    }),
-    get_asset_uris: () => ({ type: "get_asset_uris_response", uris: {} }),
-    get_current_selection: () => ({ type: "get_current_selection_response", selection: null }),
-    webview_focused: () => ({ type: "webview_focused_response" }),
-    get_mcp_servers: () => ({ type: "get_mcp_servers_response", mcpServers: [] }),
-    rename_tab: () => ({ type: "rename_tab_response" }),
-  };
+  const replyTable = ${replyTableLiteral()};
 
   function sendFromExtension(message) {
     window.postMessage({ type: "from-extension", message }, "*");
@@ -129,9 +134,9 @@ const FAKE_HOST = `
   function replyHost(m) {
     if (m.type === "request") {
       const reqType = m.request && m.request.type;
-      const make = replyTable[reqType];
-      const response = make ? make(m) : {};
-      if (!make) console.warn("[harness host] no scripted reply, sending {} for", reqType, m);
+      const scripted = replyTable[reqType];
+      const response = scripted || {};
+      if (!scripted) console.warn("[harness host] no scripted reply, sending {} for", reqType, m);
       sendFromExtension({ type: "response", requestId: m.requestId, response });
     } else if (m.type === "launch_claude") {
       lastChannelId = m.channelId;

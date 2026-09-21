@@ -83,6 +83,6 @@ export { allMessageTypes, ENVELOPE_TYPES, harvestProtocol } from "./protocol.ts"
 export type { ReactAnchors } from "./react.ts";
 export { DEVTOOLS_HOOK, harvestReact } from "./react.ts";
 export type { Responses } from "./replies.ts";
-export { harvestResponses } from "./replies.ts";
+export { harvestResponses, replyCandidates } from "./replies.ts";
 export type { Bundles, Layer } from "./types.ts";
 export { HarvestError } from "./types.ts";

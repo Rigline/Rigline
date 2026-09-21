@@ -473,55 +473,28 @@ settled enough to stop asking, and the first one does not say what this section 
   sidebar. `decorateTranscript` now registers nothing where the anchor renders no rows (D68 applied
   to the second capability that takes one).
 
-**Small items still carried.** The harness's `page.ts` hard-codes the reply *type* for each request
-in its table, and a wrong one sat there until a plugin needed the message. The bodies are
-hand-found and cannot be derived, but the types can: lifting the table out of the page's template
-string into real TypeScript would let a test check each against the harvested replies layer.
+**The small items carried into this milestone are closed.** Two built, one declined; what each left
+behind as a standing constraint is below.
 
-**There is a second wrong one in it now.** The table answers `get_asset_uris` with
-`get_asset_uris_response`; the harvest has no such reply type, and the extension's is
-`asset_uris_response`. So this is not a hypothetical check — it fails on the table as committed,
-which is the argument for building it.
-
-The check can be exact rather than a membership test, which is what the entry first assumed. The
-layer's *output* is a flat set of reply names, but `harvestResponses` pairs each request with its
-reply on the way there and then discards the pairing; exporting `replyCandidates` gives the check
-`declared === replyCandidates(request).find(present)`, which also catches a reply belonging to some
-other request — the failure a membership test waves through. It reads the committed `generated.ts`
-through `readGeneratedScan`, so it runs in CI with no corpus and no browser, and it is exact only
-while the harness's pinned version and `generated.ts` are the same extension, which the test should
-say. The request keys want the same treatment: an unknown one falls through to a `console.warn` and
-a `{}` reply, quiet in both directions.
-
-**A scaffold cannot install the release that produced it, for a day.** `create-rigline-plugin@X`
-writes `@rigline/core: ^X` into the workspace it scaffolds (D50), and that workspace's own
-`pnpm-workspace.yaml` sets `minimumReleaseAge: 1440` — so `pnpm install`, the first command the
-README gives, refuses the version the scaffolder just named, with `ERR_PNPM_NO_MATURE_MATCHING_VERSION`
-and advice about waiting. Found by running a scaffold against locally packed tarballs on 2026-09-21,
-where it bit on a package published that morning; it is the same shape as the `^1.0.0` range D50
-already records, and the same lesson about running the artefact rather than reasoning about it.
-**Settled (D50 amended): the template excludes the two Rigline packages by version, substituted
-like the range beside them.** The gate is not a refusal in general — pnpm walks back to the newest
-version in range that is old enough, which is why `vitest: ^5.0.0` installs on the day 5.0.1 ships.
-What decides it is whether a range's floor is itself the newest published version, which a derived
-range always is, so this is every release day rather than this first week. A scope glob was rejected
-for exempting more than the argument covers, and loosening the gate generally for exempting
-everything.
-
-To do, in one commit with the changelog entry, since what the scaffolder emits is user-visible:
-`__RIGLINE_VERSION__` beside the existing range substitution; the exclusion in the template's
-`pnpm-workspace.yaml`, whose comment block asserts something this disproved and now needs the
-exception written into it; the same correction in this repository's own file, which keeps the
-refusal; a scaffolder test shaped like the placeholder test beside it, asserting that every
-`@rigline` dependency the template declares is covered rather than matching the literal string; and
-`docs/verification.md`, whose scaffold procedure names the gate, sets `minimumReleaseAge: 0`, and
-cannot exercise the registry path that found this at all. Verify by scaffolding from the registry
-and running `pnpm install`.
+**The scaffold's release-age gate** (D50 amended). A scaffolded workspace exempts the two Rigline
+packages by version, substituted from the same string their ranges are so the two cannot diverge.
+The constraint worth keeping: pnpm walks back to the newest version in range that is old enough, so
+what decides whether the gate refuses is *whether a range's floor is itself the newest published
+version*. A derived range always is. A hand-written one becomes so the moment somebody bumps a floor
+to a same-day release — the template's other dependencies satisfy this today by having been written
+earlier, which is luck and not a mechanism.
 
 Writing `minimumReleaseAge: 1440` down — the value pnpm 12.3 already defaults to — is what makes the
 gate *refuse* rather than record the young picks and proceed; explicitness flips
-`minimumReleaseAgeStrict`, at any value. This repository keeps the refusal, which is the behaviour
-it has always had and wants.
+`minimumReleaseAgeStrict`, at any value. This repository keeps the refusal.
+
+**The harness's reply table.** `REPLY_TABLE` is real TypeScript in `page.ts`, serialised into the
+page, and checked against the harvested layers: each reply must be the one `replyCandidates` pairs
+to its request, and each key must be a message type the protocol has. It caught the second wrong
+entry it was built for — `get_asset_uris` was answered with `get_asset_uris_response`, and the
+extension's reply is `asset_uris_response`. The check reads the committed `generated.ts`, so it runs
+in CI with no corpus and no browser, and is exact only while that file and the version the suite
+pins are the same extension.
 
 **`hostBackupIsCurrent`'s size comparison stays, and the hash that was going to replace it is
 declined (2026-09-21).** Not carried any longer; recorded so it is not re-proposed.
@@ -854,3 +827,12 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   so `updateEngine` now skips it when nothing is installed, as `ensureEngine` always did. The
   result type says which outcomes carry which versions, so `staying on undefined` is a shape the
   compiler refuses rather than a string somebody has to notice.
+- 2026-09-21: The three carried items closed. A scaffolded workspace could not install the release
+  that scaffolded it, because pnpm's walk-back needs an older version *in range* and a derived
+  caret's floor is the newest one — so the exclusion is by version, narrow enough that widening the
+  gate to reject everything still refuses 62 third-party packages and no Rigline one. The harness's
+  reply table moved into TypeScript and gained a check that pairs each reply to its request the way
+  the harvest does; it failed on the entry it was built for. And `hostBackupIsCurrent` keeps its
+  size comparison: every extension version has its own directory carrying its own backup, so the
+  fault needs a same-version rebuild at an identical size, while the fix needs the injector's one
+  "is this current" answer split in two before it stops baking unrecognised bytes into the backup.
