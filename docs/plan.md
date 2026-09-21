@@ -340,9 +340,21 @@ outstanding live in [ci.md](ci.md); [releasing.md](releasing.md) is the runbook.
 
 ### Phase 5, later: companion VS Code extension
 
-A thin extension over core: re-inject on update, prompt for the webview reload, expose enable,
-disable and settings. Marketplace policy for an extension that patches another extension is a
-known risk to weigh when this phase starts.
+A thin extension over core, hosting the watcher core already has so that an extension update stops
+silently reverting the injection. It is **sideloaded by `rigline` and moved by `rigline update`, not
+published to a marketplace** (D76); the marketplace question that gated this phase is answered, and
+the answer is that publishing buys discoverability rather than the feature, at the one cost that
+does not reverse.
+
+What it does: re-inject on update, driven by `extensions.onDidChange` with the existing poll as the
+floor; offer the webview reload rather than taking it, since a reload ends every in-flight turn in
+the window; expose enable, disable and settings. The CLI stays the manual path and the recovery
+path, and injection is rebuild-from-backup, so the two owners cannot conflict.
+
+Anthropic's terms, not Microsoft's, are the live constraint (D77), and the position is published in
+[anthropic-compliance.md](anthropic-compliance.md) with a standing invitation to Anthropic to
+correct it. D78 records the premise underneath all of this — signature verification is install-time
+only — and the trigger that would end the project.
 
 ### Phase 6: a plugin contributes its own diagnostics — done 2026-09-21
 
@@ -432,9 +444,9 @@ move forward and re-inject. Owed, per this file's own rule about a pipeline step
 is irreducibly a person's: `pnpm release:finish` needs 2FA. [ci.md](ci.md) carries the rest of what
 delivery still owes.
 
-After that, phase 5 is what is open; the small items below are closed. It turns on a question nobody
-here can answer from the code — Marketplace policy on an extension that patches another extension —
-so it wants a session that begins by finding that out, not one that begins by writing.
+After that, phase 5 is what is open; the small items below are closed. The question that gated it is
+settled — there is no Marketplace policy against patching another extension, and the constraint that
+matters is Anthropic's (D76, D77, D78) — so it is now a phase that can begin by writing.
 
 **About this machine.** 2.1.270 and 2.1.278 are both installed and both injected; 2.1.268 and 2.1.269
 were deleted by VS Code once nothing was serving them, which is the behaviour D4 exists for, and all

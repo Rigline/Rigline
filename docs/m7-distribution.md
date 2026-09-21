@@ -572,6 +572,7 @@ user's machine".
 - **A plugins repository.** The home for a non-core first-party plugin, scaffolded by
   `create-rigline-plugin` and installable by URL and tag. Triggered by a fourth plugin that is not
   part of the product; the git source is its prerequisite.
-- **The companion extension** ([plan.md](plan.md) phase 5). The only keystroke-free update, since VS
-  Code updates its own extensions. Core carrying the bundled assets is what lets it inherit them
-  without a second packaging decision.
+- **The companion extension** ([plan.md](plan.md) phase 5). The only keystroke-free update, because
+  it hosts the watcher unattended rather than waiting to be run. Sideloaded by `rigline` and moved by
+  `rigline update`, not published to a marketplace (D76). Core carrying the bundled assets is what
+  lets it inherit them without a second packaging decision.

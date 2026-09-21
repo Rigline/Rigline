@@ -1261,6 +1261,73 @@ never imports the host (D18, D63). A payload with no stamp is *unstamped*, never
 fact about the payload's age, and filing it as a registry problem would suppress the plugin list of
 an install that has one.
 
+**D76. The companion extension is sideloaded by `rigline`, not published to a marketplace
+(2026-09-21).** The risk phase 5 was recorded as carrying — Marketplace policy on an extension that
+patches another extension — turns out not to exist. Microsoft's trust model is publisher-based, not
+capability-based; the extension host has VS Code's own permissions and nothing distinguishes writing
+to a sibling extension's directory from any other write. The precedent is live and explicit:
+`subframe7536.custom-ui-style` advertises "patch files in other VSCode extensions" to a hundred
+thousand installs, and the older loaders patch VS Code itself.
+
+The binding constraint is Anthropic's, not Microsoft's (D77), and that reframes what a marketplace
+listing costs. It buys discoverability and self-update. It does not buy the feature: a sideloaded
+VSIX re-injects exactly as well, because the benefit is the watcher running unattended and the
+watcher does not care how it was installed. So the listing is the one irreversible move available
+and the one with no unique payoff — publishing can always happen later, a takedown cannot be undone,
+and Open VSX is the lower-profile registry if a registry is wanted. `rigline` installs the VSIX and
+`rigline update` moves it, which is the loop the wrapper already owns for the engine (D69).
+
+**The companion buys one thing, and it is the thing P8 is about.** An extension update installs a
+fresh directory and deletes the old one, so the injection silently reverts: everything green,
+features quietly absent, weekly. The watcher already exists in core and `rigline watch` is already a
+verb; the companion is a host VS Code starts for you, not new capability. Inside the extension host
+it gets two signals the CLI cannot have — `extensions.onDidChange` instead of a poll, and
+`getExtension("anthropic.claude-code").extensionUri` as an authoritative answer to which directory
+rather than a scan. The poll stays as the floor, because that event's own bug history is a record of
+it not firing, and a hook that silently does not fire is the failure mode this project has a
+principle against.
+
+It also closes the loop without a keystroke where it can. Patching lands before the next load in the
+common case, so the running session is untouched and the reload the user was going to do anyway
+arrives on a patched install — no prompt earned. Only when the patch loses the race to an extension
+host restart is a reload needed, and then
+`workbench.action.webview.reloadWebviewAction` is a real registered command the companion can offer.
+Offer, never take: reloading webviews ends the in-flight turn of every Claude session in the window,
+which is not a thing to do to somebody unasked.
+
+**D77. Rigline states its compliance position publicly and invites Anthropic to correct it
+(2026-09-21).** The Claude Code extension is `© Anthropic PBC. All rights reserved.`, and three
+clauses touch us. "The Claude Code binary must not be modified" is scoped to preinstalling or
+hosting Claude Code in a product you ship, which Rigline does not do — and the binary is untouched
+regardless; what we modify is the extension's bundles. Building a competing product is not what this
+is, by every reading.
+
+The exposed part is neither of those: it is **the harvest, not the injection**. Reading a minified
+bundle to derive identifiers is the closest thing here to "otherwise reduce our Services to
+human-readable form" (Consumer Terms §3, Commercial D.4). We think it is interoperability, and the
+clause's own carve-out for restrictions "prohibited by applicable law" plus Australia's Copyright Act
+s47D point that way. We are not confident enough to leave it unsaid, which is the point of the
+position: [anthropic-compliance.md](anthropic-compliance.md) names the awkward clause itself rather
+than waiting for it to be found, and is linked from the top of the README rather than buried.
+
+The standing offer is real and binding on us: if Anthropic asks Rigline to stop, it stops, with a
+final release that restores every install to Anthropic's own bytes. That costs nothing to promise —
+`rigline restore` is already the recovery path and is exercised on every uninstall — and it is the
+difference between a project that has thought about this and one that is hoping not to be noticed.
+
+**D78. Install-time-only signature verification is a premise, not a guarantee (2026-09-21).** VS
+Code verifies an extension's signature when it installs it and not afterwards, which is the fact the
+entire project rests on — CLI and companion alike. It is not a commitment Microsoft has made, it is
+current behaviour under active pressure: a steady stream of verification bugs, and published
+research on tampering with "verified" extensions post-install. If load-time integrity checking
+arrives, Rigline ends, and nothing in the architecture defends against that.
+
+Recorded because it is invisible from the code and would otherwise be rediscovered as a bug. The
+trigger to watch is any VS Code release note about extension integrity at activation; the response
+is to stop, not to evade one. Defeating an integrity check is a different act from patching a file
+nothing checks, and it is not an act this project is willing to commit — the checksum-fixing
+extensions are precedent we decline rather than precedent we follow.
+
 ### Toolchain and verification
 
 **D34. Toolchain: pnpm 12, TypeScript 7, Rolldown for browser bundles, Vitest, Biome with

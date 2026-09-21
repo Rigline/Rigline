@@ -10,6 +10,17 @@ extension update is a diff to read rather than a breakage to chase.
 Named for the line a rigger threads through gear that's already built and standing, to add
 something new without touching the rigging itself.
 
+> ### Anthropic compliance
+>
+> Rigline modifies files belonging to Anthropic's Claude Code extension, on the machine of the
+> person who installed both. **[docs/anthropic-compliance.md](docs/anthropic-compliance.md)** is a
+> straight account of what it does, what it does not do — no credentials, no network calls, no
+> rerouting of Claude usage, no redistribution — and how we read Anthropic's terms, including the
+> clause that comes closest to biting.
+>
+> **If you are from Anthropic, please get in touch.** We would like to discuss making Rigline
+> something you are comfortable with, and if you would rather it stopped, it will.
+
 ## Status
 
 1.0 is under construction. [docs/plan.md](docs/plan.md) has the phases and where things stand;

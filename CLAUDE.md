@@ -41,6 +41,10 @@ decisions.md, and each doc cites the decisions it rests on.
 
 Written for somebody else, so don't rewrite them for us:
 
+- [docs/anthropic-compliance.md](docs/anthropic-compliance.md): what Rigline does and does not do to
+  Anthropic's extension, how we read their terms, and the standing invitation to correct us. Written
+  for Anthropic, linked from the top of the README. The position it commits to is D77; changing what
+  it claims is a decision, not an edit.
 - [docs/anchors.md](docs/anchors.md): what an anchor is, and repairing one through
   `~/.rigline/anchors.json` without waiting for a release. Written for a user.
 - [docs/authoring.md](docs/authoring.md): writing, testing and shipping a plugin. Written for a
