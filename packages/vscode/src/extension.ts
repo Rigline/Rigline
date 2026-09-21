@@ -8,7 +8,8 @@
 import { existsSync } from "node:fs";
 import * as vscode from "vscode";
 import { acquireAndInject } from "./acquire.ts";
-import type { Editor, Health } from "./editor.ts";
+import { CLAUDE_CODE, type Editor, type Health } from "./editor.ts";
+import { watchExtension } from "./watch.ts";
 
 const HEALTH: Record<Health, { icon: string; background?: string }> = {
   ok: { icon: "$(check)" },
@@ -39,6 +40,15 @@ export function activate(context: vscode.ExtensionContext): void {
     log: (line) => output.appendLine(`[${new Date().toISOString()}] ${line}`),
     ask: async (message, ...actions) => await vscode.window.showWarningMessage(message, ...actions),
   };
+
+  const watcher = watchExtension({
+    editor,
+    id: CLAUDE_CODE,
+    react: async () => {
+      await run(editor);
+    },
+  });
+  context.subscriptions.push(watcher);
 
   // Deliberately not awaited: activation must return promptly, and every failure inside is already
   // a result rather than a rejection, so there is nothing here for a `catch` to add.

@@ -220,9 +220,15 @@ defensible one. Left as a refusal until somebody has a better idea.
 The whole of the value. A companion that acquires an engine, watches, spawns it, and re-injects —
 with no UI beyond a status item and the failure notification.
 
-**Built so far**, all of it driven by vitest: `nodePath` on the wrapper, `findNode`, `withHomeLock`,
-the `Editor` seam, the acquisition sequence, and a `.vsix` that packages. **Left**: the watcher, and
-the live read that is the acceptance.
+**Built**, all of it driven by vitest: `nodePath` on the wrapper, `findNode`, `withHomeLock`, the
+`Editor` seam, the acquisition sequence, the watcher, and a `.vsix` that packages. **Left**: landing
+the VSIX in `dist/bundled` so `rigline` can install it, and the live read that is the acceptance.
+
+The watcher serialises rather than debounces. An update produces a burst — the event, then a poll,
+then often a second event as the old directory is deleted — and a reaction per signal would be an
+npm install per signal, each queueing on the last one's lock. A run in flight marks itself and the
+follower is dropped, which is safe precisely because the work is idempotent: the follower would only
+discover what the leader already has.
 
 The package is shaped so the untestable part stays one file. `extension.ts` is the only module that
 imports `vscode`; it adapts the editor to `Editor` and calls into logic that has never heard of an

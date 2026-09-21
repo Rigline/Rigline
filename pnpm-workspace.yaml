@@ -23,14 +23,19 @@ minimumReleaseAge: 1440
 # problem rather than of an ordinary package.
 blockExoticSubdeps: true
 
-# No dependency may run an install script. Nothing in this workspace needs one, which was checked
-# rather than assumed; pnpm reports an ignored build loudly, so the day something does need one is
-# the day a person decides about it by name, here.
+# No dependency may run an install script unless it is listed here. pnpm reports an ignored build
+# loudly, so each one is decided by name rather than by a default nobody chose.
 #
-# `@vscode/vsce-sign` is the first to ask, and the answer is no. Its script fetches a platform
-# binary for *verifying* Marketplace signatures, which is a publishing concern; Rigline is
-# sideloaded and not listed (D76). `vsce package` produces a VSIX with the script ignored, which is
-# the whole of what we ask of it. Recorded as false rather than removed, so the next reader sees a
-# question that was answered instead of one nobody has been asked.
+# The test is need, not suspicion (Leo, 2026-09-21: an official Microsoft package is fine). A build
+# script from a first-party publisher — Microsoft, the language's own toolchain — is granted when
+# something we run actually needs it, and nobody has to be asked first. An unknown publisher, or a
+# script that wants the network for a feature we do not use, is worth a person's attention.
+#
+# `@vscode/vsce-sign` is the first to ask, and it fails the test on need rather than on trust. Its
+# script fetches a platform binary for *verifying* Marketplace signatures, which is a publishing
+# concern; Rigline is sideloaded and not listed (D76). `vsce package` produces a VSIX with the
+# script ignored, which is the whole of what we ask of it — so allowing it would buy nothing and
+# fetch a binary for it. Recorded as false rather than removed, so the next reader sees a question
+# that was answered instead of one nobody has been asked.
 allowBuilds:
   "@vscode/vsce-sign": false
