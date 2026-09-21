@@ -49,14 +49,36 @@ if (capture("git", ["tag", "--list", tagName]) === "") {
   fail(`${tagName} does not exist here. Cut the release first with \`pnpm release <increment>\``);
 }
 
-// The version comes from the tree, and approval takes whatever is staged — so a checkout that has
-// moved since the release makes those two different things. It is the maintenance case that makes
-// this real: cut 1.2.4 on a `1.x` branch, switch back to main while CI runs, and `stage approve`
-// would correctly publish 1.2.4 while everything below pointed tags at main's version instead.
-if (capture("git", ["rev-list", "-n", "1", tagName]) !== capture("git", ["rev-parse", "HEAD"])) {
+/**
+ * The tag has to be in this checkout's history — not at the tip of it.
+ *
+ * The version comes from the tree and approval takes whatever is staged, so a checkout on a
+ * *different line* makes those two different things. That is the maintenance case this exists for:
+ * cut 1.2.4 on a `1.x` branch, switch back to main while CI runs, and `stage approve` would
+ * correctly publish 1.2.4 while everything below it pointed tags at main's version instead. A tag
+ * cut on another line is not an ancestor of this HEAD, so that still refuses.
+ *
+ * Requiring HEAD to *be* the tagged commit also refused the ordinary case, which is the one that
+ * actually happens: cut a release, carry on working while the run goes green, come back and approve.
+ * Nothing here needs the tip — approval acts on a stage the workflow already built from the tagged
+ * commit, `dist-tag` names a published version, and the GitHub release is created at `tagName`
+ * rather than at HEAD. Only the notes are read from the tree, and a commit that changed them would
+ * have to have changed this version's own section to matter.
+ */
+function tagIsInHistory(tag) {
+  try {
+    run("git", ["merge-base", "--is-ancestor", tag, "HEAD"], { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+if (!tagIsInHistory(tagName)) {
   fail(
-    `HEAD is not the commit ${tagName} names, so ${version} is not the version this checkout is ` +
-      `releasing. \`git checkout ${tagName}\` (or the branch you cut it from) and run this again.`,
+    `${tagName} is not in this checkout's history, so ${version} is not the version this checkout ` +
+      `is releasing. Switch to the branch you cut it from (or \`git checkout ${tagName}\`) and run ` +
+      "this again.",
   );
 }
 

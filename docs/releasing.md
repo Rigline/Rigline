@@ -214,9 +214,11 @@ Then, while both lines are live:
 - Previews happen on `2.x` and stage under `next`.
 - Merge `main` into `2.x` after each maintenance release, and never the reverse. `CHANGELOG.md`
   conflicts every time; resolve it by keeping both sides in version order.
-- Run `pnpm release:finish` from the checkout the tag was cut on. It refuses otherwise, and this
-  is the case it refuses for: cut `2.0.0-alpha.1` on `2.x`, switch back to `main` while CI runs,
-  and approval would publish the right version while every tag below it pointed at `main`'s.
+- Run `pnpm release:finish` from the line the tag was cut on — it refuses when the tag is not in the
+  checkout's history, and this is the case it refuses for: cut `2.0.0-alpha.1` on `2.x`, switch back
+  to `main` while CI runs, and approval would publish the right version while every tag below it
+  pointed at `main`'s. Carrying on committing to that same line between the cut and the approval is
+  fine and expected; nothing in the approval wants the tip.
 
 When `2.0.0` ships it is a promotion, from `2.x`, and it stages under `latest`. After that `2.x`
 *becomes* `main`, and `1.x` is cut from the last 1.x tag if the old line still needs support. A
