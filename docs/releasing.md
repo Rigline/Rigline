@@ -127,13 +127,15 @@ tier, so the local run is the stronger one.
    writes it into every manifest **and into core's own `CORE_VERSION`**, commits, tags `v<version>`
    and pushes. Add `--dry-run` to see all of that without writing anything, or `--skip-checks` when
    you have just run them by hand.
-2. Watch the run the tag triggered. Its summary names each package and version staged, because npm
-   returns no stage id for the workflow to print and nothing notifies you that a stage is waiting.
-   A green tick is not the check — the *absence* of `[WARN] Skipped OIDC` in the log is.
+2. Watch the run the tag triggered. Its summary names each package and version staged, because
+   nothing notifies you that a stage is waiting. A green tick is not the check — the *absence* of
+   `[WARN] Skipped OIDC` in the log is. The Stage step's own log now prints `staged with id <uuid>`
+   per package, which it did not always; `npm stage list --json` is the reliable place to read them.
 3. **Approve the four** at `https://www.npmjs.com/settings/<user>/staged-packages`. `pnpm
    release:finish` will try to do it for you, and can only succeed for an account that can type a
    one-time password; a security key has none to give, and the website is the route that always
-   works.
+   works. **This is the step to expect to do by hand**, not the exception — every release so far has
+   ended up here.
 
    **Check `rigline` and `@rigline/core` by eye, together.** The dependency-order skip in step 4
    protects every package whose dependency did not make it — and `rigline` no longer declares one

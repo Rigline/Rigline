@@ -314,8 +314,7 @@ In order.
 6. **Our own release pipeline** (D46) — done 2026-09-19.
    `.github/workflows/release.yml` stages the four publishable packages from
    `main` over OIDC, with provenance and a dist-tag chosen per run, and a summary step naming what
-   is waiting and the command that approves it, because pnpm's output carries no stage id and
-   nothing notifies a maintainer. Proven on a real release: `1.0.0-alpha.1` went out through it, all four
+   is waiting and the command that approves it, because nothing notifies a maintainer. Proven on a real release: `1.0.0-alpha.1` went out through it, all four
    attested. [releasing.md](releasing.md) is the runbook.
 
    `1.0.0-alpha.2` then went out to `latest`, which is how the tag stranded on `alpha.0` by the
@@ -412,19 +411,22 @@ spawns it, answers `--version` itself and forwards everything else, and declares
 at all; this repository and the scaffold both declare the engine and spell the bin `rigline-engine`.
 [m7-distribution.md](m7-distribution.md) is the milestone's record until it is condensed.
 
-**So the next release is the first one that ships the split**, and it is worth more than a routine
-cut: nothing about the wrapper's own path has been run against the registry except its refusals,
-because no published `@rigline/core` carries the bin. Both halves go up together, and
-[releasing.md](releasing.md) now asks for the pair by eye — a `rigline` published without its engine
-installs a version the registry has not got, on the first command anybody runs.
+**`1.0.0-alpha.6` is published to `latest`, and it is the first release carrying the split.** The
+published wrapper was then driven from the registry, which is what nothing before it could do:
+`npm install rigline`, one binary with no dependencies, `--version` naming the absent engine,
+`check` installing `@rigline/core` and forwarding, and `list` and `status` returning the engine's
+output and the engine's exit code with nothing of the wrapper's in front of it.
 
-**Unreleased and waiting**: the meter fix, `list --json`, and core's new bin. Cutting `alpha.6`
-before step 3, to be the older engine 7b's acceptance check needs to upgrade *from*, was offered and
-declined (2026-09-21, Leo). So that one check is carried as **unrun**: the registry's newest
-`@rigline/core` has no `bin` at all, which leaves no published engine a `rigline update` could move
-off. Everything else about the path is covered at tier 1 and tier 4, and the first release after
-step 3 is where a real upgrade becomes testable — treat it as owed, per this file's own rule about a
-pipeline step nobody has run.
+That run also gave D75 its first real reading. Both installed extension versions reported *its
+payload was written by engine 1.0.0-alpha.5, and this engine is 1.0.0-alpha.6* — a stale injection
+named after a genuine upgrade rather than a synthesised one, which is the case the stamp exists for
+and had never been in.
+
+**What remains unrun is the upgrade itself.** `rigline update` moving off an older *engine* still
+needs two published versions carrying `rigline-engine`, and `1.0.0-alpha.5` has no `bin` at all, so
+`alpha.6` is the oldest that counts. The next release is where that check becomes possible: install
+the engine at `alpha.6` by hand into `<RIGLINE_HOME>/engine`, run `rigline update`, and it should
+move forward and re-inject. Owed, per this file's own rule about a pipeline step nobody has run.
 
 **The release pipeline has now been driven end to end**, tag through approval, with one step that
 is irreducibly a person's: `pnpm release:finish` needs 2FA. [ci.md](ci.md) carries the rest of what
@@ -778,3 +780,12 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   gained the one thing the split takes away: `pnpm stage approve`'s dependency-order skip protects
   every package whose dependency did not make it, and the wrapper no longer has one, so the pair is
   checked by eye.
+- 2026-09-21: `1.0.0-alpha.6` published to `latest` — the split, the template, the docs, all four
+  packages staged over OIDC with no `Skipped OIDC` in the log. Two things the run taught, both
+  about the half that is a person's. `pnpm stage approve` with no arguments now exits
+  `ERR_PNPM_STAGE_ID_REQUIRED` rather than asking for a second factor, so `release:finish` was
+  failing on an argument error wearing the costume of the 2FA wall; it reads the ids from `npm
+  stage list --json` and passes them, which gets as far as the wall the message describes. And
+  pnpm's staging output *does* carry stage ids now, retiring a claim this file, releasing.md and
+  the summary script all made — the summary still prints none, deliberately, because what it says
+  works whether or not one exists.

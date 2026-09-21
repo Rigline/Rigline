@@ -1,10 +1,11 @@
 /**
  * Turn `pnpm-publish-summary.json` into the Actions run summary.
  *
- * This exists because nothing notifies anybody that a stage is waiting. The registry does issue a
- * stage id — `npm stage list` will show it — but pnpm's publish output does not carry one, so there
- * is nothing here to print even though the id exists. The useful summary is therefore what went up
- * and the command that takes it the rest of the way, both of which work without an id.
+ * This exists because nothing notifies anybody that a stage is waiting. The summary is what went up
+ * and the command that takes it the rest of the way, neither of which needs a stage id — which is
+ * what makes it durable: pnpm's publish output did not carry one when this was written and does
+ * now, and `pnpm-publish-summary.json` still has no field for it either way. `npm stage list` is
+ * where an id comes from when something wants one.
  *
  * Runs with `if: always()`, so it must say something sensible when the staging step never got as
  * far as writing a summary file.

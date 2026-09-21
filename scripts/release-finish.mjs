@@ -72,6 +72,24 @@ if (capture("git", ["tag", "--list", tagName]) === "") {
  * does — the stages live on the registry, not in a client — and it is the answer for an account
  * whose second factor cannot produce a typed code.
  */
+/**
+ * The stage ids waiting at this version, newest first.
+ *
+ * Through npm rather than pnpm, for the reason the retag is: a stage belongs to the registry, not
+ * to the client that made it. Anything unreadable is no ids rather than a throw — the caller's next
+ * move is the website either way, and a parse error should not be dressed up as an empty queue.
+ */
+function stagedIds(wanted) {
+  let staged;
+  try {
+    staged = JSON.parse(capture("npm", ["stage", "list", "--json"]));
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(staged)) return [];
+  return staged.filter((entry) => entry?.version === wanted).map((entry) => entry.id);
+}
+
 function stagedPackagesUrl(user) {
   return `https://www.npmjs.com/settings/${user ?? "<your-npm-user>"}/staged-packages`;
 }
@@ -118,12 +136,23 @@ if (already.length === packages.length) {
     // in dependency order, skipping any package whose workspace dependency did not make it rather
     // than publishing against a dependency the registry never received.
     //
-    // It only works for an account that can produce a typed code. `pnpm stage approve` prompts for
-    // an OTP rather than opening a browser, so a security key has nothing to give it — the same
-    // wall `pnpm dist-tag` hits, and the reason the retag below goes through npm. The website is
-    // the route that always works, and it does the same thing: the stages live on the registry and
-    // do not care what approved them.
-    run("pnpm", ["stage", "approve"]);
+    // The ids are read and passed rather than left to pnpm: bare `stage approve` picks them from a
+    // prompt, so with no TTY it exits `ERR_PNPM_STAGE_ID_REQUIRED` before a second factor is ever
+    // the question — an argument error wearing the costume of the 2FA wall below.
+    //
+    // Past that, it only works for an account that can produce a typed code. `pnpm stage approve`
+    // asks for an OTP rather than opening a browser, so a security key has nothing to give it —
+    // the same wall `pnpm dist-tag` hits, and the reason the retag below goes through npm. The
+    // website is the route that always works, and it does the same thing: the stages live on the
+    // registry and do not care what approved them.
+    const ids = stagedIds(version);
+    if (ids.length === 0) {
+      fail(
+        `nothing is staged at ${version}. The release workflow may still be running; ` +
+          "`npm stage list` shows what is waiting, and running this again costs nothing",
+      );
+    }
+    run("pnpm", ["stage", "approve", ...ids]);
   } catch {
     fail(
       `approval did not complete. If it asked for a one-time password and you have none to give — ` +
