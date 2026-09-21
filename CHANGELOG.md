@@ -10,6 +10,8 @@ anything may change between releases.
 
 ## Unreleased
 
+## 1.0.0-alpha.5 — 2026-09-21
+
 ### Fixed
 
 - `npm install -g rigline && rigline install` now injects. No published package carried the loader

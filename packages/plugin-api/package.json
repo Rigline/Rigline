@@ -1,6 +1,6 @@
 {
   "name": "@rigline/plugin-api",
-  "version": "1.0.0-alpha.4",
+  "version": "1.0.0-alpha.5",
   "description": "The context, manifest and identifier types a Rigline plugin is written against",
   "keywords": [
     "rigline",
