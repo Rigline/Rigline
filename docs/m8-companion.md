@@ -223,12 +223,16 @@ worse answer to a question we can already answer for them.
     rigline vscode-setup            # install the companion into every VS Code found, and inject
     rigline vscode-setup --remove   # take it out again, leaving the injection alone
 
-**It injects as well, so `install` is not a second step.** That is `add`'s rule (D55, D56): a
-command that changes what is installed re-injects, so the user is one reload away rather than one
-reload and a command they have to know about. It matters more here than anywhere else, because the
-companion injects on *activation* and activates only after the reload — by which time the panel may
-already have rendered from an unpatched bundle. Without it the first reload is the one that does not
-work, on the single path that exists so nobody has to think about reloading.
+**It injects as well, so it is a step instead of `install` rather than after it.** That is `add`'s
+rule (D55, D56): a command that changes what is installed re-injects, so the user is one reload away
+rather than one reload and a command they have to know about. It matters more here than anywhere
+else, because the companion injects on *activation* and activates only after the reload — by which
+time the panel may already have rendered from an unpatched bundle. Without it the first reload is
+the one that does not work, on the single path that exists so nobody has to think about reloading.
+
+**None of which makes the companion required.** The verb `install` is untouched and remains the
+whole of Rigline on its own; this milestone adds a second path for people who would rather not
+remember, and D80 records that declining it has to keep costing nothing.
 
 `--remove` deliberately does not restore. Taking the companion out is a statement about who drives
 the injection, not about whether there should be one; `rigline restore` is the verb for that and

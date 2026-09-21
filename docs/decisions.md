@@ -1389,6 +1389,18 @@ underneath it, so a user gets new engine behaviour, new anchor tables and update
 VSIX moving at all. It also makes the VSIX a complete Rigline for somebody who never opens a
 terminal, which is a better story than requiring the CLI first.
 
+**The companion is optional and the CLI stays complete without it** (Leo, 2026-09-21). Two paths,
+not a path and a prerequisite: `rigline install` after each update is the whole of Rigline and gains
+nothing from the companion existing, and `rigline vscode-setup` is for somebody who would rather not
+remember. Declining it must cost a user nothing — no feature only the companion can reach, no
+message implying they are half-configured, and `--remove` puts them back without touching the
+injection.
+
+Worth recording rather than leaving to phrasing, because the pressure runs one way. A companion that
+is always installed is the easier thing to develop against, and each convenience put only there is
+invisible until somebody who declined it asks why a document describes a Rigline they do not have. A
+locked-down machine cannot install an extension at all, and that user is not a lesser case.
+
 Two costs, both recorded in [m8-companion.md](m8-companion.md) rather than here because they are
 design work rather than settled rules. **There is no npm beside the extension host**: `process
 .execPath` is VS Code's Electron binary, so `findNpmCli` finds nothing. D73's rule survives —

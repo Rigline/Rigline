@@ -12,14 +12,16 @@ anything may change between releases.
 
 ### Added
 
-- `rigline vscode-setup` installs the companion extension and injects, so it replaces
-  `rigline install` as the whole of the setup rather than following it. The companion then watches
-  for a Claude Code update and re-injects behind it, so there is nothing to remember after one. It
-  goes into every VS Code found on `PATH`, Insiders, VSCodium, Cursor and Windsurf included, from a
-  VSIX that ships inside the engine: nothing is downloaded, and the companion moves when the engine
-  does. `--remove` takes it out again and leaves the injection alone — `rigline restore` is what
-  undoes that. Where no editor command-line tool is on `PATH`, it says so and names the Command
-  Palette alternative rather than installing anything itself.
+- `rigline vscode-setup`, an optional companion extension that watches for a Claude Code update and
+  re-injects behind it, so running `rigline install` after every one stops being something you have
+  to remember. It goes into every VS Code found on `PATH`, Insiders, VSCodium, Cursor and Windsurf
+  included, from a VSIX that ships inside the engine: nothing is downloaded, and the companion moves
+  when the engine does. It injects as it goes, so it is a step *instead of* `install` rather than
+  after it. **Nothing about `rigline install` changes, and declining the companion costs nothing** —
+  the CLI is complete on its own and stays the right answer if you would rather not add an extension
+  or cannot install one. `--remove` takes the companion out and leaves your injection alone;
+  `rigline restore` is what undoes that. Where no editor command-line tool is on `PATH`, it says so
+  and names the Command Palette alternative rather than installing anything itself.
 
 - A plugin policy, at [docs/plugin-policy.md](docs/plugin-policy.md). Rigline modifies Anthropic's
   extension and now publishes a compliance position about what it does and does not do; a plugin
