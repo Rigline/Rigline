@@ -230,6 +230,13 @@ npm install per signal, each queueing on the last one's lock. A run in flight ma
 follower is dropped, which is safe precisely because the work is idempotent: the follower would only
 discover what the leader already has.
 
+It also **waits for the directory to stop moving** before reacting, which is D81 and is the price
+the fast path pays. `settleWebviewBackup` makes unrelated live bytes the new pristine backup, so
+reacting to a half-written bundle does not fail — it records a fragment as the thing `restore`
+restores. Sizes and modification times are sampled two seconds apart and must agree; a directory
+that never settles is left to the next poll, and the move stays outstanding so that poll retries
+it.
+
 The package is shaped so the untestable part stays one file. `extension.ts` is the only module that
 imports `vscode`; it adapts the editor to `Editor` and calls into logic that has never heard of an
 editor. Everything else is ordinary TypeScript with injected dependencies, which is how a milestone

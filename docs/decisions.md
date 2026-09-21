@@ -1418,6 +1418,34 @@ twice — all correct for a Node process and all wrong inside Electron. `EngineO
 defaults to `process.execPath` and changes nothing for the CLI. Finding what to pass it is the
 companion's own module, because the wrapper never needs to search: it is already running the answer.
 
+**D81. Nothing reacts to an extension directory that is still being written (2026-09-21).** The
+injector's backup settlement ends with "live and backup share no relation, so the extension was
+replaced in place", and makes the live bytes the new pristine baseline. That is right for a real new
+version and catastrophic for a half-written one: the truncated bytes become what `extension.js.orig`
+holds, so `restore` restores a broken bundle and the harvest reads a fragment. It is silent in both
+directions — the backup looks like a backup, and the run reports success.
+
+The CLI's watcher was accidentally safe: polling every thirty seconds, it lands long after an
+install. `extensions.onDidChange` is not, because it fires while VS Code may still be writing, so
+adding the fast path (D80) created the exposure and has to pay for it. The companion therefore
+samples sizes and modification times of `extension.js`, `webview/index.js` and `package.json`, waits
+two seconds, samples again, and reacts only when the two agree — ten attempts, then it leaves the
+move for the next poll rather than reacting to a directory in motion.
+
+**A move that did not settle stays outstanding**, which is the half that is easy to get wrong.
+Recording the new path before reacting would make the next poll see no change and skip the update in
+silence, which is the failure the whole milestone is against; so the watcher commits the path it has
+seen only once the move has actually been dealt with.
+
+Whether VS Code writes to a temporary directory and renames it into place — which would make all of
+this unnecessary — is deliberately not assumed either way. The cost of defending is a few seconds on
+an event that happens weekly; the cost of being wrong is a backup nobody can trust.
+
+**The same exposure exists in the CLI's watcher and in `install` itself**, where a person can run
+either mid-update. Not fixed here: the durable answer is for the injector to refuse bytes that do
+not look like a whole bundle, which is a change to the one file the recovery path depends on and
+deserves its own slice rather than being tacked onto this one.
+
 ### Toolchain and verification
 
 **D34. Toolchain: pnpm 12, TypeScript 7, Rolldown for browser bundles, Vitest, Biome with

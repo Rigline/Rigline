@@ -93,4 +93,16 @@ for (const name of plugins) {
   copy(join(from, entry), join(to, entry));
 }
 
-say(`bundled ${PAYLOAD_FILES.length} payload files and ${plugins.length} plugins into ${BUNDLED}`);
+// The companion, so `rigline` can install it without a second fetch (D76, D80).
+//
+// Deliberately not added to `assertBundledIsCurrent`'s links. That chain exists because a stale
+// *payload* means injecting code which is not what this checkout says; a stale VSIX only means an
+// older extension is offered, which carries its own version and is visible. Adding it would let an
+// unbuilt `packages/vscode/src` refuse `bundledDir()`, and with it `restore` — coupling the
+// recovery path to the companion's build state is a much worse trade than an old VSIX.
+copy(join(ROOT, "packages", "vscode", "rigline.vsix"), join(BUNDLED, "rigline.vsix"));
+
+say(
+  `bundled ${PAYLOAD_FILES.length} payload files, ${plugins.length} plugins and the companion ` +
+    `into ${BUNDLED}`,
+);

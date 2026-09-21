@@ -23,8 +23,19 @@ export interface WatchOptions {
   react(reason: WatchReason): Promise<void>;
   /** How often to look when nothing has fired. Half a minute, as the CLI's watcher uses. */
   readonly intervalMs?: number;
+  /**
+   * A cheap summary of the extension directory — sizes and modification times, never contents — so
+   * the watcher can tell "still being written" from "finished". Injected, because reading a
+   * directory is the one thing in here that touches a disk.
+   */
+  fingerprint(path: string | undefined): string;
+  /** How long the directory must look identical before we believe the install finished. */
+  readonly settleMs?: number;
+  /** How many times to re-sample before giving up and leaving it to the next poll. */
+  readonly settleTries?: number;
   readonly setInterval?: (fn: () => void, ms: number) => unknown;
   readonly clearInterval?: (handle: unknown) => void;
+  readonly sleep?: (ms: number) => Promise<void>;
 }
 
 export type WatchReason =
@@ -32,6 +43,24 @@ export type WatchReason =
   | { readonly kind: "moved"; readonly from: string | undefined; readonly to: string | undefined };
 
 const INTERVAL_MS = 30_000;
+
+/**
+ * Wait for the directory to stop moving before touching it.
+ *
+ * Not caution for its own sake. `settleWebviewBackup` ends with "the two share no relation, so the
+ * extension was replaced in place" and makes the live bytes the new pristine backup — which is
+ * right for a real new version and catastrophic for a half-written one, because the truncated bytes
+ * become the thing `restore` restores. The poll alone made that unlikely by landing thirty seconds
+ * late; `onDidChange` fires while VS Code may still be writing, so the fast path has to pay for
+ * itself.
+ *
+ * Two seconds twice over, ten times at most. Whether VS Code writes to a temporary directory and
+ * renames it into place — which would make all of this unnecessary — is not something this code
+ * should assume either way, and the cost of being wrong in the safe direction is a few seconds on
+ * an event that happens weekly.
+ */
+const SETTLE_MS = 2_000;
+const SETTLE_TRIES = 10;
 
 export interface Watcher extends Disposable {
   /** Look now. Exposed for the event path and for tests; never runs two reactions at once. */
@@ -53,27 +82,54 @@ export function watchExtension(options: WatchOptions): Watcher {
     id,
     react,
     intervalMs = INTERVAL_MS,
+    fingerprint,
+    settleMs = SETTLE_MS,
+    settleTries = SETTLE_TRIES,
     setInterval: every = (fn, ms) => globalThis.setInterval(fn, ms),
     // The handle is `unknown` across the seam so a test can hand back whatever it likes; the cast
     // is confined to the one place that knows what the real timer returns.
     clearInterval: stop = (handle) =>
       globalThis.clearInterval(handle as ReturnType<typeof globalThis.setInterval>),
+    sleep = (ms: number) => new Promise<void>((done) => setTimeout(done, ms)),
   } = options;
 
   let current = editor.extensionPath(id);
   let running = false;
   let disposed = false;
 
-  async function run(reason: WatchReason): Promise<void> {
-    if (running || disposed) return;
+  /**
+   * Whether the directory has stopped changing. Answers false when it never settles, which leaves
+   * the work to the next poll rather than reacting to a directory still being written.
+   */
+  async function settled(path: string | undefined): Promise<boolean> {
+    let before = fingerprint(path);
+    for (let attempt = 0; attempt < settleTries; attempt += 1) {
+      await sleep(settleMs);
+      if (disposed) return false;
+      const after = fingerprint(path);
+      if (after === before) return true;
+      before = after;
+    }
+    editor.log(
+      `${id} is still changing after ${(settleTries * settleMs) / 1000}s; leaving it for the next look`,
+    );
+    return false;
+  }
+
+  /** Answers whether the move was dealt with, which is what decides if it stays outstanding. */
+  async function run(reason: WatchReason): Promise<boolean> {
+    if (running || disposed) return false;
     running = true;
     try {
+      if (reason.kind === "moved" && !(await settled(reason.to))) return false;
       await react(reason);
+      return true;
     } catch (error) {
       // `react` is not supposed to throw — `acquireAndInject` answers with a result instead — so
       // reaching here means a defect rather than a failed update. It is logged and swallowed all
       // the same: an unhandled rejection in a timer takes no user-visible path at all (P8).
       editor.log(`watch: the reaction threw, which it should not. ${String(error)}`);
+      return true;
     } finally {
       running = false;
     }
@@ -84,9 +140,12 @@ export function watchExtension(options: WatchOptions): Watcher {
     const seen = editor.extensionPath(id);
     if (seen === current) return;
     const from = current;
-    current = seen;
     editor.log(`${id} moved: ${from ?? "absent"} -> ${seen ?? "absent"}`);
-    await run({ kind: "moved", from, to: seen });
+    // Committed only once the move has been dealt with. A directory that never settled, or a burst
+    // whose follower was dropped, must stay outstanding — recording it here would mean the next
+    // poll saw no change and the update was silently skipped, which is the failure this whole
+    // milestone is against (P8).
+    if (await run({ kind: "moved", from, to: seen })) current = seen;
   }
 
   const subscription = editor.onExtensionsChanged(() => {

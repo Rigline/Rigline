@@ -5,7 +5,8 @@
  * `acquire.ts`, which vitest drives. Keeping the boundary this thin is what lets 8a be tested at
  * all, since nothing here can run outside an extension host.
  */
-import { existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
+import { join } from "node:path";
 import * as vscode from "vscode";
 import { acquireAndInject } from "./acquire.ts";
 import { CLAUDE_CODE, type Editor, type Health } from "./editor.ts";
@@ -44,6 +45,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const watcher = watchExtension({
     editor,
     id: CLAUDE_CODE,
+    fingerprint,
     react: async () => {
       await run(editor);
     },
@@ -66,6 +68,27 @@ function run(editor: Editor): Promise<unknown> {
       },
     }),
   );
+}
+
+/**
+ * Sizes and modification times of the three files that matter, never their contents.
+ *
+ * Reading 3.6 MB every two seconds to decide whether a directory is still moving would cost more
+ * than the thing it protects. A missing file reports as absent rather than throwing, which is the
+ * correct answer mid-install and settles once it stops being true.
+ */
+function fingerprint(path: string | undefined): string {
+  if (path === undefined) return "absent";
+  return ["extension.js", join("webview", "index.js"), "package.json"]
+    .map((name) => {
+      try {
+        const { size, mtimeMs } = statSync(join(path, name));
+        return `${name}:${size}:${mtimeMs}`;
+      } catch {
+        return `${name}:absent`;
+      }
+    })
+    .join("|");
 }
 
 export function deactivate(): void {

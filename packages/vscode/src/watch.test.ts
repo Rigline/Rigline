@@ -11,6 +11,9 @@ import { type WatchReason, watchExtension } from "./watch.ts";
 
 const ID = "anthropic.claude-code";
 
+/** Let everything already queued run. The settle puts an await between a signal and its reaction. */
+const flush = () => new Promise<void>((done) => setTimeout(done, 0));
+
 function harness(first: string | undefined) {
   let path = first;
   const listeners: (() => void)[] = [];
@@ -59,11 +62,20 @@ function harness(first: string | undefined) {
   };
 }
 
-function watcher(h: ReturnType<typeof harness>, react: (r: WatchReason) => Promise<void>) {
+function watcher(
+  h: ReturnType<typeof harness>,
+  react: (r: WatchReason) => Promise<void>,
+  settling: { fingerprint?: () => string; settleTries?: number } = {},
+) {
   return watchExtension({
     editor: h.editor,
     id: ID,
     react,
+    // Settled by default: these tests are about noticing a move, and the settle has its own below.
+    fingerprint: settling.fingerprint ?? (() => "steady"),
+    ...(settling.settleTries === undefined ? {} : { settleTries: settling.settleTries }),
+    settleMs: 0,
+    sleep: async () => {},
     setInterval: h.setInterval,
     clearInterval: h.clearInterval,
   });
@@ -96,7 +108,7 @@ describe("watchExtension", () => {
     await w.poke();
     h.fire();
     h.tick();
-    await Promise.resolve();
+    await flush();
 
     expect(reactions).toBe(0);
     w.dispose();
@@ -113,7 +125,7 @@ describe("watchExtension", () => {
 
     h.move("/ext/claude-code-2.1.279");
     h.tick();
-    await Promise.resolve();
+    await flush();
 
     expect(seen).toHaveLength(1);
     w.dispose();
@@ -136,7 +148,7 @@ describe("watchExtension", () => {
     const first = w.poke();
     h.fire();
     h.tick();
-    await Promise.resolve();
+    await flush();
 
     expect(reactions).toBe(1);
     release?.();
@@ -168,6 +180,82 @@ describe("watchExtension", () => {
     h.move("/ext/claude-code-2.1.279");
     await expect(w.poke()).resolves.toBeUndefined();
     expect(h.lines.join("\n")).toMatch(/should not happen/);
+    w.dispose();
+  });
+
+  it("waits for the directory to stop changing before reacting", async () => {
+    // Why this exists: `settleWebviewBackup` treats bytes unrelated to the backup as "the extension
+    // was replaced in place" and makes them the new pristine baseline. Half-written bytes there
+    // become what `restore` restores, so reacting early is not a slow failure but a silent one.
+    const h = harness("/ext/claude-code-2.1.278");
+    const order: string[] = [];
+    let writes = 3;
+    const w = watcher(
+      h,
+      async () => {
+        order.push("reacted");
+      },
+      {
+        fingerprint: () => {
+          order.push("looked");
+          return writes-- > 0 ? `growing-${writes}` : "final";
+        },
+      },
+    );
+
+    h.move("/ext/claude-code-2.1.279");
+    await w.poke();
+
+    expect(order.at(-1)).toBe("reacted");
+    expect(order.filter((o) => o === "looked").length).toBeGreaterThan(2);
+    expect(order.filter((o) => o === "reacted")).toHaveLength(1);
+    w.dispose();
+  });
+
+  it("leaves a directory that never settles to the next look, rather than reacting to it", async () => {
+    const h = harness("/ext/claude-code-2.1.278");
+    let reactions = 0;
+    let n = 0;
+    const w = watcher(
+      h,
+      async () => {
+        reactions += 1;
+      },
+      { fingerprint: () => `changing-${n++}`, settleTries: 3 },
+    );
+
+    h.move("/ext/claude-code-2.1.279");
+    await w.poke();
+
+    expect(reactions).toBe(0);
+    expect(h.lines.join("\n")).toMatch(/still changing/);
+    w.dispose();
+  });
+
+  it("keeps an unsettled move outstanding, so the next look retries it", async () => {
+    // The bug this guards: committing the new path before reacting would make the next poll see no
+    // change, and the update would be skipped in silence — the failure the milestone is against.
+    const h = harness("/ext/claude-code-2.1.278");
+    const seen: WatchReason[] = [];
+    let steady = false;
+    const w = watcher(
+      h,
+      async (r) => {
+        seen.push(r);
+      },
+      { fingerprint: () => (steady ? "steady" : `changing-${Math.random()}`), settleTries: 2 },
+    );
+
+    h.move("/ext/claude-code-2.1.279");
+    await w.poke();
+    expect(seen).toHaveLength(0);
+
+    steady = true;
+    await w.poke();
+
+    expect(seen).toEqual([
+      { kind: "moved", from: "/ext/claude-code-2.1.278", to: "/ext/claude-code-2.1.279" },
+    ]);
     w.dispose();
   });
 
