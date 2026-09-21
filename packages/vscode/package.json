@@ -5,9 +5,15 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "node ../../scripts/clean-dist.mjs && rolldown -c rolldown.config.ts && node build-manifest.mjs",
+    "package": "pnpm build && cd dist && vsce package --no-dependencies --allow-missing-repository --out ../rigline.vsix",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "rigline": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/vscode": "1.90.0",
+    "@vscode/vsce": "^4.0.0"
   }
 }

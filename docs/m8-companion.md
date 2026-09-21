@@ -220,6 +220,22 @@ defensible one. Left as a refusal until somebody has a better idea.
 The whole of the value. A companion that acquires an engine, watches, spawns it, and re-injects —
 with no UI beyond a status item and the failure notification.
 
+**Built so far**, all of it driven by vitest: `nodePath` on the wrapper, `findNode`, `withHomeLock`,
+the `Editor` seam, the acquisition sequence, and a `.vsix` that packages. **Left**: the watcher, and
+the live read that is the acceptance.
+
+The package is shaped so the untestable part stays one file. `extension.ts` is the only module that
+imports `vscode`; it adapts the editor to `Editor` and calls into logic that has never heard of an
+editor. Everything else is ordinary TypeScript with injected dependencies, which is how a milestone
+whose acceptance is a live read still has 19 tests behind it.
+
+Two packaging facts worth not rediscovering. The bundle is **CommonJS** though the source is
+modules: VS Code's support for an ESM `main` is recent and conditional, and a sideloaded extension
+that fails to load is simply absent rather than diagnosed, which is the failure this milestone is
+against. And the extension manifest is **generated into `dist/`** rather than being this package's
+own `package.json`, because a VS Code `name` must be unqualified and `rigline` is already the
+workspace's CLI — so the version is derived from the workspace manifest and cannot drift from it.
+
 It opens with the two costs above, because both are load-bearing and neither is visible from a test
 that runs in Node: finding a Node and its npm from inside the extension host, and a lock so the CLI
 and the companion cannot install over each other. Then the acquisition-code question, once the shape

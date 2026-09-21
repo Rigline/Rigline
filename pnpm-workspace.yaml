@@ -23,7 +23,14 @@ minimumReleaseAge: 1440
 # problem rather than of an ordinary package.
 blockExoticSubdeps: true
 
-# No dependency may run an install script. Empty because nothing in this workspace needs one, which
-# was checked rather than assumed; pnpm reports an ignored build loudly, so the day something does
-# need one is the day a person decides about it by name, here.
-allowBuilds: {}
+# No dependency may run an install script. Nothing in this workspace needs one, which was checked
+# rather than assumed; pnpm reports an ignored build loudly, so the day something does need one is
+# the day a person decides about it by name, here.
+#
+# `@vscode/vsce-sign` is the first to ask, and the answer is no. Its script fetches a platform
+# binary for *verifying* Marketplace signatures, which is a publishing concern; Rigline is
+# sideloaded and not listed (D76). `vsce package` produces a VSIX with the script ignored, which is
+# the whole of what we ask of it. Recorded as false rather than removed, so the next reader sees a
+# question that was answered instead of one nobody has been asked.
+allowBuilds:
+  "@vscode/vsce-sign": false
