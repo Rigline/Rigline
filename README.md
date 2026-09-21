@@ -20,6 +20,23 @@ Writing a plugin: [docs/authoring.md](docs/authoring.md). Repairing one an exten
 [docs/architecture.md](docs/architecture.md) is the map, and
 [CONTRIBUTING.md](CONTRIBUTING.md) is how to run it against your own editor.
 
+## Installing
+
+    npm install -g rigline
+    rigline install
+
+`install` finds every installed version of the extension itself, harvests the identifiers from it,
+and injects the loader — keeping a byte-faithful backup of every bundle it touches. Then reload the
+webview from the Command Palette with *Developer: Reload Webviews*. `rigline restore` puts
+everything back, and needs nothing but Node and those backups.
+
+**No plugins are published yet**, so that alone injects a loader with nothing in it and you will see
+no change in the panel. Until some are, the way to get the first-party ones — the session-id pill,
+time marks, the worktree tab prefix, and the `RIG` diagnostics badge that tells you whether any of
+it is working — is to clone this repository and install from the checkout, which
+[CONTRIBUTING.md](CONTRIBUTING.md) covers. Writing your own is
+[docs/authoring.md](docs/authoring.md).
+
 ## Layout
 
     packages/core         @rigline/core: harvest, codegen, inject, plugin discovery, update flow
@@ -47,14 +64,18 @@ copy of the extension.
 ## Releasing
 
 Four packages go to npm: `rigline`, `@rigline/core`, `@rigline/plugin-api` and
-`create-rigline-plugin`. CI stages them over OIDC, so no npm token is stored anywhere, and a person
-approves with 2FA afterwards — a staged version is one nobody can install until they do.
+`create-rigline-plugin`. A pushed tag makes CI stage them over OIDC, so no npm token is stored
+anywhere, and a person approves afterwards with a second factor — a staged version is one nobody can
+install until they do.
 
-1. Bump the versions, commit, push to `main`.
-2. Run the **Release** workflow from the Actions tab, choosing the dist-tag.
-3. `pnpm stage approve` on your own machine.
+    pnpm release <increment>   # lint, typecheck, build, test; then changelog, manifests, tag, push
+    # approve the four staged packages at npmjs.com → your profile → Staged Packages
+    pnpm release:finish        # dist-tags, and the GitHub release
+
+Which dist-tag a version lands under is derived from the version and what the registry already
+holds, never chosen.
 
 [docs/releasing.md](docs/releasing.md) is the full runbook: the one-time npm setup, what to do when
-a step fails, and the two traps that have already cost time here — `latest` staying pinned to the
-first version ever published, and `pnpm dist-tag` demanding a typed one-time password that a
-security key cannot give it.
+a step fails, and the traps that have already cost time here — `latest` staying pinned to the first
+version ever published, and both `pnpm dist-tag` and `pnpm stage approve` demanding a typed
+one-time password that a security key cannot give.
