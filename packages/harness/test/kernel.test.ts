@@ -892,6 +892,44 @@ export default { setup(ctx) {
     }, 20000);
 
     /**
+     * `decorateTranscript` on a surface that renders no rows registers nothing, rather than a
+     * decorator that can never fire.
+     *
+     * Not a tidiness point. The sweep runs on the React commit signal, so a decorator registered on
+     * the session list queries for rows once per commit for the life of the window — twenty-seven
+     * thousand times in the run that found this — to look for what the anchor table says cannot be
+     * there. `transcriptRow` is measured as editor and sidebar, and this reads that rather than
+     * naming the surface.
+     */
+    it("registers no transcript decorator, and so no sweep, where the anchor renders no rows", async () => {
+      const decoratorPlugin: FixturePlugin = {
+        name: "decorator",
+        manifest: { uses: { transcript: true } },
+        source: `window.__decorated = { threw: null };
+export default { setup(ctx) {
+    try { ctx.decorateTranscript(() => null); }
+    catch (e) { window.__decorated.threw = String(e && e.message || e); }
+  } };`,
+      };
+      const booted = await boot({ plugins: [decoratorPlugin], surface: "sessionList" });
+      try {
+        const threw = await booted.page.evaluate(
+          () => (globalThis as { __decorated?: { threw: string | null } }).__decorated?.threw,
+        );
+        // Registered without complaint: a surface with no rows is not a fault, where a missing React
+        // renderer is and still throws.
+        expect(threw).toBeNull();
+
+        const d = await booted.diagnostics();
+        expect(d.transcript.sweeps).toBe(0);
+        expect(d.plugins).toContainEqual({ name: "decorator", status: "loaded" });
+        expect(booted.consoleErrors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
+    /**
      * A plugin's own diagnostics, end to end: `ctx.check` with no declaration behind it, grouped
      * under the plugin's name, with `core` above it — and a throwing check rendered as one failing
      * line with the plugin still loaded, which is the decision this whole capability turns on.

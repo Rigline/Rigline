@@ -176,6 +176,12 @@ not going to install it anyway.
 | `session` | `true` | `onSessionId(handler)` | `update_session_state` |
 | `transcript` | `true` | `decorateTranscript(build)` | `get_session_response`, `io_message`, anchor `transcriptRow` |
 
+`decorateTranscript` registers nothing on a surface where `transcriptRow` is measured as not
+rendering, the same reading `watch` makes of its own anchor (D68). Not merely tidy: the sweep runs on
+the React commit signal, so a decorator registered where no row can exist queries for one per commit
+for the life of the window. A missing React renderer is the other case and still throws, because
+that one is a fault.
+
 `surface` and `check` are on every `ctx` without a declaration. `surface` is a string, and knowing
 which one you are on grants nothing; `check(name, run)` hands the host a function and takes nothing
 back, so there is no identifier for a manifest to name and no gap a declaration could report (D63).

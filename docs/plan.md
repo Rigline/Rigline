@@ -327,7 +327,7 @@ A thin extension over core: re-inject on update, prompt for the webview reload, 
 disable and settings. Marketplace policy for an extension that patches another extension is a
 known risk to weigh when this phase starts.
 
-### Phase 6: a plugin contributes its own diagnostics — built 2026-09-20
+### Phase 6: a plugin contributes its own diagnostics — done 2026-09-21
 
 A check is a thing that is contributed. The kernel and each capability module contribute the host's
 lines under `core`; a plugin contributes its own through `ctx.check(name, run)`, which declares
@@ -343,11 +343,14 @@ session-id, time-marks and worktree-prefix go through `ctx.check` exactly as a s
 does, and the scaffold ships one, so a plugin starts with the habit rather than acquiring it after
 the first silent failure.
 
+Read live on 2.1.278, on the editor and the session list: every line green or legitimately `n/a`, no
+red flash at boot, and the three plugins that have no work on the session list reported `inactive`
+rather than broken. The read found three things a green harness had not (D67, D68), which is the
+phase justifying itself on the two days it took to build.
+
 [m6-diagnostics.md](m6-diagnostics.md) is the working doc; the reference is spread across
 [host.md](host.md), [verification.md](verification.md) and [authoring.md](authoring.md), and the
-argument is D63 to D66.
-
-Outstanding: the live read on the real extension, across all three surfaces.
+argument is D63 to D68.
 
 ## Open questions, not blocking
 
@@ -396,25 +399,28 @@ decision — the corpus keeps every version, so an old pin costs reproducibility
 testing a bundle nobody runs. A clone whose corpus lacks the pinned version skips the suite with a
 reason, as it always did.
 
-**What the live read is for.** The panel now groups by contributor, so the first question is whether
-each group says what it should on each surface: `core` above the plugins, `n/a` where a capability
-nothing on that surface uses, and every first-party plugin's own line. The session list is the one
-worth looking hardest at, because most of what it reports is legitimately `n/a` and that is exactly
-where a check that is quietly wrong hides.
+**The two numbers have been read, on 2.1.278, across the editor and the session list.** Both are
+settled enough to stop asking, and the first one does not say what this section expected it to.
 
-**Two numbers to read off the same report** before deciding anything about them.
+- *Mount re-placement* (D52): `replaced` 0, `moved` 0, `lost` 0, on `commit`, over 328 active mounts
+  and 144,548 commits in one measured run. `multiple` and `abandoned` are both empty.
 
-- *Mount re-placement* (D52): `replaced`, `lost` and the driver. Zero `replaced` retires
-  `replaceLost` and the peer scan it needs. Any `lost` at all is a node nobody can see being retried
-  every frame, and is a bug to chase.
-- *The sweep meter* (D53): `querySelectorAll` allocates a static collection per call where
-  `getElementsByClassName` returned a live cached one, and the transcript sweep runs over several
-  hundred rows per commit. Read the peak before optimising anything, and do not hand-wave it either.
+  **That does not retire `replaceLost`, and the rule that said it would was wrong.** Zero here is
+  the absence of the *trigger*, not of the need. Nothing detached because nothing moved: the
+  conditions that produce a non-zero reading are session-specific — the prototype's vanishing pill
+  needed an attachment chip to reorder the footer — and a transcript row that React rebuilds takes
+  its anchor with it, so the mount is skipped rather than counted. A mechanism whose reading is zero
+  because it was never provoked is not one you delete on the strength of a quiet afternoon. What
+  would retire it is a demonstration that the app cannot detach a mount, and no counter can be that.
 
-While there, `mounts.multiple` should be empty (a name in it is a singleton whose refinement has
-stopped refining), and so should `mounts.abandoned` (a name in it means the host and the app fought
-over a position and the host conceded, so a decoration is gone and the panel flickered before it
-went). `rebind`'s peak is the early warning for the same thing.
+- *The sweep meter* (D53): peak 6/s on the editor with 326 entries, sustained near 2/s. Not hot, and
+  not worth optimising — the clone path costs more (10ms over 83 clones) and the commit rate dwarfs
+  both. `querySelectorAll` stays.
+
+  The session-list reading is what mattered, and it was a bug rather than a number: 27/s peak,
+  roughly one sweep per React commit, on a surface whose row anchor is measured as editor and
+  sidebar. `decorateTranscript` now registers nothing where the anchor renders no rows (D68 applied
+  to the second capability that takes one).
 
 **Small items still carried.** The harness's `page.ts` hard-codes the reply *type* for each request
 in its table, and a wrong one sat there until a plugin needed the message. The bodies are
@@ -632,6 +638,13 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   *one preview line at a time* as the constraint the wider naming now makes it possible to
   violate. [releasing.md](releasing.md) gains what the machine needs, the three runbooks — steady
   state, a preview line and its promotion, two lines at once — and no longer contradicts D61.
+- 2026-09-21: Phase 6 closes on a clean live read of both surfaces on 2.1.278. It found a third
+  thing first: the session list had been sweeping the transcript once per React commit — 27,000
+  times in one run — for rows whose anchor is measured as editor and sidebar, so
+  `decorateTranscript` now registers nothing where there are no rows to find. The two numbers the
+  plan had been holding are read and settled, and `replaced` at zero does **not** retire
+  `replaceLost`: it is the absence of the trigger, not of the need, and the rule that said otherwise
+  was wrong.
 - 2026-09-21: 2.1.278 landed mid-session, eight versions on from 2.1.270, and every plugin survived
   it untouched: react anchors, messages, replies and payload fields all 100% kept, classes 99.4%
   (six gone, all but one from the same usage-popup module, and the exception carries a successor).

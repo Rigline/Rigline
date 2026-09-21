@@ -405,7 +405,8 @@ export default definePlugin({
     // transcript service sweeps only while something is decorating, so this registration is what
     // keeps rows being identified and timed — and therefore what makes the transcript capability's
     // own check mean anything — on a panel where the plugin that actually draws on rows is switched
-    // off or not installed.
+    // off or not installed. On a surface with no rows the capability registers nothing and this
+    // costs the panel no sweep at all, which is the capability's business rather than this one's.
     //
     // Caught rather than allowed to disable this plugin, because this plugin is the panel. The
     // consequence of a throw is otherwise perfectly silent: `entries` stays at zero, which the
@@ -419,7 +420,7 @@ export default definePlugin({
     }
     ctx.check("transcript decorator registered", () =>
       transcriptError === null
-        ? { verdict: "pass", detail: "sweeping" }
+        ? { verdict: "pass", detail: "registered" }
         : { verdict: "fail", detail: transcriptError },
     );
 

@@ -512,6 +512,12 @@ That covers a plugin that does *some* of its work on a surface. A plugin that do
 declares `surfaces` in its manifest and is skipped as `inactive`, which is not a failure and never
 was. session-id had claimed all three while its entire output was a composer-footer badge.
 
+`decorateTranscript` reads its own anchor the same way, and there the reading pays for itself
+immediately: the sweep runs on the React commit signal, so a decorator registered on a surface whose
+`transcriptRow` cannot render queried for rows once per commit for the life of the window — 27,000
+times in the run that found it. A missing React renderer remains a throw, because that is a fault
+and this is not.
+
 ### Host patches
 
 **D25. A plugin may declare byte substitutions in `extension.js`, applied by the installer.** The

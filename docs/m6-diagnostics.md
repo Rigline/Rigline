@@ -289,6 +289,15 @@ Only where the table says so. `surfaces` absent means *not yet measured*, not *n
 thirteen of the twenty-seven entries are still absent — reading absence as exclusion would silently
 switch off every watch that depends on one.
 
+**The same reading applies to `decorateTranscript`, and there it was costing something.** The second
+live read, on a now-green session list, showed the sweep meter peaking at 27/s with no transcript
+in sight: the probe's do-nothing decorator was registered on every surface, and the sweep runs on
+the React commit signal, so the panel queried for rows once per commit — 27,000 times in one
+measured run — on a surface whose row anchor is measured as editor and sidebar. It now registers
+nothing where there are no rows. That the check two lines above it already said *the session list
+renders no transcript* while the machinery ran anyway is the tell worth remembering: a correct
+`n/a` describes what a capability found, not what it was doing to find it.
+
 ## Open, and not blocking this phase
 
 - **Whether a check may be `async`.** No, for now: pull at one second with an awaited verdict means

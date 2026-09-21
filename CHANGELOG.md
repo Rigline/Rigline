@@ -30,6 +30,9 @@ anything may change between releases.
 - The diagnostics badge no longer flashes red for a second at startup. A check asking whether a
   decoration is on screen now says "not yet" until the host has had a chance to place one.
 - session-id no longer loads on the session list, which has no composer footer for its badge.
+- `ctx.decorateTranscript` no longer starts the transcript sweep on a surface that renders no
+  transcript rows. The session list had been searching for rows once per React commit, for the life
+  of the window, on a page that cannot have any.
 - A changelog, and `pnpm release <increment>` to cut and push a version with one command. A pushed
   tag starts the release; `pnpm release:finish` approves it, moves `next` if the release is ahead of
   it, and creates the GitHub release.
