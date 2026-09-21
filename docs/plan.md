@@ -449,11 +449,16 @@ move forward and re-inject. Owed, per this file's own rule about a pipeline step
 is irreducibly a person's: `pnpm release:finish` needs 2FA. [ci.md](ci.md) carries the rest of what
 delivery still owes.
 
-After that, **milestone 8 is what is open**, and [m8-companion.md](m8-companion.md) is the working
-doc. The question that gated it is settled — there is no Marketplace policy against patching another
-extension, and the constraint that matters is Anthropic's (D76, D77, D78) — so 8a can begin by
-writing. Its one open premise is the fork that doc states first: the companion spawns the installed
-engine rather than embedding core, and everything else derives from that.
+**Milestone 8 is what is open**, and [m8-companion.md](m8-companion.md) is the working doc. 8a is
+built and published as `1.0.0-alpha.8`, and the published path is read end to end on a machine that
+had never seen Rigline: `npm i -g rigline` then `rigline vscode-setup` installs the engine from npm,
+finds the editor, installs the companion from the bundled VSIX and re-injects. `--remove` undoes it.
+
+**What that read cannot reach is the point of the milestone.** It ran in WSL, where no Claude Code
+extension is installed, so it proves the acquisition and the plumbing and nothing about the
+behaviour: the companion activating, watching for an update, settling and re-injecting behind one.
+That wants an editor with Claude Code in it and a real extension update, and it is the whole of 8a's
+acceptance.
 
 **About this machine.** 2.1.270 and 2.1.278 are both installed and both injected; 2.1.268 and 2.1.269
 were deleted by VS Code once nothing was serving them, which is the behaviour D4 exists for, and all
@@ -857,3 +862,4 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   fault needs a same-version rebuild at an identical size, while the fix needs the injector's one
   "is this current" answer split in two before it stops baking unrecognised bytes into the backup.
 - 2026-09-21: Phase 5's gate answered, and the phase promoted to milestone 8. There is no Marketplace policy against an extension patching another extension: the trust model is publisher-based, and `subframe7536.custom-ui-style` advertises exactly this to a hundred thousand installs. The live constraint is Anthropic's, it lands on the harvest rather than the injection, and the response is [anthropic-compliance.md](anthropic-compliance.md) published from the top of the README with a standing invitation (D76, D77, D78). [plugin-policy.md](plugin-policy.md) followed, splitting what the architecture makes impossible from what is asked of an author and saying outright that nobody is checking, because policing behaviour the boundary permits is whack-a-mole against people who can obfuscate (D79). `rigline add` now says the choice is the user's. [m8-companion.md](m8-companion.md) is the working doc; 8a is next.
+- 2026-09-21: **`1.0.0-alpha.8` published**, carrying 8a: the companion extension, `rigline vscode-setup`, the home lock, and `install` refusing an unfinished extension directory. Read end to end from npm on a machine with no Rigline — the engine installs, the verb is reached through the wrapper's empty verb list (D69), the bundled VSIX installs and `--remove` undoes it. `1.0.0-alpha.7` was spent on the way: green on Windows, failed on Linux in the run its own tag triggered, because two test files hardcoded `;` and `C:\`. The fix is in the gate rather than the tests — `pnpm release` now refuses to cut from a commit CI has failed on, and a Linux checkout lives at `~/rigline-linux` in WSL for the fast loop.

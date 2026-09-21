@@ -202,6 +202,14 @@ it acquires its own engine, so there is nothing to install first.
 The second route is worth protecting. It is the one for a user who does not live in a terminal, and
 the shape settled above is what makes it possible.
 
+**Where `code` points depends on where you run it, and that is right rather than surprising.** Run
+from WSL, the `code` on `PATH` is the Windows binary — and it installs into the *WSL remote*
+extension host, `~/.vscode-server/extensions`, not into Windows. Which is what you want: a session
+run from WSL has its extensions there. So one machine can hold two companions that never see each
+other, and `vscode-setup` is per-environment rather than per-machine. Verified on 1.0.0-alpha.8;
+`--remove` empties `extensions.json` and leaves the directory for VS Code to collect, so a directory
+still sitting there is not a failed removal.
+
 The mechanism is `code --install-extension <path>.vsix`, which needs the `code` CLI on `PATH`.
 Reliable on Windows; on macOS it is a thing the user has to have added from the Command Palette. It
 is also plural: a machine may have VS Code, Insiders, and forks, each with its own CLI and its own
