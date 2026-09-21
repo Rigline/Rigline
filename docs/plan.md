@@ -348,7 +348,7 @@ red flash at boot, and the three plugins that have no work on the session list r
 rather than broken. The read found three things a green harness had not (D67, D68), which is the
 phase justifying itself on the two days it took to build.
 
-[m6-diagnostics.md](m6-diagnostics.md) is the working doc; the reference is spread across
+[history-m6.md](history-m6.md) is the archaeology; the reference is spread across
 [host.md](host.md), [verification.md](verification.md) and [authoring.md](authoring.md), and the
 argument is D63 to D68.
 
