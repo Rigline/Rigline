@@ -1,6 +1,6 @@
 {
   "name": "rigline-workspace",
-  "version": "1.0.0-alpha.7",
+  "version": "1.0.0-alpha.8",
   "private": true,
   "type": "module",
   "description": "Plugin layer for the Claude Code VS Code extension",
