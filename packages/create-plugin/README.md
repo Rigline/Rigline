@@ -5,6 +5,10 @@ Claude Code VS Code extension.
 
     npm create rigline-plugin my-plugins
 
+A plugin runs inside a modification of Anthropic's extension, so the
+[plugin policy](https://github.com/Rigline/Rigline/blob/main/docs/plugin-policy.md) applies to it —
+whether or not you ever publish it. One page, and the scaffolded README points at it too.
+
 ## What you get
 
 A pnpm workspace with `plugins/*` and one plugin in it, rather than a single-plugin repository. The

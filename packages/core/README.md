@@ -10,6 +10,9 @@ This is the engine. It carries the loader that gets injected, the four first-par
 every command that reads or drives an installed extension. `rigline` is a retrieval layer above it,
 because a process cannot replace the package it is running out of.
 
+What it injects into, and on whose terms, is
+[Anthropic compliance](https://github.com/Rigline/Rigline/blob/main/docs/anthropic-compliance.md).
+
     npm install -D @rigline/core
 
 **Declare it if you are writing plugins**, and never `rigline`: a project that can declare

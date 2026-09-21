@@ -23,6 +23,10 @@ anything may change between releases.
   next-steps output after scaffolding. Both say it applies whether or not you ever publish: a plugin
   you wrote for yourself modifies Anthropic's extension exactly as much as a published one does, and
   a policy filed under "before you publish" is one a personal-plugin author never reads.
+- Every published package's README says what Rigline modifies and links the relevant page — the
+  compliance account on `rigline` and `@rigline/core`, the plugin policy on `@rigline/plugin-api`
+  and `create-rigline-plugin`. The npm page is what somebody reads before installing, and it was
+  the one surface saying nothing.
 - `rigline add` says the choice is yours. After the capabilities and host patches it lists, it now
   notes that installing a plugin is your call rather than Rigline's, and that Anthropic's terms
   apply to what the plugin does, with a link to the policy. `add` is the only command that installs

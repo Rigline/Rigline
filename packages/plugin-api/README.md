@@ -9,6 +9,11 @@ resolve, which is what lets `rigline add` install one without running a package 
 
     npm install -D @rigline/plugin-api
 
+What you write runs inside a modification of Anthropic's extension, so the
+[plugin policy](https://github.com/Rigline/Rigline/blob/main/docs/plugin-policy.md) applies to it,
+published or not. Most of it is not left to you — the webview has no network egress, no filesystem
+and no route into the extension host — and the page is explicit about which half is which.
+
 ## A plugin
 
 ```ts
