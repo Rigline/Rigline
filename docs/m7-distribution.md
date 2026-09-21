@@ -185,6 +185,12 @@ semver ordering and no way for the engine you ran to differ from the one you ins
 does compare the installed version against the resolved one for equality — that is what "install
 only when it moved" means, and it is not the ordering D58 refuses.
 
+**Do not reach for a launcher, a versions directory, background update checks, release channels or
+staged upgrades.** Claude Code itself does all of those, on this machine, and it is the nearest
+neighbour a reader will find — but that machinery exists because a session is open for hours and an
+update lands underneath it. `rigline` exits in seconds, having been asked to run. One engine
+directory, replaced in place by npm, is the whole of it.
+
 npm does the full dependency resolution as always, into a directory the user unconditionally owns.
 Never a global install of core (D73). What that buys: no `EACCES`, because it is the user's own home;
 no bin collision, because core's bin lands in that prefix rather than the global one; no PATH
