@@ -481,9 +481,17 @@ string into real TypeScript would let a test check each against the harvested re
 **There is a second wrong one in it now.** The table answers `get_asset_uris` with
 `get_asset_uris_response`; the harvest has no such reply type, and the extension's is
 `asset_uris_response`. So this is not a hypothetical check — it fails on the table as committed,
-which is the argument for building it. Membership is all the check can be, since the replies layer
-is a flat list of names rather than a request-to-reply map, and membership is enough: every wrong
-entry found so far has been a plausible name the extension does not use.
+which is the argument for building it.
+
+The check can be exact rather than a membership test, which is what the entry first assumed. The
+layer's *output* is a flat set of reply names, but `harvestResponses` pairs each request with its
+reply on the way there and then discards the pairing; exporting `replyCandidates` gives the check
+`declared === replyCandidates(request).find(present)`, which also catches a reply belonging to some
+other request — the failure a membership test waves through. It reads the committed `generated.ts`
+through `readGeneratedScan`, so it runs in CI with no corpus and no browser, and it is exact only
+while the harness's pinned version and `generated.ts` are the same extension, which the test should
+say. The request keys want the same treatment: an unknown one falls through to a `console.warn` and
+a `{}` reply, quiet in both directions.
 
 **A scaffold cannot install the release that produced it, for a day.** `create-rigline-plugin@X`
 writes `@rigline/core: ^X` into the workspace it scaffolds (D50), and that workspace's own
@@ -492,48 +500,59 @@ README gives, refuses the version the scaffolder just named, with `ERR_PNPM_NO_M
 and advice about waiting. Found by running a scaffold against locally packed tarballs on 2026-09-21,
 where it bit on a package published that morning; it is the same shape as the `^1.0.0` range D50
 already records, and the same lesson about running the artefact rather than reasoning about it.
-**Settled (D50 amended): the template states `minimumReleaseAgeStrict: false` beside the age.** The
-line that caused this was written to change nothing, and changes everything — pnpm 12 applies the
-same 1440-minute cutoff by default but records the young picks and proceeds, and setting the age
-explicitly is what turns that into a refusal. The narrow fix was `minimumReleaseAgeExclude` for
-`@rigline/*`, which was rejected: it exempts the dependency with the most reach, and leaves the same
-wall in front of every other package an author adds on its publication day. To do, in one commit
-with the changelog entry: the template's `pnpm-workspace.yaml`, whose comment block currently
-asserts the premise this disproved; this repository's own file, which keeps the refusal and should
-say why it differs; and the authoring guide if it repeats the claim. Verify by scaffolding against
-the packed tarballs again, since that is what found it.
+**Settled (D50 amended): the template excludes the two Rigline packages by version, substituted
+like the range beside them.** The gate is not a refusal in general — pnpm walks back to the newest
+version in range that is old enough, which is why `vitest: ^5.0.0` installs on the day 5.0.1 ships.
+What decides it is whether a range's floor is itself the newest published version, which a derived
+range always is, so this is every release day rather than this first week. A scope glob was rejected
+for exempting more than the argument covers, and loosening the gate generally for exempting
+everything.
 
-`hostBackupIsCurrent` decides whether `extension.js.orig` still belongs to the `extension.js` beside
-it by comparing file *sizes*, which is exact only because a declared patch never resizes the bundle.
-One case defeats it: a same-version build replaced in place at the same size reads as current, so a
-harvest would read an older build's protocol and a restore would write it back as a downgrade.
-Improbable rather than impossible, and the honest fix is an identity the bytes cannot fake.
+To do, in one commit with the changelog entry, since what the scaffolder emits is user-visible:
+`__RIGLINE_VERSION__` beside the existing range substitution; the exclusion in the template's
+`pnpm-workspace.yaml`, whose comment block asserts something this disproved and now needs the
+exception written into it; the same correction in this repository's own file, which keeps the
+refusal; a scaffolder test shaped like the placeholder test beside it, asserting that every
+`@rigline` dependency the template declares is covered rather than matching the literal string; and
+`docs/verification.md`, whose scaffold procedure names the gate, sets `minimumReleaseAge: 0`, and
+cannot exercise the registry path that found this at all. Verify by scaffolding from the registry
+and running `pnpm install`.
 
-**The fix this entry used to name does not work, and the correction is the whole design.** Hashing
-the *pristine* bundle records the backup's own content, and nothing ever mutates the backup, so the
-hash agrees with it forever — including after `extension.js` has been replaced underneath, which is
-the one case in question. What has to be recorded is the hash of the bytes the injector *wrote*:
-then the backup is current when `live` equals `backup` (nothing patched, or a hand restore) or when
-`live` hashes to the record (still the file we produced from that backup), and in every other case
-`extension.js` is somebody else's and the backup is stale. That is the host-side analogue of the
-webview's `live.equals(PRE + backup + POST)`, which asks the same question by reconstruction because
-it can.
+Writing `minimumReleaseAge: 1440` down — the value pnpm 12.3 already defaults to — is what makes the
+gate *refuse* rather than record the young picks and proceed; explicitness flips
+`minimumReleaseAgeStrict`, at any value. This repository keeps the refusal, which is the behaviour
+it has always had and wants.
 
-Two alternatives, both rejected. Recomputing — `applyPatches(backup, declared)` equals `live` —
-needs no record, but conflates a current backup with an unchanged patch set, so disabling a plugin
-would make a *patched* `extension.js` read as pristine and bake it into the backup: wrong in the
-direction that destroys the recovery path. Riding on the webview settlement, which already detects a
-replaced-in-place extension by content, is true — a build replacing `extension.js` replaces
-`webview/index.js` too — but `pristineHostPath` is reached from `readBundles` during harvest, before
-any settlement has run, and coupling the two would make a harvest depend on an install having
-happened.
+**`hostBackupIsCurrent`'s size comparison stays, and the hash that was going to replace it is
+declined (2026-09-21).** Not carried any longer; recorded so it is not re-proposed.
 
-Open, and to settle when it is built: where the record lives, and what a payload written before it
-should do. `registry.js` already carries the engine stamp as an exported const read back by a
-bounded regex (D75), so it is the precedent, but the host bundle is not the webview's and a file
-beside `extension.js.orig` is co-located with what it identifies. For the older payload, falling
-back to *not current* is the dangerous direction for the same reason recomputation is; keeping
-today's size comparison for exactly the installs that have no record is the honest answer.
+Every installed version has its own directory, `anthropic.claude-code-<version>`, and both `.orig`
+files live inside it. A new extension version is therefore a new directory with no backup in it at
+all, and a superseded one keeps its own matching pair until VS Code deletes the lot. So there is no
+general problem of a backup outliving its bundle: for `extension.js.orig` to go stale beside its own
+`extension.js`, that file has to be rewritten *within an existing version directory*, by a
+same-version rebuild landing at an identical byte size in a directory the installer did not wipe
+first. The cost of being wrong is one `rigline restore`, which needs neither VS Code nor the
+extension to be working.
+
+Against that, three findings made the fix cost more than the fault. Hashing the *pristine* bundle —
+what this entry used to propose — records the backup's own content, which nothing ever mutates, so
+it cannot detect anything. Hashing the bytes the injector *wrote* does detect it, and is destructive
+while `hostBackupIsCurrent` has one caller answering two questions: `inject.ts` uses it both to
+choose which bytes to rebuild from *and* to decide whether to overwrite `extension.js.orig`, so
+bytes it does not recognise become the new pristine baseline. A foreign patch preserving the file's
+size is harmless today and would be baked into the backup under the hash — the same failure that
+rules out recomputing `applyPatches(backup, declared) === live`, and the reason the webview's
+`settleWebviewBackup` has a roll-back branch the host side has no analogue of. Closing the hole
+honestly therefore means splitting that boolean and adding a third file to the extension directory
+for `restore`, `doctor` and `status` to know about, which is a redesign of what the injector does
+with unrecognised bytes rather than a swapped comparison.
+
+Two incidental corrections it turned up, both true of the code as it stands. `restore` reverts from
+`extension.js.orig` whenever one exists and never consults currency at all, so the size check guards
+the harvest and the install's rebuild-from, not the restore this entry used to claim it protected.
+And a record kept in `registry.js`, the D75 stamp's precedent, would not survive: `restore` removes
+the payload directory, and `codegen` and `diff` read extension directories that have none.
 
 ## Status log
 

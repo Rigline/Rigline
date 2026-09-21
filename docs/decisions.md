@@ -988,29 +988,39 @@ release that removed it from what a user installs, because a phase between the t
 `pnpm build` fails on the first command the guide tells an author to run — which is the failure this
 decision already records happening once.
 
-**In a scaffolded workspace the release-age gate advises; it does not refuse** (amended
-2026-09-21). A workspace scaffolded on release day could not install the release that produced it:
-`create-rigline-plugin@X` writes `^X` for both Rigline packages, and `pnpm install` — the first
-command the README gives — refused with `ERR_PNPM_NO_MATURE_MATCHING_VERSION`. The cause was the
-line written to change nothing. pnpm 12 applies the same 1440-minute cutoff by default but does not
-enforce it: non-interactively it records the young picks in `minimumReleaseAgeExclude` and proceeds,
-and interactively it prompts. Setting `minimumReleaseAge` explicitly is what flips
-`minimumReleaseAgeStrict` on — the value is irrelevant, 1440 does it. So this block's premise, that
-a default is not a position, is false for this one setting: writing the default down *is* a
-position, and it was the wrong one. The template states the strictness beside the age, which pins
-the enforcement mode as well as the number against either moving under a scaffolded workspace.
+**A scaffolded workspace exempts the two Rigline versions it was scaffolded with from the
+release-age gate, by version** (amended 2026-09-21). A workspace scaffolded on release day could
+not install the release that produced it: `pnpm install`, the first command the README gives,
+refused `@rigline/core` and `@rigline/plugin-api` with `ERR_PNPM_NO_MATURE_MATCHING_VERSION`.
 
-Excluding `@rigline/*` was the narrow alternative and is the wrong shape twice over. It exempts the
-one dependency in the workspace with the most reach, at a moment the author has already run that
-exact release through `npm create` with no gate at all; and it fixes the instance while leaving the
-wall standing in front of any dependency an author adds on the day it is published. What the gate is
-worth also depends on who is holding it. D48's cooling-off is Rigline declining to install a plugin
-on a user's behalf, which is a choice that user cannot audit; these are the author's own
-dependencies in the author's own repository, and the record pnpm writes names every young version it
-accepted, in a tracked file, to revert or not. Same number, different standing. The refusal stays in
-*this* repository, where the person in front of it wrote the workspace, and CI is unaffected either
-way — `--frozen-lockfile` resolves nothing, so the gate is a question only at the moment a
-dependency is chosen.
+The gate is not a refusal in general — pnpm resolves to the newest version in range that is old
+enough, so `vitest: ^5.0.0` installs on the day 5.0.1 ships by taking 5.0.0. What decides it is
+whether the range's floor is itself the newest published version, because `^X` means `>=X` and a
+floor with nothing beneath it admits one candidate. A derived range always has that shape, which is
+why this bites on every release day and not only during the alpha line: when `1.1.0` ships, `^1.1.0`
+admits `1.1.0` alone. A hand-written range only has it when somebody bumps a floor to a same-day
+release — so the invariant to keep is *no dependency floor is the newest published version*, and the
+template's hand-written floors satisfy it today by having been written earlier, which is luck rather
+than a mechanism.
+
+The exclusion is written as `name@version`, substituted with the scaffolder's own version, because
+that is the exact extent of what justifies it. The author reached this workspace by running
+`create-rigline-plugin@X` through `npm create`, which is that same release executing on their
+machine with no gate at all, so holding its library half back for a day protects nobody. That
+argument is about release X. It does not reach a `pnpm update` six months later pulling an
+`@rigline/core` published ten minutes ago, where nothing has been spent and the gate should hold; a
+scope glob would have exempted that, and every `@rigline/*` package not yet written, in every
+author's repository. The stale entry left behind once an author bumps is inert, and naming versions
+costs one more substitution.
+
+Loosening the gate generally was the alternative, and is over-broad. pnpm 12.3 applies the same
+1440-minute cutoff by default but does not enforce it — non-interactively it records the young picks
+in `minimumReleaseAgeExclude`, in the tracked workspace file where they show up in a diff, and
+proceeds. Setting `minimumReleaseAge` explicitly is what flips `minimumReleaseAgeStrict` on, at any
+value, 1440 included. So this block's premise, that a default is not a position, is false for this
+one setting: writing the default down is what makes it refuse, and both copies of that comment said
+otherwise until this amendment. It stays written down, because a third-party dependency published
+ten minutes ago is what the day is for and a recorded acceptance is still an acceptance.
 
 The plugin manifest carries what a scaffold can know: the `rigline-plugin` keyword a plugin is
 found by on npm, which nothing in Rigline reads, and `publishConfig.access`, inert on the unscoped
