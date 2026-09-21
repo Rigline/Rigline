@@ -407,9 +407,14 @@ D70, D73 and D74 are recorded with the work they cover.
 Phases 0 to 4b and phase 6 are done, and `1.0.0-alpha.4` is published to `latest`, read live on
 2.1.278 across both surfaces.
 
-**Cut the release 7a is waiting on, then read it live**: `npm i -g rigline@<version>` on a machine
-with no checkout must inject, bake four plugins, and show a green `RIG` badge after a reload.
-7a's code is in; that read is the phase. Then 7b, in [m7-distribution.md](m7-distribution.md).
+**`1.0.0-alpha.5` is cut, pushed and staged, and is waiting to be approved.** Both workflows are
+green — the release staged all four packages, and CI passed every rung including Windows, with tier
+4 packing the tarballs and running `install` out of them. Do not cut another version: run `pnpm
+release:finish`, which needs the 2FA only a person has.
+
+Then read it live, which is 7a's actual acceptance: `npm i -g rigline@1.0.0-alpha.5` on a machine
+with no checkout must inject, bake four plugins, and show a green `RIG` badge after *Developer:
+Reload Webviews*. Then 7b, in [m7-distribution.md](m7-distribution.md).
 
 **The release pipeline has not been driven end to end yet**, and [ci.md](ci.md) carries that along
 with the rest of what delivery still owes.
@@ -711,5 +716,6 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   column; `registry.js` carries the engine that wrote it, read by `doctor`, `check` and the probe;
   rolldown became a lazy import and a devDependency, with the scaffold declaring its own. Tier 4
   packs the three tarballs, installs them offline into a clean prefix and runs `install` out of it —
-  the thing that had never been done, and the reason this was broken for two releases. 785 tests
-  green. Release and live read outstanding, and they are the phase's acceptance, not a formality.
+  the thing that had never been done, and the reason this was broken for two releases. 789 tests
+  green. `1.0.0-alpha.5` cut, pushed and staged; approval and the live read outstanding, and they
+  are the phase's acceptance rather than a formality.
