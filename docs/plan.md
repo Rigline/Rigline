@@ -19,6 +19,14 @@ place and the extension points curated.
 The user's story is short and the design answers to it: find a plugin, install it, keep it updated
 without thinking about it.
 
+**session-id, time-marks and worktree-prefix are why Rigline exists.** They are the gaps that
+motivated building a plugin layer at all, not demonstrations of one — the layer is how they get
+delivered, and a Rigline a person installs without them is a loader with nothing in it. Read
+anything about their distribution, their versioning or what ships by default in that light: they are
+the product, and the probe is the instrument that says whether the product is working. The two
+plugin-facing documents, [authoring.md](authoring.md) and the scaffold, address a future
+contributor; these three address the person the whole thing is for.
+
 ## Inputs
 
 - **A bundle corpus** at `c:\dev\kb\vscode-claude-code-versions\<version>\` holding `extension.js`,
@@ -352,6 +360,25 @@ phase justifying itself on the two days it took to build.
 [host.md](host.md), [verification.md](verification.md) and [authoring.md](authoring.md), and the
 argument is D63 to D68.
 
+## Blocking: the first-party plugins do not reach a user
+
+`npm install -g rigline && rigline install` injects a loader with nothing in it. All four
+first-party plugins are `private: true` and have never been published, so the only route to a
+working Rigline is a clone of this repository — which the distribution model says is for developing
+Rigline, not for using it. There is no recorded decision behind any of that; they are private
+because nobody has said otherwise.
+
+That makes the published `rigline` a delivery mechanism with nothing to deliver, which is backwards
+for the reason the opening section gives: these three plugins are the point. Nothing downstream of
+this is worth doing until it is settled — a person who installs from npm today cannot tell a correct
+install from a broken one, because the badge that would tell them is itself unpublished.
+
+Settle the shape before writing anything. The known forks: whether the three ship *with* the CLI or
+are installed by name; whether the probe is a plugin like the others or part of Rigline proper;
+whether plugin versions stay pinned to the workspace version or move independently; and what each
+answer costs at release time, since every published package is another approval click and the four
+are already the slowest part of a release (D61, amended).
+
 ## Open questions, not blocking
 
 - **Whether a plugin may have the resolved selector**, as `ctx.selector(name)`. `ctx.anchor()` hands
@@ -374,17 +401,20 @@ argument is D63 to D68.
 
 ## Next session
 
-Phases 0 to 4b are done and `1.0.0-alpha.2` is published to `latest`. Phase 6 is built, with the
-live read across the three surfaces outstanding — read that first, because everything below is
-cheaper to judge once the panel has been seen working. Nothing is blocked.
+Phases 0 to 4b and phase 6 are done, and `1.0.0-alpha.4` is published to `latest`, read live on
+2.1.278 across both surfaces.
+
+**Start with "Blocking: the first-party plugins do not reach a user" above.** It is the one thing in
+the way of Rigline being installable by anybody, it wants a decision rather than code, and everything
+below is worth less until it is answered.
 
 **The release pipeline has not been driven end to end yet**, and [ci.md](ci.md) carries that along
 with the rest of what delivery still owes.
 
-After the live read, what is open is phase 5 and the loose ends below. Phase 5 is the larger lift
-and turns on a question nobody here can answer from the code — Marketplace policy on an extension
-that patches another extension — so it wants a session that begins by finding that out, not one that
-begins by writing.
+After that, what is open is phase 5 and the loose ends below. Phase 5 is the larger lift and turns on
+a question nobody here can answer from the code — Marketplace policy on an extension that patches
+another extension — so it wants a session that begins by finding that out, not one that begins by
+writing.
 
 **About this machine.** 2.1.270 and 2.1.278 are both installed and both injected; 2.1.268 and 2.1.269
 were deleted by VS Code once nothing was serving them, which is the behaviour D4 exists for, and all
@@ -638,6 +668,14 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   *one preview line at a time* as the constraint the wider naming now makes it possible to
   violate. [releasing.md](releasing.md) gains what the machine needs, the three runbooks — steady
   state, a preview line and its promotion, two lines at once — and no longer contradicts D61.
+- 2026-09-21: `1.0.0-alpha.4` published to `latest`, the first release driven end to end. Five
+  things the pipeline asserted turned out false the moment it ran: the cut left `CORE_VERSION`
+  behind, approval refused unless HEAD was the tagged commit, `pnpm stage approve` cannot do a
+  security key any more than `pnpm dist-tag` can, and the `next` retag cost four authentications a
+  release to keep one pointer agreeing with another (D61 amended — `next` is unset until a stable
+  line exists). `1.0.0-alpha.3` was burned by a red run and folded back; the cut now runs lint,
+  typecheck, build and test before it spends a version. Treat any part of this pipeline that has not
+  actually been run as a defect rather than a gap.
 - 2026-09-21: Phase 6 closes on a clean live read of both surfaces on 2.1.278. It found a third
   thing first: the session list had been sweeping the transcript once per React commit — 27,000
   times in one run — for rows whose anchor is measured as editor and sidebar, so
