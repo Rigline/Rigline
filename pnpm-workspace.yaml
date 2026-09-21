@@ -4,14 +4,18 @@ packages:
 
 # Supply-chain settings, written down rather than inherited (decisions.md, D46 to D48).
 #
-# Three of these are pnpm 12's own defaults today. They are stated anyway, because this repository
-# asks every plugin author to accept the same rules and a default is not a position: a fresh clone
-# on a different pnpm, or a default that moves, would quietly change what we are willing to install
+# Two of these restate a pnpm 12 default. They are stated anyway, because this repository asks every
+# plugin author to accept the same rules and a default is not a position: a fresh clone on a
+# different pnpm, or a default that moves, would quietly change what we are willing to install
 # without anyone deciding to. The template ships the same block for the same reason.
 #
-# minimumReleaseAge is the rule D48 applies to plugins, applied here to our own dependencies. 1440
-# minutes is pnpm's default since v11 and is the number D48 settled on precisely so that the two
-# agree; the urgent-repair path is the anchor override (D44), not a fast republish.
+# minimumReleaseAge is the third and is not a restatement, which is what D50's amendment cost a
+# scaffolded workspace its first command to find out: pnpm applies the same cutoff by default but
+# only records anything younger, and writing it down is what makes it refuse. Refusing is what we
+# want here. It is the rule D48 applies to plugins, applied to our own dependencies, and 1440 is the
+# number D48 settled on so the two agree; the urgent-repair path is the anchor override (D44), not a
+# fast republish. Nothing is excluded: our own packages resolve through the workspace, so the
+# exception the template carries has nothing to apply to here.
 minimumReleaseAge: 1440
 
 # Only a direct dependency may come from a git repository or a tarball URL. Nothing here needs one,

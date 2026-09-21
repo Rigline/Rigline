@@ -153,6 +153,26 @@ describe("scaffold", () => {
     if (own.version.includes("-")) expect(riglineRange()).toContain("-");
   });
 
+  it("exempts every Rigline dependency it declares from the release-age gate, by version", () => {
+    // The gate resolves to the newest version in range that is old enough, and a range whose floor
+    // is the newest published version has nothing older in it — so a workspace scaffolded on
+    // release day could not install the release that scaffolded it (D50). Asserted over whatever
+    // the template declares rather than against two names, so a third Rigline package added to the
+    // template fails here rather than shipping ungated.
+    const result = into("clock");
+    const workspace = read(result, "pnpm-workspace.yaml");
+    const declared = new Set<string>();
+    for (const file of ["package.json", "plugins/clock/package.json"]) {
+      const { devDependencies } = JSON.parse(read(result, file));
+      for (const [name, range] of Object.entries(devDependencies as Record<string, string>)) {
+        if (name.startsWith("@rigline/")) declared.add(`${name}@${range.replace(/^\^/, "")}`);
+      }
+    }
+
+    expect(declared.size).toBeGreaterThan(0);
+    for (const entry of declared) expect(workspace).toContain(`"${entry}"`);
+  });
+
   it("declares rolldown, which `rigline-engine build` no longer brings with it", () => {
     // The engine stopped depending on rolldown when it became a lazy import, so a scaffold that
     // does not declare its own has no bundler at all and `pnpm build` fails on the first command

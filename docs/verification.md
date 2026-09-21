@@ -208,6 +208,16 @@ whatever extension is installed on the machine, which is not something a check s
 editor. What this catches and nothing else does is the resolution question — whether
 `rigline-engine build` finds rolldown from the workspace it is invoked in.
 
+**That pass cannot see the gate at all, and the gate is where a scaffold broke.** Rewriting the
+ranges to `file:` and zeroing the age removes both halves of the question, so the release-age failure
+D50 records — a workspace unable to install the release that scaffolded it — is invisible to it by
+construction. The pass that sees it is the published one, and it is only available in the day after a
+release: `npm create rigline-plugin@latest` into a temporary directory, then `pnpm install` and
+nothing else. It passes when the two `minimumReleaseAgeExclude` entries name the versions the
+manifests declare. To check the exclusion is still *narrow*, widen `minimumReleaseAge` to something
+no package satisfies and install again: every third-party dependency should be refused and no
+`@rigline` one.
+
 It also runs `rigline` **by name**, through the shim npm wrote from the `bin` field, and not only
 `dist/index.js` by path. Three declarations have to hold together for a command to exist at all —
 `bin` in the manifest, the entry inside `files`, and the shebang surviving `removeComments` in the

@@ -21,6 +21,12 @@ anything may change between releases.
   untouched.
 - `rigline update` with no third-party plugins says the bundled ones move with the engine, rather
   than `no plugins are installed` when four of them are.
+- A workspace scaffolded by `create-rigline-plugin` can install the release that scaffolded it.
+  `pnpm install`, the first command its README gives, was refusing `@rigline/core` and
+  `@rigline/plugin-api` with `ERR_PNPM_NO_MATURE_MATCHING_VERSION` for the first day after any
+  release, because the scaffolded workspace applies a release-age gate and the dependency ranges it
+  writes have no older version in them to fall back on. It now exempts those two versions by name,
+  and nothing else: every other dependency is gated exactly as before.
 
 ## 1.0.0-alpha.6 — 2026-09-21
 

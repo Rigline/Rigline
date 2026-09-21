@@ -28,6 +28,8 @@ export interface Substitutions {
   readonly DESCRIPTION: string;
   /** The range a scaffolded workspace depends on Rigline's own packages by. See `riglineRange`. */
   readonly RIGLINE_RANGE: string;
+  /** That range's floor, naming the same version the exclusion beside it names (D50). */
+  readonly RIGLINE_VERSION: string;
 }
 
 export interface ScaffoldOptions {
@@ -103,10 +105,14 @@ export function scaffold(options: ScaffoldOptions): ScaffoldResult {
     throw new ScaffoldError(`the template is missing from this package: ${templateDir}`);
   }
 
+  const range = options.riglineRange ?? riglineRange();
   const substitutions: Substitutions = {
     NAME: name,
     DESCRIPTION: options.description ?? `A Rigline plugin called ${name}.`,
-    RIGLINE_RANGE: options.riglineRange ?? riglineRange(),
+    RIGLINE_RANGE: range,
+    // Taken from the range rather than read again, so the exclusion cannot name a version the
+    // dependency does not (D50).
+    RIGLINE_VERSION: range.replace(/^\^/, ""),
   };
 
   const files: string[] = [];
@@ -138,7 +144,7 @@ function walk(root: string): string[] {
   return found;
 }
 
-/** `__NAME__`, `__DESCRIPTION__` and `__RIGLINE_RANGE__`, in a path or in a file's contents. */
+/** Every `__KEY__` in `Substitutions`, in a path or in a file's contents. */
 function substitute(text: string, substitutions: Substitutions): string {
   let out = text;
   for (const [key, value] of Object.entries(substitutions)) {

@@ -3,13 +3,23 @@ packages:
 
 # Supply-chain settings, written down rather than inherited.
 #
-# Three of these are pnpm's own defaults today. They are stated anyway, because a default is not a
-# position: a fresh clone on a different pnpm, or a default that moves, would quietly change what
-# this repository is willing to install without anyone deciding to.
+# Two of these restate a pnpm default. They are stated anyway, because a default is not a position:
+# a fresh clone on a different pnpm, or a default that moves, would quietly change what this
+# repository is willing to install without anyone deciding to.
 #
-# minimumReleaseAge is the rule rigline applies to plugins, applied here to your own dependencies:
-# a day is where a compromised publish is usually caught, and a day of latency costs nothing.
+# minimumReleaseAge is the third and is not a restatement. pnpm applies the same cutoff by default
+# but merely records anything younger; writing it down is what makes it refuse. That is the rule
+# rigline applies to plugins, applied here to your own dependencies: a day is where a compromised
+# publish is usually caught.
 minimumReleaseAge: 1440
+
+# The exception, and the reason for it: pnpm resolves to the newest version in range that is old
+# enough, and these two ranges have no older version in them to fall back on. Scaffolding you ran
+# minutes ago is this same release, so waiting a day for the rest of it protects nothing. Drop these
+# once the versions are a day old; a later Rigline release is gated like anything else.
+minimumReleaseAgeExclude:
+  - "@rigline/core@__RIGLINE_VERSION__"
+  - "@rigline/plugin-api@__RIGLINE_VERSION__"
 
 # Only a direct dependency may come from a git repository or a tarball URL. A transitive dependency
 # that resolves outside the registry is the shape of a supply-chain problem rather than of an
