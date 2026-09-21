@@ -437,9 +437,53 @@ a generated scaffold builds and runs `add` with no global install; and, as a man
 needing two published versions, one `rigline update` with an older engine installed leaves every
 installed extension version injected by the newer engine and says so.
 
-Decide during 7b: who prints usage for a verb neither package knows, and whether a typo triggers a
-first-run engine install before it is rejected; and what `rigline --version` reports, which D75 wants
-to be both.
+#### Settled: the help, the typo, and the version
+
+**The engine prints the usage, for every verb including the ones it refuses.** The wrapper has no
+verb list and must not grow one — that is what lets core add a command without a wrapper release —
+so an unknown verb is forwarded like any other and the engine answers it. `--help` and a bare
+`rigline` forward too, which means the engine's usage is the whole `rigline` surface rather than a
+list of what the engine implements: it documents `update`, and refuses it with a pointer to
+`rigline update` when somebody runs it against `rigline-engine` directly. A verb the engine also
+does not know is one usage block and a non-zero exit, from one place.
+
+**So a typo does trigger the first-run engine install, and that is the right answer rather than a
+tolerated one.** The wrapper cannot tell `instal` from a verb a newer engine has without holding the
+list it is designed not to hold. The install is not wasted either — the next command needs it — and
+the alternative is a hardcoded list that goes stale in exactly the direction that matters, refusing
+a verb that exists.
+
+**`rigline --version` is the one thing the wrapper answers itself**, printing its own version and
+the installed engine's, or naming the absence before a first run. It installs nothing. The line
+between this and `--help` is not taste: a version is a question about what is on this machine, which
+the wrapper can answer from `<prefix>/node_modules/@rigline/core/package.json` — the file it already
+reads to find the bin — while a usage is a question about what the tool can do, which only the
+engine knows. And a version query is what somebody runs when something is already wrong, so making
+it reach the network first is the opposite of a diagnostic.
+
+The wrapper reads its own version from its own `package.json` rather than from a constant. It cannot
+import core's, a second constant is a second thing to bump, and the release script already rewrites
+every manifest.
+
+#### `rigline build` after the split, which is not obvious
+
+`build` is an engine command and rolldown is a lazy import, so the engine resolves rolldown from
+wherever *it* sits. In an author's workspace that is `node_modules/@rigline/core/…` walking up to
+the workspace's own `node_modules/rolldown`, which is why the scaffold declaring rolldown (7a) is
+what keeps this working. In `<RIGLINE_HOME>/engine` there is no rolldown and there should not be:
+`rigline build` run globally fails with the named install message, which is correct, because a build
+happens in a workspace and never against a user's engine.
+
+#### Order, so the tree is green at every step
+
+1. The command surface moves into core, which gains the `rigline-engine` bin; `packages/cli` becomes
+   a file that calls it. Nothing about dependencies changes yet.
+2. The registry client and the tarball reader move up into the wrapper; the engine's `add` takes an
+   optional source record and refuses a kind it does not know; `readConfig` skips one.
+3. The wrapper drops `@rigline/core`: engine installation, forwarding, `update`, and the remote half
+   of `add`.
+4. Scripts and the template.
+5. Docs.
 
 ## Decisions to record
 
