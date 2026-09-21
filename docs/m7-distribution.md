@@ -204,11 +204,13 @@ Mechanics that are not optional:
   so it reimplements the two-line rule — `$RIGLINE_HOME`, else `join(homedir(), ".rigline")` — and a
   test asserts the two agree. That duplication is the price of the split and it is cheaper than the
   dependency.
-- **Create the directory first.** npm writes `package.json`, `package-lock.json` and a dependency
-  range into it. `--save-exact` is required: a caret range is a second mechanism deciding what is
-  installed, disagreeing with the pin the moment anyone runs a bare `npm install` there, which is
-  what D58 refuses for a plugin source; and a caret on a prerelease is narrower than it looks (D50).
-  Verify npm's behaviour in an empty directory by running it, not by reasoning about it.
+- **Create the directory first.** Run against an empty directory, npm creates `node_modules`,
+  `package-lock.json` and a `package.json`, resolves the full dependency graph as usual, and
+  downgrades cleanly when handed an older version — all confirmed by running it, on npm as shipped
+  with Node 26 on Windows. `--save-exact` is required and confirmed to work: without it npm writes a
+  caret range into that manifest, which is a second mechanism deciding what is installed and
+  disagrees with the pin the moment anyone runs a bare `npm install` there — what D58 refuses for a
+  plugin source — and a caret on a prerelease is narrower than it looks (D50).
 - **`--ignore-scripts`.** Core's only dependency is `@rigline/plugin-api` and neither has an install
   script, and the workspace's own `allowBuilds: {}` says that is the posture. Nothing is lost and the
   surface is declined rather than defended (D47).
@@ -275,8 +277,7 @@ Three readers, and the plumbing each needs:
   field on `FlowOptions`.
 - The probe reads it through `registry.js` or the diagnostics object, never by importing the host: a
   plugin may not reach past `ctx`, and an undeclared member may not widen what a plugin can reach
-  (D18, D63). Decide which of the two carries it during 7c-equivalent work in 7b; it is a host-provided
-  value like any other.
+  (D18, D63). Pick one of the two when the stamp lands; it is a host-provided value like any other.
 
 ## Recovery without the CLI
 
