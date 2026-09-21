@@ -41,7 +41,12 @@ export function stageTag(version, { latest, next, hasStable }) {
   const above = (tag) => tag === null || semver.gt(version, tag);
 
   if (above(latest) && (isStable || !hasStable)) return { tag: "latest" };
-  if (above(next)) return { tag: "next" };
+  // Only once a stable line exists, and the condition is load-bearing rather than belt-and-braces:
+  // `next` is unset until then (see `nextShouldMove`), so `above(next)` is vacuously true, and
+  // without this a version that is merely *not new* — a dry run against an unchanged tree — would
+  // stage under `next` instead of being refused. Staging there is a preview, and a preview is
+  // something a stable line has.
+  if (hasStable && above(next)) return { tag: "next" };
 
   const held = `\`latest\` (${latest ?? "unset"}) or \`next\` (${next ?? "unset"})`;
   if (latest !== null && semver.major(version) < semver.major(latest)) {
@@ -59,8 +64,25 @@ export function stageTag(version, { latest, next, hasStable }) {
   };
 }
 
-/** Whether `next` should be pointed at the released version once it is on the registry. */
-export function nextShouldMove(version, currentNext) {
+/**
+ * Whether `next` should be pointed at the released version once it is on the registry.
+ *
+ * **Not while there is no stable line.** `latest` then already means "the newest of any kind", so a
+ * `next` beside it names the same version and carries nothing — and keeping the two in step costs a
+ * separate authenticated write per package, every release, because `npm dist-tag` cannot batch and
+ * each invocation asks for a second factor of its own. That is four browser round trips to make one
+ * pointer agree with another.
+ *
+ * Leaving it unset is the better failure too (P8): `install <pkg>@next` erroring is worth more than
+ * it quietly resolving a version several releases old, which is what a tag nobody moves becomes.
+ *
+ * Nothing is lost for the case the tag exists for. A preview opens its line by staging *under*
+ * `next` — publishing to the tag rather than moving it, which the runbook prefers wherever there is
+ * a choice — and the one release with no version to publish there, a promotion carrying `next`
+ * forward onto the stable version it supersedes, has a stable line by definition and still moves it.
+ */
+export function nextShouldMove(version, currentNext, hasStable) {
+  if (!hasStable) return false;
   return currentNext === undefined || currentNext === null || semver.gt(version, currentNext);
 }
 

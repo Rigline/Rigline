@@ -143,9 +143,18 @@ if (already.length === packages.length) {
 // ones after it with it. `npm dist-tag add` is idempotent, so the recovery is this whole command
 // again and there is no resume state for anybody to carry.
 say("");
+// Whether any package has ever had a stable release, which is what decides `next` has a job at all.
+// Read from `versions` rather than from the tags: a line is stable once a stable version exists,
+// whatever the pointers happen to say, and this must not depend on the tag it is about to set.
+const hasStable = packages.some((name) =>
+  publishedVersions(name).some((v) => semver.prerelease(v) === null),
+);
+if (!hasStable) {
+  say("  `next` is not maintained while no stable release exists — `latest` is already the newest");
+}
 const moved = [];
 const stuck = [];
-for (const name of packages) {
+for (const name of hasStable ? packages : []) {
   const { next } = distTags(name);
   // Equality first: `nextShouldMove` is a `semver.gt`, so it already says no for the version that
   // was staged under `next` — and "stays at X, which is ahead of X" is not what happened.
@@ -153,7 +162,7 @@ for (const name of packages) {
     say(`  ${name}: \`next\` is already ${version}, set by the publish`);
     continue;
   }
-  if (!nextShouldMove(version, next)) {
+  if (!nextShouldMove(version, next, hasStable)) {
     say(`  ${name}: \`next\` stays at ${next}, which is ahead of ${version}`);
     continue;
   }

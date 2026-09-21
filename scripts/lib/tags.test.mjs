@@ -8,8 +8,8 @@
 import { describe, expect, it } from "vitest";
 import { nextShouldMove, stageTag } from "./tags.mjs";
 
-/** The registry as it is today: alphas only, both tags on the newest one. */
-const alphaLine = { latest: "1.0.0-alpha.2", next: "1.0.0-alpha.2", hasStable: false };
+/** The registry as it is today: alphas only, `latest` on the newest and `next` not maintained. */
+const alphaLine = { latest: "1.0.0-alpha.2", next: null, hasStable: false };
 
 /** A stable line with a preview running ahead of it, which is the case D61 was written for. */
 const stableWithPreview = { latest: "1.2.3", next: "2.0.0-beta.1", hasStable: true };
@@ -48,6 +48,13 @@ describe("stageTag", () => {
     expect(refusal).toContain("1.x");
   });
 
+  // With `next` unset on the alpha line, "above next" is vacuously true, so without the stable-line
+  // guard a version that is merely not new would stage under `next` rather than being refused.
+  it("still refuses a stale version once next is unset, rather than falling through to it", () => {
+    expect(stageTag("1.0.0-alpha.1", alphaLine).tag).toBeUndefined();
+    expect(stageTag("1.0.0-alpha.2", alphaLine).refusal).toBeTypeOf("string");
+  });
+
   it("refuses a version already behind both tags", () => {
     expect(stageTag("1.0.0-alpha.1", alphaLine).refusal).toBeTypeOf("string");
   });
@@ -60,26 +67,41 @@ describe("stageTag", () => {
 });
 
 describe("nextShouldMove", () => {
-  it("moves next up behind a release to latest", () => {
-    expect(nextShouldMove("1.0.0-alpha.3", "1.0.0-alpha.2")).toBe(true);
+  // The alpha line, which is where every release has been so far. `latest` already names the newest
+  // version of any kind, so a `next` beside it names the same one — and keeping them in step costs
+  // an authenticated write per package, per release, for a pointer that says nothing.
+  it("never moves next while no stable release exists", () => {
+    expect(nextShouldMove("1.0.0-alpha.3", "1.0.0-alpha.2", false)).toBe(false);
+    expect(nextShouldMove("1.0.0-alpha.3", undefined, false)).toBe(false);
+    expect(nextShouldMove("1.0.0-alpha.3", null, false)).toBe(false);
+  });
+
+  it("moves next up behind a release to latest once a stable line exists", () => {
+    expect(nextShouldMove("1.2.4", "1.2.3", true)).toBe(true);
+  });
+
+  // The one release with no version to publish under `next`: a promotion supersedes the preview the
+  // tag is pointing at, so the tag has to be moved rather than published to.
+  it("carries next forward onto the stable version that supersedes a preview", () => {
+    expect(nextShouldMove("1.3.0", "1.3.0-beta.1", true)).toBe(true);
   });
 
   it("does nothing when the release was staged to next itself", () => {
-    expect(nextShouldMove("2.0.0-beta.2", "2.0.0-beta.2")).toBe(false);
+    expect(nextShouldMove("2.0.0-beta.2", "2.0.0-beta.2", true)).toBe(false);
   });
 
   it("leaves a preview alone that is ahead of a maintenance release", () => {
-    expect(nextShouldMove("1.2.4", "2.0.0-beta.1")).toBe(false);
+    expect(nextShouldMove("1.2.4", "2.0.0-beta.1", true)).toBe(false);
   });
 
   it("compares as semver, not as text", () => {
     // The release that would move the tag backwards is exactly the one nobody would check:
     // "1.0.0-alpha.10" < "1.0.0-alpha.2" as strings.
-    expect(nextShouldMove("1.0.0-alpha.10", "1.0.0-alpha.2")).toBe(true);
-    expect(nextShouldMove("1.0.0-alpha.2", "1.0.0-alpha.10")).toBe(false);
+    expect(nextShouldMove("2.0.0-alpha.10", "2.0.0-alpha.2", true)).toBe(true);
+    expect(nextShouldMove("2.0.0-alpha.2", "2.0.0-alpha.10", true)).toBe(false);
   });
 
-  it("sets next on a package that has none", () => {
-    expect(nextShouldMove("1.0.0-alpha.3", undefined)).toBe(true);
+  it("sets next on a package that has none, once there is a line to preview", () => {
+    expect(nextShouldMove("2.0.0-beta.1", undefined, true)).toBe(true);
   });
 });

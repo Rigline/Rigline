@@ -910,11 +910,30 @@ and is refused by name rather than approximated, because both of the tags on off
 and one of them would be a downgrade for everybody.
 
 `next` is then reconciled after approval: point it at the released version when `semver.gt` says the
-release is newer, and leave it otherwise. One line covering every case — it moves `next` up behind a
-release to `latest`, does nothing after a release that was staged to `next` because the tag is
-already there, and declines to drag `next` off a preview that is ahead of a maintenance release. The
-comparison is `semver.gt` and not a string compare, which sorts `1.0.0-alpha.10` below
-`1.0.0-alpha.2` and would move the tag backwards on precisely the release nobody would check.
+release is newer, and leave it otherwise. It moves `next` up behind a release to `latest`, does
+nothing after a release that was staged to `next` because the tag is already there, and declines to
+drag `next` off a preview that is ahead of a maintenance release. The comparison is `semver.gt` and
+not a string compare, which sorts `1.0.0-alpha.10` below `1.0.0-alpha.2` and would move the tag
+backwards on precisely the release nobody would check.
+
+**Amended 2026-09-21, after the first release drove it: `next` is not maintained at all while no
+stable release exists.** Until then `latest` already means "the newest of any kind", so a `next`
+beside it names the same version and says nothing — and the reconciliation is a separate
+authenticated write per package, every release, because `npm dist-tag` cannot batch and each
+invocation asks for its own second factor. Four browser round trips to make one pointer agree with
+another, which is the trap this file's own runbook names: publishing to the tag you want beats
+moving a tag, and a moved tag with nothing new under it is the case to avoid rather than the case to
+automate.
+
+Unset is also the better failure (P8). A tag nobody moves becomes a tag resolving to something
+several releases old, and `install <pkg>@next` erroring is worth more than it quietly handing over
+`1.0.0-alpha.1`. So the existing one is removed rather than left behind.
+
+Nothing is lost for what the tag is for. A preview opens its line by staging *under* `next`, which
+publishes to the tag rather than moving it; a maintenance release with a preview ahead already left
+it alone; and the one release that has no version to publish there — a promotion carrying `next`
+forward onto the stable version superseding the preview — has a stable line by definition, so it
+still moves. The rule that changed is one condition: no stable line, no `next`.
 
 CI cannot do this half, for two reasons that hold independently. npm's OIDC exchange authenticates
 `npm publish` and `npm stage publish` and nothing else, `dist-tag` included; and `otplease`, the

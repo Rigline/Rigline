@@ -142,11 +142,16 @@ from a prerelease, all three of `patch`, `minor` and `major` resolve to the same
 aimed at. Use `--preid` to change the identifier; without it, the current one carries forward.
 
 **Which dist-tags move is derived, never chosen** (D61). `next` points at the newest version and
-`latest` at the newest version a naive `npm install` should get. So a new alpha goes to `latest` and
-takes `next` with it while no stable line exists; a preview goes to `next` once one does; and a
-maintenance release goes to `latest` without disturbing a preview ahead of it. A release on a
-superseded major is refused by name, because it belongs on a line tag such as `1.x` and neither tag
-on offer would be right.
+`latest` at the newest version a naive `npm install` should get. So a new alpha goes to `latest`; a
+preview goes to `next` once a stable line exists; and a maintenance release goes to `latest` without
+disturbing a preview ahead of it. A release on a superseded major is refused by name, because it
+belongs on a line tag such as `1.x` and neither tag on offer would be right.
+
+**`next` is not maintained while no stable release exists**, and is unset rather than stale. `latest`
+already names the newest of any kind then, so a `next` beside it would say nothing — and saying it
+costs one authenticated write per package per release, since `npm dist-tag` cannot batch and each
+call wants its own second factor. It comes back on its own when it means something: a preview opens
+its line by staging *under* `next`, which publishes to the tag rather than moving it.
 
 **Dry runs go through the Actions tab.** The workflow keeps its `workflow_dispatch` for exactly
 that: it builds, tests and packs without staging, which is worth doing after any change to the
@@ -166,9 +171,9 @@ version means, and there are only three answers.
     # watch the run, then
     pnpm release:finish
 
-The version stages under `latest` and `next` follows it after approval. Nothing else moves, and
-there is no branch anywhere. This is the case the whole pipeline is shaped around, and most
-releases are this.
+The version stages under `latest`, and `next` follows it after approval once a stable line exists —
+before then it is left unset and there is nothing to authenticate. Nothing else moves, and there is
+no branch anywhere. This is the case the whole pipeline is shaped around, and most releases are this.
 
 ### A preview line, and the promotion that ends it
 
