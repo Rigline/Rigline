@@ -21,7 +21,9 @@ anything may change between releases.
 - `rigline update` takes `--tag` to follow a preview line for the engine instead of `latest`, and
   re-injects after moving the engine even when no plugin moved.
 - `rigline` no longer belongs in a project's dependencies. A plugin workspace declares
-  `@rigline/core` and runs `rigline-engine build`; the scaffolder will be updated to match.
+  `@rigline/core` and runs `rigline-engine build`, and `create-rigline-plugin` scaffolds it that
+  way. An existing workspace keeps working by making the same swap: `@rigline/core` in place of
+  `rigline`, and `rigline-engine` in the `build` and `codegen` scripts.
 
 ### Added
 

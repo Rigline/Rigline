@@ -8,11 +8,11 @@
   "publishConfig": { "access": "public" },
   "files": ["dist", "rigline.json"],
   "scripts": {
-    "build": "rigline build",
+    "build": "rigline-engine build",
     "typecheck": "tsc -p tsconfig.json"
   },
   "devDependencies": {
-    "@rigline/plugin-api": "__RIGLINE_RANGE__",
-    "rigline": "__RIGLINE_RANGE__"
+    "@rigline/core": "__RIGLINE_RANGE__",
+    "@rigline/plugin-api": "__RIGLINE_RANGE__"
   }
 }

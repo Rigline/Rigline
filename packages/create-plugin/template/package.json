@@ -5,14 +5,15 @@
   "packageManager": "pnpm@12.3.4",
   "engines": { "node": ">=22.12.0" },
   "scripts": {
-    "codegen": "rigline codegen",
+    "rigline": "rigline-engine",
+    "codegen": "rigline-engine codegen",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run"
   },
   "devDependencies": {
+    "@rigline/core": "__RIGLINE_RANGE__",
     "@rigline/plugin-api": "__RIGLINE_RANGE__",
-    "rigline": "__RIGLINE_RANGE__",
     "rolldown": "^1.2.8",
     "typescript": "^7.0.2",
     "vitest": "^5.0.0"

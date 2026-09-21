@@ -145,7 +145,7 @@ describe("scaffold", () => {
     const result = into("clock");
     for (const file of ["package.json", "plugins/clock/package.json"]) {
       const { devDependencies } = JSON.parse(read(result, file));
-      expect(devDependencies.rigline, file).toBe(`^${own.version}`);
+      expect(devDependencies["@rigline/core"], file).toBe(`^${own.version}`);
       expect(devDependencies["@rigline/plugin-api"], file).toBe(`^${own.version}`);
     }
 
@@ -153,8 +153,8 @@ describe("scaffold", () => {
     if (own.version.includes("-")) expect(riglineRange()).toContain("-");
   });
 
-  it("declares rolldown, which `rigline build` no longer brings with it", () => {
-    // `rigline` stopped depending on rolldown when it became a lazy import, so a scaffold that
+  it("declares rolldown, which `rigline-engine build` no longer brings with it", () => {
+    // The engine stopped depending on rolldown when it became a lazy import, so a scaffold that
     // does not declare its own has no bundler at all and `pnpm build` fails on the first command
     // the README tells an author to run. Hand-written rather than derived: the range is the
     // bundler's, and `__RIGLINE_RANGE__` is this package's own version (D50).

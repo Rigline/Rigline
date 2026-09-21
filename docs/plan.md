@@ -403,19 +403,18 @@ D70, D73 and D74 are recorded with the work they cover.
 Phases 0 to 4b, phase 6 and milestone 7a are done. `1.0.0-alpha.5` is published to `latest` and
 installs from npm on a machine with no checkout.
 
-**7b is at step 4 of five**, and its order is in [m7-distribution.md](m7-distribution.md). The
+**7b is at step 5 of five**, and its order is in [m7-distribution.md](m7-distribution.md). The
 separation is cut: `rigline` installs `@rigline/core` into `<RIGLINE_HOME>/engine`, spawns it,
 answers `--version` itself and forwards everything else, and declares no Rigline package at all.
 This repository's own scripts moved with it — root and the four plugins take `@rigline/core` and
 spell the bin `rigline-engine`, with a forwarding `rigline` script at the root — because `pnpm
 build` runs `rigline build` in four packages and there is no green tree between the halves.
 
-**What is left is step 4, the template, and step 5, the docs.** The template needs the same two
-changes the repository just took: `@rigline/core` in place of `rigline`, and `rigline-engine` in the
-`build` and `codegen` scripts, at the root and in the member. m7-distribution.md lists the documents
-step 5 owes — `packages/cli/README.md` is the wrapper's now and still documents all fourteen verbs,
-`packages/core/README.md` needs the command surface, and `CLAUDE.md`'s command table has been
-corrected but its surroundings have not been re-read as a whole.
+**What is left is step 5, the docs.** m7-distribution.md lists what it owes —
+`packages/cli/README.md` is the wrapper's now and still documents all fourteen verbs,
+`packages/core/README.md` needs the command surface, the package tables here and in
+architecture.md still describe `packages/cli` as a thin surface over core, and `CLAUDE.md`'s
+command table has been corrected but its surroundings have not been re-read as a whole.
 
 **Unreleased and waiting**: the meter fix, `list --json`, and core's new bin. Cutting `alpha.6`
 before step 3, to be the older engine 7b's acceptance check needs to upgrade *from*, was offered and
@@ -474,6 +473,16 @@ settled enough to stop asking, and the first one does not say what this section 
 in its table, and a wrong one sat there until a plugin needed the message. The bodies are
 hand-found and cannot be derived, but the types can: lifting the table out of the page's template
 string into real TypeScript would let a test check each against the harvested replies layer.
+
+**A scaffold cannot install the release that produced it, for a day.** `create-rigline-plugin@X`
+writes `@rigline/core: ^X` into the workspace it scaffolds (D50), and that workspace's own
+`pnpm-workspace.yaml` sets `minimumReleaseAge: 1440` — so `pnpm install`, the first command the
+README gives, refuses the version the scaffolder just named, with `ERR_PNPM_NO_MATURE_MATCHING_VERSION`
+and advice about waiting. Found by running a scaffold against locally packed tarballs on 2026-09-21,
+where it bit on a package published that morning; it is the same shape as the `^1.0.0` range D50
+already records, and the same lesson about running the artefact rather than reasoning about it.
+Nothing is decided: `minimumReleaseAgeExclude` for the two Rigline packages is the narrow fix, and
+whether the scaffold should hold that opinion about its own toolchain at all is the wider question.
 
 `hostBackupIsCurrent` decides whether `extension.js.orig` still belongs to the `extension.js` beside
 it by comparing file *sizes*, which is exact only because a declared patch never resizes the bundle.
@@ -752,3 +761,11 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   engine now re-injects, which nothing else would have done. Tier 4 became the two prefixes a user
   actually has, installing the engine through `engineInstallArgv`, the wrapper's own npm
   construction, rather than a copy of it. 818 green.
+- 2026-09-21: M7 phase 7b step 4, the template, which takes the two changes this repository just
+  took and is checked by generating one: scaffold, install against locally packed tarballs,
+  codegen, build, typecheck, test, all green, with `rigline-engine build` resolving rolldown from
+  the scaffold's own `node_modules` — the thing the split made non-obvious and nothing else asks.
+  A guard now holds the acceptance criterion directly: no manifest in the tree or in a generated
+  scaffold declares `rigline`, which otherwise fails slowly from inside pnpm with an error about a
+  version rather than about the mistake. The run also found that a scaffold cannot install the
+  release that produced it for a day; carried above rather than fixed.
