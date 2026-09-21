@@ -65,6 +65,17 @@ if (capture("git", ["tag", "--list", tagName]) === "") {
  * rather than at HEAD. Only the notes are read from the tree, and a commit that changed them would
  * have to have changed this version's own section to matter.
  */
+/**
+ * Where a person approves a stage by hand, which is the only route that works for every account.
+ *
+ * npm's own page for it, under the signed-in user's settings. It does exactly what `stage approve`
+ * does — the stages live on the registry, not in a client — and it is the answer for an account
+ * whose second factor cannot produce a typed code.
+ */
+function stagedPackagesUrl(user) {
+  return `https://www.npmjs.com/settings/${user ?? "<your-npm-user>"}/staged-packages`;
+}
+
 function tagIsInHistory(tag) {
   try {
     run("git", ["merge-base", "--is-ancestor", tag, "HEAD"], { stdio: "ignore" });
@@ -99,16 +110,26 @@ if (already.length === packages.length) {
     say("");
   }
   say(`Approving ${version} as ${account}. This needs your second factor.`);
+  say(`If it asks for a one-time password, approve them here instead and run this again:`);
+  say(`  ${stagedPackagesUrl(account)}`);
   say("");
   try {
     // Approval goes through pnpm: it takes the whole batch under one authentication and approves
     // in dependency order, skipping any package whose workspace dependency did not make it rather
     // than publishing against a dependency the registry never received.
+    //
+    // It only works for an account that can produce a typed code. `pnpm stage approve` prompts for
+    // an OTP rather than opening a browser, so a security key has nothing to give it — the same
+    // wall `pnpm dist-tag` hits, and the reason the retag below goes through npm. The website is
+    // the route that always works, and it does the same thing: the stages live on the registry and
+    // do not care what approved them.
     run("pnpm", ["stage", "approve"]);
   } catch {
     fail(
-      "approval did not complete. If nothing is staged yet the release workflow may still be " +
-        "running — check it, then run this again. `npm stage list` shows what is waiting, and " +
+      `approval did not complete. If it asked for a one-time password and you have none to give — ` +
+        `a security key cannot produce one — approve the four at ${stagedPackagesUrl(account)} and ` +
+        "run this again: it skips what is published and does the rest. If nothing is staged yet " +
+        "the release workflow may still be running; `npm stage list` shows what is waiting, and " +
         "running this twice costs nothing",
     );
   }

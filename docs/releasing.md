@@ -3,10 +3,11 @@
 Four packages go to npm: `rigline`, `@rigline/core`, `@rigline/plugin-api` and
 `create-rigline-plugin`. `@rigline/host` and `@rigline/harness` are `private` and never do.
 
-A release is two commands, both in a terminal:
+A release is two commands and one click:
 
     pnpm release prerelease   # cut it: changelog, manifests, commit, tag, push
-    pnpm release:finish       # when the workflow is green: approve, reconcile `next`
+    # then approve the four staged packages on npmjs.com — see step 3
+    pnpm release:finish       # reconcile `next`, and the GitHub release
 
 Between them, the pushed tag triggers `.github/workflows/release.yml`, which **stages**: GitHub
 Actions authenticates to npm over OIDC, so no npm credential sits in this repository, and a staged
@@ -120,13 +121,19 @@ tier, so the local run is the stronger one.
    writes it into every manifest **and into core's own `CORE_VERSION`**, commits, tags `v<version>`
    and pushes. Add `--dry-run` to see all of that without writing anything, or `--skip-checks` when
    you have just run them by hand.
-3. Watch the run the tag triggered. Its summary names each package and version staged, because npm
+2. Watch the run the tag triggered. Its summary names each package and version staged, because npm
    returns no stage id for the workflow to print and nothing notifies you that a stage is waiting.
-4. `pnpm release:finish`. It approves the batch — in dependency order, so a package whose workspace
-   dependency could not be approved is skipped rather than published against a dependency the
-   registry never received — then points `next` at this version if the release is ahead of it, and
-   creates the GitHub release from the changelog section. Run it again if anything goes wrong
-   partway through: every step of it skips what is already done and retries only the rest.
+   A green tick is not the check — the *absence* of `[WARN] Skipped OIDC` in the log is.
+3. **Approve the four** at `https://www.npmjs.com/settings/<user>/staged-packages`. `pnpm
+   release:finish` will try to do it for you, and can only succeed for an account that can type a
+   one-time password; a security key has none to give, and the website is the route that always
+   works.
+4. `pnpm release:finish`. It approves the batch if it can — in dependency order, so a package whose
+   workspace dependency could not be approved is skipped rather than published against a dependency
+   the registry never received — then points `next` at this version if the release is ahead of it,
+   and creates the GitHub release from the changelog section. Run it again if anything goes wrong
+   partway through: every step of it skips what is already done and retries only the rest, so
+   running it after approving on the website does exactly the half that is left.
 
 **The version is an increment, not a number you type.** `semver.inc` computes it from what is in the
 tree, so there is no second place to get it right. Read what the command prints before it writes:
@@ -266,11 +273,19 @@ account whose second factor is a passkey or Windows Hello — no typed code to g
 
     You must provide a one-time pass. Upgrade your client to npm@latest in order to use 2FA.
 
-pnpm does ship browser-based auth (its `network-web-auth` crate prompts to open a URL, which is how
-`pnpm stage approve` works with a key), but `dist-tag` does not appear to route through it, and
-`--auth-type` is neither a flag nor a key `pnpm config set` accepts. **Use `npm dist-tag` instead**,
-which does — for the reason the trap above gives. This is the whole of the difference: the operation
-is fine, one client cannot authenticate it.
+pnpm ships browser-based auth somewhere — its `network-web-auth` crate prompts to open a URL — but
+neither `dist-tag` nor `stage approve` routes through it, and `--auth-type` is neither a flag nor a
+key `pnpm config set` accepts. **Use `npm dist-tag` instead**, which does — for the reason the trap
+above gives. This is the whole of the difference: the operation is fine, one client cannot
+authenticate it.
+
+**`pnpm stage approve` cannot either, and the website is the answer.** This was written down the
+other way round — that approval was the one pnpm path a key *could* take — and the first real
+release proved it false: it prompts for a one-time password like `dist-tag` does. Approve at
+`https://www.npmjs.com/settings/<user>/staged-packages` instead, which lists what is waiting and
+publishes it on a click. A stage lives on the registry and does not care what approved it, so this
+is the same operation by another door, and `pnpm release:finish` run afterwards skips the approval
+and does the rest.
 
 Publishing to the tag you want is still the better path where there is a choice, because it leaves a
 version behind it rather than a pointer with nothing new under it. Moving a tag is for the case that
