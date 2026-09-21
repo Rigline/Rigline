@@ -91,13 +91,16 @@ Written for somebody else, so don't rewrite them for us:
 - **Keep `index.js.orig` and `extension.js.orig` intact.** They are the only recovery from a blank
   panel or a broken extension host.
 - **Never point a test at the live extension directory.** Copies only.
-- **Run `pnpm build` before the harness tests.** They drive the *real* bundle in a browser and
-  `preparePayload` copies `dist/bundled/{pre,post}.js`, so vitest alone exercises whatever was last
-  built, not your source. `dist/bundled` is a copy, so the chain is `src` -> each `dist` ->
+- **Run `pnpm build`, not `pnpm -r build`, before any test run.** The recursive one builds each
+  package and stops; the copy into `dist/bundled` is the *root* `build` script's second step, so
+  `pnpm -r build` leaves a stale bundle and `bundledDir()` refuses — in core's own `assets` tests as
+  readily as in the harness, which is where this actually bites. The harness is the reason the guard
+  exists: it drives the *real* bundle in a browser and `preparePayload` copies
+  `dist/bundled/{pre,post}.js`, so vitest alone exercises whatever was last built, not your source. `dist/bundled` is a copy, so the chain is `src` -> each `dist` ->
   `dist/bundled`, and a break anywhere in it means the payload is not what your source says.
   `bundledDir()` checks the whole chain and refuses with the build command — so this costs you a
   re-run rather than a green result about code that is not loaded, but the rebuild is still yours to
-  do. `pnpm -r build` alone will not do it: the copy is the root `build` script's second step.
+  do.
 - **A plugin's problem never blocks the install.** Report it by name, inject around it, refuse it
   at load. Only a collapsed harvest or Rigline's own build failure blocks.
 

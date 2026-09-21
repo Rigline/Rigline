@@ -196,6 +196,18 @@ Three details are load-bearing:
   rather than defended (D47). And `RIGLINE_HOME` points into the temporary directory, so the run
   cannot read or write the developer's own config, plugins or baseline.
 
+**Checking a generated scaffold is a manual pass, and it is not tier 4.** Tier 4 packs and installs
+*our* tarballs; a scaffold is a workspace `create-rigline-plugin` writes, whose dependencies resolve
+from the registry. To run one against this tree rather than against what is published: scaffold into
+a temporary directory, `pnpm pack` core and plugin-api into it, rewrite the two Rigline ranges in the
+generated root and member manifests to `file:` those tarballs, and set `minimumReleaseAge: 0` in the
+generated `pnpm-workspace.yaml` — the gate refuses a registry-resolved transitive dependency
+published inside its window, and `--config.minimumReleaseAge=0` does not override it. Then
+`pnpm install`, `codegen`, `build`, `typecheck`, `test`. Stop before `rigline add`: it re-injects
+whatever extension is installed on the machine, which is not something a check should do to somebody's
+editor. What this catches and nothing else does is the resolution question — whether
+`rigline-engine build` finds rolldown from the workspace it is invoked in.
+
 It also runs `rigline` **by name**, through the shim npm wrote from the `bin` field, and not only
 `dist/index.js` by path. Three declarations have to hold together for a command to exist at all —
 `bin` in the manifest, the entry inside `files`, and the shebang surviving `removeComments` in the
