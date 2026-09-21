@@ -6,8 +6,10 @@
  * bundle with no backup, a registry that could not be read. Driving it through `collect` would make
  * those fixtures on disk instead.
  */
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { NO_ANCHOR_OVERRIDES } from "../anchors/overrides.ts";
+import { CORE_VERSION } from "../version.ts";
 import type { DoctorReport } from "./collect.ts";
 import { formatBytes, formatDoctor, formatTime } from "./report.ts";
 
@@ -75,7 +77,7 @@ describe("formatDoctor", () => {
             ...INSTALL,
             host: "patched",
             registry: {
-              engine: "1.0.0-alpha.4",
+              engine: CORE_VERSION,
               plugins: [
                 { name: "session-id", surfaces: [], patchRefusal: null },
                 { name: "worktree-prefix", surfaces: [], patchRefusal: null },
@@ -104,6 +106,47 @@ describe("formatDoctor", () => {
 
   it("leaves no run of blank lines", () => {
     expect(formatDoctor(reportWith({ installs: [INSTALL] }))).not.toMatch(/\n\n\n/);
+  });
+});
+
+describe("the payload stamp (D75)", () => {
+  /** An install with a payload on disk, which is what makes the stamp worth reporting. */
+  function stamped(engine: string | null): DoctorReport {
+    return reportWith({
+      installs: [
+        {
+          ...INSTALL,
+          payload: [{ path: join(INSTALL.payloadDir, "pre.js"), size: 1, modifiedMs: AT }],
+          registry: { engine, plugins: [], patches: [], problem: null },
+          problems: [],
+        },
+      ],
+    });
+  }
+
+  it("says so when the payload is this engine's own", () => {
+    expect(formatDoctor(stamped(CORE_VERSION))).toContain(
+      `written by: ${CORE_VERSION}, which is this engine`,
+    );
+  });
+
+  it("names both versions and the fix when an older engine wrote it", () => {
+    // The whole reason the stamp exists: an upgrade you forgot to follow with `rigline install`
+    // is otherwise indistinguishable from one you did.
+    const text = formatDoctor(stamped("1.0.0-alpha.1"));
+    expect(text).toContain("written by: 1.0.0-alpha.1");
+    expect(text).toContain(CORE_VERSION);
+    expect(text).toContain("rigline install");
+  });
+
+  it("reads an unstamped payload as older than the stamp, not as a broken registry", () => {
+    const text = formatDoctor(stamped(null));
+    expect(text).toContain("an engine older than");
+    expect(text).not.toContain("registry not read");
+  });
+
+  it("says nothing at all when no payload is installed", () => {
+    expect(formatDoctor(reportWith({ installs: [INSTALL] }))).not.toContain("written by");
   });
 });
 
