@@ -10,6 +10,18 @@ anything may change between releases.
 
 ## Unreleased
 
+### Added
+
+- A plugin policy, at [docs/plugin-policy.md](docs/plugin-policy.md). Rigline modifies Anthropic's
+  extension and now publishes a compliance position about what it does and does not do; a plugin
+  runs inside that modification, so the policy sets out what is asked of an author — no deception,
+  no reaching for credentials, no carrying conversation content off the machine, and host patches
+  kept to switching on a capability the extension already has. It also says what is *not* asked,
+  because the webview has no network egress, no filesystem and no route into the extension host, and
+  what we do not police: there is no source review and no claim of one.
+- `create-rigline-plugin` points at that policy — in the generated workspace README, above its
+  publishing section, and in the next-steps output after scaffolding.
+
 ### Fixed
 
 - `rigline update` on a machine with no engine yet no longer refuses the engine as too young and

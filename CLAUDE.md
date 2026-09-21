@@ -45,6 +45,10 @@ Written for somebody else, so don't rewrite them for us:
   Anthropic's extension, how we read their terms, and the standing invitation to correct us. Written
   for Anthropic, linked from the top of the README. The position it commits to is D77; changing what
   it claims is a decision, not an edit.
+- [docs/plugin-policy.md](docs/plugin-policy.md): what the host makes impossible for a plugin, what
+  is asked of an author, and what we explicitly do not police. Written for a plugin author. Keep the
+  two halves apart — a guarantee the architecture backs, and an obligation nobody is checking. We do
+  not claim to review plugin source, and the licence stays MIT (D79).
 - [docs/anchors.md](docs/anchors.md): what an anchor is, and repairing one through
   `~/.rigline/anchors.json` without waiting for a release. Written for a user.
 - [docs/authoring.md](docs/authoring.md): writing, testing and shipping a plugin. Written for a

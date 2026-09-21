@@ -8,6 +8,15 @@ out from the source.
 This page is written for Anthropic first. It is not legal advice and it is not a claim of
 permission; it is our reasoning, stated plainly so it can be checked or corrected.
 
+## For users
+
+Rigline modifies software you licensed from Anthropic, on your machine. We believe that is your
+call to make and that the reasoning below holds, but you should know you are making it — which is
+why this page is linked from the top of the README rather than buried.
+
+If Anthropic asks us to stop, we will, and `rigline restore` will already be sitting on your machine
+when they do.
+
 ## If you are from Anthropic, please get in touch
 
 We would genuinely rather have this conversation than not have it.
@@ -57,9 +66,11 @@ interception on the way to Anthropic, no billing relationship of any kind. Every
 makes is theirs, authenticated with their own credentials, billed to them under their own agreement
 with Anthropic. Rigline is not a harness and does not host one.
 
-**It makes no network requests at runtime.** The injected code does not call `fetch`, open a socket,
-or contact any server, Anthropic's or ours. There is no telemetry and no analytics; we collect
-nothing, because there is no mechanism by which we could.
+**It makes no network requests at runtime, and cannot.** The injected code does not call `fetch`,
+open a socket, or contact any server, Anthropic's or ours. This one is stronger than a claim about
+our own code: the webview's CSP is `default-src 'none'` with no `connect-src`, so nothing running in
+the panel has an egress — ours, a plugin's, or anybody's. There is no telemetry and no analytics,
+because there is no mechanism by which there could be.
 
 **It does not redistribute Claude Code.** Rigline ships no Anthropic code, no bundle, no fragment of
 one. It is installed alongside an extension the user obtained from the Marketplace themselves, and
@@ -72,6 +83,39 @@ any model behaviour, or change what the extension sends or receives.
 extension update, and ships a diagnostics panel whose entire purpose is to say out loud when
 something of ours is broken. A user who forgets Rigline is installed is a user we have failed.
 
+## Plugins, which are the obvious next question
+
+Rigline is a plugin layer, so everything above invites the question of what a plugin could do that
+Rigline promises not to. We would rather answer it than be asked.
+
+**Four plugins ship with Rigline** — a session-id pill, timestamps on transcript rows, a worktree
+prefix on tab labels, and the diagnostics badge. They are ours, they are what the claims above are
+about, and they are all that an install puts on a machine. Anything third-party is installed by the
+user, by name, one plugin at a time.
+
+**The boundary is architectural, and it holds for a hostile plugin as well as an honest one.** No
+plugin can make a network request, because the CSP has no `connect-src`. None can read a file or
+reach the extension host, because nothing in a webview can. None can execute code in the Node
+process: a host patch is not code but a declared equal-length byte substitution in the plugin's
+manifest, with a mandatory statement of why, applied by our installer against the pristine bundle.
+None runs at install time, because the tarball reader writes regular files and refuses everything
+else. Writes to the internal message bus are outbound only, patch-shaped, and confined to fields the
+plugin declared and the app already sends.
+
+That is containment rather than safety, and we would rather say so. A plugin still renders what it
+likes in the panel, and the CSP does not stop a convincing lie. So
+[plugin-policy.md](plugin-policy.md) states what we require of authors — no deception, no reaching
+for credentials, no carrying conversation content off the machine by a path the network closure does
+not cover, no host patch that disables a check or alters what the extension sends — and binds them
+to Anthropic's terms explicitly.
+
+**We do not review plugin source, and we do not claim to.** We could not reliably detect a plugin
+built to hide what it does, and a promise to police that would be one we could not keep. What we
+have instead is a boundary that does not depend on our vigilance, manifests that declare what a
+plugin reaches for before anyone reads its code, control over what we bundle and recommend, and a
+willingness to say publicly what we find and withdraw a plugin when told of a breach. If Anthropic
+ever wants a plugin looked at, ask and we will look.
+
 ## The clauses, and how we read them
 
 We have read the terms rather than assumed them. Three are relevant, and we would rather name the
@@ -79,7 +123,7 @@ awkward one ourselves than have it found.
 
 **"The Claude Code binary must not be modified."**
 ([Legal and compliance](https://code.claude.com/docs/en/legal-and-compliance).) This sits under
-*Can customers offer Claude Code in their products?*, as a condition on preinstalling or hosting
+_Can customers offer Claude Code in their products?_, as a condition on preinstalling or hosting
 Claude Code inside something you ship to others. Rigline ships nothing containing Claude Code and
 offers Claude Code to nobody, so the clause is not on point by its own framing. We also do not
 modify the Claude Code binary: the CLI is untouched, as is everything under `~/.claude`. What
@@ -129,12 +173,3 @@ which is the most we can offer while the only door is this one.
 
 A supported extension point would make all of it unnecessary, and we would take that trade
 immediately.
-
-## For users
-
-Rigline modifies software you licensed from Anthropic, on your machine. We believe that is your
-call to make and that the reasoning above holds, but you should know you are making it — which is
-why this page is linked from the top of the README rather than buried.
-
-If Anthropic asks us to stop, we will, and `rigline restore` will already be sitting on your machine
-when they do.

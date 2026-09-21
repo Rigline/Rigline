@@ -1328,6 +1328,40 @@ is to stop, not to evade one. Defeating an integrity check is a different act fr
 nothing checks, and it is not an act this project is willing to commit — the checksum-fixing
 extensions are precedent we decline rather than precedent we follow.
 
+**D79. Plugin obligations are stated, not enforced, and the licence stays MIT (2026-09-21).** The
+compliance position (D77) makes claims about Rigline while Rigline ships a plugin system, which is
+the first question a reader has and the doc did not answer. The answer is two things kept apart, and
+blurring them is the failure mode.
+
+**What the architecture makes impossible is a guarantee we can stand behind.** No plugin can make a
+network request, because the CSP is `default-src 'none'` with no `connect-src` and obfuscation
+cannot reach an egress that is absent. None reads a file or touches the extension host. None
+executes in Node: a host patch is a declared equal-length byte substitution, not code. None runs at
+install time. Bus writes are outbound, patch-shaped and confined to declared fields. That holds for
+a hostile plugin exactly as for an honest one, which is why it is worth more than anything we could
+promise about author behaviour — and it is containment rather than safety, since a plugin still
+renders what it likes and the CSP does not stop a convincing lie.
+
+**What the boundary does not cover is asked, and we say plainly that nobody is checking.** Claiming
+to police deception, clipboard exfiltration or a link carrying content out would be whack-a-mole
+against people who can obfuscate, and entering that game means owning every round lost (Leo,
+2026-09-21). So [plugin-policy.md](plugin-policy.md) is a statement of obligations with an explicit
+section on what we do not police: no source review, no detection claim, and response rather than
+prevention — declarations that make a mismatch findable, control over what we bundle and recommend,
+and withdrawal when told. A compliance document that claimed no plugin could ever misbehave would be
+disproved in an afternoon, and the credibility is the entire point of publishing one.
+
+**The licence stays MIT.** A field-of-use restriction would stop Rigline being open source under
+OSD §6, bar it from distribution channels, and deter nobody willing to write a malicious plugin
+while burdening every honest author. Copyright is also the wrong instrument: it governs copying, and
+a plugin that imports types and calls `ctx` is a weak candidate for a derivative work. The levers
+that work without a licence change are the boundary, the manifest, what we choose to bundle and
+recommend, and permission to use the name — the last being what gets withdrawn first.
+
+Surfaced where an author actually is: the scaffold's README before its publishing section, the
+`create-rigline-plugin` next-steps output, [authoring.md](authoring.md) in the section that already
+covered trust, and a plugins section in the compliance document itself.
+
 ### Toolchain and verification
 
 **D34. Toolchain: pnpm 12, TypeScript 7, Rolldown for browser bundles, Vitest, Biome with

@@ -172,6 +172,10 @@ export function nextSteps(result: ScaffoldResult): string {
     "Then reload the webview: Developer: Reload Webviews.",
     "",
     `${join(here, "README.md")} has the rest, including the four rules worth reading first.`,
+    "",
+    "Before you publish, read the plugin policy — what Rigline promises Anthropic, and the part of",
+    "it your plugin has to hold up:",
+    "  https://github.com/Rigline/Rigline/blob/main/docs/plugin-policy.md",
   ].join("\n");
 }
 

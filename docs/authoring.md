@@ -189,6 +189,23 @@ app's message reaches the extension host whatever you do. One plugin's failure n
 its load. And every host patch is reversible from the backup without anybody having predicted
 anything.
 
+Some of the shape is hard enough to be worth knowing you have. The webview's CSP is `default-src
+'none'` with no `connect-src`, so no plugin can make a network request, read a file or reach the
+extension host — not because we forbid it but because the egress is absent. Nothing runs at install
+time. A host patch is not code: it is a declared equal-length byte substitution the installer
+applies.
+
+What that leaves is the part no boundary covers, and it is
+[plugin-policy.md](plugin-policy.md) — one page, worth the minute. Rigline modifies Anthropic's
+extension and publishes a [compliance position](anthropic-compliance.md) about what it does and does
+not do; your plugin runs inside that modification, so the position has to hold for it too. In short:
+do not deceive the person using it, do not reach for credentials, do not carry conversation content
+off the machine by a route the closed network does not cover, and keep a host patch to switching on a
+capability the extension already has. Anthropic's terms apply to your plugin as they apply to us.
+
+We do not review plugin source and do not claim to — the policy is a statement of obligations, not a
+filter, and it says so.
+
 ## Four rules that will cost you
 
 **Never name a class from the bundle by hand.** They are minifier output — `modelPill_gGYT1w` —

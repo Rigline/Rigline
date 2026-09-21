@@ -48,6 +48,21 @@ over three Node versions — the same set the release workflow runs, so nothing 
 that a pull request would not already have failed on. Commit `pnpm-lock.yaml`: CI installs what it
 says rather than resolving its own.
 
+## Before you publish: the plugin policy
+
+Rigline modifies Anthropic's extension, and publishes a compliance position saying what it does and
+does not do. A plugin runs inside that modification, so the position has to hold for your plugin
+too. Read it once, at
+[docs/plugin-policy.md](https://github.com/Rigline/Rigline/blob/main/docs/plugin-policy.md); it
+takes a minute.
+
+Most of it is not left to you — the webview has no network egress, no filesystem, and no way into
+the extension host, so the usual ways to do harm are absent rather than forbidden. What the policy
+asks is the part the architecture cannot cover: do not deceive the person using it, do not reach for
+credentials, do not carry conversation content off the machine by a path the closed network does not
+cover, and keep any host patch to switching on a capability the extension already has. Anthropic's
+terms apply to your plugin as they apply to Rigline.
+
 ## Publishing
 
 A plugin is published as an ordinary npm package carrying `rigline.json` and its built entry, and
