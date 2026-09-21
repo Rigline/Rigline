@@ -1,6 +1,6 @@
 {
   "name": "@rigline/core",
-  "version": "1.0.0-alpha.5",
+  "version": "1.0.0-alpha.6",
   "description": "Harvest, codegen, injection and the update flow for Rigline, as a Node library",
   "keywords": [
     "rigline",

@@ -1,6 +1,6 @@
 {
   "name": "create-rigline-plugin",
-  "version": "1.0.0-alpha.5",
+  "version": "1.0.0-alpha.6",
   "description": "Scaffold a workspace for Claude Code VS Code extension plugins",
   "keywords": [
     "rigline",

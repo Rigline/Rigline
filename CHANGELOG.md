@@ -10,6 +10,8 @@ anything may change between releases.
 
 ## Unreleased
 
+## 1.0.0-alpha.6 — 2026-09-21
+
 ### Changed
 
 - `rigline` is now a small retrieval layer over `@rigline/core`, which it installs into
