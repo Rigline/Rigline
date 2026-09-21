@@ -403,9 +403,23 @@ D70, D73 and D74 are recorded with the work they cover.
 Phases 0 to 4b, phase 6 and milestone 7a are done. `1.0.0-alpha.5` is published to `latest` and
 installs from npm on a machine with no checkout.
 
-**Start with 7b**, in [m7-distribution.md](m7-distribution.md): `packages/cli` becomes the wrapper,
-core gains the `rigline-engine` bin, and D69, D70, D73 and D74 are recorded with the work each
-covers.
+**7b is at step 3 of five**, and its order is in [m7-distribution.md](m7-distribution.md). Steps 1
+and 2 are done: the command surface and the `rigline-engine` bin are core's, and the registry
+client, the tarball reader, `add`'s remote half and `update` are the wrapper's. Step 3 is the
+separation itself — install the engine under `<RIGLINE_HOME>/engine`, spawn it, drop the
+`@rigline/core` dependency — then scripts and the template, then docs. D69, D70, D73 and D74 are
+recorded with the work each covers, which is all step 3.
+
+**The wrapper still calls the engine in-process**, so the seam is written but not cut: `RunEngine`
+takes an argv array and returns an exit code because step 3 makes it a spawn, and `listed()` in
+[cli/src/index.ts](../packages/cli/src/index.ts) is what `rigline-engine list --json` replaces.
+Leaving it here is the one state worse than either end — the code says "step 3 does this" in
+several places — so finish it or decide out loud to stop.
+
+**Unreleased and waiting**: the meter fix, `list --json`, and core's new bin. Publishing `alpha.6`
+before step 3 would give 7b's own acceptance check the older engine it needs to upgrade *from*;
+after step 3 there is nothing to downgrade to. Declined for now (2026-09-21) in favour of feature
+work, so the check needs another plan if it stays declined.
 
 **The release pipeline has now been driven end to end**, tag through approval, with one step that
 is irreducibly a person's: `pnpm release:finish` needs 2FA. [ci.md](ci.md) carries the rest of what
@@ -717,3 +731,10 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   no host errors, and the session-id pill and time marks visible. The payload stamp reads
   `engine 1.0.0-alpha.5` (D75), which is what makes this a reading rather than an impression — the
   badge alone cannot say whether the payload is the one the installed engine would write.
+- 2026-09-21: M7 phase 7b steps 1 and 2. The command surface and the `rigline-engine` bin are
+  core's; the registry client, the tarball reader, `add`'s remote half and `update` are the
+  wrapper's. There is one `add`, in the engine, taking a path — a published plugin reaches it as a
+  staging directory the wrapper vetted (D70). `add --source` refuses a kind it cannot read back
+  where `readConfig` skips one (D74), and `list --json` is how the wrapper will learn what `update`
+  can move without reading `config.json`. Each published package now empties its own `dist` before
+  `tsc` refills it, after a module cut a week earlier was found still compiled there. 798 green.
