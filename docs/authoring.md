@@ -201,7 +201,9 @@ extension and publishes a [compliance position](anthropic-compliance.md) about w
 not do; your plugin runs inside that modification, so the position has to hold for it too. In short:
 do not deceive the person using it, do not reach for credentials, do not carry conversation content
 off the machine by a route the closed network does not cover, and keep a host patch to switching on a
-capability the extension already has. Anthropic's terms apply to your plugin as they apply to us.
+capability the extension already has. Anthropic's terms apply to your plugin as they apply to us,
+and publishing has nothing to do with it: a plugin you wrote for yourself and will never share
+modifies their extension exactly as much as a published one does.
 
 We do not review plugin source and do not claim to — the policy is a statement of obligations, not a
 filter, and it says so.

@@ -4,6 +4,11 @@ Rigline publishes a [compliance position](anthropic-compliance.md): no credentia
 calls, no rerouting of Claude usage, no deception. Your plugin runs inside the modification that
 position is about, so it has to hold for your plugin too.
 
+**Publishing has nothing to do with it.** A plugin you wrote for yourself, that lives in one
+directory and will never reach anybody else, modifies Anthropic's extension exactly as much as a
+published one does, and Anthropic's terms apply to it exactly as much. Everything below is about
+what your plugin does on a machine, not about who else can install it.
+
 Two different things hold it, and this page keeps them apart on purpose. Some of it the architecture
 makes impossible. The rest is asked of you, and we are explicit below about the fact that nobody is
 checking.

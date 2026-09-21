@@ -19,8 +19,10 @@ anything may change between releases.
   kept to switching on a capability the extension already has. It also says what is *not* asked,
   because the webview has no network egress, no filesystem and no route into the extension host, and
   what we do not police: there is no source review and no claim of one.
-- `create-rigline-plugin` points at that policy — in the generated workspace README, above its
-  publishing section, and in the next-steps output after scaffolding.
+- `create-rigline-plugin` points at that policy — in the generated workspace README and in the
+  next-steps output after scaffolding. Both say it applies whether or not you ever publish: a plugin
+  you wrote for yourself modifies Anthropic's extension exactly as much as a published one does, and
+  a policy filed under "before you publish" is one a personal-plugin author never reads.
 - `rigline add` says the choice is yours. After the capabilities and host patches it lists, it now
   notes that installing a plugin is your call rather than Rigline's, and that Anthropic's terms
   apply to what the plugin does, with a link to the policy. `add` is the only command that installs

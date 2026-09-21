@@ -173,8 +173,8 @@ export function nextSteps(result: ScaffoldResult): string {
     "",
     `${join(here, "README.md")} has the rest, including the four rules worth reading first.`,
     "",
-    "Before you publish, read the plugin policy — what Rigline promises Anthropic, and the part of",
-    "it your plugin has to hold up:",
+    "Read the plugin policy once — what Rigline promises Anthropic, and the part your plugin has",
+    "to hold up. It applies whether or not you ever publish this:",
     "  https://github.com/Rigline/Rigline/blob/main/docs/plugin-policy.md",
   ].join("\n");
 }

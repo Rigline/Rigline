@@ -37,6 +37,23 @@ which is the whole reason to declare rather than to reach.
 Put a dependency you can do without under `uses.optional`: it is checked the same way and costs the
 plugin that one decoration rather than the whole plugin.
 
+## The plugin policy
+
+**This applies whether or not you ever publish.** A plugin you wrote for yourself and will never
+share still runs inside a modification of Anthropic's extension, and Anthropic's terms still apply
+to what it does on your machine. Read it once, at
+[docs/plugin-policy.md](https://github.com/Rigline/Rigline/blob/main/docs/plugin-policy.md); it
+takes a minute.
+
+Rigline modifies Anthropic's extension and publishes a compliance position saying what it does and
+does not do. Your plugin runs inside that modification, so the position has to hold for it too.
+
+Most of it is not left to you — the webview has no network egress, no filesystem, and no way into
+the extension host, so the usual ways to do harm are absent rather than forbidden. What the policy
+asks is the part the architecture cannot cover: do not deceive the person using it, do not reach for
+credentials, do not carry conversation content off the machine by a path the closed network does not
+cover, and keep any host patch to switching on a capability the extension already has.
+
 ## Testing
 
 `pnpm test` runs the pure half — the functions that do not touch the DOM. Whether a decoration
@@ -47,21 +64,6 @@ the app can answer: build, add, reload, look.
 over three Node versions — the same set the release workflow runs, so nothing reaches a release
 that a pull request would not already have failed on. Commit `pnpm-lock.yaml`: CI installs what it
 says rather than resolving its own.
-
-## Before you publish: the plugin policy
-
-Rigline modifies Anthropic's extension, and publishes a compliance position saying what it does and
-does not do. A plugin runs inside that modification, so the position has to hold for your plugin
-too. Read it once, at
-[docs/plugin-policy.md](https://github.com/Rigline/Rigline/blob/main/docs/plugin-policy.md); it
-takes a minute.
-
-Most of it is not left to you — the webview has no network egress, no filesystem, and no way into
-the extension host, so the usual ways to do harm are absent rather than forbidden. What the policy
-asks is the part the architecture cannot cover: do not deceive the person using it, do not reach for
-credentials, do not carry conversation content off the machine by a path the closed network does not
-cover, and keep any host patch to switching on a capability the extension already has. Anthropic's
-terms apply to your plugin as they apply to Rigline.
 
 ## Publishing
 
