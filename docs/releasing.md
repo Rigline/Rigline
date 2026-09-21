@@ -28,8 +28,14 @@ match.
 
 **A release run is a weaker check than a local one.** It runs lint, typecheck, build and the full
 Node tier, but the harness tier skips itself there — it needs a corpus snapshot of the extension
-bundle, and that lives outside the repository. So run `pnpm test` on a machine that has the corpus
-before you cut anything, and read the skips.
+bundle, and that lives outside the repository. So the cut runs all four locally before it writes
+anything, on a machine that has the corpus, and refuses if any of them fails.
+
+That gate is there because **a version cut on a red tree is spent**: the tag and the commit are
+pushed before the workflow ever looks at them, so a failure in the run the tag triggers cannot be
+retried on the same number. `pnpm test` alone is the trap it closes — `vitest` does not typecheck,
+so lint, build and tests can all be green while `tsc` has never been asked, which is exactly how
+`1.0.0-alpha.3` was burned.
 
 ## One-time setup
 
@@ -108,11 +114,12 @@ tier, so the local run is the stronger one.
 
 ## Cutting a release
 
-1. Run `pnpm test` locally, with the corpus, and read the skips.
-2. `pnpm release <increment>` — `patch`, `minor`, `major`, `prerelease`, or one of `prepatch`,
-   `preminor` and `premajor`. It computes the version, rolls `## Unreleased` into a section headed
-   by it, writes it into every manifest, commits, tags `v<version>` and pushes. Add `--dry-run` to
-   see all of that without writing anything.
+1. `pnpm release <increment>` — `patch`, `minor`, `major`, `prerelease`, or one of `prepatch`,
+   `preminor` and `premajor`. It runs lint, typecheck, build and test first and refuses to cut if any
+   of them fails; then it computes the version, rolls `## Unreleased` into a section headed by it,
+   writes it into every manifest **and into core's own `CORE_VERSION`**, commits, tags `v<version>`
+   and pushes. Add `--dry-run` to see all of that without writing anything, or `--skip-checks` when
+   you have just run them by hand.
 3. Watch the run the tag triggered. Its summary names each package and version staged, because npm
    returns no stage id for the workflow to print and nothing notifies you that a stage is waiting.
 4. `pnpm release:finish`. It approves the batch — in dependency order, so a package whose workspace

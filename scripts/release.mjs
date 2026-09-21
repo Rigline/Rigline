@@ -7,7 +7,7 @@
  * except to show you which dist-tag the release will land under, and it carries on without that.
  *
  * Usage: pnpm release <patch|minor|major|prepatch|preminor|premajor|prerelease> [--preid <id>]
- *                     [--dry-run]
+ *                     [--dry-run] [--skip-checks]
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import semver from "semver";
@@ -30,6 +30,7 @@ const INCREMENTS = ["patch", "minor", "major", "prepatch", "preminor", "premajor
 
 const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
+const skipChecks = args.includes("--skip-checks");
 const preidAt = args.indexOf("--preid");
 const preid = preidAt === -1 ? null : args[preidAt + 1];
 const increment = args.find(
@@ -121,6 +122,43 @@ if (state !== null && account === null) {
     "npm has no session on this machine, and `pnpm release:finish` cannot approve without one. " +
       "`npm login` first — it prints one URL and then goes quiet while it polls",
   );
+}
+
+/**
+ * The gate the release workflow runs, run here first, because a version cut on a red tree is spent.
+ *
+ * The tag and the commit are pushed before anything checks them, so a failure in the run the tag
+ * triggers cannot be retried on the same number: the changelog section has to be folded back and the
+ * next version cut. That is cheap to prevent and tedious to undo, and `1.0.0-alpha.3` is what it
+ * costs.
+ *
+ * All four, not just `pnpm test`, which is the trap: the runbook's own step 1 says run the tests, and
+ * `vitest` does not typecheck. That is exactly the hole alpha.3 went through — lint, build and tests
+ * green locally, `tsc` never asked, and the workflow refused at a type error in a test file. The
+ * local run is also the stronger one, because the harness tier needs a corpus the workflow cannot
+ * reach and skips itself there.
+ *
+ * `--skip-checks` exists for the case where they have just been run by hand and forty seconds is
+ * forty seconds. It is not for getting past a failure: a red gate here is a version you have not
+ * spent yet.
+ */
+if (!skipChecks) {
+  say("  checks       lint, typecheck, build, test");
+  for (const script of ["lint", "typecheck", "build", "test"]) {
+    try {
+      // Inherited, not swallowed: when one of these fails, what the reader needs is the compiler's
+      // own message, and a release that says only "typecheck failed" sends them to run it again to
+      // find out what this run already knew.
+      run("pnpm", [script]);
+    } catch {
+      fail(
+        `\`pnpm ${script}\` failed, so nothing was cut. Fix it and run this again — the version is ` +
+          "only spent once the tag is pushed, and it has not been",
+      );
+    }
+  }
+  say("  checks       all four green");
+  say("");
 }
 
 const body = notes.replace(/^(\r?\n)+/, eol);
