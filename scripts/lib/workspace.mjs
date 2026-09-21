@@ -13,6 +13,8 @@ import { fileURLToPath } from "node:url";
 
 export const ROOT = fileURLToPath(new URL("../..", import.meta.url));
 export const CHANGELOG = join(ROOT, "CHANGELOG.md");
+/** Where `@rigline/core` states its own version in source, which a release bumps with the manifests. */
+export const VERSION_TS = join(ROOT, "packages", "core", "src", "version.ts");
 export const UNRELEASED = "## Unreleased";
 
 /** Every directory `pnpm-workspace.yaml` globs. A fourth one there needs a fourth entry here. */

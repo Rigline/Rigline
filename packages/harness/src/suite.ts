@@ -50,7 +50,12 @@ export interface HarnessDiagnostics {
   readonly react: { readonly hook: string; readonly version: string | null };
   readonly plugins: readonly PluginStatus[];
   readonly rewrites: readonly RewriteRecord[];
-  readonly transcript: { readonly timed: number };
+  readonly transcript: {
+    readonly entries: number;
+    readonly timed: number;
+    readonly sweeps: number;
+    readonly rebuilds: number;
+  };
   readonly mounts: {
     readonly driver: "commit" | "observer";
     readonly active: number;

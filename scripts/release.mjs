@@ -23,6 +23,7 @@ import {
   run,
   say,
   UNRELEASED,
+  VERSION_TS,
 } from "./lib/workspace.mjs";
 
 const INCREMENTS = ["patch", "minor", "major", "prepatch", "preminor", "premajor", "prerelease"];
@@ -93,7 +94,7 @@ const account = state === null ? null : npmAccountOrNull();
 
 say(`  ${current}  ->  ${version}     (${increment}${preid ? `, preid ${identifier}` : ""})`);
 say(`  tag          ${tagName} on ${branch}`);
-say(`  manifests    ${manifestPaths().length}`);
+say(`  manifests    ${manifestPaths().length}, plus core's own version constant`);
 say(
   planned
     ? `  dist-tag     stages under \`${planned.tag}\`, and \`next\` is reconciled after approval`
@@ -145,10 +146,26 @@ for (const path of manifestPaths()) {
   writeFileSync(path, replaced, "utf8");
 }
 
+// `CORE_VERSION` is the same fact in a twelfth file, and not a manifest: it is what `rigline --help`
+// prints and what `doctor` stamps on a pasteable report, so a release that bumps the manifests and
+// leaves it behind produces diagnostics naming a version nobody is running. core's own test holds
+// the two together and would fail on the release commit itself — which is how this was found, on
+// the pipeline's first end-to-end drive, because alpha.2 was cut by hand before this script existed
+// and bumped both in one go without anybody having to say so.
+{
+  const source = readFileSync(VERSION_TS, "utf8");
+  const replaced = source.replace(
+    /^(export const CORE_VERSION = )"[^"\\]{1,64}"/m,
+    `$1${JSON.stringify(version)}`,
+  );
+  if (replaced === source) fail(`${VERSION_TS} has no \`CORE_VERSION\` this could rewrite`);
+  writeFileSync(VERSION_TS, replaced, "utf8");
+}
+
 // The notes are the commit body as well as the changelog section, so `git log` carries what shipped
 // without anybody opening a second file.
 const message = `Release ${version}\n${notes.replace(/\r\n/g, "\n").replace(/^\n+/, "\n")}`;
-run("git", ["add", "CHANGELOG.md", ...manifestPaths()]);
+run("git", ["add", "CHANGELOG.md", VERSION_TS, ...manifestPaths()]);
 run("git", ["commit", "-m", message]);
 run("git", ["tag", "-a", tagName, "-m", message]);
 

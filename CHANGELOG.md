@@ -10,8 +10,6 @@ anything may change between releases.
 
 ## Unreleased
 
-## 1.0.0-alpha.3 — 2026-09-21
-
 ### Added
 
 - `ctx.check(name, run)`: a plugin contributes its own line to the diagnostics panel, grouped under
