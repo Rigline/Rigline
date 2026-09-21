@@ -478,6 +478,13 @@ in its table, and a wrong one sat there until a plugin needed the message. The b
 hand-found and cannot be derived, but the types can: lifting the table out of the page's template
 string into real TypeScript would let a test check each against the harvested replies layer.
 
+**There is a second wrong one in it now.** The table answers `get_asset_uris` with
+`get_asset_uris_response`; the harvest has no such reply type, and the extension's is
+`asset_uris_response`. So this is not a hypothetical check — it fails on the table as committed,
+which is the argument for building it. Membership is all the check can be, since the replies layer
+is a flat list of names rather than a request-to-reply map, and membership is enough: every wrong
+entry found so far has been a plausible name the extension does not use.
+
 **A scaffold cannot install the release that produced it, for a day.** `create-rigline-plugin@X`
 writes `@rigline/core: ^X` into the workspace it scaffolds (D50), and that workspace's own
 `pnpm-workspace.yaml` sets `minimumReleaseAge: 1440` — so `pnpm install`, the first command the
@@ -485,16 +492,48 @@ README gives, refuses the version the scaffolder just named, with `ERR_PNPM_NO_M
 and advice about waiting. Found by running a scaffold against locally packed tarballs on 2026-09-21,
 where it bit on a package published that morning; it is the same shape as the `^1.0.0` range D50
 already records, and the same lesson about running the artefact rather than reasoning about it.
-Nothing is decided: `minimumReleaseAgeExclude` for the two Rigline packages is the narrow fix, and
-whether the scaffold should hold that opinion about its own toolchain at all is the wider question.
+**Settled (D50 amended): the template states `minimumReleaseAgeStrict: false` beside the age.** The
+line that caused this was written to change nothing, and changes everything — pnpm 12 applies the
+same 1440-minute cutoff by default but records the young picks and proceeds, and setting the age
+explicitly is what turns that into a refusal. The narrow fix was `minimumReleaseAgeExclude` for
+`@rigline/*`, which was rejected: it exempts the dependency with the most reach, and leaves the same
+wall in front of every other package an author adds on its publication day. To do, in one commit
+with the changelog entry: the template's `pnpm-workspace.yaml`, whose comment block currently
+asserts the premise this disproved; this repository's own file, which keeps the refusal and should
+say why it differs; and the authoring guide if it repeats the claim. Verify by scaffolding against
+the packed tarballs again, since that is what found it.
 
 `hostBackupIsCurrent` decides whether `extension.js.orig` still belongs to the `extension.js` beside
 it by comparing file *sizes*, which is exact only because a declared patch never resizes the bundle.
 One case defeats it: a same-version build replaced in place at the same size reads as current, so a
 harvest would read an older build's protocol and a restore would write it back as a downgrade.
-Improbable rather than impossible, and the honest fix is an identity the bytes cannot fake — hash
-the pristine bundle when the backup is written and keep the hash beside the payload, which `doctor`
-would want to report anyway.
+Improbable rather than impossible, and the honest fix is an identity the bytes cannot fake.
+
+**The fix this entry used to name does not work, and the correction is the whole design.** Hashing
+the *pristine* bundle records the backup's own content, and nothing ever mutates the backup, so the
+hash agrees with it forever — including after `extension.js` has been replaced underneath, which is
+the one case in question. What has to be recorded is the hash of the bytes the injector *wrote*:
+then the backup is current when `live` equals `backup` (nothing patched, or a hand restore) or when
+`live` hashes to the record (still the file we produced from that backup), and in every other case
+`extension.js` is somebody else's and the backup is stale. That is the host-side analogue of the
+webview's `live.equals(PRE + backup + POST)`, which asks the same question by reconstruction because
+it can.
+
+Two alternatives, both rejected. Recomputing — `applyPatches(backup, declared)` equals `live` —
+needs no record, but conflates a current backup with an unchanged patch set, so disabling a plugin
+would make a *patched* `extension.js` read as pristine and bake it into the backup: wrong in the
+direction that destroys the recovery path. Riding on the webview settlement, which already detects a
+replaced-in-place extension by content, is true — a build replacing `extension.js` replaces
+`webview/index.js` too — but `pristineHostPath` is reached from `readBundles` during harvest, before
+any settlement has run, and coupling the two would make a harvest depend on an install having
+happened.
+
+Open, and to settle when it is built: where the record lives, and what a payload written before it
+should do. `registry.js` already carries the engine stamp as an exported const read back by a
+bounded regex (D75), so it is the precedent, but the host bundle is not the webview's and a file
+beside `extension.js.orig` is co-located with what it identifies. For the older payload, falling
+back to *not current* is the dangerous direction for the same reason recomputation is; keeping
+today's size comparison for exactly the installs that have no record is the honest answer.
 
 ## Status log
 

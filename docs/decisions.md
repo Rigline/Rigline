@@ -988,6 +988,30 @@ release that removed it from what a user installs, because a phase between the t
 `pnpm build` fails on the first command the guide tells an author to run — which is the failure this
 decision already records happening once.
 
+**In a scaffolded workspace the release-age gate advises; it does not refuse** (amended
+2026-09-21). A workspace scaffolded on release day could not install the release that produced it:
+`create-rigline-plugin@X` writes `^X` for both Rigline packages, and `pnpm install` — the first
+command the README gives — refused with `ERR_PNPM_NO_MATURE_MATCHING_VERSION`. The cause was the
+line written to change nothing. pnpm 12 applies the same 1440-minute cutoff by default but does not
+enforce it: non-interactively it records the young picks in `minimumReleaseAgeExclude` and proceeds,
+and interactively it prompts. Setting `minimumReleaseAge` explicitly is what flips
+`minimumReleaseAgeStrict` on — the value is irrelevant, 1440 does it. So this block's premise, that
+a default is not a position, is false for this one setting: writing the default down *is* a
+position, and it was the wrong one. The template states the strictness beside the age, which pins
+the enforcement mode as well as the number against either moving under a scaffolded workspace.
+
+Excluding `@rigline/*` was the narrow alternative and is the wrong shape twice over. It exempts the
+one dependency in the workspace with the most reach, at a moment the author has already run that
+exact release through `npm create` with no gate at all; and it fixes the instance while leaving the
+wall standing in front of any dependency an author adds on the day it is published. What the gate is
+worth also depends on who is holding it. D48's cooling-off is Rigline declining to install a plugin
+on a user's behalf, which is a choice that user cannot audit; these are the author's own
+dependencies in the author's own repository, and the record pnpm writes names every young version it
+accepted, in a tracked file, to revert or not. Same number, different standing. The refusal stays in
+*this* repository, where the person in front of it wrote the workspace, and CI is unaffected either
+way — `--frozen-lockfile` resolves nothing, so the gate is a question only at the moment a
+dependency is chosen.
+
 The plugin manifest carries what a scaffold can know: the `rigline-plugin` keyword a plugin is
 found by on npm, which nothing in Rigline reads, and `publishConfig.access`, inert on the unscoped
 name it ships with and the difference between a publish and npm's least helpful error on a scoped
