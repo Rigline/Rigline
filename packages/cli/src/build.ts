@@ -12,7 +12,29 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { UserError } from "@rigline/core";
-import { build as bundle } from "rolldown";
+import type { build as bundle } from "rolldown";
+
+/**
+ * Rolldown, loaded when a build is actually asked for.
+ *
+ * A static import here is a static import in `index.ts`, which means every `rigline --help` and
+ * every `rigline install` pays for 20 MB of native binding — and, once rolldown is a devDependency
+ * rather than a dependency, throws before the command has been read. It is a devDependency because
+ * a plugin author's workspace declares its own, which is the only place a build ever happens: the
+ * output contract is one browser ES module and a manifest, however it was produced (P6), so a
+ * toolchain in the published CLI is a toolchain nobody asked for.
+ */
+async function rolldown(): Promise<typeof bundle> {
+  try {
+    return (await import("rolldown")).build;
+  } catch {
+    throw new UserError(
+      "`rigline build` needs rolldown, which is not installed here. Add it to your workspace: " +
+        "`pnpm add -D rolldown`. A plugin is one browser ES module and a manifest however you " +
+        "build it, so any bundler will do; this command is the shortcut, not the contract.",
+    );
+  }
+}
 
 export interface BuildOptions {
   /** The plugin directory. Defaults to the current directory. */
@@ -36,6 +58,7 @@ export async function buildPlugin(
   if (!existsSync(input)) throw new UserError(`no plugin source at ${input}`);
   const output = resolve(dir, manifest.entry);
 
+  const bundle = await rolldown();
   await bundle({
     input,
     platform: "browser",

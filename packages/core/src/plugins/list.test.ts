@@ -2,7 +2,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { formatPlugins, listPlugins } from "./list.ts";
+import { CORE_VERSION } from "../version.ts";
+import { formatPlugins, listPlugins, type PluginListing } from "./list.ts";
 
 const dirs: string[] = [];
 
@@ -174,5 +175,73 @@ describe("formatPlugins", () => {
 
   it("says so when there is nothing to list, rather than printing nothing at all", () => {
     expect(formatPlugins([])).toBe("no plugins found");
+  });
+});
+
+describe("the bundled set", () => {
+  it("reports a bundled plugin at the engine's own version, since its manifest carries none", () => {
+    const bundled = tempDir();
+    writePlugin(bundled, "probe");
+
+    const [listing] = listPlugins({
+      roots: [{ label: "bundled", path: bundled, bundled: true }],
+      configPath: configWith([]),
+    });
+    expect(listing?.origin).toBe("bundled");
+    expect(listing?.version).toBe(CORE_VERSION);
+    expect(listing?.overridesBundled).toBe(false);
+  });
+
+  it("names the winner of a bundled collision as an override, and lists it once", () => {
+    // What every `rigline list` in this checkout looks like: the same four names in `plugins/` and
+    // in the engine, the checkout's winning. The bundled copy is shadowed rather than listed twice.
+    const checkout = tempDir();
+    const bundled = tempDir();
+    writePlugin(checkout, "session-id");
+    writePlugin(bundled, "session-id");
+
+    const listings = listPlugins({
+      roots: [
+        { label: "this checkout", path: checkout },
+        { label: "bundled", path: bundled, bundled: true },
+      ],
+      configPath: configWith([]),
+    });
+    expect(listings).toHaveLength(1);
+    expect(listings[0]?.origin).toBe("this checkout");
+    expect(listings[0]?.overridesBundled).toBe(true);
+    // Not the engine's, because this one is not the engine's: a checkout plugin has no version at
+    // all, and inventing one would say the two copies are the same when that is the open question.
+    expect(listings[0]?.version).toBeNull();
+    expect(formatPlugins(listings)).toContain("overrides the copy bundled in the engine");
+  });
+
+  it("takes an installed plugin's version from the source add recorded", () => {
+    const home = tempDir();
+    const plugins = join(home, "plugins");
+    writePlugin(plugins, "clock");
+    const configPath = join(home, "config.json");
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        sources: {
+          clock: {
+            kind: "npm",
+            name: "clock",
+            version: "2.1.0",
+            tag: "latest",
+            integrity: "sha512-x",
+            addedAt: "2026-09-21T00:00:00.000Z",
+          },
+        },
+      }),
+    );
+
+    const [listing] = listPlugins({
+      roots: [{ label: plugins, path: plugins, managed: true }],
+      configPath,
+    });
+    expect(listing?.version).toBe("2.1.0");
+    expect(formatPlugins([listing as PluginListing])).toContain("clock 2.1.0 —");
   });
 });

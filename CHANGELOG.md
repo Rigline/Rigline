@@ -10,6 +10,38 @@ anything may change between releases.
 
 ## Unreleased
 
+### Fixed
+
+- `npm install -g rigline && rigline install` now injects. No published package carried the loader
+  or a plugin, so it failed with `payload is missing pre.js` and the only way to get a working
+  install was to clone the repository. `@rigline/core` now ships the loader and the four first-party
+  plugins, and a new test installs the published tarballs into a clean prefix and runs `install` out
+  of it, so this cannot come back unnoticed.
+
+### Added
+
+- session-id, time-marks, worktree-prefix and the `RIG` diagnostics badge are bundled with
+  `@rigline/core`, so a fresh install has them. They are discovered where they are rather than
+  copied into `~/.rigline/plugins`, which means an update to Rigline is an update to them; your own
+  plugin of the same name installs over one and wins, so a broken one can be replaced without
+  waiting for a release.
+- `rigline disable NAME` and `rigline enable NAME`. This is how you decline a bundled plugin: there
+  is nothing to delete, and `rigline remove` now says so and sends you here. Both re-inject, so the
+  change takes effect on the next webview reload.
+- `rigline list` shows each plugin's version and says which of the bundled ones you are overriding.
+- The injected payload records the version of Rigline that wrote it, so `rigline doctor` can say
+  whether what is installed in the extension is what your Rigline would write now, `rigline check`
+  says which version is running a payload left by an older one, and the probe's copied report names
+  it. An upgrade that you forgot to follow with `rigline install` used to look identical to one you
+  did.
+
+### Changed
+
+- `rigline` no longer depends on rolldown, which it only ever used for `rigline build`. The download
+  is about 20 MB smaller. A plugin workspace scaffolded by `create-rigline-plugin` now declares
+  rolldown itself; an existing one needs `pnpm add -D rolldown`, and `rigline build` says so by name
+  if it is missing.
+
 ## 1.0.0-alpha.4 — 2026-09-21
 
 ### Added

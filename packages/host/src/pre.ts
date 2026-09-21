@@ -131,6 +131,16 @@ interface RiglineBridge {
      */
     identifiersFor: string | null;
     /**
+     * The `rigline` version that wrote this payload, from `registry.js`, or null before post.ts has
+     * reported in — and also for a payload injected before the stamp existed (D75).
+     *
+     * The other half of the pairing above. `identifiersFor` says which extension this loader is
+     * checking plugins against; this says which engine put the loader here, so a panel misbehaving
+     * after an upgrade can be told apart from one whose payload the upgrade never rewrote. Nothing
+     * else on disk distinguishes those two.
+     */
+    engine: string | null;
+    /**
      * What became of the React devtools hook, which decorateTranscript rests on.
      *
      * `commits` against `notified` is the whole story of the coalescing: React commits once per
@@ -694,6 +704,7 @@ try {
       rewrites: [],
       hostPatches: [],
       identifiersFor: null,
+      engine: null,
       react: { hook: "installed", version: null, commits: 0, notified: 0 },
       transcript: { entries: 0, timed: 0, sweeps: 0, rebuilds: 0 },
       mounts: {

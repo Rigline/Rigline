@@ -34,7 +34,9 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@rigline/core": "workspace:*",
+    "@rigline/core": "workspace:*"
+  },
+  "devDependencies": {
     "rolldown": "^1.2.8"
   }
 }

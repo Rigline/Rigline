@@ -13,6 +13,7 @@
  */
 
 import type { AnchorOverrides } from "../anchors/overrides.ts";
+import { CORE_VERSION } from "../version.ts";
 import type { DoctorReport } from "./collect.ts";
 import type { InstallState } from "./install.ts";
 
@@ -102,7 +103,19 @@ function installSection(install: InstallState, home: RegExp | null): string[] {
     }
   }
 
-  const { plugins, patches, problem } = install.registry;
+  const { engine, plugins, patches, problem } = install.registry;
+  // Against `CORE_VERSION` rather than on its own, because the number alone answers nothing: what
+  // a reader needs to know is whether this payload is the one the engine in front of them would
+  // write, and a payload that predates the stamp is the oldest answer there is (D75).
+  if (install.payload.length > 0) {
+    lines.push(
+      engine === null
+        ? `- written by: an engine older than ${CORE_VERSION}, which stamped nothing`
+        : engine === CORE_VERSION
+          ? `- written by: ${engine}, which is this engine`
+          : `- written by: ${engine}, and this engine is ${CORE_VERSION} — re-run \`rigline install\``,
+    );
+  }
   if (problem !== null) {
     lines.push(`- plugins: registry not read (${problem})`);
   } else if (plugins.length === 0) {

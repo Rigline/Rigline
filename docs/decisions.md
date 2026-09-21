@@ -564,11 +564,20 @@ the more useful question anyway.
 `watch` it runs unattended, and the diff is the most useful thing an update produces.
 
 **D55. The flow is spelled `install`; `update` means plugins (2026-09-15, Leo).** The flow keeps its
-name in the code and loses it on the command line. `install` is the one write command — inject the
-loader everywhere, say what moved since the baseline, record the new one — `check` is its read-only
-half, and `watch` loops `install`. `update` is reserved for the sense every package manager
-already gives it: update the things I installed. `npm update`, `pnpm update` and `cargo update` all
-read that way, and this extension's users also type `claude update`.
+name in the code and loses it on the command line. `install` is the one write command *about the
+injection* — inject the loader everywhere, say what moved since the baseline, record the new one —
+`check` is its read-only half, and `watch` loops `install`. `update` is reserved for the sense every
+package manager already gives it: update the things I installed. `npm update`, `pnpm update` and
+`cargo update` all read that way, and this extension's users also type `claude update`.
+
+**"The one write command" has a carve-out, and it always did** (amended 2026-09-21). `add`,
+`remove`, `disable` and `enable` all re-inject, and `update` re-injects when a plugin moved. That is
+not a drift from this decision but the rest of it: those commands change the plugin *set*, the
+registry is baked at install time (D14), and leaving the payload stale behind them would mean a
+person who added or switched off a plugin has to know about a second command before anything
+happens (D56). What `install` remains the only write command about is the *injection itself* —
+nothing else patches a bundle it was not asked to. Stated here because the unqualified sentence was
+copied into CLAUDE.md twice and read as a rule the code was breaking.
 
 **A command never explains what it used to do.** Output that recounts its own past is output nobody
 has trimmed. `update` falls through to the usage rather than to an error narrating a retirement, and
@@ -760,11 +769,20 @@ caller: reading it one way for ordering and the other way for precedence would m
 mean two things. The shadowed directory is named rather than silently dropped, since a plugin
 missing from the panel with nothing said about it is the failure P8 exists to refuse.
 
-**`add` and `remove` re-inject.** D55 keeps `install` the one write command about the *injection*;
-these are about the plugin set, and leaving the payload stale behind them would mean a user who
-added a plugin has to know about a second command before anything appears. `dev` already drives the
-installer for the same reason. The reload is still the user's — nothing can avoid that — so the
-report ends where `install`'s does.
+**`add`, `remove`, `disable` and `enable` re-inject.** D55 keeps `install` the one write command
+about the *injection*; these are about the plugin set, and leaving the payload stale behind them
+would mean a user who added or switched off a plugin has to know about a second command before
+anything appears. `dev` already drives the installer for the same reason. The reload is still the
+user's — nothing can avoid that — so the report ends where `install`'s does.
+
+**A bundled name may be taken, and that is the one collision that is allowed** (amended
+2026-09-21). The rule above refuses a name already discovered in a root `add` does not own, which is
+right for this checkout's `plugins/` and wrong for core's `dist/bundled/plugins`: overriding a
+bundled plugin is the point, because `~/.rigline/plugins` outranks the bundled set and that is what
+repairs a broken first-party plugin without waiting for a release (D71). So `add` takes the name,
+reports that the bundled copy is now shadowed, and discovery records the same fact on the winner
+rather than logging it per collision. `remove` reads the same root and refuses, naming `disable`,
+since there is nothing of the user's to delete and an engine update would put it back.
 
 **D57. A tarball is read by a reader that refuses, not by an extractor that reproduces.** Node has
 no tar, so this was a fork: depend on `tar`, which is general, battle-tested and streaming, or write
@@ -834,6 +852,16 @@ first thing that runs an author's tests is a release, and a contributor's pull r
 by nothing at all. `ci.yml` runs typecheck, build and test on the same three Node rungs, so the
 `engines` floor a scaffolded workspace declares is one its own CI stands on — and a scaffold that
 is cut back to a single rung should drop that claim to match.
+
+**One dependency is hand-written, and has to be: rolldown** (amended 2026-09-21). `rigline build` is
+a convenience over rolldown (D13), and rolldown stopped being a dependency of `rigline` when it
+became a lazy import — undeclared and static, it threw before the CLI had read its own arguments,
+and it put 20 MB of native binding in every published tarball. A scaffolded workspace had been
+getting it transitively, so it declares its own now. `__RIGLINE_RANGE__` cannot supply it: that
+substitution is the scaffolder's own version, and this is the bundler's. It ships in the same
+release that removes it from the CLI, because a phase between the two is a published version where
+`pnpm build` fails on the first command the guide tells an author to run — which is the failure this
+decision already records happening once.
 
 The plugin manifest carries what a scaffold can know: the `rigline-plugin` keyword a plugin is
 found by on npm, which nothing in Rigline reads, and `publishConfig.access`, inert on the unscoped
@@ -991,6 +1019,89 @@ The changelog is the one file this reliably conflicts in, since both lines appen
 `## Unreleased`. Resolved at merge, keeping both sides in version order (D60). An entry-file layout
 would remove the conflict and is the known answer if it ever stops being a minute's work.
 
+**D71. The first-party plugins ship inside `@rigline/core`, discovered in place, versioned with the
+engine (2026-09-21).** `dist/bundled/` carries `pre.js`, `post.js` and session-id, time-marks,
+worktree-prefix and probe — each as its `rigline.json` and the entry that manifest names, never
+rewritten to a flatter path, because a transform in the one step whose job is to move bytes
+faithfully costs the property the step is for.
+
+Core rather than the CLI, because core is what injects and what discovers, and the phase 5 companion
+extension consumes core and will need the same assets (D31). The copy is a workspace step,
+`scripts/bundle-assets.mjs`, and not part of core's own build: plugins build through `rigline
+build`, so a build-order edge from core to the plugins would be a cycle.
+
+**Discovered in place, never copied into `~/.rigline/plugins`.** Copying would make them look
+user-owned, break `remove`, and mean an engine update did not refresh them. In place means a
+re-inject *is* their update, and it is why `rigline.json` carries no version and `list` reports
+`CORE_VERSION` for a bundled plugin rather than reading one.
+
+The roots are, in precedence and load order (D56): this checkout's `plugins/` when the engine is
+running from it, then `~/.rigline/plugins`, then `dist/bundled/plugins`. **The user's directory
+outranks the bundled set**, so a fork installed over a bundled name wins — the escape hatch that
+repairs a broken first-party plugin without waiting for a release, in the spirit of D44. `add`
+therefore allows a name only the bundled set holds, where it still refuses one taken in a root it
+does not own, and `remove` refuses a bundled name and sends you to `disable`.
+
+**Overriding a bundled plugin is a fact about the winner, not a line in a log.** Discovery is told
+which root is the bundled one and records `overridesBundled` on the plugin that won, emitting
+nothing: in this checkout all four are found twice, so a shadowing line per collision would put four
+lines under every installed version of every install, describing the design working. `list` and
+`add` carry it instead, which is where somebody is asking. A line in the install report was the
+obvious alternative and cannot be right — `install` discovers once per extension directory, so there
+is no "once" available to it.
+
+**The checkout root is found by a marker, not by counting directories.** Walk up from core's own
+module URL to the nearest `package.json`, take `<that dir>/../..`, and use it only when its `name` is
+`rigline-workspace`. The same walk resolves `dist/bundled`, which is what makes it work under
+vitest's alias to `packages/core/src`, in `packages/core/dist` when built, and in
+`node_modules/@rigline/core` when published — three resolutions where a fixed offset from
+`import.meta.url` is a different answer each time. What it replaces resolved to
+`<npm-global-prefix>/plugins` from a published install: a directory that does not exist and was
+therefore skipped, which is a right answer arrived at by accident and the shape of the accident this
+milestone exists to end.
+
+**`bundledDir()` refuses a stale bundle, and the chain is two links.** `dist/bundled` must be newer
+than `packages/host/dist` and each `plugins/*/dist`, *and* each of those newer than its own `src`,
+because a stale `host/dist` copied faithfully into a newer `bundled` passes the first link alone —
+and what you then have is a green run reporting a property of code that is not loaded, which is
+worse than a red one. Both links live in the resolver and `preparePayload` has none of its own, so
+the harness inherits the whole rule by copying from `dist/bundled` rather than keeping a second
+source of truth. The guard runs only where the workspace marker holds: a published install has no
+`src` to compare against and its bundle was built by the release that produced it.
+
+`bundle-assets.mjs` stamps each copy with `utimesSync`, which is not cosmetic. `cpSync` carries the
+source's modification time across on Windows, where `CopyFileW` preserves timestamps whatever Node's
+`preserveTimestamps` says, so every copy read as exactly as old as its source and the guard fired on
+a bundle made seconds earlier.
+
+**D72. probe's home is settled; the other three are bundled for now (2026-09-21).** Probe is not only
+a badge: it registers two composing `rename_tab` rewriters that cancel each other, so it is a live
+self-test in the user's editor and the test of whether the contributed-check shape is right (D63 to
+D68). Moving it into `post.js` would let the plugin-facing API rot unwatched. The other three are
+bundled because a default install must work, and may move out when there is a reason.
+
+Any of them may be switched off, which is what `rigline disable NAME` and `rigline enable NAME` are
+for — engine commands, since they change what gets baked, and both re-inject, because the registry is
+baked at install time (D14) and nothing changes until the payload is rewritten. `disable` refuses a
+name no root has, rather than writing a rule about a typo into `config.json` while the plugin the
+person meant goes on loading.
+
+**D75. The payload records the engine version that wrote it (2026-09-21).** `install` bakes
+`export const engine` into `registry.js`, so a stale injection stops looking identical to a current
+one — nothing else on disk distinguishes a payload three releases old from the one this engine would
+write, and after an upgrade that is exactly the question.
+
+`registry.js` and not a JSON file beside it. The webview cannot fetch (D-level physics: no
+`connect-src`), so anything the probe reads has to be a module the post hook already imports, and
+`registry.js` is baked by the same `install` that knows the version. One fact, one file. The Node
+readers pay for that with a bounded regex over a line this repository writes itself, which is
+cheaper than two writes of one version that can disagree; `doctor` reports it against
+`CORE_VERSION`, `check` names a version whose payload an older engine left behind, and the kernel
+puts it on diagnostics so a plugin reads it the way it reads every other host-provided value and
+never imports the host (D18, D63). A payload with no stamp is *unstamped*, never unreadable: it is a
+fact about the payload's age, and filing it as a registry problem would suppress the plugin list of
+an install that has one.
+
 ### Toolchain and verification
 
 **D34. Toolchain: pnpm 12, TypeScript 7, Rolldown for browser bundles, Vitest, Biome with
@@ -1013,6 +1124,15 @@ mapped stack traces in a consumer's terminal. It is also what the *injected* pay
 `pre.js` and `post.js` carry their sources inline, which is three quarters of their bytes and the
 only reason a webview with no `connect-src` can be debugged at all.
 
+**`@rigline/core`'s `dist/bundled` breaches both halves, and the same argument excuses both**
+(amended 2026-09-21). It is about 800 kB, three quarters of it inline source map, and the bundles
+keep their comments. That is said here once so that nobody reads the two rules above, sees the
+tarball, and "fixes" it: these are not published *declarations* or published tsc output but the
+payload itself (D71), which is injected into a webview where a sibling `.map` fetch is a gamble and
+there is no console to read a stack trace in. Stripping either would leave the one surface that
+cannot be debugged any other way undebuggable, to save bytes on a package that is installed once.
+The rule above is about `dist/**`; this is the carve-out for `dist/bundled/**`.
+
 **The published JavaScript carries no comments, and the published declarations do.** This codebase
 annotates heavily and those notes are written for somebody changing the code, which happens in the
 repository, not in a consumer's `node_modules`. `@rigline/plugin-api`'s declarations are the
@@ -1021,11 +1141,29 @@ the documentation a plugin author reads on hover, and it is the one package whos
 be read from another repository's editor. TypeScript has a single `removeComments` governing both
 emits, so plugin-api emits its declarations from a second config that turns it back off.
 
-**D36. Verification is split three ways.** Node tests for pure functions and file transforms,
+**D36. Verification is split four ways.** Node tests for pure functions and file transforms,
 against throwaway copies and the corpus, never the live extension; the probe plugin for the real
 webview, one check per capability, `n/a` where a check cannot apply on a surface; and a Playwright
 tier that boots the real bundle from the corpus with a faked `acquireVsCodeApi` and a replayed bus,
 which is `packages/harness`.
+
+**The fourth is the tarballs, installed** (2026-09-21). `pnpm pack` — never `npm pack`, which leaves
+`workspace:*` in the manifest — then the three tarballs into a temporary prefix with
+`--ignore-scripts` and `--offline`, and `install` run out of that prefix against a fixture extension
+directory. It is a tier rather than a test because it asks a question none of the other three can:
+every one of them drives this workspace, where a relative path from `packages/cli/dist` happens to
+reach `packages/host/dist` and `plugins/`. Installed from npm those paths reach nothing, and
+`rigline install` threw `payload is missing pre.js` for two releases while every tier was green. It
+lives in `packages/cli/test/packed.test.ts` and runs under `pnpm test`, so
+[verification.md](verification.md)'s "everything but the probe runs under one `pnpm test`" stays
+true: a check that has to be remembered is a check that answers a question nobody asked on the day it
+mattered, which is the whole diagnosis of what it exists to catch. It costs about a second.
+
+It asserts what the command *did* — payload written, four plugins baked, "injected" printed — and
+not its exit code. A synthetic bundle carries none of the curated anchors, so every plugin's
+declaration check fails against it and `install` exits 1 to say a person is needed, which is D27
+working rather than a failure: a refused plugin is still copied, still baked, and never blocks the
+injection.
 
 **D37. Byte-faithful I/O for every bundle read and write; LF in the repository, the platform's own
 convention in the working tree** (amended 2026-09-19, Leo). Text-mode I/O on Windows rewrites every

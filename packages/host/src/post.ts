@@ -35,6 +35,8 @@ function message(e: unknown): string {
 }
 
 interface RegistryModule {
+  /** The engine version that baked this file (D75). Absent in a payload older than the stamp. */
+  readonly engine?: string;
   readonly plugins?: readonly Omit<PluginRecord, "order">[];
   readonly patches?: Bridge["diagnostics"]["hostPatches"];
 }
@@ -171,6 +173,9 @@ async function main(): Promise<void> {
     )) as RegistryModule;
     entries = (registry.plugins ?? []).map((p, order) => ({ ...p, order }));
     diagnostics.hostPatches = [...(registry.patches ?? [])];
+    // Carried onto diagnostics rather than left in the module, so a plugin reads it the way it
+    // reads every other host-provided value and never imports the host to get it (D18, D63, D75).
+    diagnostics.engine = typeof registry.engine === "string" ? registry.engine : null;
   } catch (e) {
     diagnostics.errors.push(`registry: ${message(e)}`);
   }

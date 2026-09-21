@@ -37,7 +37,13 @@ import {
 import { diffScans, formatDiff, type Scan, scansDiffer, type ViewDiff } from "../layers/diff.ts";
 import { type Harvest, harvestAll } from "../layers/index.ts";
 import { riglinePaths } from "../paths.ts";
-import { discoverPlugins, enabledPlugins, readConfig } from "../plugins/discover.ts";
+import {
+  discoverPlugins,
+  enabledPlugins,
+  readConfig,
+  registryEngine,
+} from "../plugins/discover.ts";
+import { CORE_VERSION } from "../version.ts";
 import { type BaselineSource, GENERATED_FILE, readBaseline, writeBaseline } from "./baseline.ts";
 
 /** What one installed extension directory looks like after the flow has been over it. */
@@ -75,6 +81,16 @@ export interface VersionReport {
   readonly disabled: readonly string[];
   /** Every line the installer logged, so a caller can print them under this version's heading. */
   readonly log: readonly string[];
+  /**
+   * The engine version stamped into this directory's payload (D75), or null when nothing is
+   * injected here or the payload predates the stamp.
+   *
+   * From `check` it is the whole point: a read-only command is the only way to find out that a
+   * version is running a payload three releases old, which nothing else on disk distinguishes from
+   * a current one. From `install` it is what was just written, so it agrees with `CORE_VERSION` by
+   * construction and is reported for the symmetry rather than for the news.
+   */
+  readonly payloadEngine: string | null;
 }
 
 export interface FlowReport {
@@ -132,6 +148,26 @@ function harvestOne(ext: string, overrides: AnchorOverrides): Harvested {
   return { ext, version: generated.tables.version, harvest, generated };
 }
 
+/**
+ * The engine version stamped into one directory's injected payload, or null (D75).
+ *
+ * Read off disk rather than passed down, because the question is about what is installed there and
+ * not about what this process is: `check` writes nothing and must still be able to say that a
+ * version is carrying a payload an older engine left behind. The registry is parsed as text and
+ * never imported, for the reason `parseRegistry` gives.
+ */
+function payloadEngineOf(ext: string): string | null {
+  const path = join(ext, "webview", "rigline", "registry.js");
+  if (!existsSync(path)) return null;
+  try {
+    return registryEngine(readFileSync(path, "utf8"));
+  } catch {
+    // A payload directory somebody's editor is holding open, or one a half-finished install left
+    // unreadable. Neither is a reason for `check` to fail; the absence reads as "nothing to say".
+    return null;
+  }
+}
+
 /** How one version answered the anchor table, as a `VersionReport` carries it. */
 function anchorReport(
   generated: Generated,
@@ -163,6 +199,7 @@ export function check(options: FlowOptions = {}): FlowReport {
   const discovered = options.plugins
     ? discoverPlugins(options.plugins.roots, {
         last: options.plugins.last,
+        bundledRoot: options.plugins.bundledRoot,
         log: (line) => discovery.push(line),
       })
     : [];
@@ -184,6 +221,7 @@ export function check(options: FlowOptions = {}): FlowReport {
     enabled,
     disabled,
     log: discovery,
+    payloadEngine: payloadEngineOf(h.ext),
   }));
 
   return settle(options, overrides, harvested, versions, null);
@@ -227,6 +265,7 @@ export function update(options: UpdateOptions): FlowReport {
       enabled: report.enabled,
       disabled: report.disabled,
       log,
+      payloadEngine: payloadEngineOf(ext),
     });
   }
 
@@ -313,6 +352,17 @@ function settle(
     if (version.hostChanged) {
       attention.push(
         `${version.version}: extension.js changed, so run "Developer: Reload Window" (this ends the window's sessions)`,
+      );
+    }
+    // Only from `check`, which writes nothing: after `install` the payload is this engine's by
+    // construction, and an attention line about work just done is output nobody has trimmed (D55).
+    if (
+      writeOptions === null &&
+      version.payloadEngine !== null &&
+      version.payloadEngine !== CORE_VERSION
+    ) {
+      attention.push(
+        `${version.version}: its payload was written by engine ${version.payloadEngine}, and this engine is ${CORE_VERSION}; run \`rigline install\``,
       );
     }
   }

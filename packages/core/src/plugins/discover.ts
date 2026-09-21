@@ -19,6 +19,7 @@ import {
 } from "@rigline/plugin-api";
 import { UserError } from "../errors.ts";
 import { type DeclaredPatch, type PatchOutcome, patchRefusal } from "../inject/hostpatch.ts";
+import { CORE_VERSION } from "../version.ts";
 
 /** One plugin found on disk, its manifest already validated. */
 export interface DiscoveredPlugin {
@@ -31,6 +32,16 @@ export interface DiscoveredPlugin {
    */
   readonly root: string;
   readonly manifest: ValidManifest;
+  /**
+   * Whether this plugin won its name over a same-named one in the bundled set (D71).
+   *
+   * Recorded rather than logged. In this checkout all four first-party plugins are found twice —
+   * once in `plugins/`, once in core's `dist/bundled/plugins` — so a shadowing line per collision
+   * would put eight lines of noise under every installed version of every install, describing the
+   * arrangement working exactly as designed. The two places somebody is actually asking read it
+   * from here: `list`, and `add` at the moment a bundled name is taken.
+   */
+  readonly overridesBundled: boolean;
 }
 
 /**
@@ -141,15 +152,28 @@ export function checkManifest(check: ManifestCheck): ValidManifest {
  * state. `last` moves the named plugins to the end, in the order given, regardless of which root
  * found them — the probe plugin wants to run after everything a person installed.
  */
+export interface DiscoverOptions {
+  /** Plugins pinned to the end of registry order, in the order given. */
+  readonly last?: readonly string[];
+  /**
+   * Core's `dist/bundled/plugins`, when it is one of `roots`. Naming it is what lets a bundled
+   * plugin losing its name be told apart from any other collision (D71); without it every install
+   * from this checkout reports four shadowed plugins as though something were wrong.
+   */
+  readonly bundledRoot?: string;
+  readonly log?: (line: string) => void;
+}
+
 export function discoverPlugins(
   roots: readonly string[],
-  options?: { readonly last?: readonly string[]; readonly log?: (line: string) => void },
+  options?: DiscoverOptions,
 ): DiscoveredPlugin[] {
   const log = options?.log ?? (() => {});
-  const found: DiscoveredPlugin[] = [];
-  const seen = new Map<string, string>();
+  const found: (DiscoveredPlugin & { overridesBundled: boolean })[] = [];
+  const winner = new Map<string, (typeof found)[number]>();
   for (const root of roots) {
     if (!existsSync(root)) continue;
+    const bundled = root === options?.bundledRoot;
     const names = readdirSync(root, { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
@@ -157,17 +181,27 @@ export function discoverPlugins(
       .sort();
     for (const name of names) {
       const dir = join(root, name);
-      const already = seen.get(name);
+      const already = winner.get(name);
       if (already !== undefined) {
         // One name, one plugin (D56). Two of a name baked two registry entries, copied over each
         // other into the payload, and loaded the plugin twice. First root wins, because the root
-        // order is the caller's and is already load order; the loser is named, because a plugin
-        // missing from the panel with nothing said about it is the failure P8 refuses.
-        log(`${dir} is shadowed by ${already}: a plugin called "${name}" is already discovered`);
+        // order is the caller's and is already load order.
+        //
+        // Two shapes, and only one of them is news. A bundled plugin losing its name is the escape
+        // hatch working: a fork in `~/.rigline/plugins`, or this checkout's own source, standing in
+        // front of the copy inside the engine (D71). That is recorded on the winner and said once,
+        // where somebody is asking. Anything else is a plugin missing from the panel with nothing
+        // said about it, which is the failure P8 refuses, so it is named here.
+        if (bundled) already.overridesBundled = true;
+        else
+          log(
+            `${dir} is shadowed by ${already.dir}: a plugin called "${name}" is already discovered`,
+          );
         continue;
       }
-      seen.set(name, dir);
-      found.push({ name, dir, root, manifest: readManifest(dir) });
+      const plugin = { name, dir, root, manifest: readManifest(dir), overridesBundled: false };
+      winner.set(name, plugin);
+      found.push(plugin);
     }
   }
 
@@ -316,11 +350,31 @@ export function bakeRegistry(
   );
   const body = entries.map((e) => `  ${e},`).join("\n");
   return `// Baked by rigline at install time. Do not edit; it is overwritten on every install.
+export const ${ENGINE_EXPORT} = ${JSON.stringify(CORE_VERSION)};
 export const plugins = [
 ${body}
 ];
 export const patches = ${JSON.stringify(outcomes)};
 `;
+}
+
+/** The name the payload stamp is exported under, shared by what writes it and what reads it back. */
+const ENGINE_EXPORT = "engine";
+
+/**
+ * The engine version out of a baked `registry.js`, or null when the file predates the stamp (D75).
+ *
+ * A bounded regex over a line this repository writes itself, rather than a second file beside the
+ * registry. The webview cannot fetch, so anything the probe reads has to be a module the post hook
+ * already imports; making the Node side read the same module is what keeps one fact in one place
+ * instead of two writes that can disagree. Bounded because the rule about running a regex over
+ * generated text holds even when we generated it.
+ */
+export function registryEngine(source: string): string | null {
+  const match = new RegExp(`^export const ${ENGINE_EXPORT} = "([^"\\\\]{1,64})";$`, "m").exec(
+    source,
+  );
+  return match?.[1] ?? null;
 }
 
 const TEST_FILE = /\.test\.[cm]?[jt]sx?$/;

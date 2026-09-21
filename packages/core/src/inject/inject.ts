@@ -185,6 +185,8 @@ export interface InstallOptions {
   readonly plugins?: {
     readonly roots: readonly string[];
     readonly last?: readonly string[];
+    /** Which of `roots` is core's bundled set, so overriding one is not reported as a collision. */
+    readonly bundledRoot?: string;
     readonly configPath: string;
   };
   /**
@@ -289,8 +291,8 @@ export function install(ext: string, options: InstallOptions): InstallReport {
   let verdicts: readonly PluginVerdict[] = [];
 
   if (options.plugins) {
-    const { roots, last, configPath } = options.plugins;
-    const discovered = discoverPlugins(roots, { last, log });
+    const { roots, last, bundledRoot, configPath } = options.plugins;
+    const discovered = discoverPlugins(roots, { last, bundledRoot, log });
     const config = readConfig(configPath);
     const enabled = enabledPlugins(discovered, config, log);
     enabledNames = enabled.map((p) => p.name);

@@ -2,6 +2,8 @@
  * Synthetic bundle fragments shared by more than one test file, so that a single edit covers
  * every fixture that needs to stay harvestable.
  */
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 
 /**
  * A minified-looking snippet reproducing react-dom's own devtools hook integration closely enough
@@ -92,4 +94,27 @@ export function harvestableWebview(): HarvestableWebview {
 /** The `req_N_response` reply literals a host bundle needs to pair with `harvestableWebview`'s requests. */
 export function harvestableHostReplies(): string {
   return Array.from({ length: REQUEST_COUNT }, (_, i) => `{type:"req_${i}_response"}`).join(";");
+}
+
+/**
+ * A disposable extension directory that clears every layer's floor, so an install can run against
+ * it end to end. Never a copy of a real one, and never the live one (D39).
+ *
+ * The webview bundle carries CRLF line endings and Latin-1 bytes deliberately: byte-faithful I/O is
+ * the property under test wherever this is injected into, and text-mode I/O would rewrite every
+ * line ending on Windows and turn a 133-byte patch into a diff nobody could audit (D37).
+ */
+export function writeFixtureExtension(ext: string, version = "2.1.263"): string {
+  const { js, css } = harvestableWebview();
+  const bundle = `var a=1;\r\n${js}\r\n/*end*/\r\n`;
+
+  mkdirSync(join(ext, "webview"), { recursive: true });
+  writeFileSync(join(ext, "webview", "index.js"), Buffer.from(bundle, "latin1"));
+  writeFileSync(join(ext, "webview", "index.css"), css);
+  writeFileSync(
+    join(ext, "extension.js"),
+    `${harvestableHostReplies()};function listSessions(){return {dir:this.cwd,includeWorktrees:!1}}`,
+  );
+  writeFileSync(join(ext, "package.json"), JSON.stringify({ version }));
+  return ext;
 }

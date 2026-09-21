@@ -13,6 +13,7 @@
   "devDependencies": {
     "@rigline/plugin-api": "__RIGLINE_RANGE__",
     "rigline": "__RIGLINE_RANGE__",
+    "rolldown": "^1.2.8",
     "typescript": "^7.0.2",
     "vitest": "^5.0.0"
   }

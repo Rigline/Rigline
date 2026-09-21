@@ -18,6 +18,7 @@ import { HOST_BACKUP, WEBVIEW_BACKUP } from "../extension/bundles.ts";
 import { extensionVersion } from "../extension/locate.ts";
 import type { PatchOutcome } from "../inject/hostpatch.ts";
 import { hostVerdict, inspect, type Verdict, verdict } from "../inject/inject.ts";
+import { registryEngine } from "../plugins/discover.ts";
 
 /** A file's identity for a report: where it is, how big, and when it last changed. */
 export interface FileFact {
@@ -36,6 +37,12 @@ export interface BakedPlugin {
 }
 
 export interface BakedRegistry {
+  /**
+   * The engine version that wrote this payload (D75), or null for one injected before the stamp
+   * existed. Read so that a stale injection stops looking identical to a current one: nothing else
+   * on disk distinguishes a payload three releases old from the one this engine would write.
+   */
+  readonly engine: string | null;
   readonly plugins: readonly BakedPlugin[];
   readonly patches: readonly PatchOutcome[];
   /** Why the registry could not be read, or null. Never thrown: see the module comment. */
@@ -128,7 +135,15 @@ export function parseRegistry(source: string): BakedRegistry {
     }
   }
 
-  return { plugins, patches, problem: problems.length > 0 ? problems.join("; ") : null };
+  // A missing stamp is not a problem with the registry, and must not be filed as one: `problem`
+  // means the file could not be read, and the report drops the plugin list when it is set. An
+  // absent engine is a fact about the payload's age (D75), reported as itself.
+  return {
+    engine: registryEngine(source),
+    plugins,
+    patches,
+    problem: problems.length > 0 ? problems.join("; ") : null,
+  };
 }
 
 const PAYLOAD_FILES = ["pre.js", "post.js", "generated.js", "registry.js"];
@@ -171,12 +186,17 @@ export function installState(ext: string): InstallState {
   }
 
   const registryPath = join(payloadDir, "registry.js");
-  let registry: BakedRegistry = { plugins: [], patches: [], problem: "not installed" };
+  let registry: BakedRegistry = {
+    engine: null,
+    plugins: [],
+    patches: [],
+    problem: "not installed",
+  };
   if (existsSync(registryPath)) {
     try {
       registry = parseRegistry(readFileSync(registryPath, "utf8"));
     } catch (error) {
-      registry = { plugins: [], patches: [], problem: message(error) };
+      registry = { engine: null, plugins: [], patches: [], problem: message(error) };
     }
   }
 

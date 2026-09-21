@@ -13,7 +13,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { packageTarball } from "../../test/tar.ts";
 import { UserError } from "../errors.ts";
 import { readConfig } from "./discover.ts";
-import { addFromNpm, addPlugin, removePlugin, updatePlugins } from "./manage.ts";
+import { addFromNpm, addPlugin, removePlugin, setPluginEnabled, updatePlugins } from "./manage.ts";
 import type { FetchLike, RegistryOptions } from "./registry.ts";
 
 const dirs: string[] = [];
@@ -553,5 +553,116 @@ describe("updatePlugins", () => {
     const paths = home();
     const updates = await updatePlugins({ ...paths, names: ["ghost"], registry: npm() });
     expect(updates[0]).toMatchObject({ name: "ghost", outcome: "failed" });
+  });
+});
+
+describe("the bundled set", () => {
+  /** A stand-in for core's `dist/bundled/plugins`: a root whose names may be taken (D71). */
+  function bundledRootWith(name: string): string {
+    const root = tempDir();
+    mkdirSync(join(root, name), { recursive: true });
+    writeFileSync(join(root, name, "rigline.json"), "{}");
+    return root;
+  }
+
+  it("allows add over a bundled name, and says the bundled copy is now shadowed", () => {
+    // The escape hatch: a fork installed over a bundled name wins, which is what repairs a broken
+    // first-party plugin without waiting for a release.
+    const paths = home();
+    const bundledRoot = bundledRootWith("session-id");
+
+    const result = addPlugin({
+      from: source({ name: "session-id" }),
+      ...paths,
+      otherRoots: [bundledRoot],
+      bundledRoot,
+    });
+
+    expect(result.overridesBundled).toBe(true);
+    expect(existsSync(join(paths.pluginsDir, "session-id", "rigline.json"))).toBe(true);
+  });
+
+  it("still refuses a name taken in a root that is not the bundled one", () => {
+    const paths = home();
+    const bundledRoot = bundledRootWith("probe");
+    const checkout = tempDir();
+    mkdirSync(join(checkout, "clock"), { recursive: true });
+    writeFileSync(join(checkout, "clock", "rigline.json"), "{}");
+
+    expect(() =>
+      addPlugin({
+        from: source({ name: "clock" }),
+        ...paths,
+        otherRoots: [checkout, bundledRoot],
+        bundledRoot,
+      }),
+    ).toThrow(UserError);
+  });
+
+  it("sends remove of a bundled plugin to disable rather than deleting the engine's copy", () => {
+    const paths = home();
+    const bundledRoot = bundledRootWith("probe");
+
+    expect(() =>
+      removePlugin({ name: "probe", ...paths, otherRoots: [bundledRoot], bundledRoot }),
+    ).toThrow(/bundled inside the engine.*rigline disable probe/s);
+    expect(existsSync(join(bundledRoot, "probe"))).toBe(true);
+  });
+});
+
+describe("setPluginEnabled", () => {
+  /** A discovery root holding one plugin, so a switch has a name it can believe in. */
+  function rootWith(name: string): string {
+    const root = tempDir();
+    mkdirSync(join(root, name), { recursive: true });
+    writeFileSync(join(root, name, "rigline.json"), "{}");
+    return root;
+  }
+
+  it("switches a plugin off and back on, and says which time changed nothing", () => {
+    const paths = home();
+    const roots = [rootWith("time-marks")];
+
+    const off = setPluginEnabled(
+      { name: "time-marks", configPath: paths.configPath, roots },
+      false,
+    );
+    expect(off.changed).toBe(true);
+    expect(readConfig(paths.configPath).disabled).toEqual(["time-marks"]);
+
+    const again = setPluginEnabled(
+      { name: "time-marks", configPath: paths.configPath, roots },
+      false,
+    );
+    expect(again.changed).toBe(false);
+
+    const on = setPluginEnabled({ name: "time-marks", configPath: paths.configPath, roots }, true);
+    expect(on.changed).toBe(true);
+    expect(readConfig(paths.configPath).disabled).toEqual([]);
+  });
+
+  it("keeps everything else in config, because that file is the user's", () => {
+    const paths = home();
+    writeFileSync(paths.configPath, JSON.stringify({ somethingOfTheirs: 1, disabled: ["probe"] }));
+
+    setPluginEnabled(
+      { name: "time-marks", configPath: paths.configPath, roots: [rootWith("time-marks")] },
+      false,
+    );
+
+    const raw = JSON.parse(readFileSync(paths.configPath, "utf8")) as Record<string, unknown>;
+    expect(raw.somethingOfTheirs).toBe(1);
+    expect(raw.disabled).toEqual(["probe", "time-marks"]);
+  });
+
+  it("refuses a name no root has, rather than writing a rule about a typo", () => {
+    const paths = home();
+    expect(() =>
+      setPluginEnabled(
+        { name: "tyme-marks", configPath: paths.configPath, roots: [rootWith("time-marks")] },
+        false,
+      ),
+    ).toThrow(UserError);
+    expect(readConfig(paths.configPath).disabled).toEqual([]);
   });
 });

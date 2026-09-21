@@ -149,6 +149,38 @@ describe("discoverPlugins", () => {
       `${join(second, "clock")} is shadowed by ${join(first, "clock")}: a plugin called "clock" is already discovered`,
     ]);
   });
+
+  it("records a shadowed bundled plugin on the winner and says nothing (D71)", () => {
+    // Every install from this checkout finds all four first-party plugins twice, so a line per
+    // collision would be four lines of noise per extension version describing the design working.
+    const checkout = tempDir();
+    const bundled = tempDir();
+    writePlugin(checkout, "session-id");
+    writePlugin(bundled, "session-id");
+    writePlugin(bundled, "probe");
+    const lines: string[] = [];
+
+    const found = discoverPlugins([checkout, bundled], {
+      bundledRoot: bundled,
+      log: (line) => lines.push(line),
+    });
+
+    expect(lines).toEqual([]);
+    expect(found.map((p) => p.dir)).toEqual([join(checkout, "session-id"), join(bundled, "probe")]);
+    expect(found.map((p) => p.overridesBundled)).toEqual([true, false]);
+  });
+
+  it("still reports a collision between two roots neither of which is the bundled one", () => {
+    const first = tempDir();
+    const second = tempDir();
+    const bundled = tempDir();
+    writePlugin(first, "clock");
+    writePlugin(second, "clock");
+    const lines: string[] = [];
+
+    discoverPlugins([first, second, bundled], { bundledRoot: bundled, log: (l) => lines.push(l) });
+    expect(lines).toHaveLength(1);
+  });
 });
 
 describe("readConfig", () => {
@@ -338,6 +370,7 @@ describe("capabilityUseNotes", () => {
       name,
       dir,
       root,
+      overridesBundled: false,
       manifest: {
         api: 1,
         name,

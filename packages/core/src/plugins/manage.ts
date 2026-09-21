@@ -55,6 +55,13 @@ export interface AddOptions {
    * the plugin being replaced, which is what re-adding one you are working on means.
    */
   readonly otherRoots?: readonly string[];
+  /**
+   * Which of `otherRoots` is the bundled set. `add` skips it, because taking a bundled name is
+   * allowed and is the whole escape hatch (D71); `remove` reads the same field, because a bundled
+   * plugin is the one refusal with somewhere better to send you. One list, one carve-out — two
+   * lists would put the distinction in every caller.
+   */
+  readonly bundledRoot?: string;
   /** For a test that asserts on the recorded instant. */
   readonly now?: () => Date;
 }
@@ -67,6 +74,8 @@ export interface AddResult {
   readonly from: string;
   /** Whether a plugin of this name was already in `~/.rigline/plugins` and has been replaced. */
   readonly replaced: boolean;
+  /** Whether it takes its name from a bundled plugin, which now loads only if this one goes (D71). */
+  readonly overridesBundled: boolean;
   /** True when `config.json` has this name switched off, so it will not load until that changes. */
   readonly disabled: boolean;
   /**
@@ -113,6 +122,7 @@ export function addPlugin(options: AddOptions): AddResult {
     pluginsDir: options.pluginsDir,
     configPath: options.configPath,
     otherRoots: options.otherRoots,
+    bundledRoot: options.bundledRoot,
     source: { kind: "path", from, addedAt: stamp(options.now) },
     write: (dir) =>
       cpSync(from, dir, {
@@ -130,6 +140,7 @@ interface Placement {
   readonly pluginsDir: string;
   readonly configPath: string;
   readonly otherRoots?: readonly string[];
+  readonly bundledRoot?: string;
   readonly source: PluginSource;
   /** Writes the plugin's files into `dir`, which is empty and exists by the time this is called. */
   readonly write: (dir: string) => void;
@@ -146,16 +157,26 @@ function place(placement: Placement): AddResult {
   const { manifest } = placement;
   const name = manifest.name;
   const dir = join(placement.pluginsDir, name);
+  const bundledRoot =
+    placement.bundledRoot === undefined ? undefined : resolve(placement.bundledRoot);
+  let overridesBundled = false;
 
   for (const root of placement.otherRoots ?? []) {
-    const taken = join(resolve(root), name);
-    if (taken !== dir && existsSync(join(taken, "rigline.json"))) {
-      throw new UserError(
-        `a plugin called "${name}" is already discovered at ${taken}, which rigline did not ` +
-          "install; installing another of that name would shadow one of them. Remove that one, or " +
-          "rename yours.",
-      );
+    const resolved = resolve(root);
+    const taken = join(resolved, name);
+    if (taken === dir || !existsSync(join(taken, "rigline.json"))) continue;
+    if (resolved === bundledRoot) {
+      // Allowed, and the one collision that is. `~/.rigline/plugins` outranks the bundled set, so
+      // this is a fork standing in front of a first-party plugin — the escape hatch that repairs a
+      // broken bundled plugin without waiting for a release, in the spirit of D44 (D71).
+      overridesBundled = true;
+      continue;
     }
+    throw new UserError(
+      `a plugin called "${name}" is already discovered at ${taken}, which rigline did not ` +
+        "install; installing another of that name would shadow one of them. Remove that one, or " +
+        "rename yours.",
+    );
   }
 
   const replaced = existsSync(dir);
@@ -179,6 +200,7 @@ function place(placement: Placement): AddResult {
     dir,
     from: placement.from,
     replaced,
+    overridesBundled,
     disabled,
     can: describeUses(manifest.uses as Uses),
     manifest,
@@ -189,12 +211,65 @@ function stamp(now?: () => Date): string {
   return (now?.() ?? new Date()).toISOString();
 }
 
+export interface SwitchOptions {
+  readonly name: string;
+  readonly configPath: string;
+  /** Every discovery root, so a name nothing has heard of is a typo rather than a silent no-op. */
+  readonly roots: readonly string[];
+}
+
+export interface SwitchResult {
+  readonly name: string;
+  /** False when the name was already in the state asked for, which is worth saying rather than lying. */
+  readonly changed: boolean;
+  readonly configPath: string;
+}
+
+/**
+ * Switches one plugin off in `config.json`, or back on.
+ *
+ * The only way to decline a bundled plugin (D71, D72). It is not deletable — it lives inside the
+ * engine, and an engine update would put it back — so `disabled` is what says no, and `doctor` says
+ * so rather than leaving a missing badge to be interpreted.
+ *
+ * It refuses a name no root has, because the alternative is a command that silently does nothing
+ * useful: `config.json` would grow an entry for a typo, `enabledPlugins` would report it as
+ * disabling something it cannot find, and the plugin the person meant would still be loading.
+ */
+export function setPluginEnabled(options: SwitchOptions, enabled: boolean): SwitchResult {
+  const { name, configPath } = options;
+  const known = options.roots.some((root) => existsSync(join(resolve(root), name, "rigline.json")));
+  if (!known) {
+    throw new UserError(
+      `no plugin called "${name}" was found in any discovery root; \`rigline list\` names every one`,
+    );
+  }
+
+  let changed = false;
+  updateConfig(configPath, (config) => {
+    const disabled = Array.isArray(config.disabled)
+      ? config.disabled.filter((d: unknown) => typeof d === "string")
+      : [];
+    const has = disabled.includes(name);
+    if (enabled && has) {
+      config.disabled = disabled.filter((d: string) => d !== name);
+      changed = true;
+    } else if (!enabled && !has) {
+      config.disabled = [...disabled, name].sort();
+      changed = true;
+    }
+  });
+  return { name, changed, configPath };
+}
+
 export interface RemoveOptions {
   readonly name: string;
   readonly pluginsDir: string;
   readonly configPath: string;
   /** The other roots this install discovers from, so a refusal can say where the plugin actually is. */
   readonly otherRoots?: readonly string[];
+  /** Which of `otherRoots` is the bundled set, so its refusal can say what refreshes it (D71). */
+  readonly bundledRoot?: string;
 }
 
 /**
@@ -209,14 +284,22 @@ export function removePlugin(options: RemoveOptions): RemoveResult {
   const { name } = options;
   const dir = join(options.pluginsDir, name);
   if (!existsSync(dir)) {
+    const bundledRoot =
+      options.bundledRoot === undefined ? undefined : resolve(options.bundledRoot);
     for (const root of options.otherRoots ?? []) {
-      const elsewhere = join(resolve(root), name);
-      if (existsSync(join(elsewhere, "rigline.json"))) {
-        throw new UserError(
-          `"${name}" is at ${elsewhere}, which rigline did not install and will not delete. ` +
-            `Switch it off by adding it to "disabled" in ${options.configPath}.`,
-        );
-      }
+      const resolved = resolve(root);
+      const elsewhere = join(resolved, name);
+      if (!existsSync(join(elsewhere, "rigline.json"))) continue;
+      throw new UserError(
+        resolved === bundledRoot
+          ? // A bundled plugin has no directory of its own to delete, and deleting one out of the
+            // engine would be undone by the next engine update anyway. Both ways out are named.
+            `"${name}" is bundled inside the engine, so there is nothing here to delete. ` +
+              `Run \`rigline disable ${name}\` to switch it off, or \`rigline add\` your own of ` +
+              "that name over it."
+          : `"${name}" is at ${elsewhere}, which rigline did not install and will not delete. ` +
+              `Run \`rigline disable ${name}\` to switch it off.`,
+      );
     }
     throw new UserError(`no plugin called "${name}" is installed in ${options.pluginsDir}`);
   }
@@ -287,6 +370,8 @@ export interface AddFromNpmOptions {
   readonly pluginsDir: string;
   readonly configPath: string;
   readonly otherRoots?: readonly string[];
+  /** Which of `otherRoots` is the bundled set, which `add` may take a name from (D71). */
+  readonly bundledRoot?: string;
   readonly registry?: RegistryOptions;
   readonly now?: () => Date;
 }
@@ -329,6 +414,7 @@ export async function addFromNpm(options: AddFromNpmOptions): Promise<AddResult>
     pluginsDir: options.pluginsDir,
     configPath: options.configPath,
     otherRoots: options.otherRoots,
+    bundledRoot: options.bundledRoot,
     source,
     write: (dir) => {
       for (const file of files) {
@@ -383,6 +469,8 @@ export interface UpdatePluginsOptions {
   readonly pluginsDir: string;
   readonly configPath: string;
   readonly otherRoots?: readonly string[];
+  /** Which of `otherRoots` is the bundled set, which `add` may take a name from (D71). */
+  readonly bundledRoot?: string;
   readonly registry?: RegistryOptions;
   /** Only these plugins. Absent means every one in the plugins directory. */
   readonly names?: readonly string[];
@@ -463,6 +551,7 @@ async function updateOne(
       pluginsDir: options.pluginsDir,
       configPath: options.configPath,
       otherRoots: options.otherRoots,
+      bundledRoot: options.bundledRoot,
       registry: options.registry,
       now: options.now,
     });

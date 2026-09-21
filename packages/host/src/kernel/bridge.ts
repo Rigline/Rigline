@@ -66,6 +66,7 @@ export interface Diagnostics {
   rewrites: RewriteRecord[];
   hostPatches: HostPatchOutcome[];
   identifiersFor: string | null;
+  engine: string | null;
   readonly react: {
     hook: "installed" | "chained";
     version: string | null;

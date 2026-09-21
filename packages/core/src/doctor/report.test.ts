@@ -38,7 +38,7 @@ const INSTALL: DoctorReport["installs"][number] = {
   payloadDir:
     "C:\\Users\\tester\\.vscode\\extensions\\anthropic.claude-code-2.1.270\\webview\\rigline",
   payload: [],
-  registry: { plugins: [], patches: [], problem: "not installed" },
+  registry: { engine: null, plugins: [], patches: [], problem: "not installed" },
   problems: ["the payload is missing pre.js"],
 };
 
@@ -75,6 +75,7 @@ describe("formatDoctor", () => {
             ...INSTALL,
             host: "patched",
             registry: {
+              engine: "1.0.0-alpha.4",
               plugins: [
                 { name: "session-id", surfaces: [], patchRefusal: null },
                 { name: "worktree-prefix", surfaces: [], patchRefusal: null },

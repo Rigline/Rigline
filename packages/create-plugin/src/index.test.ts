@@ -153,6 +153,15 @@ describe("scaffold", () => {
     if (own.version.includes("-")) expect(riglineRange()).toContain("-");
   });
 
+  it("declares rolldown, which `rigline build` no longer brings with it", () => {
+    // `rigline` stopped depending on rolldown when it became a lazy import, so a scaffold that
+    // does not declare its own has no bundler at all and `pnpm build` fails on the first command
+    // the README tells an author to run. Hand-written rather than derived: the range is the
+    // bundler's, and `__RIGLINE_RANGE__` is this package's own version (D50).
+    const { devDependencies } = JSON.parse(read(into("clock"), "package.json"));
+    expect(devDependencies.rolldown.startsWith("^")).toBe(true);
+  });
+
   it("names the plugin after the workspace directory, or after --name", () => {
     const target = join(tempDir(), "my-plugins");
     expect(scaffold({ target, name: "clock" }).files).toContain("plugins/clock/rigline.json");

@@ -11,6 +11,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { PatchOutcome } from "../inject/hostpatch.ts";
 import { bakeRegistry, discoverPlugins } from "../plugins/discover.ts";
+import { CORE_VERSION } from "../version.ts";
 import { installState, parseRegistry } from "./install.ts";
 
 const dirs: string[] = [];
@@ -69,10 +70,23 @@ describe("parseRegistry", () => {
   it("survives a file that is not a registry at all", () => {
     const registry = parseRegistry("");
     expect(registry).toEqual({
+      engine: null,
       plugins: [],
       patches: [],
       problem: "no plugin list; no patch list",
     });
+  });
+
+  it("reads the engine stamp back out of what bakeRegistry wrote", () => {
+    expect(parseRegistry(bakeRegistry([], [])).engine).toBe(CORE_VERSION);
+  });
+
+  it("reports a payload with no stamp as unstamped rather than as unreadable", () => {
+    // A payload injected before D75 existed. It is a fact about its age, never a problem with the
+    // registry: `problem` suppresses the plugin list, and an older install still has plugins.
+    const registry = parseRegistry("export const plugins = [\n];\nexport const patches = [];\n");
+    expect(registry.engine).toBeNull();
+    expect(registry.problem).toBeNull();
   });
 });
 

@@ -139,6 +139,7 @@ importers:
       '@rigline/core':
         specifier: workspace:*
         version: link:../core
+    devDependencies:
       rolldown:
         specifier: ^1.2.8
         version: 1.2.8

@@ -16,6 +16,13 @@ export {
 } from "./anchors/overrides.ts";
 export type { AnchorTable, ResolvedAnchors } from "./anchors/resolve.ts";
 export { missingAnchorReason, resolveAnchors, uncountedClasses } from "./anchors/resolve.ts";
+export {
+  bundledDir,
+  bundledPluginsDir,
+  checkoutPluginsDir,
+  corePackageDir,
+  workspaceRoot,
+} from "./assets.ts";
 export type { Generated } from "./codegen/generate.ts";
 export { generate } from "./codegen/generate.ts";
 export type { DoctorOptions, DoctorReport } from "./doctor/collect.ts";
@@ -91,6 +98,7 @@ export {
   isPluginOutput,
   readConfig,
   readManifest,
+  registryEngine,
   updateConfig,
 } from "./plugins/discover.ts";
 export type {
@@ -107,6 +115,8 @@ export type {
   PluginUpdate,
   RemoveOptions,
   RemoveResult,
+  SwitchOptions,
+  SwitchResult,
   UpdatePluginsOptions,
 } from "./plugins/manage.ts";
 export {
@@ -114,6 +124,7 @@ export {
   addPlugin,
   formatUpdates,
   removePlugin,
+  setPluginEnabled,
   updatePlugins,
 } from "./plugins/manage.ts";
 export type {

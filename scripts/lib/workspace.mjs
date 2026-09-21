@@ -20,9 +20,12 @@ export const UNRELEASED = "## Unreleased";
 /** Every directory `pnpm-workspace.yaml` globs. A fourth one there needs a fourth entry here. */
 const WORKSPACE_DIRS = ["packages", "plugins"];
 
-/** GitHub renders `::error::` as an annotation on the run; a terminal just reads the line. */
-export function fail(message) {
-  const prefix = process.env.GITHUB_ACTIONS === "true" ? "::error::" : "release — ";
+/**
+ * GitHub renders `::error::` as an annotation on the run; a terminal just reads the line, so it
+ * gets the name of what failed. Not every script here is a release script.
+ */
+export function fail(message, label = "release") {
+  const prefix = process.env.GITHUB_ACTIONS === "true" ? "::error::" : `${label} — `;
   process.stderr.write(`${prefix}${message}\n`);
   process.exit(1);
 }

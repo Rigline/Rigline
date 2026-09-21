@@ -6,15 +6,17 @@
  * fix and lets anything else propagate with its stack, so a bug is never dressed up as advice.
  */
 import { existsSync, watch as fsWatch, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { basename, join, relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
   type AddResult,
   addFromNpm,
   addPlugin,
+  bundledDir,
+  bundledPluginsDir,
   CORE_VERSION,
   check,
+  checkoutPluginsDir,
   collect,
   diffScans,
   EXTENSIONS_DIR,
@@ -40,6 +42,7 @@ import {
   restoreAll,
   riglinePaths,
   scanOf,
+  setPluginEnabled,
   UserError,
   update,
   updatePlugins,
@@ -99,11 +102,17 @@ const USAGE = `rigline ${CORE_VERSION}
 
   rigline remove NAME
       Delete a plugin rigline installed, and re-inject. A plugin you did not install this
-      way is switched off in ~/.rigline/config.json instead; this will not delete it.
+      way, including one bundled in the engine, is switched off with disable instead.
+
+  rigline disable NAME
+  rigline enable NAME
+      Switch a plugin off in ~/.rigline/config.json, or back on, and re-inject. This is how
+      you decline one of the plugins bundled in the engine: there is nothing to delete, and
+      an engine update would put it back.
 
   rigline list
-      Every plugin found, in the order they load: where it came from, whether it is
-      switched off, and what its manifest says it can do.
+      Every plugin found, in the order they load: its version, where it came from, whether
+      it is switched off, and what its manifest says it can do.
 
   rigline status
       Per installed version: is each bundle vanilla or patched, judged against its backup.
@@ -118,22 +127,58 @@ const USAGE = `rigline ${CORE_VERSION}
       did. For what the panel itself was doing, copy the probe's report from the RIG badge.
 `;
 
-/** The prebuilt pre.js and post.js, from the host package's build. */
-function defaultPayloadDir(): string {
-  const here = dirname(fileURLToPath(import.meta.url));
-  return resolve(here, "..", "..", "host", "dist");
-}
-
-/** The first-party plugins in this checkout. Plugins a person installs live under ~/.rigline. */
-function repoPluginsDir(): string {
-  const here = dirname(fileURLToPath(import.meta.url));
-  return resolve(here, "..", "..", "..", "plugins");
+/**
+ * Every discovery root, in precedence and load order (D56, D71).
+ *
+ * This checkout's `plugins/` when there is one, then `~/.rigline/plugins`, then the set bundled
+ * inside the engine. The user's directory outranks the bundled set deliberately: a fork installed
+ * over a bundled name wins, which is the escape hatch that repairs a broken first-party plugin
+ * without waiting for a release.
+ */
+function discoveryRoots(): string[] {
+  const checkout = checkoutPluginsDir();
+  return [...(checkout === null ? [] : [checkout]), riglinePaths().plugins, bundledPluginsDir()];
 }
 
 /** Where plugins are discovered from, and which of them a person has turned off. */
 function pluginOptions(): NonNullable<InstallOptions["plugins"]> {
   const paths = riglinePaths();
-  return { roots: [repoPluginsDir(), paths.plugins], last: ["probe"], configPath: paths.config };
+  return {
+    roots: discoveryRoots(),
+    last: ["probe"],
+    bundledRoot: bundledPluginsDir(),
+    configPath: paths.config,
+  };
+}
+
+/**
+ * The roots `add` and `remove` must not touch, and which of them is the bundled set.
+ *
+ * `~/.rigline/plugins` is deliberately absent: a name already there is the plugin being replaced,
+ * which is what re-adding one you are working on means.
+ */
+function foreignRoots(): { otherRoots: string[]; bundledRoot: string } {
+  const bundledRoot = bundledPluginsDir();
+  const checkout = checkoutPluginsDir();
+  return {
+    otherRoots: [...(checkout === null ? [] : [checkout]), bundledRoot],
+    bundledRoot,
+  };
+}
+
+/**
+ * Every first-party plugin's source directory, for the development loop's default.
+ *
+ * Empty outside this checkout, where `dev` then says there is nothing to develop — which is the
+ * honest answer: a published install has the plugins' built output and none of their source, so
+ * there is nothing there a rebuild could act on.
+ */
+function firstPartyPlugins(): string[] {
+  const root = checkoutPluginsDir();
+  if (root === null) return [];
+  return readdirSync(root, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && existsSync(join(root, e.name, "rigline.json")))
+    .map((e) => join(root, e.name));
 }
 
 interface ReinjectOptions {
@@ -163,7 +208,7 @@ function reinject(options: ReinjectOptions = {}): number {
   }
   const report = update({
     exts: targets,
-    payloadDir: options.payloadDir ?? defaultPayloadDir(),
+    payloadDir: options.payloadDir ?? bundledDir(),
     plugins: pluginOptions(),
     // Only where the directory already has one; this never creates a harvest for somebody who has
     // not asked for one, and it never commits what it rewrites (D30).
@@ -201,7 +246,7 @@ async function addCommand(args: string[]): Promise<number> {
   const common = {
     pluginsDir: paths.plugins,
     configPath: paths.config,
-    otherRoots: [repoPluginsDir()],
+    ...foreignRoots(),
   };
   const result: AddResult = isPathSpec(spec)
     ? addPlugin({ from: spec, ...common })
@@ -209,6 +254,12 @@ async function addCommand(args: string[]): Promise<number> {
 
   console.log(`${result.replaced ? "replaced" : "added"} ${result.name} — ${result.dir}`);
   console.log(`  from ${result.from}`);
+  // The moment it means something. `~/.rigline/plugins` outranks the bundled set, so this plugin
+  // has just taken a first-party name and the copy inside the engine will not load while it is
+  // here — which is the point of being allowed to do it, and worth saying out loud once (D71).
+  if (result.overridesBundled) {
+    console.log(`  it overrides the ${result.name} bundled in the engine, which will not load`);
+  }
   if (result.manifest.description) console.log(`  ${result.manifest.description}`);
   for (const sentence of result.can) console.log(`  - ${sentence}`);
   for (const patch of result.manifest.patches) {
@@ -253,7 +304,7 @@ async function updateCommand(args: string[]): Promise<number> {
   const updates = await updatePlugins({
     pluginsDir: paths.plugins,
     configPath: paths.config,
-    otherRoots: [repoPluginsDir()],
+    ...foreignRoots(),
     names: positionals.length > 0 ? positionals : undefined,
     registry: { ignoreReleaseAge: values.now },
   });
@@ -270,6 +321,32 @@ async function updateCommand(args: string[]): Promise<number> {
   return updates.some((u) => u.outcome === "failed") ? 1 : code;
 }
 
+/**
+ * `disable NAME` and `enable NAME`: the only way to decline a bundled plugin (D71, D72).
+ *
+ * Both re-inject, for the reason `add` and `remove` do (D56): the registry is baked at install
+ * time, so nothing changes until the payload is rewritten, and a person who switched a plugin off
+ * should not have to know about a second command before it goes.
+ */
+function switchCommand(args: string[], enabled: boolean): number {
+  const verb = enabled ? "enable" : "disable";
+  const { positionals } = parseArgs({ args, options: {}, allowPositionals: true });
+  if (positionals.length !== 1) throw new UserError(`${verb} needs exactly one plugin name`);
+
+  const paths = riglinePaths();
+  const result = setPluginEnabled(
+    { name: positionals[0] as string, configPath: paths.config, roots: discoveryRoots() },
+    enabled,
+  );
+  console.log(
+    result.changed
+      ? `${enabled ? "enabled" : "disabled"} ${result.name} in ${result.configPath}`
+      : `${result.name} was already ${enabled ? "enabled" : "switched off"} in ${result.configPath}`,
+  );
+  console.log("");
+  return reinject();
+}
+
 function removeCommand(args: string[]): number {
   const { positionals } = parseArgs({ args, options: {}, allowPositionals: true });
   if (positionals.length !== 1) throw new UserError("remove needs exactly one plugin name");
@@ -279,7 +356,7 @@ function removeCommand(args: string[]): number {
     name: positionals[0] as string,
     pluginsDir: paths.plugins,
     configPath: paths.config,
-    otherRoots: [repoPluginsDir()],
+    ...foreignRoots(),
   });
   console.log(`removed ${result.name} — ${result.dir}`);
   if (!result.hadSource) console.log("  it had no source record, so it was placed here by hand");
@@ -308,12 +385,14 @@ function installCommand(args: string[]): number {
 /** The same roots `pluginOptions` discovers from, named for a report rather than for a loader. */
 function listCommand(): number {
   const paths = riglinePaths();
+  const checkout = checkoutPluginsDir();
   console.log(
     formatPlugins(
       listPlugins({
         roots: [
-          { label: "this checkout", path: repoPluginsDir() },
+          ...(checkout === null ? [] : [{ label: "this checkout", path: checkout }]),
           { label: paths.plugins, path: paths.plugins, managed: true },
+          { label: "bundled", path: bundledPluginsDir(), bundled: true },
         ],
         last: ["probe"],
         configPath: paths.config,
@@ -528,7 +607,7 @@ function watchCommand(args: string[]): Promise<number> {
   return new Promise((resolveWith) => {
     let code = 0;
     const watcher = watch({
-      payloadDir: defaultPayloadDir(),
+      payloadDir: bundledDir(),
       plugins: pluginOptions(),
       codegen: true,
       intervalMs: seconds * 1000,
@@ -566,14 +645,7 @@ function watchCommand(args: string[]): Promise<number> {
  */
 async function dev(args: string[]): Promise<number> {
   const { positionals } = parseArgs({ args, options: {}, allowPositionals: true });
-  const dirs =
-    positionals.length > 0
-      ? positionals.map((d) => resolve(d))
-      : readdirSync(repoPluginsDir(), { withFileTypes: true })
-          .filter(
-            (e) => e.isDirectory() && existsSync(join(repoPluginsDir(), e.name, "rigline.json")),
-          )
-          .map((e) => join(repoPluginsDir(), e.name));
+  const dirs = positionals.length > 0 ? positionals.map((d) => resolve(d)) : firstPartyPlugins();
   if (dirs.length === 0) throw new UserError("no plugin directories to develop");
 
   const exts = installedExtensions();
@@ -594,7 +666,7 @@ async function dev(args: string[]): Promise<number> {
     let hostChanged = false;
     for (const ext of exts) {
       const report = install(ext, {
-        payloadDir: defaultPayloadDir(),
+        payloadDir: bundledDir(),
         plugins: pluginOptions(),
         anchors: overrides,
       });
@@ -673,6 +745,10 @@ async function main(argv: string[]): Promise<number> {
       return updateCommand(rest);
     case "remove":
       return removeCommand(rest);
+    case "disable":
+      return switchCommand(rest, false);
+    case "enable":
+      return switchCommand(rest, true);
     case "list":
       return listCommand();
     case "status":

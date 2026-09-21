@@ -46,6 +46,7 @@ interface ProbeBridge {
 
 interface ProbeDiagnostics {
   readonly identifiersFor: string | null;
+  readonly engine: string | null;
   readonly plugins: readonly PluginStatusLike[];
   readonly rewrites: readonly RewriteRecordLike[];
   readonly errors: readonly string[];
@@ -242,6 +243,7 @@ export default definePlugin({
       return formatReport(
         {
           extension: diag.identifiersFor,
+          engine: diag.engine,
           surface: ctx.surface,
           preAt: diag.preAt,
           postAt: diag.postAt,

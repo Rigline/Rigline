@@ -178,6 +178,8 @@ function bytes(n: number): string {
  */
 export interface ReportFacts {
   readonly extension: string | null;
+  /** The engine that wrote this payload (D75), or null for one injected before the stamp. */
+  readonly engine: string | null;
   readonly surface: string;
   readonly preAt: number;
   readonly postAt: number | null;
@@ -256,6 +258,7 @@ export function formatReport(facts: ReportFacts, groups: readonly CheckGroup[]):
 
   out.push("");
   out.push(`  extension  ${facts.extension ?? "unknown"}, surface ${facts.surface}`);
+  out.push(`  engine     ${facts.engine ?? "unstamped, so older than the stamp"}`);
   const post = facts.postAt === null ? "not reported" : `${facts.postAt}ms`;
   out.push(`  boot       pre ${facts.preAt}ms, post ${post}`);
   out.push(
