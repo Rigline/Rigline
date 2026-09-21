@@ -403,7 +403,7 @@ D70, D73 and D74 are recorded with the work they cover.
 
 ## Next session
 
-Phases 0 to 4b, phase 6 and milestone 7 are done. `1.0.0-alpha.5` is published to `latest` and
+Phases 0 to 4b, phase 6 and milestone 7 are done. `1.0.0-alpha.6` is published to `latest` and
 installs from npm on a machine with no checkout.
 
 **7b is closed, all five steps.** `rigline` installs `@rigline/core` into `<RIGLINE_HOME>/engine`,
@@ -432,10 +432,9 @@ move forward and re-inject. Owed, per this file's own rule about a pipeline step
 is irreducibly a person's: `pnpm release:finish` needs 2FA. [ci.md](ci.md) carries the rest of what
 delivery still owes.
 
-After that, what is open is phase 5 and the loose ends below. Phase 5 is the larger lift and turns on
-a question nobody here can answer from the code — Marketplace policy on an extension that patches
-another extension — so it wants a session that begins by finding that out, not one that begins by
-writing.
+After that, phase 5 is what is open; the small items below are closed. It turns on a question nobody
+here can answer from the code — Marketplace policy on an extension that patches another extension —
+so it wants a session that begins by finding that out, not one that begins by writing.
 
 **About this machine.** 2.1.270 and 2.1.278 are both installed and both injected; 2.1.268 and 2.1.269
 were deleted by VS Code once nothing was serving them, which is the behaviour D4 exists for, and all
