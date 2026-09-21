@@ -161,6 +161,59 @@ if (!skipChecks) {
   say("");
 }
 
+/**
+ * And one check the local four cannot make: has CI been green on these exact bytes?
+ *
+ * The four above run on one machine, so a platform assumption passes them by construction — which
+ * is how `1.0.0-alpha.7` was spent, green on Windows and failed on Linux in the run its own tag
+ * triggered. CI is the only check that sees what the release run will see: the Node matrix, both
+ * operating systems, and a `--frozen-lockfile` install.
+ *
+ * Advisory rather than absolute. `gh` may not be installed, a fork may have no runs, and a first
+ * push races its own workflow — so a missing answer says so and proceeds, and only a *known
+ * failure* stops the cut. `--skip-checks` covers it too, on the same terms as the rest: for a red
+ * one you have already understood, never for one you have not read.
+ */
+if (!skipChecks && !dryRun) {
+  const sha = capture("git", ["rev-parse", "HEAD"]);
+  const verdict = ciVerdict(sha);
+  if (verdict === "failure") {
+    fail(
+      `CI failed on ${sha.slice(0, 8)}, the commit this would tag. A version cut on a red tree is ` +
+        "spent, and this one is not yet — read that run, fix it, push, and cut from the green commit",
+    );
+  }
+  say(
+    verdict === "success"
+      ? "  ci           green on this commit"
+      : `  ci           no verdict yet (${verdict}) — the local four are all this run has`,
+  );
+  say("");
+}
+
+/** GitHub's verdict on one commit: `success`, `failure`, or why there is no answer. */
+function ciVerdict(sha) {
+  try {
+    const raw = capture("gh", [
+      "run",
+      "list",
+      "--workflow=ci.yml",
+      "--commit",
+      sha,
+      "--limit",
+      "1",
+      "--json",
+      "conclusion,status",
+    ]);
+    const runs = JSON.parse(raw);
+    if (runs.length === 0) return "no run";
+    const [{ conclusion, status }] = runs;
+    return status === "completed" ? conclusion : status;
+  } catch {
+    return "gh unavailable";
+  }
+}
+
 const body = notes.replace(/^(\r?\n)+/, eol);
 const rolled = `${UNRELEASED}${eol}${eol}## ${version} — ${today()}${eol}${body}`;
 writeFileSync(

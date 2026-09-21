@@ -44,6 +44,32 @@ retried on the same number. `pnpm test` alone is the trap it closes — `vitest`
 so lint, build and tests can all be green while `tsc` has never been asked, which is exactly how
 `1.0.0-alpha.3` was burned.
 
+**The local gate runs on one platform, and cannot see a platform assumption.** That is how
+`1.0.0-alpha.7` was burned: all four checks green on Windows, and the run its own tag triggered
+failed on Linux, because two test files hardcoded `;` as the PATH separator and `C:\…` as a
+directory. The production code was right — it reads `delimiter` and `isAbsolute` from the running
+platform — so only the tests believed in Windows, and they asserted real behaviour here and nothing
+at all in CI.
+
+**So cut from a commit CI has already been green on.** Push, watch `ci.yml` go green across its
+matrix, and only then run `pnpm release`. That costs one CI run and closes the whole class, not just
+the platform half — it is the only check that sees what the release run will see.
+
+`pnpm release` now asks GitHub for that verdict on the exact commit it would tag, and refuses on a
+known failure. It is advisory in the other direction on purpose: no `gh`, no run yet, or a push
+still racing its own workflow all say so and carry on, because a check that blocks a contributor
+without the GitHub CLI would be a worse gate than none. Only a *failure* stops the cut.
+
+**A Linux loop, for this machine.** WSL Ubuntu carries a second checkout at `~/rigline-linux`, with
+its own `node_modules`, because a shared one cannot hold both platforms' native binaries:
+
+    wsl.exe -d Ubuntu -- bash -ic "cd ~/rigline-linux && git pull --quiet && pnpm install --frozen-lockfile && pnpm build && pnpm test"
+
+`bash -ic` rather than `-lc`: nvm installs into `.bashrc`, which a login shell does not read. The
+corpus lives at a Windows path so its tests skip there with a reason, which is the designed
+behaviour and not a failure — expect 73 skipped. This is the fast loop; the CI run above is the
+gate, because it also covers the Node matrix and the `--frozen-lockfile` install.
+
 ## One-time setup
 
 This part cannot be automated, and it has to happen in this order: each step names the one before
