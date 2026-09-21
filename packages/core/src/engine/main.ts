@@ -290,6 +290,14 @@ function addCommand(args: string[]): number {
       `  "${result.name}" is switched off in ${paths.config}, so it will not load until you remove it from "disabled"`,
     );
   }
+  // `add` is the one command that installs somebody's judgement rather than ours, including the
+  // user's own on a plugin they wrote for themselves (D79).
+  console.log(
+    "  your call, not Rigline's: it runs with the trust listed above, and Anthropic's terms",
+  );
+  console.log(
+    "  apply to what it does — https://github.com/Rigline/Rigline/blob/main/docs/plugin-policy.md",
+  );
   console.log("");
   return reinject();
 }

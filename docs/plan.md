@@ -1,9 +1,10 @@
 # Rigline 1.0 plan
 
 The working document: what is being built, in what order, and where it stands. Durable rules live
-in [decisions.md](decisions.md); this file is about getting to 1.0. Phases 0 to 4b are done; 5 and
-6 are both later, and nothing in 1.0 is waiting on either. Delivery has its own document,
-[ci.md](ci.md) — the branching rule, the release commands and the two workflows.
+in [decisions.md](decisions.md); this file is about getting to 1.0. Phases 0 to 4b, phase 6 and
+milestone 7 are done; **milestone 8, the companion extension, is what is open**, and
+[m8-companion.md](m8-companion.md) owns it. Delivery has its own document, [ci.md](ci.md) — the
+branching rule, the release commands and the two workflows.
 
 ## What Rigline is
 
@@ -338,23 +339,9 @@ In order.
 Delivery outgrew a phase entry. The model, the branching rule, the two workflows and what is still
 outstanding live in [ci.md](ci.md); [releasing.md](releasing.md) is the runbook.
 
-### Phase 5, later: companion VS Code extension
+### Phase 5: companion VS Code extension — promoted to milestone 8
 
-A thin extension over core, hosting the watcher core already has so that an extension update stops
-silently reverting the injection. It is **sideloaded by `rigline` and moved by `rigline update`, not
-published to a marketplace** (D76); the marketplace question that gated this phase is answered, and
-the answer is that publishing buys discoverability rather than the feature, at the one cost that
-does not reverse.
-
-What it does: re-inject on update, driven by `extensions.onDidChange` with the existing poll as the
-floor; offer the webview reload rather than taking it, since a reload ends every in-flight turn in
-the window; expose enable, disable and settings. The CLI stays the manual path and the recovery
-path, and injection is rebuild-from-backup, so the two owners cannot conflict.
-
-Anthropic's terms, not Microsoft's, are the live constraint (D77), and the position is published in
-[anthropic-compliance.md](anthropic-compliance.md) with a standing invitation to Anthropic to
-correct it. D78 records the premise underneath all of this — signature verification is install-time
-only — and the trigger that would end the project.
+Outgrew a phase entry. **[m8-companion.md](m8-companion.md)** owns it.
 
 ### Phase 6: a plugin contributes its own diagnostics — done 2026-09-21
 
@@ -387,11 +374,25 @@ argument is D63 to D68.
 layer and the `@rigline/core` engine, the payload and the four first-party plugins as bundled
 assets, the engine's own install path, and the phases with their acceptance criteria.
 
-**7a is done — released as `1.0.0-alpha.5` and read live on a machine with no checkout.** The
-blocker it existed for is gone: `npm i -g rigline && rigline install` injects.
+**Done, both phases, and released as `1.0.0-alpha.6`.** 7a's blocker is gone — `npm i -g rigline &&
+rigline install` injects — and 7b separated the wrapper from the engine, recorded as D69, D70, D73
+and D74. What the milestone still owes is in "Next session" below: `rigline update` moving off an
+older engine has not been run, because it needs two published versions carrying `rigline-engine`.
 
-**7b is next**: `packages/cli` becomes the wrapper, core gains the `rigline-engine` bin, and D69,
-D70, D73 and D74 are recorded with the work they cover.
+## Milestone 8: the companion extension
+
+**[m8-companion.md](m8-companion.md)** owns it: the fork it derives from — the companion spawns the
+installed engine rather than embedding core — what it watches, what it may and may not reload, how
+it is installed, and the three phases with their acceptance criteria.
+
+The problem is the last silent failure in the project. An extension update installs a fresh
+directory and deletes the old one, so the injection reverts with nothing said: no badge, no plugins,
+no error, weekly. `rigline watch` already fixes it and nobody is running it; the companion is a
+process that is.
+
+**8a is next**: watch, spawn, re-inject, unattended, with no UI beyond a status item and a failure
+notification. It is not published to a marketplace (D76), Anthropic's terms rather than Microsoft's
+are the live constraint (D77), and D78 records the premise underneath all of it.
 
 ## Open questions, not blocking
 
@@ -444,9 +445,11 @@ move forward and re-inject. Owed, per this file's own rule about a pipeline step
 is irreducibly a person's: `pnpm release:finish` needs 2FA. [ci.md](ci.md) carries the rest of what
 delivery still owes.
 
-After that, phase 5 is what is open; the small items below are closed. The question that gated it is
-settled — there is no Marketplace policy against patching another extension, and the constraint that
-matters is Anthropic's (D76, D77, D78) — so it is now a phase that can begin by writing.
+After that, **milestone 8 is what is open**, and [m8-companion.md](m8-companion.md) is the working
+doc. The question that gated it is settled — there is no Marketplace policy against patching another
+extension, and the constraint that matters is Anthropic's (D76, D77, D78) — so 8a can begin by
+writing. Its one open premise is the fork that doc states first: the companion spawns the installed
+engine rather than embedding core, and everything else derives from that.
 
 **About this machine.** 2.1.270 and 2.1.278 are both installed and both injected; 2.1.268 and 2.1.269
 were deleted by VS Code once nothing was serving them, which is the behaviour D4 exists for, and all
@@ -849,3 +852,4 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   size comparison: every extension version has its own directory carrying its own backup, so the
   fault needs a same-version rebuild at an identical size, while the fix needs the injector's one
   "is this current" answer split in two before it stops baking unrecognised bytes into the backup.
+- 2026-09-21: Phase 5's gate answered, and the phase promoted to milestone 8. There is no Marketplace policy against an extension patching another extension: the trust model is publisher-based, and `subframe7536.custom-ui-style` advertises exactly this to a hundred thousand installs. The live constraint is Anthropic's, it lands on the harvest rather than the injection, and the response is [anthropic-compliance.md](anthropic-compliance.md) published from the top of the README with a standing invitation (D76, D77, D78). [plugin-policy.md](plugin-policy.md) followed, splitting what the architecture makes impossible from what is asked of an author and saying outright that nobody is checking, because policing behaviour the boundary permits is whack-a-mole against people who can obfuscate (D79). `rigline add` now says the choice is the user's. [m8-companion.md](m8-companion.md) is the working doc; 8a is next.
