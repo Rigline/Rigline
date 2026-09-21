@@ -131,6 +131,7 @@ Written for somebody else, so don't rewrite them for us:
     pnpm rigline list       # every plugin, in load order: version, origin, source, switch, uses
     pnpm rigline status     # per version: vanilla or patched, by backup
     pnpm rigline restore    # every version back to the extension's bytes
+    pnpm rigline vscode-setup  # install the companion into every VS Code on PATH (--remove undoes)
     pnpm rigline codegen    # regenerate plugin-api's generated.ts
     pnpm rigline diff A B   # identifier drift between two extension dirs
     pnpm rigline doctor     # install state per version, as a pasteable report

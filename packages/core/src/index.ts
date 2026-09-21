@@ -25,6 +25,15 @@ export {
 } from "./assets.ts";
 export type { Generated } from "./codegen/generate.ts";
 export { generate } from "./codegen/generate.ts";
+export type { FoundEditor, SetupOptions, SetupOutcome } from "./companion/setup.ts";
+export {
+  companionVsix,
+  EDITOR_CLIS,
+  findEditors,
+  formatSetup,
+  setupArgv,
+  setupCompanion,
+} from "./companion/setup.ts";
 export type { DoctorOptions, DoctorReport } from "./doctor/collect.ts";
 export { collect } from "./doctor/collect.ts";
 export type { BakedPlugin, BakedRegistry, FileFact, InstallState } from "./doctor/install.ts";

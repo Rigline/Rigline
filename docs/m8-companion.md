@@ -213,22 +213,51 @@ Command Palette alternative, and print the VSIX path. What we will *not* do is w
 install a patcher, which is a worse act than the one Rigline already commits and a considerably less
 defensible one. Left as a refusal until somebody has a better idea.
 
-## Installing it by hand, which is how 8a is read
+## `rigline vscode-setup`
 
-    pnpm build                                        # writes packages/vscode/rigline.vsix
-    code --install-extension path/to/rigline.vsix
+A command, not a file path. Somebody who has run `npm i -g rigline` already has the VSIX — it is in
+the engine's `dist/bundled` beside the payload and the plugins (D71) — so installing the companion
+is a verb, and asking a person to find a file on disk and type `code --install-extension` is a
+worse answer to a question we can already answer for them.
 
-Or, with no `code` on `PATH`: *Extensions: Install from VSIX…* in the Command Palette.
+    rigline vscode-setup            # install the companion into every VS Code found
+    rigline vscode-setup --remove   # take it out again
+
+**It goes in the engine, and the wrapper forwards it.** `rigline` holds no verb list (D69), so a
+new engine verb reaches a user through an engine update with no wrapper release — which is that
+decision paying for itself the first time it is asked to. The engine is also where it belongs on the
+merits: it is the half that knows about installs and the half that carries `dist/bundled`.
+
+Nothing is downloaded. The VSIX ships inside the engine, is the version that engine was built with,
+and moves when the engine moves — so `rigline update` bringing a new engine brings a companion that
+matches it, and the two cannot disagree about what they are.
+
+**Every editor it can find, not one.** A machine may have VS Code, Insiders, VSCodium, Cursor and
+Windsurf, each with its own CLI and its own extensions directory, and a user with two of them
+running Claude Code wants the companion in both. So the command looks for each known CLI on `PATH`,
+reports what it found, installs into each, and says which. Finding none is the refusal below rather
+than a failure to work around.
+
+`--force` is passed, so re-running is a no-op rather than a refusal about an already-installed
+version, which matters because `rigline update` will want to call this.
+
+## Reading 8a, on a machine that has never seen Rigline
+
+    npm i -g rigline
+    rigline install
+    rigline vscode-setup
 
 Then *Developer: Reload Window*, and watch the status bar and the **Rigline** output channel. On a
-machine with no Rigline the sequence is: a Node found on `PATH`, `@rigline/core` fetched from npm
-into `~/.rigline/engine`, `install` run, and the status item green.
+clean machine the sequence is: a Node found on `PATH`, `@rigline/core` fetched from npm into
+`~/.rigline/engine`, `install` run, and the status item green.
 
-**No release is needed to read 8a.** The VSIX is a file, copied to the machine; the engine comes
+**No release is needed to read 8a**, as long as the VSIX under test is the one built here: copy
+`packages/vscode/rigline.vsix` across and `code --install-extension` it directly. The engine comes
 from whatever `@rigline/core@latest` resolves to, which is a published version and not this
-checkout's. That asymmetry is the design rather than a compromise (D80) — the shell is installed
-once and the engine moves underneath it — so testing against the published engine is testing the
-real arrangement, not a substitute for it.
+checkout's, and that asymmetry is the design rather than a compromise (D80) — the shell installs
+once and the engine moves underneath it, so testing against the published engine tests the real
+arrangement. What a release *would* add is `rigline vscode-setup` itself, since the published engine
+does not carry it yet.
 
 Two prerequisites that are not obvious. **Node must be on the machine**, because VS Code does not
 ship one and the companion needs npm; where a GUI-launched VS Code cannot see it, `rigline.nodePath`

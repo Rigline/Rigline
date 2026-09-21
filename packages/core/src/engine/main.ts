@@ -14,6 +14,7 @@
  * Every command throws `UserError` for a problem a person must fix and lets anything else propagate
  * with its stack, so a bug is never dressed up as advice.
  */
+import { spawn } from "node:child_process";
 import { existsSync, watch as fsWatch, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join, relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
@@ -34,6 +35,7 @@ import {
   formatDoctor,
   formatFlow,
   formatPlugins,
+  formatSetup,
   type Generated,
   generate,
   harvestAll,
@@ -51,6 +53,7 @@ import {
   riglinePaths,
   scanOf,
   setPluginEnabled,
+  setupCompanion,
   UserError,
   update,
   verdict,
@@ -121,6 +124,13 @@ const USAGE = `rigline ${CORE_VERSION}
   rigline list [--json]
       Every plugin found, in the order they load: its version, where it came from, whether
       it is switched off, and what its manifest says it can do. --json emits the same as data.
+
+  rigline vscode-setup [--remove]
+      Install the companion extension into every VS Code found on PATH — including Insiders,
+      VSCodium, Cursor and Windsurf — from the VSIX bundled in this engine. Nothing is
+      downloaded, and the companion moves when the engine does. It re-injects after an
+      extension update without you running anything. --remove takes it out again. Reload the
+      window afterwards.
 
   rigline status
       Per installed version: is each bundle vanilla or patched, judged against its backup.
@@ -407,6 +417,44 @@ function listCommand(args: string[]): number {
   // the wrapper asks rather than reads (D74).
   console.log(values.json ? JSON.stringify(listings) : formatPlugins(listings));
   return 0;
+}
+
+/**
+ * `vscode-setup`: put the companion into every editor on PATH, from the VSIX we already carry.
+ *
+ * The engine's rather than the wrapper's, on two counts. It is the half that carries
+ * `dist/bundled`, and the wrapper holds no verb list (D69), so this reaches a user through an
+ * engine update with no wrapper release.
+ */
+async function vscodeSetupCommand(args: string[]): Promise<number> {
+  const { values } = parseArgs({
+    args,
+    options: { remove: { type: "boolean", default: false } },
+    allowPositionals: false,
+  });
+
+  const outcomes = await setupCompanion({
+    remove: values.remove,
+    run: async (command, argv) => {
+      const child = spawn(command, [...argv], { stdio: ["ignore", "pipe", "pipe"] });
+      let output = "";
+      child.stdout?.setEncoding("utf8");
+      child.stdout?.on("data", (chunk: string) => {
+        output += chunk;
+      });
+      child.stderr?.setEncoding("utf8");
+      child.stderr?.on("data", (chunk: string) => {
+        output += chunk;
+      });
+      return await new Promise((done, fail) => {
+        child.on("error", fail);
+        child.on("close", (code) => done({ code: code ?? 1, output }));
+      });
+    },
+  });
+
+  console.log(formatSetup(outcomes, values.remove));
+  return outcomes.some((o) => o.code !== 0) ? 1 : 0;
 }
 
 function statusCommand(): number {
@@ -758,6 +806,8 @@ async function main(argv: string[]): Promise<number> {
       return switchCommand(rest, true);
     case "list":
       return listCommand(rest);
+    case "vscode-setup":
+      return vscodeSetupCommand(rest);
     case "status":
       return statusCommand();
     case "restore":
