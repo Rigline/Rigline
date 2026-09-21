@@ -10,7 +10,8 @@ anything may change between releases.
 
 ## Unreleased
 
-## 1.0.0-alpha.7 — 2026-09-21
+_1.0.0-alpha.7 was tagged and never published: its staging run failed, and a version cut on a red
+tree cannot be retried on the same number. Everything below was meant for it._
 
 ### Added
 
