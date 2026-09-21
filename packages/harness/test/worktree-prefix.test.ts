@@ -39,9 +39,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { FixturePlugin } from "../src/payload.ts";
-import { harnessSkipReason, register } from "../src/suite.ts";
-
-const VERSION = "2.1.278";
+import { harnessSkipReason, register, HARNESS_VERSION as VERSION } from "../src/suite.ts";
 
 /**
  * What the plugin puts between the worktree label and the app's own title. Written out here rather

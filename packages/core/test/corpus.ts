@@ -1,11 +1,11 @@
 /**
  * The reference-bundle corpus tests read real minified output from.
  *
- * Kept outside the repo because each version is several megabytes of somebody else's bundle. On
- * the machine this was built on it holds 2.1.268, 2.1.269 and 2.1.270 as snapshotted on
- * 2026-09-13; older versions can be added by fetching their VSIX from the Marketplace. Each
+ * Kept outside the repo because each version is several megabytes of somebody else's bundle. Each
  * version directory holds `extension.js`, `webview/index.js`, `webview/index.css` and
- * `package.json`, the same layout as an installed extension directory.
+ * `package.json`, the same layout as an installed extension directory. Snapshot a newly installed
+ * version before VS Code deletes it, and add it to `CORPUS_VERSIONS`; older ones can be fetched as
+ * a VSIX from the Marketplace.
  *
  * Tests that need a version skip with a reason when it is absent rather than failing, so a fresh
  * clone is not blocked on a download; the corpus is nonetheless the only guard against a harvest
@@ -38,4 +38,4 @@ export function corpusBundles(version: string): Bundles {
 }
 
 /** Every version present in the corpus, for tests that want to run across all of them. */
-export const CORPUS_VERSIONS = ["2.1.268", "2.1.269", "2.1.270"] as const;
+export const CORPUS_VERSIONS = ["2.1.268", "2.1.269", "2.1.270", "2.1.278"] as const;

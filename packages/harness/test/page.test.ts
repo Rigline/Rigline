@@ -9,18 +9,21 @@ import { fileURLToPath } from "node:url";
 import { readGeneratedScan, replyCandidates } from "@rigline/core";
 import { describe, expect, it } from "vitest";
 import { REPLY_TABLE } from "../src/page.ts";
+import { HARNESS_VERSION } from "../src/suite.ts";
 
-/**
- * Exact only while this and the version the suite pins are the same extension. They are the same
- * checkout's answer to "what is installed", so they move together; a mismatch would show up here as
- * a request the harvest has never seen rather than as a wrong pass.
- */
 const GENERATED = fileURLToPath(new URL("../../../generated.ts", import.meta.url));
 
 describe("the fake host's reply table", () => {
   const scan = readGeneratedScan(GENERATED);
   const replies = new Set(scan.views["replies.replies"] ?? []);
   const messages = new Set(scan.views["protocol.messages"] ?? []);
+
+  it("checks against the same extension the rest of the harness drives", () => {
+    // Both are this checkout's answer to "what is installed", so they move together — but nothing
+    // makes them, and a check against a different version's identifiers would pass or fail for
+    // reasons that have nothing to do with the table.
+    expect(scan.version).toBe(HARNESS_VERSION);
+  });
 
   it("keys the table on message types the protocol has", () => {
     // Coarse on purpose: the scan keeps one flat set of message types rather than the outbound

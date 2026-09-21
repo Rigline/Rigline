@@ -14,9 +14,7 @@ import { fileURLToPath } from "node:url";
 import { EMPTY_DECLARATIONS } from "@rigline/plugin-api";
 import { describe, expect, it } from "vitest";
 import type { FixturePlugin } from "../src/payload.ts";
-import { harnessSkipReason, register } from "../src/suite.ts";
-
-const VERSION = "2.1.278";
+import { harnessSkipReason, register, HARNESS_VERSION as VERSION } from "../src/suite.ts";
 
 const DIST_PATH = fileURLToPath(
   new URL("../../../plugins/session-id/dist/index.js", import.meta.url),

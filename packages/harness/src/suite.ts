@@ -124,6 +124,15 @@ async function chromiumLaunchFailure(): Promise<string | null> {
 }
 
 /**
+ * The corpus version every harness file drives. One constant rather than the same literal in each,
+ * because `test/page.test.ts` checks the committed `generated.ts` against this and the check is
+ * only exact while they are the same extension. Moving it is maintenance, not a decision: the
+ * corpus keeps every version, so an old pin costs reproducibility nothing and buys testing a bundle
+ * nobody runs.
+ */
+export const HARNESS_VERSION = "2.1.278";
+
+/**
  * Why this file's tests cannot run, or null. Read at module scope so a `describe.skipIf` can use
  * it: a fresh clone without the corpus or without a launchable Chromium is not a failure, and a
  * skip with a reason says which of the two it is.

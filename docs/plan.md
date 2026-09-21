@@ -444,11 +444,13 @@ is the one plugin that declares a host patch, and a host patch takes effect only
 Reload Window*, which ends every Claude session in that window. `pnpm rigline restore` puts a version
 back to the extension's own bytes and needs neither VS Code nor the extension to be working.
 
-The harness pins a corpus version in each of its four test files, and the pin follows the installed
-extension: it is 2.1.278, and all 34 tests pass against it. Moving it is maintenance rather than a
-decision — the corpus keeps every version, so an old pin costs reproducibility nothing and buys
-testing a bundle nobody runs. A clone whose corpus lacks the pinned version skips the suite with a
-reason, as it always did.
+The harness pins one corpus version, `HARNESS_VERSION` in `src/suite.ts`, and the pin follows the
+installed extension: it is 2.1.278, and the reply-table check refuses a `generated.ts` harvested
+from anything else. Moving it is maintenance rather than a decision — the corpus keeps every
+version, so an old pin costs reproducibility nothing and buys testing a bundle nobody runs. A clone
+whose corpus lacks the pinned version skips the suite with a reason, as it always did.
+`CORPUS_VERSIONS`, which the layer and anchor ground-truth tests sweep, is a separate list and holds
+all four.
 
 **The two numbers have been read, on 2.1.278, across the editor and the session list.** Both are
 settled enough to stop asking, and the first one does not say what this section expected it to.
