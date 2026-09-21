@@ -35,6 +35,8 @@ const PAYLOAD = ["webview", "rigline"] as const;
 
 let work: string;
 let prefix: string;
+/** Where npm put the packages: the global node_modules, wherever this platform keeps it. */
+let modules: string;
 
 /** Run a command, failing the test with everything it said rather than with an exit code. */
 function run(
@@ -109,7 +111,37 @@ beforeAll(() => {
     ],
     work,
   );
+  modules = join(prefix, "node_modules");
 }, 300_000);
+
+/**
+ * The `rigline` command npm wrote from our `bin`, and how to run it.
+ *
+ * A local install rather than `--global`, and the difference is only where the shims land: both go
+ * through npm's `bin-links`, so the three declarations that have to hold for a command to exist are
+ * the same either way. `--global` costs about seven seconds of fixed overhead on Windows for 0.5s
+ * of work, which buys a test of npm's own prefix layout — npm's business, not ours.
+ *
+ * On Windows npm writes three shims of which the extensionless one is a POSIX script, so the `.cmd`
+ * is the one to run, and running it needs a shell because `child_process.spawn` of a `.cmd` without
+ * one throws `EINVAL` since the 2024 CVE fix. Hence the platform branch, which is about how to
+ * start a process rather than about what is being tested.
+ */
+function riglineCommand(): { readonly path: string; readonly run: (args: string[]) => string } {
+  const windows = process.platform === "win32";
+  const bin = join(modules, ".bin");
+  const path = join(bin, windows ? "rigline.cmd" : "rigline");
+  return {
+    path,
+    run: (args) =>
+      windows
+        ? execFileSync(process.env.COMSPEC ?? "cmd.exe", ["/d", "/s", "/c", path, ...args], {
+            encoding: "utf8",
+            stdio: "pipe",
+          })
+        : execFileSync(path, args, { encoding: "utf8", stdio: "pipe" }),
+  };
+}
 
 afterAll(() => {
   if (work) rmSync(work, { recursive: true, force: true });
@@ -119,7 +151,7 @@ describe("the published tarballs, installed and run", () => {
   it("injects and bakes the four first-party plugins, with no checkout anywhere", () => {
     const ext = writeFixtureExtension(join(work, "ext"));
 
-    const cli = join(prefix, "node_modules", "rigline", "dist", "index.js");
+    const cli = join(modules, "rigline", "dist", "index.js");
     expect(existsSync(cli)).toBe(true);
 
     // Its own home, so the run cannot read or write the developer's config, plugins or baseline.
@@ -154,12 +186,23 @@ describe("the published tarballs, installed and run", () => {
     expect(out).not.toContain("is shadowed by");
   });
 
+  it("is runnable by name, which is the first thing a person touches", () => {
+    // An install that writes no `rigline` command is the failure this covers, and nothing else here
+    // would see it: every other assertion runs `dist/index.js` by path, which works whether or not
+    // the package is installable by name. Three declarations have to hold together for a shim to
+    // appear — `bin` in the manifest, the entry inside `files`, and the shebang surviving
+    // `removeComments` in the build config — and only this asks all three at once.
+    const rigline = riglineCommand();
+    expect(existsSync(rigline.path)).toBe(true);
+    expect(rigline.run(["--help"])).toContain("rigline install");
+  });
+
   it("prints its usage without a bundler installed, which the packed tarball has not got", () => {
     // Rolldown is a devDependency, so it is not in this prefix at all. Before it was lazily
     // imported, `packages/cli/dist/build.js` pulled it in from the head of the module graph and
     // every command threw ERR_MODULE_NOT_FOUND before reading its own arguments.
-    const cli = join(prefix, "node_modules", "rigline", "dist", "index.js");
-    expect(existsSync(join(prefix, "node_modules", "rolldown"))).toBe(false);
+    const cli = join(modules, "rigline", "dist", "index.js");
+    expect(existsSync(join(modules, "rolldown"))).toBe(false);
 
     const out = execFileSync(process.execPath, [cli, "--help"], {
       encoding: "utf8",

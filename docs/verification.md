@@ -190,6 +190,14 @@ Three details are load-bearing:
   rather than defended (D47). And `RIGLINE_HOME` points into the temporary directory, so the run
   cannot read or write the developer's own config, plugins or baseline.
 
+It also runs `rigline` **by name**, through the shim npm wrote from the `bin` field, and not only
+`dist/index.js` by path. Three declarations have to hold together for a command to exist at all —
+`bin` in the manifest, the entry inside `files`, and the shebang surviving `removeComments` in the
+build config — and running the file directly asks none of them. A local install rather than
+`--global`, because both go through npm's `bin-links` and only the location differs; `--global`
+costs about seven seconds of fixed overhead on Windows to test npm's own prefix layout, which is
+npm's business rather than ours.
+
 It asserts what the command *did* — the payload beside the bundle, the four plugins baked into
 `registry.js` with their entry files present, "injected" printed — and deliberately not its exit
 code. A synthetic bundle carries none of the curated anchors, so every plugin's declaration check
