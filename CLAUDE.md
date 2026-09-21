@@ -13,6 +13,9 @@ from. Update the plan before writing code; log status there, not here.
 
 - [docs/plan.md](docs/plan.md): what Rigline is, the physics that shape it, the architecture,
   phases with acceptance criteria, status log.
+- [docs/partial-bundles.md](docs/partial-bundles.md): a slice not yet built. The injector can record
+  a half-written bundle as the pristine backup, which is silent and destroys `restore`; what a
+  wholeness check would be, where the refusal goes, and why `restore` must not apply it (D81).
 - [docs/m8-companion.md](docs/m8-companion.md): the open milestone. The companion extension that
   stops an update silently reverting the injection — the fork it derives from (it is a second
   retrieval layer acquiring and running the engine, never a copy of it, D80), the two costs that

@@ -213,6 +213,28 @@ Command Palette alternative, and print the VSIX path. What we will *not* do is w
 install a patcher, which is a worse act than the one Rigline already commits and a considerably less
 defensible one. Left as a refusal until somebody has a better idea.
 
+## Installing it by hand, which is how 8a is read
+
+    pnpm build                                        # writes packages/vscode/rigline.vsix
+    code --install-extension path/to/rigline.vsix
+
+Or, with no `code` on `PATH`: *Extensions: Install from VSIX…* in the Command Palette.
+
+Then *Developer: Reload Window*, and watch the status bar and the **Rigline** output channel. On a
+machine with no Rigline the sequence is: a Node found on `PATH`, `@rigline/core` fetched from npm
+into `~/.rigline/engine`, `install` run, and the status item green.
+
+**No release is needed to read 8a.** The VSIX is a file, copied to the machine; the engine comes
+from whatever `@rigline/core@latest` resolves to, which is a published version and not this
+checkout's. That asymmetry is the design rather than a compromise (D80) — the shell is installed
+once and the engine moves underneath it — so testing against the published engine is testing the
+real arrangement, not a substitute for it.
+
+Two prerequisites that are not obvious. **Node must be on the machine**, because VS Code does not
+ship one and the companion needs npm; where a GUI-launched VS Code cannot see it, `rigline.nodePath`
+is the repair. And the first run **reaches the network**, which is the same cost `rigline` pays and
+for the same reason (D73).
+
 ## Phases
 
 ### 8a: it re-injects, unattended

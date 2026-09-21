@@ -42,25 +42,30 @@ export function activate(context: vscode.ExtensionContext): void {
     ask: async (message, ...actions) => await vscode.window.showWarningMessage(message, ...actions),
   };
 
+  // From the manifest VS Code read, never from disk: inside a VSIX the wrapper's own lookup
+  // resolves to the extensions directory, where there is no manifest to find.
+  const version = String(context.extension.packageJSON.version ?? "0.0.0");
+
   const watcher = watchExtension({
     editor,
     id: CLAUDE_CODE,
     fingerprint,
     react: async () => {
-      await run(editor);
+      await run(editor, version);
     },
   });
   context.subscriptions.push(watcher);
 
   // Deliberately not awaited: activation must return promptly, and every failure inside is already
   // a result rather than a rejection, so there is nothing here for a `catch` to add.
-  void run(editor);
+  void run(editor, version);
 }
 
-function run(editor: Editor): Promise<unknown> {
+function run(editor: Editor, version: string): Promise<unknown> {
   return import("rigline/engine").then(async (wrapper) =>
     acquireAndInject({
       editor,
+      version,
       exists: existsSync,
       acquisition: {
         updateEngine: (options) => wrapper.updateEngine(options),

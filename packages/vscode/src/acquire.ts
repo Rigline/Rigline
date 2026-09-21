@@ -12,15 +12,25 @@
 import type { Editor } from "./editor.ts";
 import { findNode, NoNodeError } from "./node.ts";
 
-/** The wrapper's half, narrowed to what this file calls. Injected, so a test spawns nothing. */
+/**
+ * The wrapper's half, narrowed to what this file calls. Injected, so a test spawns nothing.
+ *
+ * `version` is not optional here though it is optional there, and that is the point. The wrapper
+ * defaults it by reading `../package.json` beside its own module, which is right for an npm install
+ * and wrong inside a VSIX: bundling rewrites that to the extensions directory, where no manifest
+ * exists, so the default throws on the first run of every companion. The version the companion
+ * should use is the one VS Code already hands it, so it is passed rather than discovered.
+ */
 export interface Acquisition {
   updateEngine(options: {
     readonly nodePath: string;
     readonly label: string;
+    readonly version: string;
   }): Promise<{ readonly outcome: string; readonly to?: string; readonly reason?: string }>;
   ensureEngine(options: {
     readonly nodePath: string;
     readonly label: string;
+    readonly version: string;
   }): Promise<{ readonly version: string; run(argv: readonly string[]): Promise<number> }>;
 }
 
@@ -28,6 +38,8 @@ export interface AcquireOptions {
   readonly editor: Editor;
   readonly acquisition: Acquisition;
   readonly exists: (path: string) => boolean;
+  /** This extension's own version, from the manifest VS Code read. Never discovered from disk. */
+  readonly version: string;
   readonly env?: NodeJS.ProcessEnv;
   readonly platform?: NodeJS.Platform;
 }
@@ -48,7 +60,7 @@ export type AcquireResult =
  * milestone exists to remove (P8). Every exit is a result somebody can read.
  */
 export async function acquireAndInject(options: AcquireOptions): Promise<AcquireResult> {
-  const { editor, acquisition, exists, env, platform } = options;
+  const { editor, acquisition, exists, version, env, platform } = options;
 
   let nodePath: string;
   try {
@@ -69,7 +81,7 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
 
   editor.status("working", "Rigline: updating", "Checking for a newer Rigline engine");
   try {
-    const update = await acquisition.updateEngine({ nodePath, label: LABEL });
+    const update = await acquisition.updateEngine({ nodePath, label: LABEL, version });
     editor.log(`engine: ${update.outcome}${update.to === undefined ? "" : ` ${update.to}`}`);
     if (update.outcome === "failed") {
       // Reported, not thrown, and not fatal: a contended lock lands here, and the right answer is
@@ -77,7 +89,7 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
       editor.log(`engine update did not happen: ${update.reason ?? "no reason given"}`);
     }
 
-    const engine = await acquisition.ensureEngine({ nodePath, label: LABEL });
+    const engine = await acquisition.ensureEngine({ nodePath, label: LABEL, version });
     editor.status("working", "Rigline: injecting", `Running ${engine.version}`);
     const code = await engine.run(["install"]);
     if (code !== 0) {

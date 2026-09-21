@@ -53,6 +53,7 @@ describe("acquireAndInject", () => {
     const result = await acquireAndInject({
       editor: e.editor,
       acquisition: a.acquisition,
+      version: "1.0.0-alpha.6",
       exists: (p) => p === NODE,
       env: { PATH: join("C:", "Program Files", "nodejs") },
       platform: "win32",
@@ -80,14 +81,18 @@ describe("acquireAndInject", () => {
     await acquireAndInject({
       editor: e.editor,
       acquisition: a.acquisition,
+      version: "1.0.0-alpha.6",
       exists: (p) => p === NODE,
       env: { PATH: join("C:", "Program Files", "nodejs") },
       platform: "win32",
     });
 
+    // The version travels with them, and that is not cosmetic. The wrapper's own default reads
+    // `../package.json` beside its module, which bundling rewrites to the extensions directory —
+    // so a companion that let it default would throw ENOENT on the first run of every install.
     expect(seen).toEqual([
-      { nodePath: NODE, label: LABEL },
-      { nodePath: NODE, label: LABEL },
+      { nodePath: NODE, label: LABEL, version: "1.0.0-alpha.6" },
+      { nodePath: NODE, label: LABEL, version: "1.0.0-alpha.6" },
     ]);
   });
 
@@ -97,6 +102,7 @@ describe("acquireAndInject", () => {
     const result = await acquireAndInject({
       editor: e.editor,
       acquisition: a.acquisition,
+      version: "1.0.0-alpha.6",
       exists: () => false,
       env: { PATH: join("C:", "nothing") },
       platform: "win32",
@@ -121,6 +127,7 @@ describe("acquireAndInject", () => {
     const result = await acquireAndInject({
       editor: e.editor,
       acquisition: a.acquisition,
+      version: "1.0.0-alpha.6",
       exists: (p) => p === NODE,
       env: { PATH: join("C:", "Program Files", "nodejs") },
       platform: "win32",
@@ -140,6 +147,7 @@ describe("acquireAndInject", () => {
     const result = await acquireAndInject({
       editor: e.editor,
       acquisition: a.acquisition,
+      version: "1.0.0-alpha.6",
       exists: (p) => p === NODE,
       env: { PATH: join("C:", "Program Files", "nodejs") },
       platform: "win32",
@@ -160,6 +168,7 @@ describe("acquireAndInject", () => {
     const result = await acquireAndInject({
       editor: e.editor,
       acquisition: a.acquisition,
+      version: "1.0.0-alpha.6",
       exists: (p) => p === NODE,
       env: { PATH: join("C:", "Program Files", "nodejs") },
       platform: "win32",
@@ -176,6 +185,7 @@ describe("acquireAndInject", () => {
     await acquireAndInject({
       editor: e.editor,
       acquisition: a.acquisition,
+      version: "1.0.0-alpha.6",
       exists: (p) => p === chosen,
       env: {},
       platform: "darwin",

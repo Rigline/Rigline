@@ -17,6 +17,20 @@ make.** [Anthropic compliance](https://github.com/Rigline/Rigline/blob/main/docs
 is a straight account of what Rigline does and does not do. `rigline restore` puts every install
 back to Anthropic's own bytes and needs nothing but Node.
 
+## Installing
+
+    code --install-extension rigline.vsix
+
+Or *Extensions: Install from VSIX…* in the Command Palette, where `code` is not on your `PATH`.
+Then reload the window.
+
+**Node has to be on the machine.** VS Code does not ship one, and this extension needs npm to fetch
+the engine. If VS Code cannot see yours — common on macOS, where an application launched from the
+Dock does not inherit a login shell's `PATH` — set `rigline.nodePath` and reload.
+
+The first run reaches the network once, to fetch the engine. Nothing after that does unless you ask
+it to.
+
 ## Settings
 
 - **`rigline.nodePath`** — an absolute path to a Node executable. Leave it blank to search `PATH`.

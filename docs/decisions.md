@@ -1445,6 +1445,7 @@ an event that happens weekly; the cost of being wrong is a backup nobody can tru
 either mid-update. Not fixed here: the durable answer is for the injector to refuse bytes that do
 not look like a whole bundle, which is a change to the one file the recovery path depends on and
 deserves its own slice rather than being tacked onto this one.
+[partial-bundles.md](partial-bundles.md) is that slice, written and not yet built.
 
 ### Toolchain and verification
 
