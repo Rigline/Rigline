@@ -157,7 +157,19 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
       return { kind: "attention", message, reload };
     }
 
-    editor.status("ok", "Rigline", `Injected by engine ${engine.version}`);
+    // `ready` says a newly landed version is patched and waiting, distinct from `ok` because
+    // landing back on the same status is indistinguishable from nothing having happened (D85).
+    // Nothing arriving, or a `start` that changed nothing, has nothing new to flag and stays `ok`.
+    if (reason.kind === "moved" && reason.arriving.length > 0) {
+      editor.status(
+        "ready",
+        "Rigline: ready to restart",
+        `Injected by engine ${engine.version} in the background. This window is unaffected — ` +
+          "restart or reload whenever you like to pick it up.",
+      );
+    } else {
+      editor.status("ok", "Rigline", `Injected by engine ${engine.version}`);
+    }
     return { kind: "injected", engine: engine.version, reload };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

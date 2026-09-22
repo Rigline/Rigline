@@ -380,6 +380,45 @@ describe("acquireAndInject", () => {
 
     expect(result).toEqual({ kind: "injected", engine: "1.0.0-alpha.7", reload: null });
   });
+
+  // Leo's live read: a `moved` success landing back on plain `ok` looked identical to nothing
+  // having happened, so there was no way to tell it was already safe to accept VS Code's own
+  // restart prompt. `ready` is the distinct status that answers that at a glance.
+  it("marks a version newly patched in the background as ready, not plain ok", async () => {
+    const e = editor();
+    const a = acquisition();
+
+    await acquireAndInject({
+      editor: e.editor,
+      acquisition: a.acquisition,
+      ...runner(a),
+      reason: { kind: "moved", arriving: [CLAUDE_DIR] },
+      stamps: () => STEADY,
+      version: "1.0.0-alpha.9",
+      exists: (p) => p === NODE,
+      env: { PATH: NODE_DIR },
+    });
+
+    expect(e.statuses.at(-1)).toMatchObject({ health: "ready", text: "Rigline: ready to restart" });
+  });
+
+  it("stays on plain ok when a move only lost a directory, nothing arrived", async () => {
+    const e = editor();
+    const a = acquisition();
+
+    await acquireAndInject({
+      editor: e.editor,
+      acquisition: a.acquisition,
+      ...runner(a),
+      reason: { kind: "moved", arriving: [] },
+      stamps: () => STEADY,
+      version: "1.0.0-alpha.9",
+      exists: (p) => p === NODE,
+      env: { PATH: NODE_DIR },
+    });
+
+    expect(e.statuses.at(-1)).toMatchObject({ health: "ok", text: "Rigline" });
+  });
 });
 
 describe("showPlugins", () => {

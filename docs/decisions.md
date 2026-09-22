@@ -1497,6 +1497,24 @@ whatever engine is already on disk with `ensureEngine` alone, never `updateEngin
 has no business checking npm for a newer engine, and `ensureEngine` is a pure local read when one is
 already present (`readEngineState` returns `ready` and nothing calls `resolveEngine`).
 
+**D85. `Health` gains `ready`: quiet is not the same as invisible (2026-09-23).** Live read: Leo
+waited for the status item to say a newly landed Claude Code version had been patched, saw nothing,
+and accepted VS Code's own "Restart Extensions" prompt before the companion had actually finished —
+which produced the window-reload offer, working as designed, since 8b already names "the user
+reloaded before we finished" as one of the two triggers for it. What was missing is not that offer;
+it is any way to tell in advance that waiting a little longer would have avoided needing it. A
+`moved` reaction's success reverted the status item to the same `ok` icon and text a window with
+nothing new to do ever shows, so "already patched" and "still working on it" were indistinguishable
+unless you caught the `working` spinner mid-flight.
+
+The fix stays inside the existing principle rather than relaxing it: no notification, `attention`
+keeps the only interrupt. A `moved` reaction that actually changed bytes (`reason.arriving.length >
+0`) now lands on `ready` instead of `ok`, so it stays visibly different from steady state until the
+next real activation resets it — an actual restart runs the whole flow fresh. A `moved` that only
+lost a directory, or a `start` that finds nothing changed, still lands on plain `ok`: there is
+genuinely nothing new to flag there. No command on click, unlike `stale` — there is no outstanding
+offer behind `ready` to re-show, only information.
+
 ### Toolchain and verification
 
 **D34. Toolchain: pnpm 12, TypeScript 7, Rolldown for browser bundles, Vitest, Biome with

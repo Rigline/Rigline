@@ -21,8 +21,13 @@ export interface Disposable {
  *
  * `stale` is the same complaint about this window rather than about the machine: injected on disk,
  * absent from the panel in front of the user until something reloads (D82).
+ *
+ * `ready` is the opposite complaint about the same kind of gap: a background `moved` reaction
+ * patched a newly landed Claude Code version while this window's own panel stayed untouched and
+ * fine, and landing back on plain `ok` would look identical to nothing having happened. It says the
+ * new version is waiting, not that anything here needs fixing.
  */
-export type Health = "ok" | "working" | "idle" | "attention" | "stale";
+export type Health = "ok" | "working" | "idle" | "attention" | "stale" | "ready";
 
 /** How loudly a question is asked. An offer is not a warning (D82). */
 export type Level = "info" | "warn";
