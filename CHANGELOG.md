@@ -26,8 +26,8 @@ anything may change between releases.
   The ordinary weekly update is silent, and deliberately: the patch lands in a directory this
   window has not loaded, so nothing in front of you is stale and there is nothing to offer.
 - The companion's status bar reads **Rigline: ready to restart** once it has patched a newly
-  installed Claude Code version in the background, instead of settling back to the same look it
-  had before anything happened. A glance now tells you whether it has caught up. The window
+  installed Claude Code version in the background, and stays that way until you restart, instead
+  of settling back to the same look it had before anything happened. A glance now tells you whether it has caught up. The window
   you're in keeps running the old version, so restart extensions or reload the window whenever it
   suits you.
 

@@ -398,24 +398,6 @@ describe("acquireAndInject", () => {
 
     expect(e.statuses.at(-1)).toMatchObject({ health: "ready", text: "Rigline: ready to restart" });
   });
-
-  it("stays on plain ok when a move only lost a directory, nothing arrived", async () => {
-    const e = editor();
-    const a = acquisition();
-
-    await acquireAndInject({
-      editor: e.editor,
-      acquisition: a.acquisition,
-      ...runner(a),
-      reason: { kind: "moved", arriving: [] },
-      stamps: () => STEADY,
-      version: "1.0.0-alpha.9",
-      exists: (p) => p === NODE,
-      env: { PATH: NODE_DIR },
-    });
-
-    expect(e.statuses.at(-1)).toMatchObject({ health: "ok", text: "Rigline" });
-  });
 });
 
 describe("showPlugins", () => {

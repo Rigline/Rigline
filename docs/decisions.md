@@ -1508,12 +1508,17 @@ nothing new to do ever shows, so "already patched" and "still working on it" wer
 unless you caught the `working` spinner mid-flight.
 
 The fix stays inside the existing principle rather than relaxing it: no notification, `attention`
-keeps the only interrupt. A `moved` reaction that brought a new directory (`reason.arriving.length >
-0`) now lands on `ready` instead of `ok`, so it stays visibly different from steady state until the
-next real activation resets it — an actual restart runs the whole flow fresh. A `moved` that only
-lost a directory, or a `start` that finds nothing changed, still lands on plain `ok`: there is
-genuinely nothing new to flag there. No command on click, unlike `stale` — there is no outstanding
-offer behind `ready` to re-show, only information.
+keeps the only interrupt. A `moved` reaction now lands on `ready` instead of `ok`, and stays there
+until a restart runs the whole flow fresh. No command on click, unlike `stale` — there is no
+outstanding offer behind `ready` to re-show, only information.
+
+**The status item answers the user's questions and reports nothing else**: is Rigline running in
+this window, is an update ready, does something need me. A directory going away changes none of
+those answers, and it is not work either — every directory still installed was patched when it
+arrived or when the window started. So the watcher records a removal and reacts to nothing, and
+`moved` always carries an arrival. Reacting to one used to re-run the flow and land back on `ok`,
+putting back over `ready` the very look this decision removes. An uninstall followed by a reinstall
+needs no removal reaction: the reinstall is an arrival.
 
 ### Toolchain and verification
 

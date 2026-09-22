@@ -176,7 +176,7 @@ describe("watchExtension", () => {
     w.dispose();
   });
 
-  it("treats the extension going away as a move, since a reinstall follows", async () => {
+  it("logs a removal and reacts only to the reinstall that follows it (D85)", async () => {
     const h = harness("/ext/claude-code-2.1.278");
     const seen: WatchReason[] = [];
     const w = watcher(h, async (r) => {
@@ -185,10 +185,12 @@ describe("watchExtension", () => {
 
     h.move(undefined);
     await w.poke();
-
-    // Nothing arrived, so nothing has to settle first — there are no bytes being written.
-    expect(seen).toEqual([{ kind: "moved", arriving: [] }]);
+    expect(seen).toEqual([]);
     expect(h.lines.join()).toContain("removed");
+
+    h.move("/ext/claude-code-2.1.279");
+    await w.poke();
+    expect(seen).toEqual([{ kind: "moved", arriving: ["/ext/claude-code-2.1.279"] }]);
     w.dispose();
   });
 

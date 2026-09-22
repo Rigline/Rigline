@@ -158,7 +158,7 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
     }
 
     // A version patched behind this window must not look like steady state (D85).
-    if (reason.kind === "moved" && reason.arriving.length > 0) {
+    if (reason.kind === "moved") {
       editor.status(
         "ready",
         "Rigline: ready to restart",

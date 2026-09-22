@@ -51,8 +51,8 @@ export interface WatchOptions {
 export type WatchReason =
   | { readonly kind: "start"; readonly path: string | undefined }
   /**
-   * The installed set changed. `arriving` is what appeared, which is what has to settle before
-   * anything reads it; empty means one only went away, which still wants a re-inject.
+   * A directory appeared. `arriving` is what has to settle before anything reads it, and is never
+   * empty: a removal is recorded and reacted to not at all (D85).
    *
    * Not a from-and-to pair: an update adds a directory beside the one already there as often as it
    * replaces it, and a pair would report the same path twice.
@@ -145,8 +145,6 @@ export function watchExtension(options: WatchOptions): Watcher {
    * the work to the next poll rather than reacting to a directory still being written.
    */
   async function settled(paths: readonly string[]): Promise<boolean> {
-    // Nothing arrived, so there is nothing being written: a directory only going away needs no wait.
-    if (paths.length === 0) return true;
     let before = paths.map(stamps);
     for (let attempt = 0; attempt < settleTries; attempt += 1) {
       await sleep(settleMs);
@@ -188,6 +186,10 @@ export function watchExtension(options: WatchOptions): Watcher {
     const going = current.filter((dir) => !seen.includes(dir));
     for (const dir of arriving) editor.log(`${id} installed: ${dir}`);
     for (const dir of going) editor.log(`${id} removed: ${dir}`);
+    if (arriving.length === 0) {
+      current = seen;
+      return;
+    }
     // Committed only once the move has been dealt with. A directory that never settled, or a burst
     // whose follower was dropped, must stay outstanding — recording it here would mean the next
     // poll saw no change and the update was silently skipped, which is the failure this whole

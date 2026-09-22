@@ -877,3 +877,4 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
 - 2026-09-23: `Health` gains `ready` (D85). A background patch of a newly arrived version used to
   land back on the same `ok` as steady state, so nothing said whether it was safe yet to accept VS
   Code's own restart prompt; accepting it too early is how the gap was found, landing on 8b's offer.
+  A removal is no longer reacted to at all: it changes no answer the status gives and does no work.

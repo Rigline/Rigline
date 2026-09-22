@@ -186,7 +186,9 @@ reloading webviews. That prompt says so, and stays dismissible.
 **Says what it did, quietly.** Failures are loud, success is silent. A status item reflects the last
 flow's verdict; anything in `attention` is a notification naming what needs a person. Quiet is not
 invisible, though: a background `moved` that patched a newly arrived version lands on `ready` rather
-than `ok`, so a glance says whether it is safe to restart without having watched it happen (D85).
+than `ok`, so a glance says whether it is safe to restart without having watched it happen. The
+status answers the user's questions and nothing else, so a directory going away is recorded and
+reacted to not at all (D85).
 
 **Never breaks the editor.** A companion that throws on activation is worse than no companion,
 because it takes a working extension host down with it. Everything is inside a boundary that reports
