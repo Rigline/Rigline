@@ -1,6 +1,6 @@
 {
   "name": "@rigline/vscode",
-  "version": "1.0.0-alpha.8",
+  "version": "1.0.0-alpha.9",
   "description": "The companion VS Code extension: acquires the engine, watches for an extension update, re-injects",
   "private": true,
   "type": "module",

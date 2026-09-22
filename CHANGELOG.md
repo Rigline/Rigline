@@ -10,6 +10,8 @@ anything may change between releases.
 
 ## Unreleased
 
+## 1.0.0-alpha.9 — 2026-09-22
+
 ### Fixed
 
 - `rigline vscode-setup` works on Windows. It never had: Node refuses to `spawn` a `.cmd`
