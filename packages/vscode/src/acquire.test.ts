@@ -39,20 +39,35 @@ const QUIET = {
   stamps: () => STEADY,
 };
 
-function acquisition(over: Partial<AcquireOptions["acquisition"]> = {}) {
+/** Spread where a case builds its own options rather than taking `QUIET` whole. */
+const runner = (a: ReturnType<typeof acquisition>) => ({ runEngine: a.runEngine });
+
+const ENTRY = abs("home", ".rigline", "engine", "bin.js");
+
+/**
+ * The wrapper's half, and the runner beside it.
+ *
+ * `runEngine` is separate from the acquisition because the companion pipes the engine's output
+ * into its own channel rather than inheriting stdio, which is what makes the report readable when
+ * the engine wants a person.
+ */
+function acquisition(
+  over: Partial<AcquireOptions["acquisition"]> = {},
+  run: { code?: number; lines?: readonly string[]; onRun?: () => void } = {},
+) {
   const calls: string[][] = [];
   const base: AcquireOptions["acquisition"] = {
     updateEngine: async () => ({ outcome: "current" }),
-    ensureEngine: async () => ({
-      version: "1.0.0-alpha.7",
-      run: async (argv) => {
-        calls.push([...argv]);
-        return 0;
-      },
-    }),
+    ensureEngine: async () => ({ version: "1.0.0-alpha.7", entry: ENTRY }),
     ...over,
   };
-  return { acquisition: base, calls };
+  const runEngine: AcquireOptions["runEngine"] = async (_node, _entry, argv, onLine) => {
+    calls.push([...argv]);
+    run.onRun?.();
+    for (const line of run.lines ?? []) onLine(line);
+    return run.code ?? 0;
+  };
+  return { acquisition: base, calls, runEngine };
 }
 
 describe("acquireAndInject", () => {
@@ -62,6 +77,7 @@ describe("acquireAndInject", () => {
     const result = await acquireAndInject({
       editor: e.editor,
       acquisition: a.acquisition,
+      ...runner(a),
       ...QUIET,
       version: "1.0.0-alpha.6",
       exists: (p) => p === NODE,
@@ -83,13 +99,14 @@ describe("acquireAndInject", () => {
       },
       ensureEngine: async (options) => {
         seen.push(options);
-        return { version: "1.0.0-alpha.7", run: async () => 0 };
+        return { version: "1.0.0-alpha.7", entry: ENTRY };
       },
     });
 
     await acquireAndInject({
       editor: e.editor,
       acquisition: a.acquisition,
+      ...runner(a),
       ...QUIET,
       version: "1.0.0-alpha.6",
       exists: (p) => p === NODE,
@@ -111,6 +128,7 @@ describe("acquireAndInject", () => {
     const result = await acquireAndInject({
       editor: e.editor,
       acquisition: a.acquisition,
+      ...runner(a),
       ...QUIET,
       version: "1.0.0-alpha.6",
       exists: () => false,
@@ -136,6 +154,7 @@ describe("acquireAndInject", () => {
     const result = await acquireAndInject({
       editor: e.editor,
       acquisition: a.acquisition,
+      ...runner(a),
       ...QUIET,
       version: "1.0.0-alpha.6",
       exists: (p) => p === NODE,
@@ -149,13 +168,12 @@ describe("acquireAndInject", () => {
 
   it("reports a non-zero install rather than claiming success", async () => {
     const e = editor();
-    const a = acquisition({
-      ensureEngine: async () => ({ version: "1.0.0-alpha.7", run: async () => 1 }),
-    });
+    const a = acquisition({}, { code: 1 });
 
     const result = await acquireAndInject({
       editor: e.editor,
       acquisition: a.acquisition,
+      ...runner(a),
       ...QUIET,
       version: "1.0.0-alpha.6",
       exists: (p) => p === NODE,
@@ -175,19 +193,20 @@ describe("acquireAndInject", () => {
       extensionActive: () => true,
     });
     let after = false;
-    const a = acquisition({
-      ensureEngine: async () => ({
-        version: "1.0.0-alpha.7",
-        run: async () => {
+    const a = acquisition(
+      {},
+      {
+        code: 1,
+        onRun: () => {
           after = true;
-          return 1;
         },
-      }),
-    });
+      },
+    );
 
     const result = await acquireAndInject({
       editor: seen.editor,
       acquisition: a.acquisition,
+      ...runner(a),
       reason: { kind: "start", path: CLAUDE_DIR },
       stamps: () => (after ? { ...STEADY, host: "200:2" } : STEADY),
       version: "1.0.0-alpha.9",
@@ -200,18 +219,42 @@ describe("acquireAndInject", () => {
     expect(seen.statuses.at(-1)?.health).toBe("attention");
   });
 
+  // The bug this exists for: the engine ran with inherited stdio, which in the extension host is a
+  // stream VS Code keeps no log of. Every word it said was dropped — including on the runs where
+  // the status bar then told somebody to go and read it (P8).
+  it("puts every line the engine wrote into the output channel", async () => {
+    const e = editor();
+    const a = acquisition(
+      {},
+      { code: 1, lines: ["2.1.278: refreshed", "Needs you:", "  - a moved anchor"] },
+    );
+
+    const result = await acquireAndInject({
+      editor: e.editor,
+      acquisition: a.acquisition,
+      ...runner(a),
+      ...QUIET,
+      version: "1.0.0-alpha.9",
+      exists: (p) => p === NODE,
+      env: { PATH: NODE_DIR },
+    });
+
+    expect(e.lines).toContain("Needs you:");
+    expect(e.lines).toContain("  - a moved anchor");
+    expect(result.kind).toBe("attention");
+  });
+
   it("offers nothing when the engine refused and moved nothing", async () => {
     const seen = stubEditor({
       extensionPath: () => CLAUDE_DIR,
       extensionActive: () => true,
     });
-    const a = acquisition({
-      ensureEngine: async () => ({ version: "1.0.0-alpha.7", run: async () => 1 }),
-    });
+    const a = acquisition({}, { code: 1 });
 
     const result = await acquireAndInject({
       editor: seen.editor,
       acquisition: a.acquisition,
+      ...runner(a),
       reason: { kind: "start", path: CLAUDE_DIR },
       stamps: () => STEADY,
       version: "1.0.0-alpha.9",
@@ -233,6 +276,7 @@ describe("acquireAndInject", () => {
     const result = await acquireAndInject({
       editor: e.editor,
       acquisition: a.acquisition,
+      ...runner(a),
       ...QUIET,
       version: "1.0.0-alpha.6",
       exists: (p) => p === NODE,
@@ -250,6 +294,7 @@ describe("acquireAndInject", () => {
     await acquireAndInject({
       editor: e.editor,
       acquisition: a.acquisition,
+      ...runner(a),
       ...QUIET,
       version: "1.0.0-alpha.6",
       exists: (p) => p === chosen,
@@ -267,6 +312,7 @@ describe("acquireAndInject", () => {
     const result = await acquireAndInject({
       editor: e.editor,
       acquisition: a.acquisition,
+      ...runner(a),
       ...QUIET,
       version: "1.0.0-alpha.8",
       exists: (p) => p === NODE,
@@ -286,19 +332,19 @@ describe("acquireAndInject", () => {
       log: e.editor.log,
     });
     let after = false;
-    const a = acquisition({
-      ensureEngine: async () => ({
-        version: "1.0.0-alpha.7",
-        run: async () => {
+    const a = acquisition(
+      {},
+      {
+        onRun: () => {
           after = true;
-          return 0;
         },
-      }),
-    });
+      },
+    );
 
     const result = await acquireAndInject({
       editor: moved.editor,
       acquisition: a.acquisition,
+      ...runner(a),
       reason: { kind: "start", path: CLAUDE_DIR },
       stamps: () => (after ? { ...STEADY, bundle: "140:2" } : STEADY),
       version: "1.0.0-alpha.9",
@@ -312,19 +358,19 @@ describe("acquireAndInject", () => {
   it("says nothing about a reload after a move, whatever the install changed", async () => {
     const e = editor();
     let after = false;
-    const a = acquisition({
-      ensureEngine: async () => ({
-        version: "1.0.0-alpha.7",
-        run: async () => {
+    const a = acquisition(
+      {},
+      {
+        onRun: () => {
           after = true;
-          return 0;
         },
-      }),
-    });
+      },
+    );
 
     const result = await acquireAndInject({
       editor: e.editor,
       acquisition: a.acquisition,
+      ...runner(a),
       reason: { kind: "moved", from: abs("ext", "old"), to: CLAUDE_DIR },
       stamps: () => (after ? { ...STEADY, bundle: "140:2", host: "200:2" } : STEADY),
       version: "1.0.0-alpha.9",

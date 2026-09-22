@@ -5,6 +5,7 @@
  * `acquire.ts`, which vitest drives. Keeping the boundary this thin is what lets 8a be tested at
  * all, since nothing here can run outside an extension host.
  */
+import { spawn } from "node:child_process";
 import { existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import * as vscode from "vscode";
@@ -98,6 +99,7 @@ async function run(
     version,
     reason,
     stamps,
+    runEngine,
     exists: existsSync,
     acquisition: {
       updateEngine: (options) => wrapper.updateEngine(options),
@@ -110,6 +112,41 @@ async function run(
   // A run that wants a person may still have injected, so the offer is still owed — but it does not
   // get to overwrite what the status line is saying about the person.
   if (result.kind === "attention") void offer.settle(result.reload, "", true);
+}
+
+/**
+ * Run the engine, with its output piped into the Rigline channel a line at a time.
+ *
+ * The wrapper's own `run` inherits stdio, which in the extension host is a stream VS Code keeps no
+ * log of — so every word the engine said was dropped, including on the runs where the status bar
+ * then told somebody to go and read it. Piping is the whole fix, and it costs the engine nothing.
+ */
+function runEngine(
+  nodePath: string,
+  entry: string,
+  argv: readonly string[],
+  onLine: (line: string) => void,
+): Promise<number> {
+  return new Promise((done, fail) => {
+    const child = spawn(nodePath, [entry, ...argv], { stdio: ["ignore", "pipe", "pipe"] });
+    let rest = "";
+    const take = (chunk: string) => {
+      const lines = (rest + chunk).split(/\r?\n/);
+      // The last piece has no newline yet, so it waits for the next chunk rather than being
+      // reported as a line that is only half of one.
+      rest = lines.pop() ?? "";
+      for (const line of lines) onLine(line);
+    };
+    child.stdout?.setEncoding("utf8");
+    child.stdout?.on("data", take);
+    child.stderr?.setEncoding("utf8");
+    child.stderr?.on("data", take);
+    child.on("error", fail);
+    child.on("close", (code) => {
+      if (rest !== "") onLine(rest);
+      done(code ?? 1);
+    });
+  });
 }
 
 /**

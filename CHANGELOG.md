@@ -56,6 +56,12 @@ anything may change between releases.
   the one situation it exists for. It now decides that from the bytes on disk, so it is right
   even against an older engine, and a non-zero exit says `Rigline: needs you` instead.
 
+- The companion puts the engine's own report in its output channel. It ran the engine with
+  inherited stdio, which from inside the extension host reaches a stream VS Code keeps no log
+  of — so everything the engine said was discarded, including on the runs where the status bar
+  then said to go and read it. Whatever `rigline install` would have printed in a terminal now
+  appears under Output -> Rigline, a line at a time.
+
 ## 1.0.0-alpha.9 — 2026-09-22
 
 ### Fixed

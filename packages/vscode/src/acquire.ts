@@ -33,7 +33,7 @@ export interface Acquisition {
     readonly nodePath: string;
     readonly label: string;
     readonly version: string;
-  }): Promise<{ readonly version: string; run(argv: readonly string[]): Promise<number> }>;
+  }): Promise<{ readonly version: string; readonly entry: string }>;
 }
 
 export interface AcquireOptions {
@@ -46,6 +46,20 @@ export interface AcquireOptions {
   readonly reason: WatchReason;
   /** The watcher's own sampling, read either side of the install to see what the engine moved. */
   readonly stamps: (path: string | undefined) => Stamps;
+  /**
+   * Run the engine and hand back every line it wrote, then its exit code.
+   *
+   * The wrapper's own `run` inherits stdio, which is right for a terminal and wrong here: in the
+   * extension host that goes to a stream VS Code keeps no log of, so the engine's whole report —
+   * the one thing a person needs when it exits non-zero — was discarded, while the status bar said
+   * to go and read it (P8).
+   */
+  readonly runEngine: (
+    nodePath: string,
+    entry: string,
+    argv: readonly string[],
+    onLine: (line: string) => void,
+  ) => Promise<number>;
   readonly env?: NodeJS.ProcessEnv;
   readonly platform?: NodeJS.Platform;
 }
@@ -74,7 +88,8 @@ export type AcquireResult =
  * milestone exists to remove (P8). Every exit is a result somebody can read.
  */
 export async function acquireAndInject(options: AcquireOptions): Promise<AcquireResult> {
-  const { editor, acquisition, exists, version, reason, stamps, env, platform } = options;
+  const { editor, acquisition, exists, version, reason, stamps, runEngine, env, platform } =
+    options;
 
   let nodePath: string;
   try {
@@ -106,7 +121,7 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
     const engine = await acquisition.ensureEngine({ nodePath, label: LABEL, version });
     editor.status("working", "Rigline: injecting", `Running ${engine.version}`);
     const before = stamps(editor.extensionPath(CLAUDE_CODE));
-    const code = await engine.run(["install"]);
+    const code = await runEngine(nodePath, engine.entry, ["install"], (line) => editor.log(line));
 
     // The exit code cannot tell these apart and the editor can. `install` exits 0 having done
     // nothing when no Claude Code is installed, so reading the code alone paints a green badge over
@@ -136,7 +151,7 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
     if (code !== 0) {
       // Not "install failed": a non-zero exit means somebody is wanted, which a bundled plugin
       // patching `extension.js` used to trigger on every single update having worked perfectly.
-      const message = `the engine exited ${code}. See the Extension Host output for what it said.`;
+      const message = `the engine exited ${code}; what it said is in this output channel, above.`;
       editor.status("attention", "Rigline: needs you", message);
       editor.log(message);
       return { kind: "attention", message, reload };

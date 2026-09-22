@@ -549,6 +549,12 @@ engine that wants a person may still have injected. A non-zero exit keeps the st
 — a person is wanted and that outranks a reload prompt — and the offer still goes up, because both
 are true and the panel is stale whatever else is wrong.
 
+**The engine's own report goes in the output channel.** It used to be run with inherited stdio,
+which is right from a terminal and wrong from an extension host: that stream reaches no log VS Code
+keeps, so every word the engine said was dropped — on exactly the runs where the status bar then
+told somebody to go and read it. The companion spawns it and pipes it now, a line at a time, so the
+channel carries the whole flow report and a non-zero exit points at text a person can actually see.
+
 **That is also what keeps 8b readable without a release.** The fix to `attention` is in the engine,
 and the companion runs whatever `@rigline/core@latest` resolves to, which will be a version behind
 for a day (D48). Reading the bytes means the offer is correct against the engine already on the
