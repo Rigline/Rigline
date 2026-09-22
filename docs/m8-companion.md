@@ -449,6 +449,26 @@ Both are information notifications rather than warnings. Nothing is broken that 
 next window reload fixes it either way — and spending the warning colour on a cosmetic prompt is how
 the real warnings stop being read.
 
+#### The notification is the announcement; the status item is the offer
+
+An information notification in VS Code slides into the notification centre by itself after a few
+seconds, and `showInformationMessage` then resolves exactly as a press on *Not now* does. So a
+decline is not something this code can observe, and an offer can go unseen entirely by somebody who
+happened to be looking at a terminal.
+
+That is not a reason to reach for a warning. It is the reason the status item exists and why it is
+the half that has to be reliable: the toast announces, the bar keeps. Spending the warning colour on
+a prompt that appears after every restore, to make it stick, would buy visibility with the thing
+that makes a real warning worth reading.
+
+Two consequences worth holding. The log says "not taken" rather than "declined", because claiming a
+decision the user did not make is the same class of small lie as a green badge over an absent
+feature. And **the status item is load-bearing rather than a convenience**, which sharpens the
+residue recorded above: where a run ends wanting a person, the status line is spent on that and the
+offer has no clickable home, so an unseen toast is the whole of it. Rare — it needs a genuine
+attention condition and a stale window at once, and the exit-code fix above removes the common way
+in — but it is the one path where an offer can be made and lost.
+
 #### What is not offered
 
 A payload that moved under a working loader. An engine update mid-session leaves the webview running
