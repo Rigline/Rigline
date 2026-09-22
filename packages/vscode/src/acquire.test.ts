@@ -162,8 +162,64 @@ describe("acquireAndInject", () => {
       env: { PATH: NODE_DIR },
     });
 
-    expect(result.kind).toBe("failed");
+    expect(result.kind).toBe("attention");
     expect(e.statuses.at(-1)?.health).toBe("attention");
+  });
+
+  // The engine exits non-zero whenever somebody is wanted, which is not the same as having done
+  // nothing — and reading the code alone meant the one case the window-reload offer exists for was
+  // the one case that could never reach it.
+  it("still works out the reload when the engine wants a person", async () => {
+    const seen = stubEditor({
+      extensionPath: () => CLAUDE_DIR,
+      extensionActive: () => true,
+    });
+    let after = false;
+    const a = acquisition({
+      ensureEngine: async () => ({
+        version: "1.0.0-alpha.7",
+        run: async () => {
+          after = true;
+          return 1;
+        },
+      }),
+    });
+
+    const result = await acquireAndInject({
+      editor: seen.editor,
+      acquisition: a.acquisition,
+      reason: { kind: "start", path: CLAUDE_DIR },
+      stamps: () => (after ? { ...STEADY, host: "200:2" } : STEADY),
+      version: "1.0.0-alpha.9",
+      exists: (p) => p === NODE,
+      env: { PATH: NODE_DIR },
+    });
+
+    expect(result).toMatchObject({ kind: "attention", reload: "window" });
+    // The person outranks the prompt: the status says who is wanted, not what to reload.
+    expect(seen.statuses.at(-1)?.health).toBe("attention");
+  });
+
+  it("offers nothing when the engine refused and moved nothing", async () => {
+    const seen = stubEditor({
+      extensionPath: () => CLAUDE_DIR,
+      extensionActive: () => true,
+    });
+    const a = acquisition({
+      ensureEngine: async () => ({ version: "1.0.0-alpha.7", run: async () => 1 }),
+    });
+
+    const result = await acquireAndInject({
+      editor: seen.editor,
+      acquisition: a.acquisition,
+      reason: { kind: "start", path: CLAUDE_DIR },
+      stamps: () => STEADY,
+      version: "1.0.0-alpha.9",
+      exists: (p) => p === NODE,
+      env: { PATH: NODE_DIR },
+    });
+
+    expect(result).toMatchObject({ kind: "attention", reload: null });
   });
 
   it("turns a throw from the wrapper into a result, because activation swallows a rejection", async () => {

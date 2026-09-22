@@ -43,6 +43,19 @@ anything may change between releases.
   cause, because the one it named before (a second editor answering to the same `code`) is a
   claim somebody using profiles can check, disprove, and be left with nowhere to go.
 
+- `rigline install` no longer exits non-zero just because a plugin changed `extension.js`.
+  A host patch is work the run just did, not a problem somebody has to fix, and the reload it
+  asks for is already said twice in the report. Since a bundled plugin patches the host, an
+  install into a freshly updated extension — which is every weekly update — exited 1 having
+  succeeded completely. Nothing else moves: a drifted anchor, a refused override or an
+  unresolvable table still want a person and still exit 1.
+- The companion stops reporting a successful install as a failure, and offers the reload it
+  used to swallow. It read the exit code as the whole story, so the case above painted
+  `Rigline: install failed` over a working install and returned before working out whether
+  this window needed reloading — which meant the window-reload prompt could never appear in
+  the one situation it exists for. It now decides that from the bytes on disk, so it is right
+  even against an older engine, and a non-zero exit says `Rigline: needs you` instead.
+
 ## 1.0.0-alpha.9 — 2026-09-22
 
 ### Fixed

@@ -62,8 +62,12 @@ export interface ReloadOffer {
    * What `acquireAndInject` found, once it has found it. A reload wanted becomes the outstanding
    * offer and a notification; none re-asserts an offer an earlier run left outstanding, because a
    * second update does not make the first window any less stale.
+   *
+   * `keepStatus` when that run ended wanting a person. The offer still goes up — the panel is stale
+   * whatever else is wrong — but the status line stays where the run left it, because one line
+   * cannot say both and the one naming a person who is needed outranks a reload prompt.
    */
-  settle(reload: Reload | null, engine: string): Promise<void>;
+  settle(reload: Reload | null, engine: string, keepStatus?: boolean): Promise<void>;
   /** The outstanding offer, put up again. What the status item's click runs. */
   again(): Promise<void>;
 }
@@ -76,11 +80,11 @@ export interface ReloadOffer {
  * as a follower.
  */
 export function reloadOffer(editor: Editor): ReloadOffer {
-  let outstanding: { reload: Reload; engine: string } | null = null;
+  let outstanding: { reload: Reload; engine: string; keepStatus: boolean } | null = null;
 
   async function put(): Promise<void> {
     if (outstanding === null) return;
-    const { reload, engine } = outstanding;
+    const { reload, engine, keepStatus } = outstanding;
     const { message, action } = OFFER[reload];
     const chosen = await editor.ask("info", message, action, LATER);
     if (chosen !== action) {
@@ -92,21 +96,22 @@ export function reloadOffer(editor: Editor): ReloadOffer {
     if (reload === "window") await editor.reloadWindow();
     else await editor.reloadWebviews();
     outstanding = null;
+    if (keepStatus) return;
     editor.status("ok", "Rigline", `Injected by engine ${engine}, and this window has caught up`);
   }
 
   function stale(): void {
-    if (outstanding === null) return;
+    if (outstanding === null || outstanding.keepStatus) return;
     editor.status("stale", "Rigline: reload to apply", STALE[outstanding.reload]);
   }
 
   return {
-    async settle(reload, engine) {
+    async settle(reload, engine, keepStatus = false) {
       if (reload === null) {
         stale();
         return;
       }
-      outstanding = { reload, engine };
+      outstanding = { reload, engine, keepStatus };
       await put();
     },
     again: put,

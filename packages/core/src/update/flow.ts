@@ -352,11 +352,12 @@ function settle(
         `${version.version}: ${overrides.path} overrides "${override.name}", and this version resolves it without the override but not with it`,
       );
     }
-    if (version.hostChanged) {
-      attention.push(
-        `${version.version}: extension.js changed, so run "Developer: Reload Window" (this ends the window's sessions)`,
-      );
-    }
+    // `hostChanged` is deliberately *not* here. `check` reports it false by construction, so it is
+    // only ever true from `install` and only ever names work this run just did — the same reason
+    // the payload-engine line below is gated to `check` (D55). Every other entry names something a
+    // person must repair; a reload to see the result is the report's job, not the exit code's, and
+    // a bundled plugin that patches the host made every weekly update exit 1 having succeeded.
+    //
     // Only from `check`, which writes nothing: after `install` the payload is this engine's by
     // construction, and an attention line about work just done is output nobody has trimmed (D55).
     if (

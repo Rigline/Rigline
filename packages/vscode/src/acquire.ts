@@ -56,6 +56,11 @@ export const LABEL = "the Rigline companion extension";
 export type AcquireResult =
   /** `reload` is what this window needs to show it, which is usually nothing (D82). */
   | { readonly kind: "injected"; readonly engine: string; readonly reload: Reload | null }
+  /**
+   * The engine wants a person. It may still have injected — a non-zero exit means somebody is
+   * needed, not that nothing happened — so this carries a reload too, decided from the bytes.
+   */
+  | { readonly kind: "attention"; readonly message: string; readonly reload: Reload | null }
   /** The engine ran and had nothing to inject into. Not a failure, and not a success either. */
   | { readonly kind: "waiting"; readonly engine: string }
   | { readonly kind: "no-node"; readonly message: string }
@@ -102,11 +107,6 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
     editor.status("working", "Rigline: injecting", `Running ${engine.version}`);
     const before = stamps(editor.extensionPath(CLAUDE_CODE));
     const code = await engine.run(["install"]);
-    if (code !== 0) {
-      const message = `the engine exited ${code} injecting. See the Rigline output for what it said.`;
-      editor.status("attention", "Rigline: install failed", message);
-      return { kind: "failed", message };
-    }
 
     // The exit code cannot tell these apart and the editor can. `install` exits 0 having done
     // nothing when no Claude Code is installed, so reading the code alone paints a green badge over
@@ -122,6 +122,9 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
       return { kind: "waiting", engine: engine.version };
     }
 
+    // Decided from the bytes and never from the exit code, so it is right against an engine that
+    // predates any of this (D82). An engine that refused moved nothing and offers nothing; one
+    // that wants a person may still have injected, and that window is still stale.
     const reload = reloadWanted({
       reason: reason.kind,
       before,
@@ -129,6 +132,15 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
       active: editor.extensionActive(CLAUDE_CODE),
     });
     if (reload !== null) editor.log(`this window loaded Claude Code unpatched: ${reload} reload`);
+
+    if (code !== 0) {
+      // Not "install failed": a non-zero exit means somebody is wanted, which a bundled plugin
+      // patching `extension.js` used to trigger on every single update having worked perfectly.
+      const message = `the engine exited ${code}. See the Extension Host output for what it said.`;
+      editor.status("attention", "Rigline: needs you", message);
+      editor.log(message);
+      return { kind: "attention", message, reload };
+    }
 
     editor.status("ok", "Rigline", `Injected by engine ${engine.version}`);
     return { kind: "injected", engine: engine.version, reload };

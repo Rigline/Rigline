@@ -136,6 +136,24 @@ describe("reloadOffer", () => {
     expect(stub.statuses.at(-1)?.health).toBe("stale");
   });
 
+  // One status line cannot say both "somebody is needed" and "reload to apply", and the first
+  // outranks the second. The offer still goes up; it just does not repaint over the warning.
+  it("still asks, but leaves the status alone, when the run wants a person", async () => {
+    const stub = stubEditor({ answers: [undefined] });
+    await reloadOffer(stub.editor).settle("window", "1.0.0", true);
+
+    expect(stub.asked).toHaveLength(1);
+    expect(stub.statuses).toEqual([]);
+  });
+
+  it("takes the reload on request without repainting the status", async () => {
+    const stub = stubEditor({ answers: ["Reload window"] });
+    await reloadOffer(stub.editor).settle("window", "1.0.0", true);
+
+    expect(stub.reloads).toEqual(["window"]);
+    expect(stub.statuses).toEqual([]);
+  });
+
   it("stops saying stale once the reload has been taken", async () => {
     const stub = stubEditor({ answers: ["Reload webviews"] });
     const offer = reloadOffer(stub.editor);

@@ -508,6 +508,37 @@ still being written) are recorded. What this milestone will add:
 - **Whether `extensionUri` is passed down or re-derived**, once it is known whether the engine's
   locate step wants a hint or an override.
 
+## The exit code says who is wanted; the bytes say what happened
+
+Two questions, and for a while one number was answering both.
+
+`hostChanged` used to put a line in `attention`, which is a non-zero exit (D27). But `check` reports
+it false by construction, so it is only ever true from `install` and only ever describes work that
+run just did — which is the rule the `payloadEngine` entry beside it already states, and the
+opposite of every other entry in the list, each of which names something a person must *repair*.
+Since `worktree-prefix` is bundled and enabled, an install from vanilla patches `extension.js`, so
+**every weekly update exited 1 having completely succeeded**.
+
+The companion read that as the failure it looked like: `install failed` on the status bar, and an
+early return before the reload was ever worked out. The one case 8b's window-reload offer exists for
+was the one case that could not reach it.
+
+**So the companion no longer treats the exit code as the whole answer.** It samples the bytes either
+way and decides the reload from those (D82), because an engine that refused moved nothing and an
+engine that wants a person may still have injected. A non-zero exit keeps the status on `attention`
+— a person is wanted and that outranks a reload prompt — and the offer still goes up, because both
+are true and the panel is stale whatever else is wrong.
+
+**That is also what keeps 8b readable without a release.** The fix to `attention` is in the engine,
+and the companion runs whatever `@rigline/core@latest` resolves to, which will be a version behind
+for a day (D48). Reading the bytes means the offer is correct against the engine already on the
+machine rather than against the one carrying the fix — which is the property D80 asks for, arrived
+at by having got it wrong once.
+
+The residue, stated: with a non-zero exit the status stays `attention`, so a dismissed offer has no
+status item to click and is gone until the next run. Two states, one line of status bar, and the
+one naming a person who is needed wins.
+
 ## The profile trap, which is what the "one machine" mystery was
 
 VS Code profiles each carry their own extension set, and a workspace is bound to one. `code

@@ -90,7 +90,12 @@ var carried={${name}:"${value}"};var carriedUse=[carried.${name}]`;
   mkdirSync(join(ext, "webview"), { recursive: true });
   writeFileSync(join(ext, "webview", "index.js"), bundle);
   writeFileSync(join(ext, "webview", "index.css"), styles);
-  writeFileSync(join(ext, "extension.js"), harvestableHostReplies());
+  // The tail carries a byte a patch can target, as `writeFixtureExtension` does. It adds no reply,
+  // so every harvest over this fixture counts exactly what it counted before.
+  writeFileSync(
+    join(ext, "extension.js"),
+    `${harvestableHostReplies()};function listSessions(){return {dir:this.cwd,includeWorktrees:!1}}`,
+  );
   writeFileSync(
     join(ext, "package.json"),
     JSON.stringify({ version: options.version ?? "2.1.270" }),
@@ -138,6 +143,70 @@ function configWith(disabled: readonly string[]): string {
 function plugins(root: string): { roots: string[]; configPath: string } {
   return { roots: [root], configPath: configWith([]) };
 }
+
+/** A plugin root whose one plugin substitutes bytes in `extension.js`, as `worktree-prefix` does. */
+function patchingPluginRoot(name: string): string {
+  const root = tempDir("rigline-plugins-");
+  const dir = join(root, name);
+  mkdirSync(dir, { recursive: true });
+  // Equal byte length, against a string the host fixture really carries.
+  writeFileSync(
+    join(dir, "rigline.json"),
+    JSON.stringify({
+      api: 1,
+      name,
+      entry: "index.js",
+      patches: [
+        {
+          find: "includeWorktrees:!1",
+          replace: "includeWorktrees:!0",
+          why: "steers the worktree list",
+          required: false,
+        },
+      ],
+    }),
+  );
+  writeFileSync(join(dir, "index.js"), "export default { setup() {} };\n");
+  return root;
+}
+
+/**
+ * The one that cost a weekly false alarm.
+ *
+ * `hostChanged` only ever describes work this run just did — `check` reports it false by
+ * construction — so it is not a person being needed, and a bundled plugin that patches the host
+ * made every install from vanilla exit non-zero having succeeded completely. The companion read
+ * that exit code and painted `install failed` over it.
+ */
+describe("a host patch is not a person being needed", () => {
+  it("changes extension.js and still wants nobody", () => {
+    const ext = fixture();
+    const report = update({
+      exts: [ext],
+      dir: tempDir("rigline-cwd-"),
+      payloadDir: payload(),
+      baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+      plugins: plugins(patchingPluginRoot("worktree-toggle")),
+    });
+
+    expect(report.versions[0]?.hostChanged).toBe(true);
+    expect(report.attention.filter((line) => !line.includes("anchor table"))).toEqual([]);
+  });
+
+  it("still says so where a person reads it", () => {
+    const ext = fixture();
+    const report = update({
+      exts: [ext],
+      dir: tempDir("rigline-cwd-"),
+      payloadDir: payload(),
+      baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+      plugins: plugins(patchingPluginRoot("worktree-toggle")),
+    });
+
+    // Out of `attention`, not out of the report: the reload is still the thing to do next.
+    expect(formatFlow(report)).toMatch(/extension\.js changed/);
+  });
+});
 
 describe("check", () => {
   it("writes nothing, and says so by leaving wrote empty", () => {

@@ -107,6 +107,9 @@ async function run(
   // Not awaited: an unanswered notification would otherwise hold the watcher's reaction lock for
   // as long as it stands, and the next update would be dropped as a follower (D82).
   if (result.kind === "injected") void offer.settle(result.reload, result.engine);
+  // A run that wants a person may still have injected, so the offer is still owed — but it does not
+  // get to overwrite what the status line is saying about the person.
+  if (result.kind === "attention") void offer.settle(result.reload, "", true);
 }
 
 /**
