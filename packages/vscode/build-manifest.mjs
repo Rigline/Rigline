@@ -49,6 +49,7 @@ const manifest = {
   // stray file in dist/ cannot find its way into a VSIX by being there.
   files: ["extension.cjs", "README.md", "LICENSE"],
   contributes: {
+    commands: [{ command: "rigline.showPlugins", title: "Rigline: Show Plugins" }],
     configuration: {
       title: "Rigline",
       properties: {

@@ -8,7 +8,7 @@
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { stubEditor } from "../test/editor.ts";
-import { type AcquireOptions, acquireAndInject, LABEL } from "./acquire.ts";
+import { type AcquireOptions, acquireAndInject, LABEL, showPlugins } from "./acquire.ts";
 import type { Stamps } from "./watch.ts";
 
 // Absolute on whichever platform runs this. A Windows path is merely relative on Linux, and
@@ -379,5 +379,92 @@ describe("acquireAndInject", () => {
     });
 
     expect(result).toEqual({ kind: "injected", engine: "1.0.0-alpha.7", reload: null });
+  });
+});
+
+describe("showPlugins", () => {
+  it("finds a Node, resolves the engine, and pipes list into the output channel", async () => {
+    const e = editor();
+    const a = acquisition(
+      {},
+      { lines: ["session-id — this checkout", "time-marks — this checkout"] },
+    );
+
+    await showPlugins({
+      editor: e.editor,
+      ensureEngine: a.acquisition.ensureEngine,
+      runEngine: a.runEngine,
+      version: "1.0.0-alpha.6",
+      exists: (p) => p === NODE,
+      env: { PATH: NODE_DIR },
+    });
+
+    expect(a.calls).toEqual([["list"]]);
+    expect(e.lines).toContain("session-id — this checkout");
+    expect(e.lines).toContain("time-marks — this checkout");
+    // A one-off command's own failure is not the watcher's health.
+    expect(e.statuses).toEqual([]);
+  });
+
+  it("never reaches ensureEngine or spawns anything when there is no Node", async () => {
+    const e = editor();
+    const a = acquisition();
+
+    await showPlugins({
+      editor: e.editor,
+      ensureEngine: a.acquisition.ensureEngine,
+      runEngine: a.runEngine,
+      version: "1.0.0-alpha.6",
+      exists: () => false,
+      env: { PATH: abs("nothing") },
+    });
+
+    expect(a.calls).toEqual([]);
+    expect(e.asked).toHaveLength(1);
+    expect(e.asked[0]).toMatchObject({ level: "warn" });
+  });
+
+  it("answers rather than throwing when the engine cannot be resolved", async () => {
+    const e = editor();
+    const a = acquisition({
+      ensureEngine: async () => {
+        throw new Error("the engine in ~/.rigline/engine is 1.0.0-alpha.5 and refuses");
+      },
+    });
+
+    await showPlugins({
+      editor: e.editor,
+      ensureEngine: a.acquisition.ensureEngine,
+      runEngine: a.runEngine,
+      version: "1.0.0-alpha.6",
+      exists: (p) => p === NODE,
+      env: { PATH: NODE_DIR },
+    });
+
+    expect(a.calls).toEqual([]);
+    expect(e.lines).toContain("the engine in ~/.rigline/engine is 1.0.0-alpha.5 and refuses");
+    expect(e.asked).toHaveLength(1);
+  });
+
+  it("never calls updateEngine: a viewing command has no business reaching npm", async () => {
+    const e = editor();
+    let updateCalled = false;
+    const a = acquisition({
+      updateEngine: async () => {
+        updateCalled = true;
+        return { outcome: "current" };
+      },
+    });
+
+    await showPlugins({
+      editor: e.editor,
+      ensureEngine: a.acquisition.ensureEngine,
+      runEngine: a.runEngine,
+      version: "1.0.0-alpha.6",
+      exists: (p) => p === NODE,
+      env: { PATH: NODE_DIR },
+    });
+
+    expect(updateCalled).toBe(false);
   });
 });

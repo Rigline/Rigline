@@ -166,3 +166,52 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
     return { kind: "failed", message };
   }
 }
+
+export interface ShowPluginsOptions {
+  readonly editor: Editor;
+  readonly ensureEngine: Acquisition["ensureEngine"];
+  readonly exists: (path: string) => boolean;
+  readonly version: string;
+  readonly runEngine: AcquireOptions["runEngine"];
+  readonly env?: NodeJS.ProcessEnv;
+  readonly platform?: NodeJS.Platform;
+}
+
+/**
+ * The palette command's whole sequence: find a Node, resolve whatever engine is already on disk,
+ * and pipe its own `list` into the output channel.
+ *
+ * No `updateEngine` call. A viewing command has no business reaching npm for a newer engine, and
+ * `ensureEngine` alone is a pure local read when one is already on disk (8c).
+ *
+ * Never touches the status item: that line reports the watcher's own health, and a one-off command
+ * failing here is a different kind of thing than the background flow needing a person.
+ */
+export async function showPlugins(options: ShowPluginsOptions): Promise<void> {
+  const { editor, ensureEngine, exists, version, runEngine, env, platform } = options;
+
+  let nodePath: string;
+  try {
+    const found = findNode({
+      setting: editor.setting("nodePath"),
+      exists,
+      ...(env === undefined ? {} : { env }),
+      ...(platform === undefined ? {} : { platform }),
+    });
+    nodePath = found.path;
+  } catch (error) {
+    const message = error instanceof NoNodeError ? error.message : String(error);
+    editor.log(message);
+    await editor.ask("warn", message);
+    return;
+  }
+
+  try {
+    const engine = await ensureEngine({ nodePath, label: LABEL, version });
+    await runEngine(nodePath, engine.entry, ["list"], (line) => editor.log(line));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    editor.log(message);
+    await editor.ask("warn", message);
+  }
+}

@@ -9,13 +9,15 @@ import { spawn } from "node:child_process";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import * as vscode from "vscode";
-import { acquireAndInject } from "./acquire.ts";
+import { acquireAndInject, showPlugins } from "./acquire.ts";
 import { CLAUDE_CODE, type Editor, type Health } from "./editor.ts";
 import { type ReloadOffer, reloadOffer } from "./reload.ts";
 import { type Stamps, startingReason, type WatchReason, watchExtension } from "./watch.ts";
 
 /** Not contributed to the palette: VS Code already has one, and this one clears our status. */
 const RELOAD_COMMAND = "rigline.reload";
+/** Contributed: nothing else lists what's installed without a terminal (8c). */
+const SHOW_PLUGINS_COMMAND = "rigline.showPlugins";
 
 const HEALTH: Record<Health, { icon: string; background?: string; command?: string }> = {
   ok: { icon: "$(check)" },
@@ -82,6 +84,19 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand(RELOAD_COMMAND, () => {
       void offer.again();
+    }),
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand(SHOW_PLUGINS_COMMAND, async () => {
+      output.show();
+      const wrapper = await import("rigline/engine");
+      await showPlugins({
+        editor,
+        ensureEngine: (opts) => wrapper.ensureEngine(opts),
+        exists: existsSync,
+        version,
+        runEngine,
+      });
     }),
   );
 

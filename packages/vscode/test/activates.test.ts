@@ -105,9 +105,10 @@ describe("the packed extension", () => {
       ],
       { cwd: dir, encoding: "utf8" },
     );
-    // The output channel, the status item, the watcher and the reload command: everything that
-    // outlives activation and would otherwise leak a timer or a stale binding into the host.
-    expect(Number(out)).toBe(4);
+    // The output channel, the status item, the watcher, the reload command and the show-plugins
+    // command: everything that outlives activation and would otherwise leak a timer or a stale
+    // binding into the host.
+    expect(Number(out)).toBe(5);
   });
 
   // A status item whose command does not exist is a click that does nothing and says nothing,
@@ -126,7 +127,7 @@ describe("the packed extension", () => {
       ],
       { cwd: dir, encoding: "utf8" },
     );
-    expect(out).toBe("rigline.reload");
+    expect(out).toBe("rigline.reload,rigline.showPlugins");
   });
 
   it.skipIf(built)("declares a manifest VS Code will actually run", () => {
@@ -140,5 +141,11 @@ describe("the packed extension", () => {
     // Undeclared means disabled in an untrusted workspace, listed and silent, which is the least
     // debuggable failure this extension can have.
     expect(manifest.capabilities?.untrustedWorkspaces?.supported).toBe(false);
+    // Contributed, unlike the reload command: nothing else surfaces the plugin list without a
+    // terminal, so the palette is the one place it has to be findable (8c).
+    expect(manifest.contributes?.commands).toContainEqual({
+      command: "rigline.showPlugins",
+      title: "Rigline: Show Plugins",
+    });
   });
 });

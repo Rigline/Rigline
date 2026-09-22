@@ -12,6 +12,9 @@ anything may change between releases.
 
 ### Added
 
+- The companion adds **Rigline: Show Plugins** to the Command Palette, which lists what's
+  installed and enabled without needing a terminal. Read-only: changing which plugins are on
+  still needs `rigline enable`/`disable`.
 - The companion offers a reload when it patched Claude Code too late for this window, and never
   takes one by itself. If the extension host came up over an unpatched extension — a host
   restart, or a window reload that beat the injection — the panel in front of you has no plugins
