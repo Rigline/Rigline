@@ -512,11 +512,8 @@ Enable, disable and settings, per the original phase 5 sketch. Deliberately last
 no unique claim on being in an extension — `rigline disable NAME` already does it from a terminal —
 and building it first would be building the easy half of the milestone instead of the point of it.
 
-**Settled with Leo, 2026-09-22: read-only, nothing editable.** `config.json` stays the only place
-plugin state lives. A UI that mirrors it — a settings page, a tree view — creates a second place that
-state can be read from, which then has to stay in sync with a file that changes independently (the
-CLI, `rigline dev`, another window's companion): the synchronisation problem nobody asked for. Enable
-and disable stay CLI-only; 8c adds visibility, not editing.
+**Settled with Leo, 2026-09-22: read-only, nothing editable (D84).** `config.json` stays the only
+place plugin state lives; enable and disable stay CLI-only.
 
 **What's there already, and what's thin on top of it.** The output channel has carried the engine's
 whole report, plugin lines included, since 8b's fix to pipe stdout instead of discarding it — every
@@ -524,27 +521,26 @@ version block already prints `loading: ...` and `switched off in config: ...`. T
 "visible" but not "findable": a person wanting only the plugin list has to scroll a report that also
 carries module counts, anchor resolution and host-patch detail. **8c is one command**,
 `rigline.showPlugins` ("Rigline: Show Plugins" on the palette, the one command this package
-contributes), which reveals the output channel and spawns the engine with `list`, reusing
-`runEngine`'s existing line-by-line pipe. Node resolution reuses `findNode`; engine resolution calls
-`ensureEngine` alone, never `updateEngine` — a viewing command has no business checking npm for a
-newer engine, and `ensureEngine` is a pure local read when one is already on disk (`readEngineState`
-returns `ready` and nothing calls `resolveEngine`). No new `Editor` method: revealing the channel is
-UI, so it stays in `extension.ts`, the one file that already touches `vscode` directly.
+contributes) — the rest of the shape (D84) is in `extension.ts`, not repeated here. No new `Editor`
+method: revealing the channel is UI, so it stays in `extension.ts`, the one file that already touches
+`vscode` directly.
 
 Acceptance: the command is on the palette, produces the same listing `rigline list` would from a
 terminal, touches nothing on disk, and makes no network call when an engine is already present.
 
 ## Decisions to record
 
-D76 (the shape and the channel), D77 (the compliance position), D78 (the signature-verification
-premise), **D80 (the companion is a second retrieval layer)** and D81 (nothing reacts to a directory
-still being written) are recorded. What this milestone will add:
+D76 (the shape and the channel, amended 2026-09-22 — see below), D77 (the compliance position), D78
+(the signature-verification premise), D79 (plugin obligations), D80 (the companion is a second
+retrieval layer), D81 (nothing reacts to a directory still being written), D82 (a reload is offered
+only after a `start`), D83 (`install` stays synchronous) and D84 (the companion's plugin surface
+stays read-only) are all recorded. Nothing from this milestone is still waiting on a decision number.
 
-- **D82: a reload is offered only after a `start`.** The discriminator 8b rests on — a directory
-  that moved while this host was running is not the directory this window loaded, so the ordinary
-  weekly update is silent by construction rather than by a heuristic.
-- **Whether `extensionUri` is passed down or re-derived**, once it is known whether the engine's
-  locate step wants a hint or an override.
+The one open question this list used to carry — whether `extensionUri` is passed down or re-derived
+— is answered by the finding below and folded into D76's amendment: re-derived, by scanning the
+extensions directory. `extensionUri` cannot see an update land while its own host is the one frozen,
+so it keeps the narrower job D82 already gives it: telling the reload decision what *this window*
+loaded.
 
 ## `extensionUri` is where this host loaded it, not where it is now
 

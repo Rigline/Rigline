@@ -1281,19 +1281,29 @@ and Open VSX is the lower-profile registry if a registry is wanted. `rigline` in
 fresh directory and deletes the old one, so the injection silently reverts: everything green,
 features quietly absent, weekly. The watcher already exists in core and `rigline watch` is already a
 verb; the companion is a host VS Code starts for you, not new capability. Inside the extension host
-it gets two signals the CLI cannot have — `extensions.onDidChange` instead of a poll, and
-`getExtension("anthropic.claude-code").extensionUri` as an authoritative answer to which directory
-rather than a scan. The poll stays as the floor, because that event's own bug history is a record of
-it not firing, and a hook that silently does not fire is the failure mode this project has a
-principle against.
+it gets one signal the CLI cannot have — `extensions.onDidChange`, which shortens the latency to the
+directory scan the CLI already does (`update/watch.ts`) rather than replacing it. The poll stays as
+the floor regardless, because that event's own bug history is a record of it not firing, and a hook
+that silently does not fire is the failure mode this project has a principle against.
 
-It also closes the loop without a keystroke where it can. Patching lands before the next load in the
-common case, so the running session is untouched and the reload the user was going to do anyway
-arrives on a patched install — no prompt earned. Only when the patch loses the race to an extension
-host restart is a reload needed, and then
-`workbench.action.webview.reloadWebviewAction` is a real registered command the companion can offer.
-Offer, never take: reloading webviews ends the in-flight turn of every Claude session in the window,
-which is not a thing to do to somebody unasked.
+**Amended 2026-09-22 — `extensionUri` is not the second signal this entry originally claimed.**
+`getExtension("anthropic.claude-code").extensionUri` looked like an authoritative answer to which
+directory, better than a scan; it is not, because it answers where *this host* loaded the extension
+from, which is fixed until the host restarts. A window watching it cannot see an update land while
+its own host is the one frozen on the old directory — read live on 2.1.269, ninety seconds and three
+poll cycles produced no reaction at all. Scanning the extensions directory is what actually restores
+reacting while the old extension is still live; `extensionUri` keeps the narrower job of telling the
+reload decision what *this window* loaded (D82).
+
+**Amended 2026-09-22 — the loop does not close without a keystroke, which is not the compromise it
+first looked like.** The premise that patching lands on disk while the old extension is still live,
+so the reload the user was going to do anyway arrives already patched, does not hold: the window
+that would need to notice is the one whose host is frozen, so nothing puts the patch there in time.
+The reload offer is therefore not the rare case — it is the weekly recovery mechanism, every time,
+decided from the bytes rather than the exit code (D82). `workbench.action.webview.reloadWebviewAction`
+is a real registered command the companion can offer, for a payload-only change; a host patch asks
+for a window reload instead. Offer, never take: reloading webviews ends the in-flight turn of every
+Claude session in the window, which is not a thing to do to somebody unasked.
 
 **D77. Rigline states its compliance position publicly and invites Anthropic to correct it
 (2026-09-21).** The Claude Code extension is `© Anthropic PBC. All rights reserved.`, and three
@@ -1471,6 +1481,21 @@ tail in JavaScript, would make it refuse *every* install on the day of a version
 rare silent bug for a certain loud outage is the wrong direction, and absent beats wrong (P8). A
 test asserts the check tolerates exactly that tail, so the reasoning is enforced rather than
 remembered.
+
+**D84. The companion's plugin surface stays read-only; enable and disable remain CLI-only
+(2026-09-22).** `config.json` is the one place plugin state lives, and the CLI already writes it and
+re-injects (D55, D56). A VS Code settings page or tree view that let somebody toggle a plugin from
+the extension would have to mirror that state, which creates a second place it can be read from —
+and one that goes stale the moment the CLI, `rigline dev`, or another window's companion changes the
+file out from under it. That is a synchronisation problem with no owner, for a feature `rigline
+disable NAME` already delivers from a terminal.
+
+**8c adds visibility instead of editing: one Command Palette entry**, `rigline.showPlugins`, that
+reveals the output channel and spawns the engine's own `list`, reusing the line-by-line pipe D82's
+fix already built rather than a second formatter — the same report a terminal gets. It resolves
+whatever engine is already on disk with `ensureEngine` alone, never `updateEngine`: a viewing command
+has no business checking npm for a newer engine, and `ensureEngine` is a pure local read when one is
+already present (`readEngineState` returns `ready` and nothing calls `resolveEngine`).
 
 ### Toolchain and verification
 
