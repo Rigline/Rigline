@@ -6,8 +6,11 @@
  * rather than one npm install per signal.
  */
 import { describe, expect, it } from "vitest";
-import type { Editor } from "./editor.ts";
-import { type WatchReason, watchExtension } from "./watch.ts";
+import { stubEditor } from "../test/editor.ts";
+import { type Stamps, type WatchReason, watchExtension } from "./watch.ts";
+
+/** A whole directory summarised by one word: these tests care that it changed, not what did. */
+const asStamps = (word: string): Stamps => ({ bundle: word, host: word, manifest: word });
 
 const ID = "anthropic.claude-code";
 
@@ -20,8 +23,7 @@ function harness(first: string | undefined) {
   const ticks: (() => void)[] = [];
   const lines: string[] = [];
 
-  const editor: Editor = {
-    setting: () => undefined,
+  const { editor } = stubEditor({
     extensionPath: () => path,
     onExtensionsChanged: (listener) => {
       listeners.push(listener);
@@ -31,12 +33,10 @@ function harness(first: string | undefined) {
         },
       };
     },
-    status: () => {},
     log: (line) => {
       lines.push(line);
     },
-    ask: async () => undefined,
-  };
+  });
 
   return {
     editor,
@@ -65,14 +65,14 @@ function harness(first: string | undefined) {
 function watcher(
   h: ReturnType<typeof harness>,
   react: (r: WatchReason) => Promise<void>,
-  settling: { fingerprint?: () => string; settleTries?: number } = {},
+  settling: { stamps?: () => Stamps; settleTries?: number } = {},
 ) {
   return watchExtension({
     editor: h.editor,
     id: ID,
     react,
     // Settled by default: these tests are about noticing a move, and the settle has its own below.
-    fingerprint: settling.fingerprint ?? (() => "steady"),
+    stamps: settling.stamps ?? (() => asStamps("steady")),
     ...(settling.settleTries === undefined ? {} : { settleTries: settling.settleTries }),
     settleMs: 0,
     sleep: async () => {},
@@ -196,9 +196,9 @@ describe("watchExtension", () => {
         order.push("reacted");
       },
       {
-        fingerprint: () => {
+        stamps: () => {
           order.push("looked");
-          return writes-- > 0 ? `growing-${writes}` : "final";
+          return asStamps(writes-- > 0 ? `growing-${writes}` : "final");
         },
       },
     );
@@ -221,7 +221,7 @@ describe("watchExtension", () => {
       async () => {
         reactions += 1;
       },
-      { fingerprint: () => `changing-${n++}`, settleTries: 3 },
+      { stamps: () => asStamps(`changing-${n++}`), settleTries: 3 },
     );
 
     h.move("/ext/claude-code-2.1.279");
@@ -243,7 +243,7 @@ describe("watchExtension", () => {
       async (r) => {
         seen.push(r);
       },
-      { fingerprint: () => (steady ? "steady" : `changing-${Math.random()}`), settleTries: 2 },
+      { stamps: () => asStamps(steady ? "steady" : `changing-${Math.random()}`), settleTries: 2 },
     );
 
     h.move("/ext/claude-code-2.1.279");

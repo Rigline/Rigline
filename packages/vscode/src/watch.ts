@@ -28,7 +28,7 @@ export interface WatchOptions {
    * the watcher can tell "still being written" from "finished". Injected, because reading a
    * directory is the one thing in here that touches a disk.
    */
-  fingerprint(path: string | undefined): string;
+  stamps(path: string | undefined): Stamps;
   /** How long the directory must look identical before we believe the install finished. */
   readonly settleMs?: number;
   /** How many times to re-sample before giving up and leaving it to the next poll. */
@@ -41,6 +41,26 @@ export interface WatchOptions {
 export type WatchReason =
   | { readonly kind: "start"; readonly path: string | undefined }
   | { readonly kind: "moved"; readonly from: string | undefined; readonly to: string | undefined };
+
+/**
+ * Sizes and modification times of the three files an install touches, by role rather than joined
+ * into one string.
+ *
+ * The settle wants all three at once; the reload decision wants `bundle` and `host` apart, because
+ * one asks for a webview reload and the other for a window reload (D82). One sampling, read two
+ * ways, rather than two functions that could disagree about what they looked at.
+ */
+export interface Stamps {
+  /** `webview/index.js` — the bundle the loader is prepended and appended to. */
+  readonly bundle: string;
+  /** `extension.js` — where a plugin's byte substitutions land. */
+  readonly host: string;
+  readonly manifest: string;
+}
+
+export function sameStamps(a: Stamps, b: Stamps): boolean {
+  return a.bundle === b.bundle && a.host === b.host && a.manifest === b.manifest;
+}
 
 const INTERVAL_MS = 30_000;
 
@@ -82,7 +102,7 @@ export function watchExtension(options: WatchOptions): Watcher {
     id,
     react,
     intervalMs = INTERVAL_MS,
-    fingerprint,
+    stamps,
     settleMs = SETTLE_MS,
     settleTries = SETTLE_TRIES,
     setInterval: every = (fn, ms) => globalThis.setInterval(fn, ms),
@@ -102,12 +122,12 @@ export function watchExtension(options: WatchOptions): Watcher {
    * the work to the next poll rather than reacting to a directory still being written.
    */
   async function settled(path: string | undefined): Promise<boolean> {
-    let before = fingerprint(path);
+    let before = stamps(path);
     for (let attempt = 0; attempt < settleTries; attempt += 1) {
       await sleep(settleMs);
       if (disposed) return false;
-      const after = fingerprint(path);
-      if (after === before) return true;
+      const after = stamps(path);
+      if (sameStamps(after, before)) return true;
       before = after;
     }
     editor.log(

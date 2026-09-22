@@ -10,6 +10,19 @@ anything may change between releases.
 
 ## Unreleased
 
+### Added
+
+- The companion offers a reload when it patched Claude Code too late for this window, and never
+  takes one by itself. If the extension host came up over an unpatched extension — a host
+  restart, or a window reload that beat the injection — the panel in front of you has no plugins
+  until something reloads, and until now nothing said so. It now asks once, saying that the
+  reload ends any turn running in the window, and leaves the offer in the status bar if you say
+  no; clicking it there asks again rather than reloading. A changed `extension.js` asks for a
+  window reload instead, because a webview reload cannot pick one up.
+
+  The ordinary weekly update is silent, and deliberately: the patch lands in a directory this
+  window has not loaded, so nothing in front of you is stale and there is nothing to offer.
+
 ## 1.0.0-alpha.9 — 2026-09-22
 
 ### Fixed

@@ -1670,3 +1670,36 @@ the `github-actions` ecosystem reads only `.github/workflows` at the repository 
 pins stay a person's job, which is the same staleness in the one place nothing watches. And the
 file is half a switch: version updates are also enabled from the repository's settings, which is
 not something the tree can carry.
+
+**D82. A reload is offered only after a `start`, and only for bytes that moved (2026-09-22).** The
+companion patches on disk; whether that leaves the window in front of the user stale is a different
+question, and answering it wrong in the generous direction costs a weekly notification offering to
+end somebody's in-flight turn for nothing.
+
+The discriminator is already in `WatchReason`. A `start` means this extension host has just come up
+over whatever directory was there, so the directory being patched is the one this window loaded and
+the patch lands behind it. A `moved` means the directory changed *while* this host was running,
+which is possible only because the host is running the other one — the old directory, still patched,
+still fine. So `moved` is never an offer, and the ordinary weekly update is silent by construction
+rather than by a threshold somebody tuned.
+
+**What moved is read from the bytes, not from the engine.** `VersionReport` carries `action` and
+`hostChanged` exactly, and getting them across would mean a new flag on `install` that an engine one
+release behind does not have — on a shell that acquires whatever `@rigline/core@latest` resolves to
+(D80). Statting `webview/index.js` and `extension.js` either side of the run costs nothing, works
+against every engine there has been, and reuses the sampling D81 already does.
+
+Two gates on top. The offer needs `isActive`, because an extension that never activated has no
+webview and a patch behind it needs no reload; it is sampled after the install rather than before,
+so somebody who opened the panel mid-run gets a dismissible prompt instead of no prompt (P8). And a
+changed `extension.js` asks for a window reload instead, because a webview reload cannot pick one
+up — one offer, chosen by what moved, rather than two buttons the user has to choose between.
+
+**Asked once, then it lives in the status bar.** Dismissing leaves the item reading "reload to
+apply"; clicking it opens the same notification rather than reloading, so the cost is stated in one
+place and the reload has one path. That is D55 and D56 applied to the reload itself — somebody
+mid-turn when the offer arrives should not need to learn a command to get back to it.
+
+A payload that moved under a working loader is deliberately not an offer. The decorations are there
+and they work; the next reload picks up the newer ones. Spending the prompt on that is how it stops
+being read.

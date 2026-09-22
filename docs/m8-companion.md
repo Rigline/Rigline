@@ -356,6 +356,11 @@ as separate offers because they are separate needs. Nothing fires unasked.
 Acceptance: a forced extension-host restart mid-update produces the offer; accepting it restores the
 decorations without a window reload; dismissing it leaves a session's in-flight turn untouched.
 
+**Built, with tier 1 green and the acceptance outstanding.** The decision, the two offers and the
+status item are in `reload.ts` and under test; what no test can reach is the acceptance above, which
+wants *Developer: Restart Extension Host* over an extension VS Code has just replaced. Read it the
+way 8a was read — the VSIX built here, installed directly, against the published engine (D80).
+
 #### The discriminator, which everything else derives from
 
 An offer that fires weekly is worth nothing. In the ordinary update the patch lands on disk while

@@ -10,13 +10,18 @@ import { join } from "node:path";
 import * as vscode from "vscode";
 import { acquireAndInject } from "./acquire.ts";
 import { CLAUDE_CODE, type Editor, type Health } from "./editor.ts";
-import { watchExtension } from "./watch.ts";
+import { type ReloadOffer, reloadOffer } from "./reload.ts";
+import { type Stamps, startingReason, type WatchReason, watchExtension } from "./watch.ts";
 
-const HEALTH: Record<Health, { icon: string; background?: string }> = {
+/** Not contributed to the palette: VS Code already has one, and this one clears our status. */
+const RELOAD_COMMAND = "rigline.reload";
+
+const HEALTH: Record<Health, { icon: string; background?: string; command?: string }> = {
   ok: { icon: "$(check)" },
   working: { icon: "$(sync~spin)" },
   idle: { icon: "$(circle-outline)" },
   attention: { icon: "$(warning)", background: "statusBarItem.warningBackground" },
+  stale: { icon: "$(refresh)", command: RELOAD_COMMAND },
 };
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -30,6 +35,7 @@ export function activate(context: vscode.ExtensionContext): void {
       return value === undefined || value.trim() === "" ? undefined : value;
     },
     extensionPath: (id) => vscode.extensions.getExtension(id)?.extensionUri.fsPath,
+    extensionActive: (id) => vscode.extensions.getExtension(id)?.isActive === true,
     onExtensionsChanged: (listener) => vscode.extensions.onDidChange(() => listener()),
     status: (health, text, tooltip) => {
       const look = HEALTH[health];
@@ -37,43 +43,70 @@ export function activate(context: vscode.ExtensionContext): void {
       item.tooltip = tooltip;
       item.backgroundColor =
         look.background === undefined ? undefined : new vscode.ThemeColor(look.background);
+      // Cleared on every other health, so a green item is not quietly clickable.
+      item.command = look.command;
       item.show();
     },
     log: (line) => output.appendLine(`[${new Date().toISOString()}] ${line}`),
-    ask: async (message, ...actions) => await vscode.window.showWarningMessage(message, ...actions),
+    ask: async (level, message, ...actions) =>
+      level === "warn"
+        ? await vscode.window.showWarningMessage(message, ...actions)
+        : await vscode.window.showInformationMessage(message, ...actions),
+    reloadWebviews: async () => {
+      await vscode.commands.executeCommand("workbench.action.webview.reloadWebviewAction");
+    },
+    reloadWindow: async () => {
+      await vscode.commands.executeCommand("workbench.action.reloadWindow");
+    },
   };
 
   // From the manifest VS Code read, never from disk: inside a VSIX the wrapper's own lookup
   // resolves to the extensions directory, where there is no manifest to find.
   const version = String(context.extension.packageJSON.version ?? "0.0.0");
 
+  const offer = reloadOffer(editor);
+
   const watcher = watchExtension({
     editor,
     id: CLAUDE_CODE,
-    fingerprint,
-    react: async () => {
-      await run(editor, version);
+    stamps,
+    react: async (reason) => {
+      await run(editor, version, reason, offer);
     },
   });
   context.subscriptions.push(watcher);
+  context.subscriptions.push(
+    vscode.commands.registerCommand(RELOAD_COMMAND, () => {
+      void offer.again();
+    }),
+  );
 
   // Deliberately not awaited: activation must return promptly, and every failure inside is already
   // a result rather than a rejection, so there is nothing here for a `catch` to add.
-  void run(editor, version);
+  void run(editor, version, startingReason(editor, CLAUDE_CODE), offer);
 }
 
-function run(editor: Editor, version: string): Promise<unknown> {
-  return import("rigline/engine").then(async (wrapper) =>
-    acquireAndInject({
-      editor,
-      version,
-      exists: existsSync,
-      acquisition: {
-        updateEngine: (options) => wrapper.updateEngine(options),
-        ensureEngine: (options) => wrapper.ensureEngine(options),
-      },
-    }),
-  );
+async function run(
+  editor: Editor,
+  version: string,
+  reason: WatchReason,
+  offer: ReloadOffer,
+): Promise<void> {
+  const wrapper = await import("rigline/engine");
+  const result = await acquireAndInject({
+    editor,
+    version,
+    reason,
+    stamps,
+    exists: existsSync,
+    acquisition: {
+      updateEngine: (options) => wrapper.updateEngine(options),
+      ensureEngine: (options) => wrapper.ensureEngine(options),
+    },
+  });
+  // Not awaited: an unanswered notification would otherwise hold the watcher's reaction lock for
+  // as long as it stands, and the next update would be dropped as a follower (D82).
+  if (result.kind === "injected") void offer.settle(result.reload, result.engine);
 }
 
 /**
@@ -83,18 +116,21 @@ function run(editor: Editor, version: string): Promise<unknown> {
  * than the thing it protects. A missing file reports as absent rather than throwing, which is the
  * correct answer mid-install and settles once it stops being true.
  */
-function fingerprint(path: string | undefined): string {
-  if (path === undefined) return "absent";
-  return ["extension.js", join("webview", "index.js"), "package.json"]
-    .map((name) => {
-      try {
-        const { size, mtimeMs } = statSync(join(path, name));
-        return `${name}:${size}:${mtimeMs}`;
-      } catch {
-        return `${name}:absent`;
-      }
-    })
-    .join("|");
+function stamps(path: string | undefined): Stamps {
+  const of = (name: string): string => {
+    if (path === undefined) return "absent";
+    try {
+      const { size, mtimeMs } = statSync(join(path, name));
+      return `${size}:${mtimeMs}`;
+    } catch {
+      return "absent";
+    }
+  };
+  return {
+    bundle: of(join("webview", "index.js")),
+    host: of("extension.js"),
+    manifest: of("package.json"),
+  };
 }
 
 export function deactivate(): void {

@@ -1,7 +1,7 @@
 /**
  * The editor, as the companion needs it.
  *
- * Everything the companion does is testable except the six things below, so those are the seam:
+ * Everything the companion does is testable except the nine things below, so those are the seam:
  * `extension.ts` adapts the real `vscode` module to this, and every other module in this package
  * imports nothing from VS Code at all. That is the same split `@rigline/host` uses for the webview
  * and core uses for the filesystem, and it is why 8a's logic can be driven by vitest even though
@@ -18,8 +18,14 @@ export interface Disposable {
  * installed — nothing to do is not an error for the CLI — so a companion reading the exit code
  * alone reported success over an absent feature, which is the one thing P8 forbids. The companion
  * knows better than the exit code does: it can ask the editor whether the extension is there.
+ *
+ * `stale` is the same complaint about this window rather than about the machine: injected on disk,
+ * absent from the panel in front of the user until something reloads (D82).
  */
-export type Health = "ok" | "working" | "idle" | "attention";
+export type Health = "ok" | "working" | "idle" | "attention" | "stale";
+
+/** How loudly a question is asked. An offer is not a warning (D82). */
+export type Level = "info" | "warn";
 
 export interface Editor {
   /** A `rigline.*` setting, or undefined when unset or blank. */
@@ -29,6 +35,11 @@ export interface Editor {
    * engine cannot get for itself (D80). Undefined when the extension is not installed.
    */
   extensionPath(id: string): string | undefined;
+  /**
+   * Whether the extension has activated, which decides whether a webview can exist to be stale
+   * (D82). A second fact from a second question: installed and running are not the same.
+   */
+  extensionActive(id: string): boolean;
   /** Fires when the installed set changes. The fast path; never the only signal (D80). */
   onExtensionsChanged(listener: () => void): Disposable;
   /** The status line. Called often and cheap; never a notification. */
@@ -39,7 +50,11 @@ export interface Editor {
    * A notification with buttons, answering with the one chosen or undefined. Reserved for things a
    * person must act on: a status line is the place for everything else.
    */
-  ask(message: string, ...actions: readonly string[]): Promise<string | undefined>;
+  ask(level: Level, message: string, ...actions: readonly string[]): Promise<string | undefined>;
+  /** Re-read every live webview from disk. Ends the in-flight turn of every session here (D82). */
+  reloadWebviews(): Promise<void>;
+  /** The whole window. The only thing that picks up a changed `extension.js`. */
+  reloadWindow(): Promise<void>;
 }
 
 /** The extension the whole project is about. */

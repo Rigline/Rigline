@@ -7,8 +7,9 @@
  */
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { stubEditor } from "../test/editor.ts";
 import { type AcquireOptions, acquireAndInject, LABEL } from "./acquire.ts";
-import type { Editor, Health } from "./editor.ts";
+import type { Stamps } from "./watch.ts";
 
 // Absolute on whichever platform runs this. A Windows path is merely relative on Linux, and
 // `findNode` drops a relative PATH entry by design — so Windows paths here assert nothing in CI.
@@ -21,22 +22,22 @@ const CLAUDE_DIR = abs("ext", "anthropic.claude-code-2.1.278");
 
 /** Claude Code present by default: the tests below are about acquisition, not about its absence. */
 function editor(setting?: string, claudeCode: string | null = CLAUDE_DIR) {
-  const statuses: { health: Health; text: string }[] = [];
-  const lines: string[] = [];
-  const it: Editor = {
+  return stubEditor({
     setting: () => setting,
     extensionPath: () => claudeCode ?? undefined,
-    onExtensionsChanged: () => ({ dispose() {} }),
-    status: (health, text) => {
-      statuses.push({ health, text });
-    },
-    log: (line) => {
-      lines.push(line);
-    },
-    ask: async () => undefined,
-  };
-  return { editor: it, statuses, lines };
+  });
 }
+
+const STEADY: Stamps = { bundle: "100:1", host: "200:1", manifest: "10:1" };
+
+/**
+ * A run that wants no reload: this host started over a directory the install did not have to
+ * change. Spread into every case below that is about acquisition rather than about the offer.
+ */
+const QUIET = {
+  reason: { kind: "start", path: CLAUDE_DIR } as const,
+  stamps: () => STEADY,
+};
 
 function acquisition(over: Partial<AcquireOptions["acquisition"]> = {}) {
   const calls: string[][] = [];
@@ -61,14 +62,15 @@ describe("acquireAndInject", () => {
     const result = await acquireAndInject({
       editor: e.editor,
       acquisition: a.acquisition,
+      ...QUIET,
       version: "1.0.0-alpha.6",
       exists: (p) => p === NODE,
       env: { PATH: NODE_DIR },
     });
 
-    expect(result).toEqual({ kind: "injected", engine: "1.0.0-alpha.7" });
+    expect(result).toEqual({ kind: "injected", engine: "1.0.0-alpha.7", reload: null });
     expect(a.calls).toEqual([["install"]]);
-    expect(e.statuses.at(-1)).toEqual({ health: "ok", text: "Rigline" });
+    expect(e.statuses.at(-1)).toMatchObject({ health: "ok", text: "Rigline" });
   });
 
   it("hands the wrapper the Node it found and the companion's lock label (D80)", async () => {
@@ -88,6 +90,7 @@ describe("acquireAndInject", () => {
     await acquireAndInject({
       editor: e.editor,
       acquisition: a.acquisition,
+      ...QUIET,
       version: "1.0.0-alpha.6",
       exists: (p) => p === NODE,
       env: { PATH: NODE_DIR },
@@ -108,6 +111,7 @@ describe("acquireAndInject", () => {
     const result = await acquireAndInject({
       editor: e.editor,
       acquisition: a.acquisition,
+      ...QUIET,
       version: "1.0.0-alpha.6",
       exists: () => false,
       env: { PATH: abs("nothing") },
@@ -132,12 +136,13 @@ describe("acquireAndInject", () => {
     const result = await acquireAndInject({
       editor: e.editor,
       acquisition: a.acquisition,
+      ...QUIET,
       version: "1.0.0-alpha.6",
       exists: (p) => p === NODE,
       env: { PATH: NODE_DIR },
     });
 
-    expect(result).toEqual({ kind: "injected", engine: "1.0.0-alpha.7" });
+    expect(result).toEqual({ kind: "injected", engine: "1.0.0-alpha.7", reload: null });
     expect(a.calls).toEqual([["install"]]);
     expect(e.lines.join("\n")).toMatch(/pid 4/);
   });
@@ -151,6 +156,7 @@ describe("acquireAndInject", () => {
     const result = await acquireAndInject({
       editor: e.editor,
       acquisition: a.acquisition,
+      ...QUIET,
       version: "1.0.0-alpha.6",
       exists: (p) => p === NODE,
       env: { PATH: NODE_DIR },
@@ -171,6 +177,7 @@ describe("acquireAndInject", () => {
     const result = await acquireAndInject({
       editor: e.editor,
       acquisition: a.acquisition,
+      ...QUIET,
       version: "1.0.0-alpha.6",
       exists: (p) => p === NODE,
       env: { PATH: NODE_DIR },
@@ -187,6 +194,7 @@ describe("acquireAndInject", () => {
     await acquireAndInject({
       editor: e.editor,
       acquisition: a.acquisition,
+      ...QUIET,
       version: "1.0.0-alpha.6",
       exists: (p) => p === chosen,
       env: {},
@@ -203,12 +211,71 @@ describe("acquireAndInject", () => {
     const result = await acquireAndInject({
       editor: e.editor,
       acquisition: a.acquisition,
+      ...QUIET,
       version: "1.0.0-alpha.8",
       exists: (p) => p === NODE,
       env: { PATH: NODE_DIR },
     });
 
     expect(result).toEqual({ kind: "waiting", engine: "1.0.0-alpha.7" });
-    expect(e.statuses.at(-1)).toEqual({ health: "idle", text: "Rigline: no Claude Code" });
+    expect(e.statuses.at(-1)).toMatchObject({ health: "idle", text: "Rigline: no Claude Code" });
+  });
+
+  it("notices that the install moved the bundle under a live extension (D82)", async () => {
+    const e = editor();
+    // Active, and the bundle grew across the run: the panel in front of the user is unpatched.
+    const moved = stubEditor({
+      extensionPath: () => CLAUDE_DIR,
+      extensionActive: () => true,
+      log: e.editor.log,
+    });
+    let after = false;
+    const a = acquisition({
+      ensureEngine: async () => ({
+        version: "1.0.0-alpha.7",
+        run: async () => {
+          after = true;
+          return 0;
+        },
+      }),
+    });
+
+    const result = await acquireAndInject({
+      editor: moved.editor,
+      acquisition: a.acquisition,
+      reason: { kind: "start", path: CLAUDE_DIR },
+      stamps: () => (after ? { ...STEADY, bundle: "140:2" } : STEADY),
+      version: "1.0.0-alpha.9",
+      exists: (p) => p === NODE,
+      env: { PATH: NODE_DIR },
+    });
+
+    expect(result).toEqual({ kind: "injected", engine: "1.0.0-alpha.7", reload: "webviews" });
+  });
+
+  it("says nothing about a reload after a move, whatever the install changed", async () => {
+    const e = editor();
+    let after = false;
+    const a = acquisition({
+      ensureEngine: async () => ({
+        version: "1.0.0-alpha.7",
+        run: async () => {
+          after = true;
+          return 0;
+        },
+      }),
+    });
+
+    const result = await acquireAndInject({
+      editor: e.editor,
+      acquisition: a.acquisition,
+      reason: { kind: "moved", from: abs("ext", "old"), to: CLAUDE_DIR },
+      stamps: () => (after ? { ...STEADY, bundle: "140:2", host: "200:2" } : STEADY),
+      version: "1.0.0-alpha.9",
+      exists: (p) => p === NODE,
+      env: { PATH: NODE_DIR },
+    });
+
+    expect(result).toEqual({ kind: "injected", engine: "1.0.0-alpha.7", reload: null });
   });
 });

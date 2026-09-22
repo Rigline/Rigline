@@ -52,10 +52,16 @@ function stubbedHost(): string {
          createOutputChannel: () => ({ appendLine() {}, dispose() {} }),
          createStatusBarItem: () => ({ show() {}, dispose() {}, text: "", tooltip: "" }),
          showWarningMessage: async () => undefined,
+         showInformationMessage: async () => undefined,
        },
        workspace: { getConfiguration: () => ({ get: () => undefined }) },
        // Undefined: no Claude Code, so the acquisition stops before it reaches a registry.
        extensions: { getExtension: () => undefined, onDidChange: () => disposable },
+       commands: {
+         registered: [],
+         registerCommand(id) { module.exports.commands.registered.push(id); return disposable; },
+         executeCommand: async () => undefined,
+       },
        StatusBarAlignment: { Right: 2 },
        ThemeColor: class {},
      };`,
@@ -99,9 +105,28 @@ describe("the packed extension", () => {
       ],
       { cwd: dir, encoding: "utf8" },
     );
-    // The output channel, the status item and the watcher: everything that outlives activation and
-    // would otherwise leak a timer into the host.
-    expect(Number(out)).toBe(3);
+    // The output channel, the status item, the watcher and the reload command: everything that
+    // outlives activation and would otherwise leak a timer or a stale binding into the host.
+    expect(Number(out)).toBe(4);
+  });
+
+  // A status item whose command does not exist is a click that does nothing and says nothing,
+  // which is the whole of the offer's fallback path gone silently (D82).
+  it.skipIf(built)("registers the command its status item points at", () => {
+    const dir = stubbedHost();
+    const out = execFileSync(
+      process.execPath,
+      [
+        "-e",
+        `const vscode = require("vscode");
+         const m = require(${JSON.stringify(copied(dir))});
+         m.activate({ subscriptions: [], extension: { packageJSON: { version: "0.0.0-test" } } });
+         process.stdout.write(vscode.commands.registered.join(","));
+         process.exit(0);`,
+      ],
+      { cwd: dir, encoding: "utf8" },
+    );
+    expect(out).toBe("rigline.reload");
   });
 
   it.skipIf(built)("declares a manifest VS Code will actually run", () => {

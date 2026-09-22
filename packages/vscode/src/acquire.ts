@@ -11,6 +11,8 @@
  */
 import { CLAUDE_CODE, type Editor } from "./editor.ts";
 import { findNode, NoNodeError } from "./node.ts";
+import { type Reload, reloadWanted } from "./reload.ts";
+import type { Stamps, WatchReason } from "./watch.ts";
 
 /**
  * The wrapper's half, narrowed to what this file calls. Injected, so a test spawns nothing.
@@ -40,6 +42,10 @@ export interface AcquireOptions {
   readonly exists: (path: string) => boolean;
   /** This extension's own version, from the manifest VS Code read. Never discovered from disk. */
   readonly version: string;
+  /** Why this run is happening, which is what decides whether a reload is offered (D82). */
+  readonly reason: WatchReason;
+  /** The watcher's own sampling, read either side of the install to see what the engine moved. */
+  readonly stamps: (path: string | undefined) => Stamps;
   readonly env?: NodeJS.ProcessEnv;
   readonly platform?: NodeJS.Platform;
 }
@@ -48,7 +54,8 @@ export interface AcquireOptions {
 export const LABEL = "the Rigline companion extension";
 
 export type AcquireResult =
-  | { readonly kind: "injected"; readonly engine: string }
+  /** `reload` is what this window needs to show it, which is usually nothing (D82). */
+  | { readonly kind: "injected"; readonly engine: string; readonly reload: Reload | null }
   /** The engine ran and had nothing to inject into. Not a failure, and not a success either. */
   | { readonly kind: "waiting"; readonly engine: string }
   | { readonly kind: "no-node"; readonly message: string }
@@ -62,7 +69,7 @@ export type AcquireResult =
  * milestone exists to remove (P8). Every exit is a result somebody can read.
  */
 export async function acquireAndInject(options: AcquireOptions): Promise<AcquireResult> {
-  const { editor, acquisition, exists, version, env, platform } = options;
+  const { editor, acquisition, exists, version, reason, stamps, env, platform } = options;
 
   let nodePath: string;
   try {
@@ -93,6 +100,7 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
 
     const engine = await acquisition.ensureEngine({ nodePath, label: LABEL, version });
     editor.status("working", "Rigline: injecting", `Running ${engine.version}`);
+    const before = stamps(editor.extensionPath(CLAUDE_CODE));
     const code = await engine.run(["install"]);
     if (code !== 0) {
       const message = `the engine exited ${code} injecting. See the Rigline output for what it said.`;
@@ -103,7 +111,8 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
     // The exit code cannot tell these apart and the editor can. `install` exits 0 having done
     // nothing when no Claude Code is installed, so reading the code alone paints a green badge over
     // an absent feature — green while nothing works is exactly what P8 forbids.
-    if (editor.extensionPath(CLAUDE_CODE) === undefined) {
+    const path = editor.extensionPath(CLAUDE_CODE);
+    if (path === undefined) {
       editor.status(
         "idle",
         "Rigline: no Claude Code",
@@ -113,8 +122,16 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
       return { kind: "waiting", engine: engine.version };
     }
 
+    const reload = reloadWanted({
+      reason: reason.kind,
+      before,
+      after: stamps(path),
+      active: editor.extensionActive(CLAUDE_CODE),
+    });
+    if (reload !== null) editor.log(`this window loaded Claude Code unpatched: ${reload} reload`);
+
     editor.status("ok", "Rigline", `Injected by engine ${engine.version}`);
-    return { kind: "injected", engine: engine.version };
+    return { kind: "injected", engine: engine.version, reload };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     editor.status("attention", "Rigline: failed", message);
