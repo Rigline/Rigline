@@ -624,14 +624,21 @@ already in this milestone and been wrong both times.
 Developer Tools* is where the payload's errors go, and neither occurrence was looked at before the
 window was reloaded and the evidence destroyed. Next time it happens, that comes before the reload.
 
-**Worth doing on its own merits, and it may or may not be related.** On a `moved`, the companion
-installs into every installed version — the log above shows four harvested and four injected when
-one had arrived. Only the arriving directory can need it: the others are either already patched or
-about to be superseded, and one of them is the one under the live webview. Narrowing the run to
-`--ext` per arriving directory is less work, less writing under a running extension, and skips the
-run entirely when a directory only went away. Its cost is coverage: a version that lost its
-injection some other way would wait for the next `start` rather than being picked up by a passing
-update.
+**The suspect act is gone, which changes how to reproduce this.** `install` now writes only files
+that differ, so a run over a directory that is already correct touches nothing at all — including
+the directory under a live webview. An extension update therefore no longer writes there, and
+repeating the update will produce no wedge whether or not the writes were the cause. Concluding
+"fixed" from that is the absence trap verification.md warns about.
+
+**To make the engine write under a live window on purpose**, change something the payload depends on
+rather than swapping an extension version: `pnpm rigline disable NAME` then `enable NAME`, or
+`rigline dev` rebuilding a plugin, both rewrite `registry.js` and a plugin directory under whatever
+the panel is currently reading. That is seconds per attempt rather than a version download, and it
+isolates the writes from everything else an update does.
+
+**And the console comes before the reload.** *Developer: Open Webview Developer Tools* is where the
+payload'''s errors go; reloading the window to recover destroys the only evidence, which is how both
+occurrences were lost.
 
 ## The profile trap, which is what the "one machine" mystery was
 

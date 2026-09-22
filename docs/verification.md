@@ -19,6 +19,28 @@ real install half-patched, and the panel renders blank when the static import is
 over throwaway copies (`mkdtempSync`) and over the corpus, which is read-only by convention and
 outside the repo.
 
+## A test whose pass is an absence must first prove the trigger fired
+
+Half the assertions worth making about this project are negative: no notification, no rewrite, no
+reaction. Every one of them passes just as convincingly when the thing under test never ran, and
+that failure is invisible — it looks exactly like success and arrives faster.
+
+It has been read wrong twice. A companion test that asserted silence after an extension replacement
+passed while the replacement went into a profile the window did not use, onto a version whose
+directory already existed; nothing moved, so nothing fired, so the silence meant nothing. The same
+shape a layer down: "the second run wrote nothing" is worthless unless the first run wrote
+something.
+
+**So a negative assertion carries a positive one.** Name the observable that proves the trigger
+arrived — the log line, the changed mtime, the new directory — and assert that too, in the same
+test or the same live read. Where the trigger is a person's command, check its effect on disk rather
+than its exit code: an install that resolved to a version already present reports success and
+changes nothing.
+
+This is not tier-specific. In tier 1 it is the assertion above the one you meant to write; in tier 4
+it is the line you look for in the output channel before concluding that the silence after it was
+the designed silence.
+
 ## Tier 1: Node, under vitest
 
 Pure functions and file transforms: every harvest layer, the diff and its successor suggestions,
