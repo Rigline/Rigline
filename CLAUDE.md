@@ -146,6 +146,13 @@ not: that is the retrieval layer a user installs, and running it here would fetc
 user types, `pnpm rigline check` is what you type — and `update` is the one verb only the wrapper
 has, so it does not work here.
 
+**An argument containing a space cannot go through `pnpm rigline`.** pnpm's shim loses the quoting
+and cmd.exe then splits the *Node interpreter path*, so `pnpm rigline vscode-setup --profile "Yarn
+PNP"` dies naming a directory that has nothing to do with what you typed and never reaches the
+engine — the missing `$ rigline-engine ...` echo is the tell. Call the bin directly:
+`node packages/core/dist/engine/bin.js vscode-setup --profile "Yarn PNP"`. The detail is in
+`c:\dev\knowledge\node-tooling.md`.
+
 Rebuilding the payload or a plugin and running `install` again refreshes the files in place
 without rewriting the bundle. `restore` is the undo and the recovery from a blank panel; it needs
 only Node and this checkout.

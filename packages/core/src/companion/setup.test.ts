@@ -228,6 +228,8 @@ describe("formatSetup", () => {
     const report = formatSetup(outcomes, false, VSIX, "Yarn PNP");
     expect(report).toContain("Yarn PNP");
     expect(report).not.toMatch(/--profile NAME/);
+    // And it stops promising two of them, which is what listing one after "two causes" did.
+    expect(report).not.toMatch(/Two causes/);
   });
 });
 

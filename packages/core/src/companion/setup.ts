@@ -225,26 +225,37 @@ export function formatSetup(
       ? [
           "",
           "Reload the window for it to take effect: Developer: Reload Window.",
-          ...(remove || vsix === undefined
-            ? []
-            : [
-                "",
-                "Not in the Extensions view afterwards? Two causes, and they look identical.",
-                ...(profile === undefined
-                  ? [
-                      "  A profile. Extensions are per-profile and this went to the default one, so a",
-                      "  workspace bound to another will not see it. Re-run with --profile NAME, using",
-                      "  the name in VS Code's profile switcher, copied rather than typed — an unknown",
-                      "  name creates a new empty profile instead of failing.",
-                    ]
-                  : []),
-                "  A different editor answering to the same `code`. Use Extensions: Install from VSIX…",
-                "  in the window you actually want, with:",
-                `    ${vsix}`,
-              ]),
+          ...(remove || vsix === undefined ? [] : whyNotVisible(vsix, profile)),
         ]
       : []),
   ].join("\n");
+}
+
+/**
+ * The two ways an install can succeed and leave nothing to see, or the one that is left once a
+ * profile has been named. Counted honestly: saying "two causes" and listing one is the kind of
+ * small wrongness that makes a reader stop trusting the rest of the paragraph.
+ */
+function whyNotVisible(vsix: string, profile?: string): readonly string[] {
+  if (profile !== undefined) {
+    return [
+      "",
+      "Not in the Extensions view afterwards? Then that `code` was a different editor answering",
+      "to the same name. Use Extensions: Install from VSIX… in the window you want, with:",
+      `  ${vsix}`,
+    ];
+  }
+  return [
+    "",
+    "Not in the Extensions view afterwards? Two causes, and they look identical.",
+    "  A profile. Extensions are per-profile and this went to the default one, so a workspace",
+    "  bound to another will not see it. Re-run with --profile NAME, using the name in VS Code's",
+    "  profile switcher, copied rather than typed — an unknown name creates a new empty profile",
+    "  instead of failing.",
+    "  A different editor answering to the same `code`. Use Extensions: Install from VSIX… in",
+    "  the window you actually want, with:",
+    `    ${vsix}`,
+  ];
 }
 
 function indent(text: string): string {
