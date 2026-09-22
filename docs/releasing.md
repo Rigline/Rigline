@@ -3,7 +3,7 @@
 Four packages go to npm: `rigline`, `@rigline/core`, `@rigline/plugin-api` and
 `create-rigline-plugin`. `@rigline/host` and `@rigline/harness` are `private` and never do.
 
-A release is two commands and one click:
+A release is two commands and one click, cut from a commit `ci.yml` has already been green on:
 
     pnpm release prerelease   # cut it: changelog, manifests, commit, tag, push
     # then approve the four staged packages on npmjs.com — see step 3
@@ -108,7 +108,7 @@ code, run it again with a fresh one: `-r` skips whatever the registry already ha
 bootstrap resumes rather than needing to be unpicked.
 
 A bootstrap is the one place a tag is typed, and it barely matters which is typed: a package's
-first publish pins `latest` whatever `--tag` says, which is the first of the three traps below.
+first publish pins `latest` whatever `--tag` says, which is the first of the traps below.
 Nothing is typed after it. Both tags are derived from the version and what the registry already
 holds (D61), and while no stable line exists the newest alpha is what `latest` should point at —
 there is no input for it anywhere, and no run that asks.
@@ -135,7 +135,7 @@ for you, and the silence reads as a hang.
 
 **`npm` itself, not only `pnpm`.** The retag goes through `npm dist-tag`, because `pnpm dist-tag`
 takes a typed one-time password and nothing else — which an account with a security key cannot
-give it. The third trap below argues this at length; it is listed here because it is a
+give it. The `pnpm dist-tag` trap below argues this at length; it is listed here because it is a
 requirement, and the argument is no use to somebody who has not installed the thing.
 
 **`gh`, authenticated**, for the GitHub release at the end. Without it you get a message naming
@@ -155,8 +155,8 @@ tier, so the local run is the stronger one.
    you have just run them by hand.
 2. Watch the run the tag triggered. Its summary names each package and version staged, because
    nothing notifies you that a stage is waiting. A green tick is not the check — the *absence* of
-   `[WARN] Skipped OIDC` in the log is. The Stage step's own log now prints `staged with id <uuid>`
-   per package, which it did not always; `npm stage list --json` is the reliable place to read them.
+   `[WARN] Skipped OIDC` in the log is. The Stage step's log prints `staged with id <uuid>` per
+   package, but `npm stage list --json` is the reliable place to read them.
 3. **Approve the four** at `https://www.npmjs.com/settings/<user>/staged-packages`. `pnpm
    release:finish` will try to do it for you, and can only succeed for an account that can type a
    one-time password; a security key has none to give, and the website is the route that always
@@ -206,9 +206,9 @@ version means, and there are only three answers.
 
 `main` is the line `latest` points at, nothing is in preview, and a release is one increment.
 
-    pnpm test                 # with the corpus
-    pnpm release patch        # or minor
-    # watch the run, then
+    git push                  # and wait for ci.yml to go green on that commit
+    pnpm release patch        # or minor; runs lint, typecheck, build and test first
+    # watch the run, approve the four on npmjs.com, then
     pnpm release:finish
 
 The version stages under `latest`, and `next` follows it after approval once a stable line exists —
@@ -277,7 +277,7 @@ When `2.0.0` ships it is a promotion, from `2.x`, and it stages under `latest`. 
 release on that line is then refused by name: it belongs under a line tag such as `1.x`, which
 this pipeline does not set, and the two tags it does set would both be wrong.
 
-## Three traps, all already paid for
+## Traps, all already paid for
 
 **`latest` does not move unless you publish to it.** A package must have a `latest`, so the very
 first publish pins one whatever `--tag` says — and nothing moves it afterwards except another
@@ -302,9 +302,7 @@ answers with an `authUrl`, and only its second asks for a typed code. So `npm pu
 the flow — not because of `auth-type`, which only `login` and `adduser` read. The same wrapper is
 also why none of them work in CI: it re-throws unless both stdin and stdout are a TTY.
 
-`npm login` prints `Login at:` and one URL, then goes silent while it polls, and does not open a
-browser for you — easy to read as a hang. `npm stage list` and `npm stage approve <id>` then work on
-stages pnpm created, because the stages live on the registry and do not care which client made them.
+`npm stage list` and `npm stage approve <id>` work on stages pnpm created, because the stages live on the registry and do not care which client made them.
 
 npm is meanwhile closing off the alternative on its own account. `npm login` now prints:
 

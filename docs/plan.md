@@ -420,7 +420,7 @@ all of it.
 
 ## Next session
 
-Phases 0 to 4b, phase 6 and milestone 7 are done. `1.0.0-alpha.6` is published to `latest` and
+Phases 0 to 4b, phase 6 and milestone 7 are done. `1.0.0-alpha.9` is the newest on `latest` and
 installs from npm on a machine with no checkout.
 
 **7b is closed, all five steps.** `rigline` installs `@rigline/core` into `<RIGLINE_HOME>/engine`,
@@ -428,7 +428,7 @@ spawns it, answers `--version` itself and forwards everything else, and declares
 at all; this repository and the scaffold both declare the engine and spell the bin `rigline-engine`.
 [m7-distribution.md](m7-distribution.md) is the milestone's record until it is condensed.
 
-**`1.0.0-alpha.6` is published to `latest`, and it is the first release carrying the split.** The
+**`1.0.0-alpha.6` was the first release carrying the split.** The
 published wrapper was then driven from the registry, which is what nothing before it could do:
 `npm install rigline`, one binary with no dependencies, `--version` naming the absent engine,
 `check` installing `@rigline/core` and forwarding, and `list` and `status` returning the engine's
@@ -451,21 +451,20 @@ delivery still owes.
 
 **Milestone 8 is what is open**, and [m8-companion.md](m8-companion.md) is the working doc.
 
-**8a is done**, published as `1.0.0-alpha.9` and read live: `npm i -g rigline` then `rigline
+**8a and 8b are both done, read live on 1.0.0-alpha.9.** `npm i -g rigline` then `rigline
 vscode-setup` on a Windows laptop installs the engine from npm, installs the companion from the
-bundled VSIX, injects, and the extension activates. The live read found three bugs no test had,
-which [m8-companion.md](m8-companion.md) records — along with one machine where it did not work,
-and why that is parked rather than solved.
-
-**8a and 8b are both done, read live on 1.0.0-alpha.9.** The live read also forced a correction to
-D76: `extensionUri` cannot see an update land while its own host is the one frozen, so scanning the
-directory is what makes the fast path work, not the field that looked more authoritative —
-[m8-companion.md](m8-companion.md) has the finding.
+bundled VSIX, injects, and the extension activates. [m8-companion.md](m8-companion.md) records the
+bugs the live read found, the one machine where it did not work and why that is parked, and the
+`extensionUri` finding that corrected D76: scanning the directory is what makes the fast path work.
 
 **8c is built to its settled scope and not yet read live.** Read-only, one Command Palette entry
 (`rigline.showPlugins`), nothing editable — `config.json` stays the only place plugin state lives
 (D84). Unit-tested and the VSIX is installed on the machine this was built on; what remains is
 trying the command after the next window reload.
+
+**`ready` (D85) is built and not yet read live.** The read is the next Claude Code update landing
+under a running window: the status item should go to *Rigline: ready to restart* and stay there
+until a restart.
 
 The stability half of [partial-bundles.md](partial-bundles.md) is settled: `install` stays
 synchronous (D83).
