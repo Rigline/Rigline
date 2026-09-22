@@ -361,13 +361,13 @@ extension and the webview offer appeared; taking it put the decorations back wit
 reload, and declining it took no reload and left the offer on the status bar. The window-reload variant is read too, over a host
 patch, with the status on `needs you` as an older engine's exit code makes it.
 
-**What is still unread is the silence on a real replacement**, and it is the one that matters most,
-because it is the only live check on the discriminator D82 rests on. Reaching it needs a version
-whose directory is not already on the machine, installed into the profile the window actually uses:
-a version already present reuses its path, and `--install-extension` without `--profile` lands in
-the default profile, which a window on another profile never sees. Get either wrong and nothing
-moves, so nothing fires — a silence that looks exactly like the one being tested for and means
-nothing at all.
+**The silence on a real replacement is read too, and 8b's acceptance is complete.** Installing a
+version whose directory was not already on the machine, under a running window, produced the
+`installed:` line, a settle, an injection into the arriving directory, and no notification.
+Reaching it needs both of those conditions — a version already present reuses its path, and
+`--install-extension` without `--profile` lands in the default profile, which a window on another
+profile never sees. Get either wrong and nothing moves, so nothing fires: a silence that looks
+exactly like the one being tested for and means nothing at all.
 
 **Triggering it does not need an update to land.** The offer turns on this host having come up over
 an unpatched directory, and `restore` followed by *Developer: Reload Window* produces exactly that,
@@ -603,6 +603,35 @@ at by having got it wrong once.
 The residue, stated: with a non-zero exit the status stays `attention`, so a dismissed offer has no
 status item to click and is gone until the next run. Two states, one line of status bar, and the
 one naming a person who is needed wins.
+
+## Open: the panel wedges after an install, twice, mechanism unknown
+
+Two occurrences on 2026-09-22, both within seconds of the companion running `install` against a
+directory the window was live on. The panel stopped accepting a submitted prompt; Claude Code logged
+nothing at all from the moment of the install until a window reload, which fixed it each time. No
+API request, no error, no entry — so the message never left the webview.
+
+**What is known.** Both times the run reported `refreshed` for the directory the window had loaded,
+meaning `webview/index.js` was not rewritten. What *was* rewritten under the live webview is the
+payload beside it: `pre.js`, `post.js`, `generated.js`, `registry.js`, and `plugins/`, which is
+deleted and recreated rather than overwritten in place.
+
+**What is not known** is any mechanism by which that wedges a webview whose modules were imported at
+boot. The correlation is strong and the causal story is absent, and one has been guessed at twice
+already in this milestone and been wrong both times.
+
+**The instrument nobody has used yet is the webview's own console.** *Developer: Open Webview
+Developer Tools* is where the payload's errors go, and neither occurrence was looked at before the
+window was reloaded and the evidence destroyed. Next time it happens, that comes before the reload.
+
+**Worth doing on its own merits, and it may or may not be related.** On a `moved`, the companion
+installs into every installed version — the log above shows four harvested and four injected when
+one had arrived. Only the arriving directory can need it: the others are either already patched or
+about to be superseded, and one of them is the one under the live webview. Narrowing the run to
+`--ext` per arriving directory is less work, less writing under a running extension, and skips the
+run entirely when a directory only went away. Its cost is coverage: a version that lost its
+injection some other way would wait for the next `start` rather than being picked up by a passing
+update.
 
 ## The profile trap, which is what the "one machine" mystery was
 
