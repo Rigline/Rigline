@@ -604,41 +604,38 @@ The residue, stated: with a non-zero exit the status stays `attention`, so a dis
 status item to click and is gone until the next run. Two states, one line of status bar, and the
 one naming a person who is needed wins.
 
-## Open: the panel wedges after an install, twice, mechanism unknown
+## The panel wedge: retested, did not recur
 
 Two occurrences on 2026-09-22, both within seconds of the companion running `install` against a
 directory the window was live on. The panel stopped accepting a submitted prompt; Claude Code logged
 nothing at all from the moment of the install until a window reload, which fixed it each time. No
 API request, no error, no entry — so the message never left the webview.
 
-**What is known.** Both times the run reported `refreshed` for the directory the window had loaded,
+**What was known.** Both times the run reported `refreshed` for the directory the window had loaded,
 meaning `webview/index.js` was not rewritten. What *was* rewritten under the live webview is the
 payload beside it: `pre.js`, `post.js`, `generated.js`, `registry.js`, and `plugins/`, which is
-deleted and recreated rather than overwritten in place.
+deleted and recreated rather than overwritten in place. No mechanism by which that wedges a webview
+whose modules were imported at boot was ever found, and one had been guessed at twice already in
+this milestone and been wrong both times.
 
-**What is not known** is any mechanism by which that wedges a webview whose modules were imported at
-boot. The correlation is strong and the causal story is absent, and one has been guessed at twice
-already in this milestone and been wrong both times.
+**`install` now writes only files that differ**, so a run over a directory that is already correct
+touches nothing — an extension update alone no longer reproduces this. **To make the engine write
+under a live window on purpose**, change something the payload depends on rather than swapping an
+extension version: `pnpm rigline disable NAME` then `enable NAME`, or `rigline dev` rebuilding a
+plugin, both rewrite `registry.js` and a plugin directory under whatever the panel is currently
+reading. Seconds per attempt, and it isolates the writes from everything else an update does.
 
-**The instrument nobody has used yet is the webview's own console.** *Developer: Open Webview
-Developer Tools* is where the payload's errors go, and neither occurrence was looked at before the
-window was reloaded and the evidence destroyed. Next time it happens, that comes before the reload.
+**A third attempt, same day, against this checkout's own live panel: no wedge.** `disable time-marks`
+then `enable time-marks` rewrote `registry.js` and `plugins/time-marks/` under the directory this
+window was running from; a prompt submitted through that same panel immediately after was answered
+normally.
 
-**The suspect act is gone, which changes how to reproduce this.** `install` now writes only files
-that differ, so a run over a directory that is already correct touches nothing at all — including
-the directory under a live webview. An extension update therefore no longer writes there, and
-repeating the update will produce no wedge whether or not the writes were the cause. Concluding
-"fixed" from that is the absence trap verification.md warns about.
-
-**To make the engine write under a live window on purpose**, change something the payload depends on
-rather than swapping an extension version: `pnpm rigline disable NAME` then `enable NAME`, or
-`rigline dev` rebuilding a plugin, both rewrite `registry.js` and a plugin directory under whatever
-the panel is currently reading. That is seconds per attempt rather than a version download, and it
-isolates the writes from everything else an update does.
-
-**And the console comes before the reload.** *Developer: Open Webview Developer Tools* is where the
-payload'''s errors go; reloading the window to recover destroys the only evidence, which is how both
-occurrences were lost.
+One clean attempt does not retire the mechanism — the two prior occurrences correlated with a write
+under a live webview and stand unexplained, not retracted. This downgrades the item from something
+being actively chased to something watched for recurrence, per Leo's call: ignore it unless it
+recurs. If it does, the instrument and the repro above are already known — **the console comes before
+the reload.** *Developer: Open Webview Developer Tools* is where the payload's errors go; reloading
+to recover destroys the only evidence, which is how both occurrences were lost.
 
 ## The profile trap, which is what the "one machine" mystery was
 
