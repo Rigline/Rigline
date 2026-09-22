@@ -6,8 +6,8 @@
  * all, since nothing here can run outside an extension host.
  */
 import { spawn } from "node:child_process";
-import { existsSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readdirSync, statSync } from "node:fs";
+import { dirname, join } from "node:path";
 import * as vscode from "vscode";
 import { acquireAndInject } from "./acquire.ts";
 import { CLAUDE_CODE, type Editor, type Health } from "./editor.ts";
@@ -72,6 +72,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const watcher = watchExtension({
     editor,
     id: CLAUDE_CODE,
+    installed: installedIn(dirname(context.extension.extensionUri.fsPath)),
     stamps,
     react: async (reason) => {
       await run(editor, version, reason, offer);
@@ -114,6 +115,29 @@ async function run(
   // A run that wants a person may still have injected, so the offer is still owed — but it does not
   // get to overwrite what the status line is saying about the person.
   if (result.kind === "attention") void offer.settle(result.reload, "", true);
+}
+
+/**
+ * Every installed Claude Code directory, by name, sorted.
+ *
+ * The root is this extension'''s own parent, which is the directory this host installs user
+ * extensions into — we are in it, and it is there whether or not Claude Code is. Read from disk
+ * rather than asked of VS Code, because `extensionUri` is fixed at what this host loaded and so
+ * cannot report an install that happened since (D82).
+ */
+function installedIn(root: string): () => readonly string[] {
+  const prefix = `${CLAUDE_CODE}-`.toLowerCase();
+  return () => {
+    try {
+      return readdirSync(root, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory() && entry.name.toLowerCase().startsWith(prefix))
+        .map((entry) => join(root, entry.name))
+        .sort();
+    } catch {
+      // Unreadable is reported as nothing installed, which the next look corrects if it was a blip.
+      return [];
+    }
+  };
 }
 
 /**

@@ -62,6 +62,14 @@ anything may change between releases.
   then said to go and read it. Whatever `rigline install` would have printed in a terminal now
   appears under Output -> Rigline, a line at a time.
 
+- The companion now notices an extension update while your window is still running, instead of
+  waiting for the next reload. It watched the directory VS Code reports for the running
+  extension, which is fixed until the extension host restarts — so an update wrote a new
+  directory, the companion compared a value that could not have changed, and nothing happened
+  until you reloaded. It reads the installed directories from disk now, which is the signal
+  `rigline watch` always used, so the patch lands behind the old extension and your next reload
+  comes up with Rigline already there.
+
 ## 1.0.0-alpha.9 — 2026-09-22
 
 ### Fixed

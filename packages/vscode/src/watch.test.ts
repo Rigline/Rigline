@@ -18,13 +18,12 @@ const ID = "anthropic.claude-code";
 const flush = () => new Promise<void>((done) => setTimeout(done, 0));
 
 function harness(first: string | undefined) {
-  let path = first;
+  let dirs = first === undefined ? [] : [first];
   const listeners: (() => void)[] = [];
   const ticks: (() => void)[] = [];
   const lines: string[] = [];
 
   const { editor } = stubEditor({
-    extensionPath: () => path,
     onExtensionsChanged: (listener) => {
       listeners.push(listener);
       return {
@@ -41,8 +40,14 @@ function harness(first: string | undefined) {
   return {
     editor,
     lines,
+    installed: () => dirs,
+    /** Replace the installed set, as a reinstall that supersedes the old directory does. */
     move: (to: string | undefined) => {
-      path = to;
+      dirs = to === undefined ? [] : [to];
+    },
+    /** Add a version beside the one already there, which is what a real update often does. */
+    add: (dir: string) => {
+      dirs = [...dirs, dir].sort();
     },
     fire: () => {
       for (const listener of [...listeners]) listener();
@@ -70,6 +75,7 @@ function watcher(
   return watchExtension({
     editor: h.editor,
     id: ID,
+    installed: h.installed,
     react,
     // Settled by default: these tests are about noticing a move, and the settle has its own below.
     stamps: settling.stamps ?? (() => asStamps("steady")),
@@ -92,9 +98,23 @@ describe("watchExtension", () => {
     h.move("/ext/claude-code-2.1.279");
     await w.poke();
 
-    expect(seen).toEqual([
-      { kind: "moved", from: "/ext/claude-code-2.1.278", to: "/ext/claude-code-2.1.279" },
-    ]);
+    expect(seen).toEqual([{ kind: "moved", arriving: ["/ext/claude-code-2.1.279"] }]);
+    w.dispose();
+  });
+
+  // The shape the live read found, and the one every test here had missed: VS Code writes the new
+  // version beside the old rather than over it, so a watcher comparing one path sees nothing move.
+  it("reacts when a version arrives beside the one already there", async () => {
+    const h = harness("/ext/claude-code-2.1.278");
+    const seen: WatchReason[] = [];
+    const w = watcher(h, async (r) => {
+      seen.push(r);
+    });
+
+    h.add("/ext/claude-code-2.1.279");
+    await w.poke();
+
+    expect(seen).toEqual([{ kind: "moved", arriving: ["/ext/claude-code-2.1.279"] }]);
     w.dispose();
   });
 
@@ -166,8 +186,9 @@ describe("watchExtension", () => {
     h.move(undefined);
     await w.poke();
 
-    expect(seen).toEqual([{ kind: "moved", from: "/ext/claude-code-2.1.278", to: undefined }]);
-    expect(h.lines.join()).toContain("absent");
+    // Nothing arrived, so nothing has to settle first — there are no bytes being written.
+    expect(seen).toEqual([{ kind: "moved", arriving: [] }]);
+    expect(h.lines.join()).toContain("removed");
     w.dispose();
   });
 
@@ -253,9 +274,7 @@ describe("watchExtension", () => {
     steady = true;
     await w.poke();
 
-    expect(seen).toEqual([
-      { kind: "moved", from: "/ext/claude-code-2.1.278", to: "/ext/claude-code-2.1.279" },
-    ]);
+    expect(seen).toEqual([{ kind: "moved", arriving: ["/ext/claude-code-2.1.279"] }]);
     w.dispose();
   });
 

@@ -97,7 +97,7 @@ describe("the packed extension", () => {
       [
         "-e",
         `const m = require(${JSON.stringify(copied(dir))});
-         const ctx = { subscriptions: [], extension: { packageJSON: { version: "0.0.0-test" } } };
+         const ctx = { subscriptions: [], extension: { packageJSON: { version: "0.0.0-test" }, extensionUri: { fsPath: ${JSON.stringify(dir)} } } };
          m.activate(ctx);
          m.deactivate();
          process.stdout.write(String(ctx.subscriptions.length));
@@ -120,7 +120,7 @@ describe("the packed extension", () => {
         "-e",
         `const vscode = require("vscode");
          const m = require(${JSON.stringify(copied(dir))});
-         m.activate({ subscriptions: [], extension: { packageJSON: { version: "0.0.0-test" } } });
+         m.activate({ subscriptions: [], extension: { packageJSON: { version: "0.0.0-test" }, extensionUri: { fsPath: ${JSON.stringify(dir)} } } });
          process.stdout.write(vscode.commands.registered.join(","));
          process.exit(0);`,
       ],

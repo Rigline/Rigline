@@ -8,21 +8,27 @@
  * is a record of it not firing in cases the API documents. So the poll is the floor and the event
  * only shortens the wait (D80).
  *
- * What is watched is the *directory VS Code says the extension is in*, which the companion can ask
- * for and the engine cannot. A new path means a new install.
+ * What is watched is the **set of installed directories on disk**, and not
+ * `extensions.getExtension(id).extensionUri`, which answers a different question than it appears
+ * to: where *this extension host* loaded the extension from, fixed until the host restarts. An
+ * update changes the directory on disk and leaves that value alone, so watching it meant the
+ * `moved` branch could never fire for the event this milestone exists for. Read live, 2026-09-22.
  *
- * The same path with our bytes gone — a reinstall of the version already there, or a `restore` —
- * is **not** noticed, because this compares paths and nothing else. It is picked up at the next
- * `start` instead, which is the reload such a window needs anyway. Watching the bytes too would
- * mean telling our own injections apart from somebody else's writes, which is a larger question
- * than the case has earned.
+ * The same directory with our bytes gone — a reinstall of the version already there, or a
+ * `restore` — is still not noticed, because this compares names and not contents. It is picked up
+ * at the next `start`, which is the reload such a window needs anyway.
  */
 import type { Disposable, Editor } from "./editor.ts";
 
 export interface WatchOptions {
   readonly editor: Editor;
-  /** The extension whose directory is watched. `anthropic.claude-code` in every real use. */
+  /** The extension whose directories are watched. `anthropic.claude-code` in every real use. */
   readonly id: string;
+  /**
+   * Every installed directory for `id`, from disk. Injected, and the one signal that actually
+   * moves when VS Code installs a new version under a running window.
+   */
+  installed(): readonly string[];
   /** What to do when it moved. Never called concurrently with itself. */
   react(reason: WatchReason): Promise<void>;
   /** How often to look when nothing has fired. Half a minute, as the CLI's watcher uses. */
@@ -44,7 +50,14 @@ export interface WatchOptions {
 
 export type WatchReason =
   | { readonly kind: "start"; readonly path: string | undefined }
-  | { readonly kind: "moved"; readonly from: string | undefined; readonly to: string | undefined };
+  /**
+   * The installed set changed. `arriving` is what appeared, which is what has to settle before
+   * anything reads it; empty means one only went away, which still wants a re-inject.
+   *
+   * Not a from-and-to pair: an update adds a directory beside the one already there as often as it
+   * replaces it, and a pair would report the same path twice.
+   */
+  | { readonly kind: "moved"; readonly arriving: readonly string[] };
 
 /**
  * Sizes and modification times of the three files an install touches, by role rather than joined
@@ -64,6 +77,11 @@ export interface Stamps {
 
 export function sameStamps(a: Stamps, b: Stamps): boolean {
   return a.bundle === b.bundle && a.host === b.host && a.manifest === b.manifest;
+}
+
+/** Both listings come sorted, so one pass settles it. */
+function same(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((dir, at) => dir === b[at]);
 }
 
 const INTERVAL_MS = 30_000;
@@ -105,6 +123,7 @@ export function watchExtension(options: WatchOptions): Watcher {
     editor,
     id,
     react,
+    installed,
     intervalMs = INTERVAL_MS,
     stamps,
     settleMs = SETTLE_MS,
@@ -117,7 +136,7 @@ export function watchExtension(options: WatchOptions): Watcher {
     sleep = (ms: number) => new Promise<void>((done) => setTimeout(done, ms)),
   } = options;
 
-  let current = editor.extensionPath(id);
+  let current = installed();
   let running = false;
   let disposed = false;
 
@@ -125,13 +144,15 @@ export function watchExtension(options: WatchOptions): Watcher {
    * Whether the directory has stopped changing. Answers false when it never settles, which leaves
    * the work to the next poll rather than reacting to a directory still being written.
    */
-  async function settled(path: string | undefined): Promise<boolean> {
-    let before = stamps(path);
+  async function settled(paths: readonly string[]): Promise<boolean> {
+    // Nothing arrived, so there is nothing being written: a directory only going away needs no wait.
+    if (paths.length === 0) return true;
+    let before = paths.map(stamps);
     for (let attempt = 0; attempt < settleTries; attempt += 1) {
       await sleep(settleMs);
       if (disposed) return false;
-      const after = stamps(path);
-      if (sameStamps(after, before)) return true;
+      const after = paths.map(stamps);
+      if (after.every((one, at) => sameStamps(one, before[at] as Stamps))) return true;
       before = after;
     }
     editor.log(
@@ -145,7 +166,7 @@ export function watchExtension(options: WatchOptions): Watcher {
     if (running || disposed) return false;
     running = true;
     try {
-      if (reason.kind === "moved" && !(await settled(reason.to))) return false;
+      if (reason.kind === "moved" && !(await settled(reason.arriving))) return false;
       await react(reason);
       return true;
     } catch (error) {
@@ -161,15 +182,17 @@ export function watchExtension(options: WatchOptions): Watcher {
 
   async function look(): Promise<void> {
     if (disposed) return;
-    const seen = editor.extensionPath(id);
-    if (seen === current) return;
-    const from = current;
-    editor.log(`${id} moved: ${from ?? "absent"} -> ${seen ?? "absent"}`);
+    const seen = installed();
+    if (same(seen, current)) return;
+    const arriving = seen.filter((dir) => !current.includes(dir));
+    const going = current.filter((dir) => !seen.includes(dir));
+    for (const dir of arriving) editor.log(`${id} installed: ${dir}`);
+    for (const dir of going) editor.log(`${id} removed: ${dir}`);
     // Committed only once the move has been dealt with. A directory that never settled, or a burst
     // whose follower was dropped, must stay outstanding — recording it here would mean the next
     // poll saw no change and the update was silently skipped, which is the failure this whole
     // milestone is against (P8).
-    if (await run({ kind: "moved", from, to: seen })) current = seen;
+    if (await run({ kind: "moved", arriving })) current = seen;
   }
 
   const subscription = editor.onExtensionsChanged(() => {

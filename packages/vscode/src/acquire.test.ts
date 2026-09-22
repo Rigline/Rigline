@@ -371,7 +371,7 @@ describe("acquireAndInject", () => {
       editor: e.editor,
       acquisition: a.acquisition,
       ...runner(a),
-      reason: { kind: "moved", from: abs("ext", "old"), to: CLAUDE_DIR },
+      reason: { kind: "moved", arriving: [CLAUDE_DIR] },
       stamps: () => (after ? { ...STEADY, bundle: "140:2", host: "200:2" } : STEADY),
       version: "1.0.0-alpha.9",
       exists: (p) => p === NODE,
