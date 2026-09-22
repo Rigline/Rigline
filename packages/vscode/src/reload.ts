@@ -88,10 +88,7 @@ export function reloadOffer(editor: Editor): ReloadOffer {
     const { message, action } = OFFER[reload];
     const chosen = await editor.ask("info", message, action, LATER);
     if (chosen !== action) {
-      // Not "declined": an information notification slides into the notification centre by itself
-      // and resolves exactly as a press on Not now does, so a decline is not a thing we can see.
-      // The status item is what carries the offer from here (D82).
-      editor.log(`reload offered (${reload}), not taken; it is on the status bar`);
+      editor.log(`reload offered (${reload}) and declined`);
       stale();
       return;
     }
