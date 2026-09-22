@@ -528,6 +528,45 @@ still being written) are recorded. What this milestone will add:
 - **Whether `extensionUri` is passed down or re-derived**, once it is known whether the engine's
   locate step wants a hint or an override.
 
+## `extensionUri` is where this host loaded it, not where it is now
+
+Read live on 2026-09-22, and it invalidates a premise this milestone was built on.
+
+With a window open and Claude Code running, `code --install-extension anthropic.claude-code@2.1.269
+--force` installed a new versioned directory, pointed `extensions.json` at it and marked the old one
+obsolete. The companion, watching for ninety seconds across three poll cycles, reacted not at all.
+
+**`vscode.extensions.getExtension(id).extensionUri` answers a different question than the one asked
+of it.** It is where *this extension host* loaded the extension from, and that is fixed until the
+host restarts — which is exactly what VS Code's "restart extensions to apply" prompt is offering to
+do. So the value `look()` compares cannot change while a window runs, and both signals die with it:
+the poll compares it, and `onDidChange` only pokes the same comparison.
+
+**The `moved` branch therefore never fires for an update.** Not rarely — never, while the window
+that would react is the window whose host is frozen. Everything that was said about the fast path
+shortening the gap to a second describes a code path an update cannot reach.
+
+**What actually happens weekly, then.** The update lands and nothing notices. At the next window
+reload Claude Code activates from the new, unpatched directory, so the panel renders without
+Rigline; the companion's `start` finds it unpatched, injects, and offers the reload; the user takes
+it and Rigline is back. Rigline does recover — the milestone's promise holds — but through the
+prompt rather than through silence, every week, with the panel briefly bare.
+
+**The claim to strike** is that the patch lands on disk while the old extension is still live, so
+the reload the user was going to do anyway comes up patched. Nothing puts it there in time.
+
+**D82 is strengthened rather than damaged.** It reasoned that a `moved` means this host is running
+the other directory, so nothing in this window is stale; that holds, and now for a stronger reason —
+`moved` cannot arise from an update at all. The reload offer is no longer the rare case. It is the
+weekly mechanism, and it is what makes the recovery work at all.
+
+**The repair, and the irony in it.** The CLI's `update/watch.ts` polls the extensions *directory*
+for the set of installed directories, and that sees the new one appear immediately. The companion
+was given what looked like a better signal — VS Code stating authoritatively where the extension is
+— and the authority is real but about the wrong thing. Scanning the directory is what restores
+reacting while the old extension is still live, and `extensionUri` keeps the job it is actually
+right for: telling the reload decision what *this window* loaded (D82).
+
 ## The exit code says who is wanted; the bytes say what happened
 
 Two questions, and for a while one number was answering both.
