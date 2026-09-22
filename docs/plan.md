@@ -457,9 +457,18 @@ bundled VSIX, injects, and the extension activates. The live read found three bu
 which [m8-companion.md](m8-companion.md) records — along with one machine where it did not work,
 and why that is parked rather than solved.
 
-**8b is next**: the reload, offered and never taken. Then 8c, the enable, disable and settings
-surface. The other open piece is the stability half of [partial-bundles.md](partial-bundles.md),
-which needs a decision about making `install` async.
+**8a and 8b are both done, read live on 1.0.0-alpha.9.** The live read also forced a correction to
+D76: `extensionUri` cannot see an update land while its own host is the one frozen, so scanning the
+directory is what makes the fast path work, not the field that looked more authoritative —
+[m8-companion.md](m8-companion.md) has the finding.
+
+**8c is built to its settled scope and not yet read live.** Read-only, one Command Palette entry
+(`rigline.showPlugins`), nothing editable — `config.json` stays the only place plugin state lives
+(D84). Unit-tested and the VSIX is installed on the machine this was built on; what remains is
+trying the command after the next window reload.
+
+The stability half of [partial-bundles.md](partial-bundles.md) is settled: `install` stays
+synchronous (D83).
 
 **About this machine.** 2.1.270 and 2.1.278 are both installed and both injected; 2.1.268 and 2.1.269
 were deleted by VS Code once nothing was serving them, which is the behaviour D4 exists for, and all
