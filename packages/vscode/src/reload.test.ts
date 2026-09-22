@@ -55,7 +55,9 @@ describe("reloadWanted", () => {
     expect(reloadWanted({ reason: "start", before: QUIET, after: QUIET, active: true })).toBeNull();
   });
 
-  it("says nothing when the extension never activated, because there is no webview", () => {
+  // Not a panel-closed test: Claude Code activates at startup regardless, so this is the
+  // extension being absent or switched off (D82).
+  it("says nothing when the extension is not running", () => {
     const wanted = reloadWanted({
       reason: "start",
       before: QUIET,

@@ -36,8 +36,9 @@ export interface Editor {
    */
   extensionPath(id: string): string | undefined;
   /**
-   * Whether the extension has activated, which decides whether a webview can exist to be stale
-   * (D82). A second fact from a second question: installed and running are not the same.
+   * Whether the extension is running, which gates the reload offer (D82). Installed and running
+   * are not the same question. It is not "has a webview": Claude Code activates at startup
+   * regardless, and VS Code will not answer the finer question.
    */
   extensionActive(id: string): boolean;
   /** Fires when the installed set changes. The fast path; never the only signal (D80). */

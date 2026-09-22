@@ -402,14 +402,25 @@ coupling D80 exists to avoid, and it would mean 8b could not be read live withou
 stat calls cost nothing and work against every engine there has been. When something else wants the
 structured report, `install --json` can come then and this can switch to it.
 
-#### The gate: an extension that never activated has no webview
+#### The gate: an extension that is not running has no webview
 
-A window that comes up with the panel closed has loaded nothing from the bundle, so patching it
-needs no reload at all. `extensions.getExtension(CLAUDE_CODE).isActive` answers that, and it is
-sampled *after* the install rather than before. Sampling before misses somebody who opened the panel
-while the engine was running, which is a missed prompt over a panel that really is stale; sampling
-after can offer to somebody who opened it a moment later and got patched bytes, which costs them a
-dismissal. Loud over silent, as everywhere else (P8).
+`extensions.getExtension(CLAUDE_CODE).isActive`, sampled *after* the install rather than before.
+Sampling before misses somebody who opened the panel while the engine was running, which is a
+missed prompt over a panel that really is stale; sampling after can offer to somebody who opened it
+a moment later and got patched bytes, which costs them a dismissal. Loud over silent, as everywhere
+else (P8).
+
+**It buys less than it looks like it does, and that is worth knowing before reading a false
+positive as a bug.** Claude Code declares `onStartupFinished`, so it is active in every window from
+startup whether or not its panel is open — `isActive` therefore does not mean "a webview exists",
+and a `start` over an unpatched directory offers even in a window nobody has opened the panel in.
+What the gate still catches is the extension being absent or switched off, and a host that has not
+finished starting.
+
+Narrowing it further is not available. VS Code exposes no way to ask whether another extension has
+a live webview, and `onWebviewPanel:claudeVSCodePanel` is a serialiser registration rather than a
+fact we can read. The false positive is a dismissible notification over a window with no turn to
+lose, which is the cheapest thing on this page to be wrong about.
 
 #### The two offers, and which one is asked
 

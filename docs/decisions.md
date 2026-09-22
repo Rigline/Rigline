@@ -1689,9 +1689,12 @@ release behind does not have — on a shell that acquires whatever `@rigline/cor
 (D80). Statting `webview/index.js` and `extension.js` either side of the run costs nothing, works
 against every engine there has been, and reuses the sampling D81 already does.
 
-Two gates on top. The offer needs `isActive`, because an extension that never activated has no
-webview and a patch behind it needs no reload; it is sampled after the install rather than before,
-so somebody who opened the panel mid-run gets a dismissible prompt instead of no prompt (P8). And a
+Two gates on top. The offer needs `isActive`, sampled after the install rather than before, so
+somebody who opened the panel mid-run gets a dismissible prompt instead of no prompt (P8). That gate
+is weaker than it sounds: Claude Code declares `onStartupFinished`, so it is active in every window
+from startup and `isActive` cannot mean "a webview exists" — it catches the extension being absent
+or switched off, and nothing finer is available, because VS Code exposes no way to ask about another
+extension's webviews. The residue is a dismissible prompt in a window with no turn to lose. And a
 changed `extension.js` asks for a window reload instead, because a webview reload cannot pick one
 up — one offer, chosen by what moved, rather than two buttons the user has to choose between.
 
