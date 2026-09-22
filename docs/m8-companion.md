@@ -312,29 +312,6 @@ A third was found by reading rather than running: `install` exits 0 when no Clau
 so a companion installed *before* the extension read that as success and went green over nothing.
 The companion asks the editor now instead of trusting an exit code.
 
-## One machine where it did not work, unexplained
-
-Parked rather than solved, and recorded so nobody re-derives the dead ends. On one Windows laptop at
-alpha.8 the extension was installed and inert: the folder present under `.vscode/extensions` with
-the right `extension.cjs` and manifest, `code --list-extensions` listing it, and the editor showing
-nothing — no entry in *Developer: Show Running Extensions*, nothing in the Extensions view, no output
-channel.
-
-Ruled out: the VS Code version (1.138.0, far above the floor), workspace trust (trusted throughout),
-a wrong `main` or missing activation event (manifest verified), a different editor install
-(*Developer: Open Extensions Folder* named the folder that contained it), and the Windows spawn bug
-(that laptop runs Node 20.10.0, which predates the fix, which is why it reported `installed` where a
-current Node throws).
-
-Never checked, and the two candidates left: `.obsolete` in the extensions directory, which makes VS
-Code ignore a folder entirely and produces every symptom above; and whether `extensions.json`
-actually carries the entry. The same release works on a second laptop, so this is one machine's
-state rather than the artefact.
-
-**Worth noting separately:** that laptop runs Node 20.10.0, below the `>=22.12.0` floor every Rigline
-package declares. npm warns rather than refuses, and the engine ran, but it is not a configuration
-anything tests — and the companion would hand that same Node to npm.
-
 The watcher serialises rather than debounces. An update produces a burst — the event, then a poll,
 then often a second event as the old directory is deleted — and a reaction per signal would be an
 npm install per signal, each queueing on the last one's lock. A run in flight marks itself and the
@@ -360,11 +337,6 @@ against. And the extension manifest is **generated into `dist/`** rather than be
 own `package.json`, because a VS Code `name` must be unqualified and `rigline` is already the
 workspace's CLI — so the version is derived from the workspace manifest and cannot drift from it.
 
-It opens with the two costs above, because both are load-bearing and neither is visible from a test
-that runs in Node: finding a Node and its npm from inside the extension host, and a lock so the CLI
-and the companion cannot install over each other. Then the acquisition-code question, once the shape
-is real enough to choose against.
-
 Acceptance: **on a machine with no Rigline at all**, install the VSIX alone, and it fetches the
 engine, injects, and says so. Then install Claude Code over itself with the companion running, reload
 the window, and Rigline is still there. Confirmed by reading, live, on a real update rather than a
@@ -384,6 +356,120 @@ as separate offers because they are separate needs. Nothing fires unasked.
 Acceptance: a forced extension-host restart mid-update produces the offer; accepting it restores the
 decorations without a window reload; dismissing it leaves a session's in-flight turn untouched.
 
+#### The discriminator, which everything else derives from
+
+An offer that fires weekly is worth nothing. In the ordinary update the patch lands on disk while
+the window is still running the *old* extension directory, so the thing the companion just reacted
+to changes nothing about the window it runs in: the webview in front of the user came from the old
+directory and is already patched. Reloading it would cost a turn and buy nothing. Silence is the
+correct behaviour, and an offer that cannot tell silence from the rare case is a weekly prompt to
+kill your own session.
+
+**The companion already holds the fact that separates them, in `WatchReason`.** A reaction is either
+`start` — this extension host has just come up, and Claude Code is wherever it already was — or
+`moved`, meaning the directory changed *while this host was running*, which is possible only if this
+host is running the other one. So:
+
+- `moved` is never an offer. The directory just patched is not the directory this window loaded.
+- `start` may be, because the directory just patched is exactly the one this window loaded, and it
+  was loaded before we patched it.
+
+A forced extension-host restart mid-update is a new `start` over a directory VS Code has already
+replaced and we have not yet patched. The acceptance criterion falls out of the discriminator rather
+than being handled beside it.
+
+#### What moved, told by the bytes rather than by the engine
+
+`start` narrows it to a window that *might* be stale; whether it is depends on whether the patch
+changed anything. `install` over an already-patched directory rewrites nothing — a refreshed install
+is bytes-identical — so a `start` over a healthy install is silent too.
+
+The companion learns this the way it already learns whether a directory has stopped moving: by
+statting `webview/index.js` and `extension.js` before the engine runs and again after. The bundle
+moving means the loader was absent and is now there; `extension.js` moving is a host patch.
+`fingerprint` is the same function, taken apart into its files rather than joined into one string.
+
+**Deliberately an inference rather than a report.** The engine knows both exactly — `VersionReport`
+carries `action` and `hostChanged` — and handing them over means a new flag on `install`, which an
+engine one release behind does not have, on a companion that acquires whatever
+`@rigline/core@latest` resolves to. A shell that refuses to work against an older engine is the
+coupling D80 exists to avoid, and it would mean 8b could not be read live without a release. Two
+stat calls cost nothing and work against every engine there has been. When something else wants the
+structured report, `install --json` can come then and this can switch to it.
+
+#### The gate: an extension that never activated has no webview
+
+A window that comes up with the panel closed has loaded nothing from the bundle, so patching it
+needs no reload at all. `extensions.getExtension(CLAUDE_CODE).isActive` answers that, and it is
+sampled *after* the install rather than before. Sampling before misses somebody who opened the panel
+while the engine was running, which is a missed prompt over a panel that really is stale; sampling
+after can offer to somebody who opened it a moment later and got patched bytes, which costs them a
+dismissal. Loud over silent, as everywhere else (P8).
+
+#### The two offers, and which one is asked
+
+Not two buttons on one notification. A webview reload cannot fix a changed `extension.js` and a
+window reload fixes both, so which is asked is decided by what moved rather than left to the user:
+
+- `extension.js` moved — *Reload window*. It ends every session in the window, and the message says
+  so.
+- only the bundle moved — *Reload webviews*, through
+  `workbench.action.webview.reloadWebviewAction`. It ends the in-flight turn of every Claude session
+  in this window, and the message says that too.
+
+Both are information notifications rather than warnings. Nothing is broken that stays broken — the
+next window reload fixes it either way — and spending the warning colour on a cosmetic prompt is how
+the real warnings stop being read.
+
+#### What is not offered
+
+A payload that moved under a working loader. An engine update mid-session leaves the webview running
+the previous payload, which is a real staleness and still not worth a prompt: the decorations are
+there, they work, and the next reload picks up the new ones. The offer is for *Rigline is absent*,
+which is what keeps it rare enough to mean anything.
+
+#### Dismissing, and getting back to it
+
+Asked once, never repeated. Dismissing leaves the status item reading `Rigline: reload to apply`,
+which is the same offer without the interruption — clicking it opens the notification again rather
+than reloading, so there is exactly one place the cost is stated and exactly one path the reload is
+taken by. That is D55 and D56's rule applied to the reload itself: somebody who was mid-turn when
+the offer arrived should not need to know a command to get back to it.
+
+No Command Palette entry. VS Code already contributes *Developer: Reload Webviews*, and a second one
+that happens to also clear Rigline's status item is a worse answer than the status item.
+
+#### What it costs
+
+`Editor` grows from six methods to nine, each a real editor capability: `extensionActive`,
+`reloadWebviews`, `reloadWindow`. `ask` grows a level so an offer is not dressed as a warning,
+`Health` grows `stale`, and the status item's command is derived from health in `extension.ts`
+beside the icons rather than passed through the seam. The decision itself is a pure function in a
+new `reload.ts` that has never heard of VS Code, which is how a phase whose acceptance is a live
+read still has tests.
+
+#### Two channels that do not exist, recorded so they are not re-proposed
+
+**The webview cannot tell us it is patched.** The injected payload runs in a browser context owned by
+Claude Code; its `postMessage` reaches Claude Code's extension host code, not ours, and VS Code has
+no cross-extension channel unless the other extension exports an API. A definitive "a patched
+webview is live" signal would need a host patch that forwards it, which is a far larger act than the
+thing it would decide.
+
+**`extensions.all` cannot be asked which directory is *running*.** It describes what is installed.
+The discriminator above is what replaces that question, and it needs nothing VS Code does not
+already tell us.
+
+#### Verification
+
+Tier 1: the decision table — every combination of reason, bytes moved and activation, against
+offer-or-silence; accepting calls exactly one editor method, once; dismissing calls none and leaves
+`stale`; the status click re-offers rather than reloading. `activates.test.ts` gains the command
+registration, because a status item whose command does not exist is a click that does nothing and
+says nothing.
+
+Tier 4 is the acceptance above, and it is the only tier that can see it.
+
 ### 8c: the surface
 
 Enable, disable and settings, per the original phase 5 sketch. Deliberately last: it is the part with
@@ -397,13 +483,37 @@ synchronisation problem nobody asked for.
 ## Decisions to record
 
 D76 (the shape and the channel), D77 (the compliance position), D78 (the signature-verification
-premise) and **D80 (the companion is a second retrieval layer)** are recorded. What this milestone
-will add:
+premise), **D80 (the companion is a second retrieval layer)** and D81 (nothing reacts to a directory
+still being written) are recorded. What this milestone will add:
 
-- **How acquisition code is shared** between the wrapper and the companion, once 8a shows whether
-  `rigline`'s internals import cleanly without its CLI surface.
+- **D82: a reload is offered only after a `start`.** The discriminator 8b rests on — a directory
+  that moved while this host was running is not the directory this window loaded, so the ordinary
+  weekly update is silent by construction rather than by a heuristic.
 - **Whether `extensionUri` is passed down or re-derived**, once it is known whether the engine's
   locate step wants a hint or an override.
+
+## One machine where it did not work, unexplained
+
+Parked rather than solved, and recorded so nobody re-derives the dead ends. On one Windows laptop at
+alpha.8 the extension was installed and inert: the folder present under `.vscode/extensions` with
+the right `extension.cjs` and manifest, `code --list-extensions` listing it, and the editor showing
+nothing — no entry in *Developer: Show Running Extensions*, nothing in the Extensions view, no output
+channel.
+
+Ruled out: the VS Code version (1.138.0, far above the floor), workspace trust (trusted throughout),
+a wrong `main` or missing activation event (manifest verified), a different editor install
+(*Developer: Open Extensions Folder* named the folder that contained it), and the Windows spawn bug
+(that laptop runs Node 20.10.0, which predates the fix, which is why it reported `installed` where a
+current Node throws).
+
+Never checked, and the two candidates left: `.obsolete` in the extensions directory, which makes VS
+Code ignore a folder entirely and produces every symptom above; and whether `extensions.json`
+actually carries the entry. The same release works on a second laptop, so this is one machine's
+state rather than the artefact.
+
+**Worth noting separately:** that laptop runs Node 20.10.0, below the `>=22.12.0` floor every Rigline
+package declares. npm warns rather than refuses, and the engine ran, but it is not a configuration
+anything tests — and the companion would hand that same Node to npm.
 
 ## Deferred, with triggers
 
