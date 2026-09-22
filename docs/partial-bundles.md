@@ -1,13 +1,12 @@
 # Refusing a bundle that is not whole
 
-Partly built. It closes the failure D81 names but only defends against from the outside: that
-Rigline can read an extension directory VS Code is still writing, and record the fragment as the
-thing `restore` restores.
+Closes the failure D81 names but only defends against from the outside: that Rigline can read an
+extension directory VS Code is still writing, and record the fragment as the thing `restore`
+restores.
 
 The companion waits for the directory to stop moving (D81), which removes the exposure it created by
 reacting to `extensions.onDidChange`. That guards one caller. The defect is at the injector, which
-now refuses a directory that is structurally unfinished — see *What is still owed* for the part that
-is not closed.
+refuses a directory that is structurally unfinished, and one whose bytes are still moving.
 
 ## The failure
 
@@ -71,25 +70,35 @@ else's bundler config, renewed weekly, with an outage as the stake.
 A test in `bundles.test.ts` feeds `wholenessProblem` a bundle with exactly that tail and asserts it
 passes, so the reasoning is enforced rather than remembered.
 
-## What is still owed
+## The stability half
 
 The gap the structural checks leave: a directory whose files are all present and one of which is
 still growing. Structure cannot see it, and content should not try.
 
-**Stability can.** Stat the bundles, wait, stat again, and proceed only when nothing moved — the
-same shape the companion uses (D81), and a direct measurement rather than a guess about content. It
+**Stability can.** Stat the four files, wait, stat again, and refuse when anything moved — the same
+shape the companion uses (D81), and a direct measurement rather than a guess about content. It
 cannot refuse a legitimate bundle, whatever a future bundler emits, which is exactly the property
 the content check lacked.
 
-Its cost is the reason it is not here yet: `install` is synchronous, and every caller of it is. A
-wait needs either an async `install` — which ripples through the flow, the watcher, the CLI and the
-harness — or a synchronous sleep through `Atomics.wait`, which works and is contained but is exotic
-enough to want a deliberate decision rather than a quiet one. Neither belongs in a slice that was
-opened to stop a silent corruption, and the corruption is already much harder to reach.
+**Refuse rather than wait for it.** `wholenessProblem` answers a question and every one of its other
+answers is a refusal, so a settle loop here would be the one branch that blocks for twenty seconds
+and then succeeds. One sample gap, then the same sentence as every other problem: an update is
+probably in progress, try again in a moment. The retry is the caller's — a person's next command, or
+the watcher's next poll, both of which already exist.
 
-The remaining exposure, stated plainly so nobody assumes it closed: a person running `install` in
-the seconds while one bundle is still being written, on a machine where the other files have
-already landed. The companion's settle covers the update path that produces it.
+**The wait is `Atomics.wait`, and the alternative was an async `install`.** Settled with Leo,
+2026-09-22. A sleep needs either an `install` that can await — which ripples through `update`,
+`check`, `reinject`, the CLI's switch, `watch.ts`, `dev` and the harness — or a synchronous block.
+`Atomics.wait` on a `SharedArrayBuffer` is the latter in three lines, and the objection to it is
+that blocking a thread is a thing one does not do. That objection is about a process with something
+else to do. The engine is spawned per command, does one job and exits; the companion only ever sees
+it as a child that took a quarter of a second longer. There is no event loop here to starve.
+
+A quarter of a second, not the companion's two. The companion is sampling a directory it has been
+told changed, where the write may not have started; this is sampling one it is about to write into,
+where the question is only whether a write is in flight *now* — and a file being streamed onto disk
+moves within that window. It is paid by every `install`, `dev` rebuild included, which is the honest
+cost and is under a bundler build.
 
 ## Where the refusal goes
 
@@ -104,11 +113,12 @@ should stay the thing that always runs.
 ## Verification
 
 Tier 1, in `bundles.test.ts`: each missing or empty file named, an unparseable manifest, a manifest
-with no version, and the source-map tail that the rejected content rule would have refused.
+with no version, the source-map tail that the rejected content rule would have refused, a file that
+grows between the two samples, and that `sleepSync` really blocks.
 
-Still worth adding when the stability half lands: an install pointed at a directory being written
-must leave `*.orig` untouched. That is the property that actually matters and it is not the same
-assertion as the predicate's — a predicate can be right while a caller checks it too late.
+And in `inject.test.ts`, the property that actually matters, which is not the same assertion as the
+predicate's — a predicate can be right while a caller checks it too late: an install pointed at a
+directory that is still being written leaves `index.js.orig` untouched.
 
 ## What this does not do
 

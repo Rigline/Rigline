@@ -1703,3 +1703,27 @@ mid-turn when the offer arrives should not need to learn a command to get back t
 A payload that moved under a working loader is deliberately not an offer. The decorations are there
 and they work; the next reload picks up the newer ones. Spending the prompt on that is how it stops
 being read.
+
+**D83. `install` stays synchronous, and its stability sample blocks with `Atomics.wait`
+(2026-09-22).** D81's structural refusal cannot see the case that matters most — every file present
+and one still growing — and stability can: stat, wait, stat, refuse when anything moved. A direct
+measurement, so unlike a content rule it cannot refuse a legitimate bundle whatever a future bundler
+emits.
+
+Waiting needs either an `install` that can await — rippling through `update`, `check`, `reinject`,
+the CLI's switch, `watch.ts`, `dev` and the harness — or a synchronous block. The objection to
+blocking a thread is about a process with something else to do; the engine is spawned per command,
+does one job and exits, and the companion only ever sees it as a child taking a quarter of a second
+longer. There is no event loop here to starve, so the conversion buys nothing and costs a wide
+mechanical change across the one path this project has learned not to trust when it goes green.
+
+**One sample gap, then refuse.** Every other answer `wholenessProblem` gives is a refusal, so a
+settle loop here would be the single branch that blocks for twenty seconds and then succeeds. The
+retry belongs to the caller — a person's next command, or the watcher's next poll — and both already
+exist.
+
+A quarter of a second, against the companion's two, because the questions differ: the companion is
+sampling a directory it has been told changed, where the write may not have started; this is
+sampling one it is about to write into, where the only question is whether a write is in flight now.
+It is paid by every install, so `install` takes `wholeness` and the flow passes it down — the seam
+that keeps the test suite from paying it forty times over.

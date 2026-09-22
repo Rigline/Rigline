@@ -20,8 +20,9 @@ import { harvestableHostReplies, harvestableWebview } from "../../test/fixtures.
 import {
   hostVerdict,
   type InstallOptions,
+  type InstallReport,
   inspect,
-  install,
+  install as installBundle,
   PATCH_BYTES,
   restore,
   restoreAll,
@@ -122,6 +123,16 @@ function withPlugins(
 ): NonNullable<InstallOptions["plugins"]> {
   return { roots, configPath: writeConfig([]), ...extra };
 }
+
+/**
+ * `install` without the stability sample's quarter of a second.
+ *
+ * Every fixture here is written by the line above the call, so there is never a write in flight to
+ * sample for — and paying for the sample forty times over is a third of this file's runtime. The
+ * two cases that are *about* the sample call the real one below.
+ */
+const install = (ext: string, options: InstallOptions): InstallReport =>
+  installBundle(ext, { wholeness: { sleep: () => {} }, ...options });
 
 describe("install", () => {
   it("adds exactly PATCH_BYTES and nothing else, and the backup equals the original bundle", () => {
@@ -231,6 +242,42 @@ describe("install", () => {
     const ext = fixture();
     install(ext, { payloadDir: payload() });
     expect(existsSync(join(payloadOutDir(ext), "registry.js"))).toBe(false);
+  });
+});
+
+describe("a directory still being written", () => {
+  // Not the same assertion as `wholenessProblem`'s own. A predicate can be right while its caller
+  // asks too late, and asking too late here means `settleWebviewBackup` has already made a
+  // fragment the pristine backup — silently, and destroying the only recovery path (D81).
+  it("is refused before anything is read or written, so no backup is made", () => {
+    const ext = fixture();
+    expect(() =>
+      installBundle(ext, {
+        payloadDir: payload(),
+        wholeness: {
+          sleep: () => {
+            writeFileSync(bundlePath(ext), "var a=1;// still arriving");
+          },
+        },
+      }),
+    ).toThrow(/still being written/);
+
+    expect(existsSync(backupPath(ext))).toBe(false);
+    expect(existsSync(payloadOutDir(ext))).toBe(false);
+  });
+
+  it("says an update is probably in progress, which is the thing to do about it", () => {
+    const ext = fixture();
+    expect(() =>
+      installBundle(ext, {
+        payloadDir: payload(),
+        wholeness: {
+          sleep: () => {
+            writeFileSync(hostPath(ext), `${hostBundleText()}// more`);
+          },
+        },
+      }),
+    ).toThrow(/extension update is probably in progress/);
   });
 });
 

@@ -74,6 +74,19 @@ export function isExtensionDir(dir: string): boolean {
 /** What `wholenessProblem` found wrong, as the sentence a person is shown. */
 export type WholenessProblem = string;
 
+export interface WholenessOptions {
+  /**
+   * How long to leave between the two samples. A quarter of a second: the question is only whether
+   * a write is in flight now, and a file being streamed onto disk moves within that. Every install
+   * pays it, so it is kept under what a bundler build costs.
+   */
+  readonly settleMs?: number;
+  /** Injected so a test asserts the refusal without waiting for it. */
+  readonly sleep?: (ms: number) => void;
+}
+
+const SETTLE_MS = 250;
+
 /**
  * Whether an extension directory is finished being written, or a reason it is not.
  *
@@ -89,14 +102,19 @@ export type WholenessProblem = string;
  * this refuse every install on the day of a version bump. That is a self-inflicted outage in place
  * of a rare silent bug, and absent beats wrong (P8).
  *
- * What is left catches the commoner shape anyway: an install part-way through has *some* of its
- * files, and both bundles are megabytes that do not appear atomically. What it does not catch is a
- * directory whose files are all present and one still growing; the companion's settle (D81) is the
- * half that covers that, and [partial-bundles.md](../../../../docs/partial-bundles.md) has what a
- * stability check here would cost.
+ * Structure catches the commoner shape: an install part-way through has *some* of its files, and
+ * both bundles are megabytes that do not appear atomically. What it cannot see is a directory whose
+ * files are all present and one still growing, so the stability sample below answers that — a
+ * direct measurement, which is the property the content rule lacked.
  */
-export function wholenessProblem(dir: string): WholenessProblem | null {
-  for (const name of [WEBVIEW_BUNDLE, HOST_BUNDLE, WEBVIEW_CSS, "package.json"]) {
+export function wholenessProblem(
+  dir: string,
+  options: WholenessOptions = {},
+): WholenessProblem | null {
+  const { settleMs = SETTLE_MS, sleep = sleepSync } = options;
+  const files = [WEBVIEW_BUNDLE, HOST_BUNDLE, WEBVIEW_CSS, "package.json"];
+
+  for (const name of files) {
     const path = join(dir, name);
     if (!existsSync(path)) return `${name} is not there yet`;
     if (statSync(path).size === 0) return `${name} is empty`;
@@ -110,5 +128,30 @@ export function wholenessProblem(dir: string): WholenessProblem | null {
   } catch {
     return "package.json is not readable JSON yet";
   }
+
+  const before = files.map((name) => stampOf(join(dir, name)));
+  sleep(settleMs);
+  for (const [index, name] of files.entries()) {
+    if (stampOf(join(dir, name)) !== before[index]) return `${name} is still being written`;
+  }
   return null;
+}
+
+/** Size and modification time, or `gone` for a file that vanished between the two samples. */
+function stampOf(path: string): string {
+  try {
+    const { size, mtimeMs } = statSync(path);
+    return `${size}:${mtimeMs}`;
+  } catch {
+    return "gone";
+  }
+}
+
+/**
+ * Block this thread for `ms`. The engine is spawned per command and has nothing else to do, which
+ * is what makes a synchronous sleep the contained answer rather than an async `install` rippling
+ * through every caller.
+ */
+export function sleepSync(ms: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }

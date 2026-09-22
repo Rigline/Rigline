@@ -23,6 +23,16 @@ anything may change between releases.
   The ordinary weekly update is silent, and deliberately: the patch lands in a directory this
   window has not loaded, so nothing in front of you is stale and there is nothing to offer.
 
+### Fixed
+
+- `rigline install` refuses an extension directory whose files are all present but still being
+  written, as well as one with files missing. The half it could not see before is the one that
+  matters: a bundle still growing is recorded as the pristine backup, so `restore` afterwards
+  returns a fragment and the extension is broken in a way that looks like Rigline broke it — with
+  nothing reported at the time or later. It now samples sizes and modification times a quarter of
+  a second apart and refuses if anything moved, naming the file and saying an update is probably
+  in progress. Every install pays that quarter second.
+
 ## 1.0.0-alpha.9 — 2026-09-22
 
 ### Fixed

@@ -18,7 +18,14 @@ import { readBundles } from "../extension/bundles.ts";
 import { harvestAll } from "../layers/index.ts";
 import { RIGLINE_HOME_VARIABLE } from "../paths.ts";
 import { readBaseline, readGeneratedScan, writeBaseline } from "./baseline.ts";
-import { check, formatFlow, update } from "./flow.ts";
+import { check, formatFlow, type UpdateOptions, update as updateFlow } from "./flow.ts";
+
+/**
+ * `update` without the stability sample's quarter of a second. Every fixture here is written by
+ * the line above the call, so there is no write in flight for it to catch.
+ */
+const update = (options: UpdateOptions) =>
+  updateFlow({ wholeness: { sleep: () => {} }, ...options });
 
 const dirs: string[] = [];
 

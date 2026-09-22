@@ -15,9 +15,10 @@ from. Update the plan before writing code; log status there, not here.
   phases with acceptance criteria, status log.
 - [docs/partial-bundles.md](docs/partial-bundles.md): why `install` refuses an unfinished extension
   directory — recording a half-written bundle as the pristine backup is silent and destroys
-  `restore` (D81). Carries a negative result worth not re-proposing: a content check on the bundle's
-  tail was evidenced against the corpus and rejected, because a rule that fits today's bundler
-  refuses every install the day it changes. The stability half is still owed, and says what it costs.
+  `restore` (D81, D83). Both halves: structure, and a stability sample that blocks with
+  `Atomics.wait` rather than making `install` async. Carries a negative result worth not
+  re-proposing: a content check on the bundle's tail was evidenced against the corpus and rejected,
+  because a rule that fits today's bundler refuses every install the day it changes.
 - [docs/m8-companion.md](docs/m8-companion.md): the open milestone. The companion extension that
   stops an update silently reverting the injection — the fork it derives from (it is a second
   retrieval layer acquiring and running the engine, never a copy of it, D80), the two costs that

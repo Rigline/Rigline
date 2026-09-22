@@ -10,6 +10,7 @@ import {
   pristineHostPath,
   pristineWebviewPath,
   readBundles,
+  sleepSync,
   wholenessProblem,
 } from "./bundles.ts";
 
@@ -151,33 +152,36 @@ function wholeExtension(): string {
   return ext;
 }
 
+/** No wait: every case below is about the verdict, and the sample gap has its own tests. */
+const whole = (ext: string) => wholenessProblem(ext, { sleep: () => {} });
+
 describe("wholenessProblem", () => {
   it("says nothing is wrong with a finished directory", () => {
-    expect(wholenessProblem(wholeExtension())).toBeNull();
+    expect(whole(wholeExtension())).toBeNull();
   });
 
   it("names the file that has not arrived", () => {
     const ext = wholeExtension();
     rmSync(join(ext, "extension.js"));
-    expect(wholenessProblem(ext)).toMatch(/extension\.js is not there yet/);
+    expect(whole(ext)).toMatch(/extension\.js is not there yet/);
   });
 
   it("names an empty file, which is a created-but-unwritten one", () => {
     const ext = wholeExtension();
     writeFileSync(join(ext, "webview", "index.js"), "");
-    expect(wholenessProblem(ext)).toMatch(/is empty/);
+    expect(whole(ext)).toMatch(/is empty/);
   });
 
   it("refuses a manifest that is not JSON yet", () => {
     const ext = wholeExtension();
     writeFileSync(join(ext, "package.json"), '{"version": "2.1.2');
-    expect(wholenessProblem(ext)).toMatch(/not readable JSON/);
+    expect(whole(ext)).toMatch(/not readable JSON/);
   });
 
   it("refuses a manifest with no version", () => {
     const ext = wholeExtension();
     writeFileSync(join(ext, "package.json"), "{}");
-    expect(wholenessProblem(ext)).toMatch(/no version/);
+    expect(whole(ext)).toMatch(/no version/);
   });
 
   it("accepts a bundle that is merely odd, because content is not what this judges", () => {
@@ -186,12 +190,49 @@ describe("wholenessProblem", () => {
     // content rule that fits today's bundler refuses everybody on the day it changes (P8).
     const ext = wholeExtension();
     writeFileSync(join(ext, "extension.js"), "var b={};\n//# sourceMappingURL=extension.js.map\n");
-    expect(wholenessProblem(ext)).toBeNull();
+    expect(whole(ext)).toBeNull();
   });
 
   it("checks the css too, since a part-written install often has some files and not others", () => {
     const ext = wholeExtension();
     rmSync(join(ext, "webview", "index.css"));
-    expect(wholenessProblem(ext)).toMatch(/index\.css is not there yet/);
+    expect(whole(ext)).toMatch(/index\.css is not there yet/);
+  });
+
+  // The half structure cannot see: every file present, one of them still growing. This is the
+  // shape that produces a fragment as the pristine backup, so it is the one that matters.
+  it("refuses a file that grew between the two samples, and names it", () => {
+    const ext = wholeExtension();
+    const problem = wholenessProblem(ext, {
+      sleep: () => {
+        writeFileSync(join(ext, "webview", "index.js"), "var a={};var more={};");
+      },
+    });
+    expect(problem).toMatch(/index\.js is still being written/);
+  });
+
+  it("refuses a file that disappeared between the two samples", () => {
+    const ext = wholeExtension();
+    const problem = wholenessProblem(ext, {
+      sleep: () => {
+        rmSync(join(ext, "extension.js"));
+      },
+    });
+    expect(problem).toMatch(/extension\.js is still being written/);
+  });
+
+  it("accepts a directory nobody is touching, which is every ordinary run", () => {
+    const ext = wholeExtension();
+    expect(wholenessProblem(ext, { settleMs: 5 })).toBeNull();
+  });
+});
+
+describe("sleepSync", () => {
+  // The whole reason `install` stayed synchronous. If this ever silently returns immediately the
+  // stability sample becomes two stats in a row, which would pass on a directory mid-write.
+  it("actually blocks the thread", () => {
+    const before = Date.now();
+    sleepSync(30);
+    expect(Date.now() - before).toBeGreaterThanOrEqual(25);
   });
 });

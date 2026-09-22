@@ -32,6 +32,7 @@ import {
   readBundles,
   WEBVIEW_BACKUP,
   WEBVIEW_BUNDLE,
+  type WholenessOptions,
   wholenessProblem,
 } from "../extension/bundles.ts";
 import { harvestAll } from "../layers/index.ts";
@@ -196,6 +197,8 @@ export interface InstallOptions {
    * once and passes it down here, the way it owns the baseline path.
    */
   readonly anchors?: AnchorOverrides;
+  /** The stability sample's timings. Injected only so a test can drive the refusal it produces. */
+  readonly wholeness?: WholenessOptions;
   readonly log?: (line: string) => void;
 }
 
@@ -268,7 +271,7 @@ export function install(ext: string, options: InstallOptions): InstallReport {
   // whenever there is no backup yet — which is every new version's directory — so an install that
   // races VS Code's own records a fragment as the only copy of what a restore could return to, and
   // says nothing (D81).
-  const problem = wholenessProblem(ext);
+  const problem = wholenessProblem(ext, options.wholeness ?? {});
   if (problem !== null) {
     throw new UserError(
       `${ext} is not finished being written: ${problem}. An extension update is probably in ` +

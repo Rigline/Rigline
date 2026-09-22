@@ -122,6 +122,8 @@ export interface FlowOptions {
   readonly baselinePath?: string;
   /** Where the anchor override lives. Defaults to `~/.rigline/anchors.json`. */
   readonly anchorsPath?: string;
+  /** The stability sample's timings, as `install` takes them. Injected only by tests. */
+  readonly wholeness?: InstallOptions["wholeness"];
 }
 
 export interface UpdateOptions extends FlowOptions {
@@ -250,6 +252,7 @@ export function update(options: UpdateOptions): FlowReport {
       payloadDir: options.payloadDir,
       plugins: options.plugins,
       anchors: overrides,
+      ...(options.wholeness === undefined ? {} : { wholeness: options.wholeness }),
       log: (line) => log.push(line),
     });
     const h = harvestOne(ext, overrides);
