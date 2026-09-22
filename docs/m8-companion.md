@@ -512,9 +512,27 @@ Enable, disable and settings, per the original phase 5 sketch. Deliberately last
 no unique claim on being in an extension — `rigline disable NAME` already does it from a terminal —
 and building it first would be building the easy half of the milestone instead of the point of it.
 
-Worth deciding when it starts, not now: whether the plugin list belongs in a VS Code settings UI at
-all, given `config.json` is the source of truth and a second editor for one file is a
-synchronisation problem nobody asked for.
+**Settled with Leo, 2026-09-22: read-only, nothing editable.** `config.json` stays the only place
+plugin state lives. A UI that mirrors it — a settings page, a tree view — creates a second place that
+state can be read from, which then has to stay in sync with a file that changes independently (the
+CLI, `rigline dev`, another window's companion): the synchronisation problem nobody asked for. Enable
+and disable stay CLI-only; 8c adds visibility, not editing.
+
+**What's there already, and what's thin on top of it.** The output channel has carried the engine's
+whole report, plugin lines included, since 8b's fix to pipe stdout instead of discarding it — every
+version block already prints `loading: ...` and `switched off in config: ...`. That satisfies
+"visible" but not "findable": a person wanting only the plugin list has to scroll a report that also
+carries module counts, anchor resolution and host-patch detail. **8c is one command**,
+`rigline.showPlugins` ("Rigline: Show Plugins" on the palette, the one command this package
+contributes), which reveals the output channel and spawns the engine with `list`, reusing
+`runEngine`'s existing line-by-line pipe. Node resolution reuses `findNode`; engine resolution calls
+`ensureEngine` alone, never `updateEngine` — a viewing command has no business checking npm for a
+newer engine, and `ensureEngine` is a pure local read when one is already on disk (`readEngineState`
+returns `ready` and nothing calls `resolveEngine`). No new `Editor` method: revealing the channel is
+UI, so it stays in `extension.ts`, the one file that already touches `vscode` directly.
+
+Acceptance: the command is on the palette, produces the same listing `rigline list` would from a
+terminal, touches nothing on disk, and makes no network call when an engine is already present.
 
 ## Decisions to record
 
