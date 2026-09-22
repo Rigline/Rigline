@@ -23,13 +23,13 @@ anything may change between releases.
   no; clicking it there asks again rather than reloading. A changed `extension.js` asks for a
   window reload instead, because a webview reload cannot pick one up.
 
-  The ordinary weekly update is silent, and deliberately: the patch lands in a directory this
+  The ordinary weekly update asks nothing, and deliberately: the patch lands in a directory this
   window has not loaded, so nothing in front of you is stale and there is nothing to offer.
 - The companion's status bar reads **Rigline: ready to restart** once it has patched a newly
   installed Claude Code version in the background, and stays that way until you restart, instead
-  of settling back to the same look it had before anything happened. A glance now tells you whether it has caught up. The window
-  you're in keeps running the old version, so restart extensions or reload the window whenever it
-  suits you.
+  of settling back to the same look it had before anything happened. A glance now tells you
+  whether it has caught up. The window you're in keeps running the old version, so restart
+  extensions or reload the window whenever it suits you.
 
 ### Fixed
 
@@ -47,7 +47,6 @@ anything may change between releases.
   your window, with every check agreeing it was there. The report now names profiles as a
   cause, because the one it named before (a second editor answering to the same `code`) is a
   claim somebody using profiles can check, disprove, and be left with nowhere to go.
-
 - `rigline install` no longer exits non-zero just because a plugin changed `extension.js`.
   A host patch is work the run just did, not a problem somebody has to fix, and the reload it
   asks for is already said twice in the report. Since a bundled plugin patches the host, an
@@ -60,13 +59,11 @@ anything may change between releases.
   this window needed reloading — which meant the window-reload prompt could never appear in
   the one situation it exists for. It now decides that from the bytes on disk, so it is right
   even against an older engine, and a non-zero exit says `Rigline: needs you` instead.
-
 - The companion puts the engine's own report in its output channel. It ran the engine with
   inherited stdio, which from inside the extension host reaches a stream VS Code keeps no log
   of — so everything the engine said was discarded, including on the runs where the status bar
   then said to go and read it. Whatever `rigline install` would have printed in a terminal now
   appears under Output -> Rigline, a line at a time.
-
 - The companion now notices an extension update while your window is still running, instead of
   waiting for the next reload. It watched the directory VS Code reports for the running
   extension, which is fixed until the extension host restarts — so an update wrote a new
@@ -74,7 +71,6 @@ anything may change between releases.
   until you reloaded. It reads the installed directories from disk now, which is the signal
   `rigline watch` always used, so the patch lands behind the old extension and your next reload
   comes up with Rigline already there.
-
 - `rigline install` writes only what is not already right, and says when it wrote nothing. The
   loader itself was already left alone when the bytes matched; everything beside it — the
   payload, the baked registry, the identifier tables and every installed plugin — was rewritten
