@@ -356,10 +356,11 @@ as separate offers because they are separate needs. Nothing fires unasked.
 Acceptance: a forced extension-host restart mid-update produces the offer; accepting it restores the
 decorations without a window reload; dismissing it leaves a session's in-flight turn untouched.
 
-**Built, and two of the three acceptance clauses read live on 1.0.0-alpha.9.** A window came up over
-an unpatched extension, the webview offer appeared, and taking it put the decorations back. What is
-not read yet: that dismissing leaves an in-flight turn alone, the window-reload variant, and that a
-real extension replacement stays silent.
+**Built, and most of the acceptance read live on 1.0.0-alpha.9.** A window came up over an unpatched
+extension and the webview offer appeared; taking it put the decorations back without a window
+reload, and declining it took no reload and left the offer on the status bar. What is not read yet:
+that a turn running at the time survives the decline, that the status item re-asks rather than
+reloading, the window-reload variant, and that a real extension replacement stays silent.
 
 **Triggering it does not need an update to land.** The offer turns on this host having come up over
 an unpatched directory, and `restore` followed by *Developer: Reload Window* produces exactly that,
