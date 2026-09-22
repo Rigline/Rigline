@@ -48,7 +48,9 @@ export function activate(context: vscode.ExtensionContext): void {
       item.command = look.command;
       item.show();
     },
-    log: (line) => output.appendLine(`[${new Date().toISOString()}] ${line}`),
+    // A blank line keeps the engine's paragraphs apart; stamping it would turn each one into a
+    // line of noise.
+    log: (line) => output.appendLine(line === "" ? "" : `[${new Date().toISOString()}] ${line}`),
     ask: async (level, message, ...actions) =>
       level === "warn"
         ? await vscode.window.showWarningMessage(message, ...actions)
