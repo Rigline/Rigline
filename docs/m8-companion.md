@@ -625,17 +625,35 @@ extension version: `pnpm rigline disable NAME` then `enable NAME`, or `rigline d
 plugin, both rewrite `registry.js` and a plugin directory under whatever the panel is currently
 reading. Seconds per attempt, and it isolates the writes from everything else an update does.
 
-**A third attempt, same day, against this checkout's own live panel: no wedge.** `disable time-marks`
-then `enable time-marks` rewrote `registry.js` and `plugins/time-marks/` under the directory this
-window was running from; a prompt submitted through that same panel immediately after was answered
-normally.
+**Two more attempts, same day, against this checkout's own live panel: no wedge.** `disable
+time-marks` then `enable time-marks` rewrote `registry.js` and `plugins/time-marks/` under the
+directory this window was running from; a prompt submitted through that same panel immediately after
+was answered normally. Then a closer match to the original trigger: `code --install-extension
+anthropic.claude-code@2.1.270 --force` while this window stayed live on 2.1.268 — a genuine version
+swap, not a manual plugin toggle. The companion reacted on its own and reinjected across every
+tracked version, 2.1.268 (this window's live, already-loaded directory) included — its `registry.js`
+was rewritten within the same second as 2.1.270's. Two prompts submitted through this panel
+afterward, both answered normally.
 
-One clean attempt does not retire the mechanism — the two prior occurrences correlated with a write
-under a live webview and stand unexplained, not retracted. This downgrades the item from something
-being actively chased to something watched for recurrence, per Leo's call: ignore it unless it
-recurs. If it does, the instrument and the repro above are already known — **the console comes before
-the reload.** *Developer: Open Webview Developer Tools* is where the payload's errors go; reloading
-to recover destroys the only evidence, which is how both occurrences were lost.
+Three clean attempts do not retire the mechanism — the two prior occurrences correlated with a write
+under a live webview and stand unexplained, not retracted. But all three attempts share something
+the original two may not have: the action logged was `refreshed`, not `injected`, meaning Rigline had
+already patched that exact version directory before and the window had already booted from it —
+so the webview's modules were already resident in memory, and rewriting the files on disk afterward
+is a no-op to code that never re-reads them. **The webview panel itself stayed open throughout all
+three attempts.** VS Code tears down and recreates a webview panel independently of the extension
+host (losing focus, switching editor groups), which re-fetches `webview/index.js` and the payload
+from disk fresh — exactly the read that could race the companion's delete-and-recreate of `plugins/`.
+None of the three attempts exercised that: closing and reopening the panel, or a brand-new window
+booting a version genuinely never seen on this machine, at the moment a write lands. That needs
+watching a panel open or a window boot in real time, which is Leo's to trigger and observe rather
+than something a background write-and-submit loop can produce.
+
+This downgrades the item from something being actively chased to something watched for recurrence,
+per Leo's call: ignore it unless it recurs. If it does, the instrument and the repro above are
+already known — **the console comes before the reload.** *Developer: Open Webview Developer Tools*
+is where the payload's errors go; reloading to recover destroys the only evidence, which is how both
+occurrences were lost.
 
 ## The profile trap, which is what the "one machine" mystery was
 
