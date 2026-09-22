@@ -157,15 +157,13 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
       return { kind: "attention", message, reload };
     }
 
-    // `ready` says a newly landed version is patched and waiting, distinct from `ok` because
-    // landing back on the same status is indistinguishable from nothing having happened (D85).
-    // Nothing arriving, or a `start` that changed nothing, has nothing new to flag and stays `ok`.
+    // A version patched behind this window must not look like steady state (D85).
     if (reason.kind === "moved" && reason.arriving.length > 0) {
       editor.status(
         "ready",
         "Rigline: ready to restart",
-        `Injected by engine ${engine.version} in the background. This window is unaffected — ` +
-          "restart or reload whenever you like to pick it up.",
+        `Injected by engine ${engine.version} into the newly installed Claude Code. This window ` +
+          "keeps running the old one until you restart extensions or reload the window.",
       );
     } else {
       editor.status("ok", "Rigline", `Injected by engine ${engine.version}`);

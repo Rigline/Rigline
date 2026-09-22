@@ -184,30 +184,9 @@ A changed `extension.js` is different: a host patch needs a window reload and ca
 reloading webviews. That prompt says so, and stays dismissible.
 
 **Says what it did, quietly.** Failures are loud, success is silent. A status item reflects the last
-flow's verdict; anything in `attention` is a notification naming what needs a person.
-
-**Built 2026-09-23 (D85) — quiet is not the same as invisible.** Live read: Leo waited
-for the status item to say a newly landed Claude Code version was patched, saw nothing, and accepted
-VS Code's own "Restart Extensions" prompt before the companion had actually finished. That produced
-the window-reload offer below — working as designed, since 8b already names "the user reloaded before
-we finished" as one of the two triggers for it — but there was no way to tell in advance that waiting
-a little longer would have avoided needing it. A `moved` reaction's success reverts the status item to
-the same `ok` icon and text a window with nothing new to do ever shows, so "it already happened" and
-"still waiting" look identical unless you catch the `working` spinner mid-flight.
-
-The fix stays inside "quiet, not silent": no notification, `attention` keeps the only interrupt. A
-`moved` reaction that actually changed bytes (`reason.arriving.length > 0`) lands the status item on a
-new `ready` health instead of reverting to `ok`, so it stays visibly different from steady state and a
-glance answers "has it caught up yet" without requiring you to have watched the transition happen. A
-`moved` that changed nothing (a directory only went away) or a `start` that finds nothing changed still
-lands on plain `ok` — there is genuinely nothing new to flag there. No command on click, the same as
-`ok`/`idle`/`attention`: there is no outstanding offer behind it to re-show, only information. It
-clears itself the ordinary way — the next real activation (an actual restart) runs the flow fresh and
-leaves it wherever that run's own result puts it.
-
-Built same-day, in [acquire.ts](../packages/vscode/src/acquire.ts): the discriminator is
-`reason.kind === "moved" && reason.arriving.length > 0`, checked once, at the same place the plain
-`ok` status was already being set.
+flow's verdict; anything in `attention` is a notification naming what needs a person. Quiet is not
+invisible, though: a background `moved` that patched a newly arrived version lands on `ready` rather
+than `ok`, so a glance says whether it is safe to restart without having watched it happen (D85).
 
 **Never breaks the editor.** A companion that throws on activation is worse than no companion,
 because it takes a working extension host down with it. Everything is inside a boundary that reports
@@ -502,10 +481,10 @@ that happens to also clear Rigline's status item is a worse answer than the stat
 
 `Editor` grows from six methods to nine, each a real editor capability: `extensionActive`,
 `reloadWebviews`, `reloadWindow`. `ask` grows a level so an offer is not dressed as a warning,
-`Health` grows `stale` (and, proposed above, `ready`), and the status item's command is derived
-from health in `extension.ts` beside the icons rather than passed through the seam. The decision
-itself is a pure function in a new `reload.ts` that has never heard of VS Code, which is how a phase
-whose acceptance is a live read still has tests.
+`Health` grows `stale`, and the status item's command is derived from health in `extension.ts`
+beside the icons rather than passed through the seam. The decision itself is a pure function in a
+new `reload.ts` that has never heard of VS Code, which is how a phase whose acceptance is a live
+read still has tests.
 
 #### Two channels that do not exist, recorded so they are not re-proposed
 

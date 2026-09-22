@@ -1508,7 +1508,7 @@ nothing new to do ever shows, so "already patched" and "still working on it" wer
 unless you caught the `working` spinner mid-flight.
 
 The fix stays inside the existing principle rather than relaxing it: no notification, `attention`
-keeps the only interrupt. A `moved` reaction that actually changed bytes (`reason.arriving.length >
+keeps the only interrupt. A `moved` reaction that brought a new directory (`reason.arriving.length >
 0`) now lands on `ready` instead of `ok`, so it stays visibly different from steady state until the
 next real activation resets it — an actual restart runs the whole flow fresh. A `moved` that only
 lost a directory, or a `start` that finds nothing changed, still lands on plain `ok`: there is

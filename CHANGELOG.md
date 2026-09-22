@@ -27,8 +27,9 @@ anything may change between releases.
   window has not loaded, so nothing in front of you is stale and there is nothing to offer.
 - The companion's status bar reads **Rigline: ready to restart** once it has patched a newly
   installed Claude Code version in the background, instead of settling back to the same look it
-  had before anything happened. A glance now tells you whether it has caught up — restart or
-  reload whenever suits you, the window you're in is unaffected either way.
+  had before anything happened. A glance now tells you whether it has caught up. The window
+  you're in keeps running the old version, so restart extensions or reload the window whenever it
+  suits you.
 
 ### Fixed
 
@@ -39,9 +40,6 @@ anything may change between releases.
   nothing reported at the time or later. It now samples sizes and modification times a quarter of
   a second apart and refuses if anything moved, naming the file and saying an update is probably
   in progress. Every install pays that quarter second.
-
-### Fixed
-
 - `rigline vscode-setup` takes `--profile NAME`, and says which profile it installed into.
   VS Code extensions belong to a profile and the CLI installs into the default one, so if the
   workspace you use is bound to any other profile the companion was installed, listed by

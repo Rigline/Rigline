@@ -381,9 +381,6 @@ describe("acquireAndInject", () => {
     expect(result).toEqual({ kind: "injected", engine: "1.0.0-alpha.7", reload: null });
   });
 
-  // Leo's live read: a `moved` success landing back on plain `ok` looked identical to nothing
-  // having happened, so there was no way to tell it was already safe to accept VS Code's own
-  // restart prompt. `ready` is the distinct status that answers that at a glance.
   it("marks a version newly patched in the background as ready, not plain ok", async () => {
     const e = editor();
     const a = acquisition();

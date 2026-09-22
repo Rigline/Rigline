@@ -25,7 +25,7 @@ const HEALTH: Record<Health, { icon: string; background?: string; command?: stri
   idle: { icon: "$(circle-outline)" },
   attention: { icon: "$(warning)", background: "statusBarItem.warningBackground" },
   stale: { icon: "$(refresh)", command: RELOAD_COMMAND },
-  // No command: unlike `stale`, there is no outstanding offer behind it to re-show, only information.
+  // No command: unlike `stale`, there is no offer behind it to re-show.
   ready: { icon: "$(check-all)" },
 };
 
