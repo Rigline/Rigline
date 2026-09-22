@@ -356,10 +356,22 @@ as separate offers because they are separate needs. Nothing fires unasked.
 Acceptance: a forced extension-host restart mid-update produces the offer; accepting it restores the
 decorations without a window reload; dismissing it leaves a session's in-flight turn untouched.
 
-**Built, with tier 1 green and the acceptance outstanding.** The decision, the two offers and the
-status item are in `reload.ts` and under test; what no test can reach is the acceptance above, which
-wants *Developer: Restart Extension Host* over an extension VS Code has just replaced. Read it the
-way 8a was read — the VSIX built here, installed directly, against the published engine (D80).
+**Built, and two of the three acceptance clauses read live on 1.0.0-alpha.9.** A window came up over
+an unpatched extension, the webview offer appeared, and taking it put the decorations back. What is
+not read yet: that dismissing leaves an in-flight turn alone, the window-reload variant, and that a
+real extension replacement stays silent.
+
+**Triggering it does not need an update to land.** The offer turns on this host having come up over
+an unpatched directory, and `restore` followed by *Developer: Reload Window* produces exactly that,
+deterministically and in seconds. A forced *Restart Extension Host* mid-update is the same state
+arrived at the hard way. Which of the two offers appears is decided by whether a plugin patches
+`extension.js`, so `disable worktree-prefix` first for the webview one and `enable` it for the
+window one — with it on, an install from vanilla always changes the host and the webview offer is
+unreachable.
+
+The engine the companion runs is a released one and so lags this checkout by up to a day (D48).
+That is the arrangement to read against rather than a problem to fix (D80), and the reload decision
+is taken from the bytes precisely so it holds against an engine that predates it.
 
 #### The discriminator, which everything else derives from
 
