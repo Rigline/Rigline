@@ -70,6 +70,15 @@ anything may change between releases.
   `rigline watch` always used, so the patch lands behind the old extension and your next reload
   comes up with Rigline already there.
 
+- `rigline install` writes only what is not already right, and says when it wrote nothing. The
+  loader itself was already left alone when the bytes matched; everything beside it — the
+  payload, the baked registry, the identifier tables and every installed plugin — was rewritten
+  on every run, and `plugins/` was deleted and copied back whole. So re-injecting after an
+  extension update rewrote every installed version, including ones that were already exactly
+  right and one of which a live panel was reading from. Each file is now compared before it is
+  written, plugins are reconciled file by file rather than replaced, and a version that needed
+  nothing reports `already current, nothing written`.
+
 ## 1.0.0-alpha.9 — 2026-09-22
 
 ### Fixed

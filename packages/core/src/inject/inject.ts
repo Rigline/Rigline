@@ -8,8 +8,8 @@
  * because a round trip through `"utf8"` or `"latin1"` text would rewrite line endings on Windows
  * and turn a two-line patch into a diff nobody could audit (D37).
  */
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join, relative } from "node:path";
 import {
   capabilityViolation,
   type IdentifierTables,
@@ -175,11 +175,50 @@ function settleWebviewBackup(state: Injection, log: (line: string) => void): voi
   writeFileSync(state.backup, live);
 }
 
-function copyPluginDir(src: string, dest: string): void {
-  cpSync(src, dest, {
-    recursive: true,
-    filter: (source) => isPluginOutput(relative(src, source)),
-  });
+/**
+ * Write only when the bytes differ, and answer whether anything was written.
+ *
+ * The bundle has always worked this way; everything beside it did not, so a run over a version that
+ * was already correct rewrote its whole payload — under a live webview, in the companion's case.
+ * Comparing content rather than keeping a record of it is what cannot go stale: there is no second
+ * copy of the truth to drift from.
+ */
+function writeIfChanged(path: string, bytes: Buffer): boolean {
+  if (existsSync(path) && readFileSync(path).equals(bytes)) return false;
+  writeFileSync(path, bytes);
+  return true;
+}
+
+/** The files of a plugin that belong in the payload, relative to its directory. */
+function pluginFiles(dir: string): readonly string[] {
+  return readdirSync(dir, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => relative(dir, join(entry.parentPath, entry.name)))
+    .filter(isPluginOutput);
+}
+
+/**
+ * Bring one plugin's directory to match its source, file by file.
+ *
+ * Not `rmSync` and copy, which is the one write that makes an enabled plugin briefly absent from a
+ * directory a live panel may be reading, and which happened on every run whether anything had
+ * changed or not.
+ */
+function syncPluginDir(src: string, dest: string): boolean {
+  const wanted = pluginFiles(src);
+  let wrote = false;
+  for (const name of wanted) {
+    const to = join(dest, name);
+    mkdirSync(dirname(to), { recursive: true });
+    if (writeIfChanged(to, readFileSync(join(src, name)))) wrote = true;
+  }
+  const keep = new Set(wanted);
+  for (const name of existsSync(dest) ? pluginFiles(dest) : []) {
+    if (keep.has(name)) continue;
+    rmSync(join(dest, name), { force: true });
+    wrote = true;
+  }
+  return wrote;
 }
 
 export interface InstallOptions {
@@ -288,15 +327,19 @@ export function install(ext: string, options: InstallOptions): InstallReport {
   mkdirSync(state.payloadDir, { recursive: true });
   // The payload lands before the bundle is ever patched: a static import pointing at a file that
   // is not there yet blanks the panel on the very next reload.
+  let wrotePayload = false;
   for (const file of PAYLOAD_FILES) {
-    cpSync(join(options.payloadDir, file), join(state.payloadDir, file));
+    const from = readFileSync(join(options.payloadDir, file));
+    if (writeIfChanged(join(state.payloadDir, file), from)) wrotePayload = true;
   }
   const overrides = options.anchors ?? NO_ANCHOR_OVERRIDES;
   const harvest = harvestAll(readBundles(ext));
   // The merged table, so an override reaches the `generated.js` the loader reads rather than only
   // the report about it.
   const generated = generate(harvest, overrides.table);
-  writeFileSync(join(state.payloadDir, "generated.js"), generated.runtime);
+  if (writeIfChanged(join(state.payloadDir, "generated.js"), Buffer.from(generated.runtime))) {
+    wrotePayload = true;
+  }
   log(`${ext}: ${generated.counts}`);
 
   let hostChanged = false;
@@ -348,12 +391,20 @@ export function install(ext: string, options: InstallOptions): InstallReport {
     }
 
     const pluginsOut = join(state.payloadDir, "plugins");
-    rmSync(pluginsOut, { recursive: true, force: true });
     mkdirSync(pluginsOut, { recursive: true });
     for (const p of enabled) {
-      copyPluginDir(p.dir, join(pluginsOut, p.name));
+      if (syncPluginDir(p.dir, join(pluginsOut, p.name))) wrotePayload = true;
     }
-    writeFileSync(join(state.payloadDir, "registry.js"), bakeRegistry(enabled, outcomes));
+    // A plugin switched off or removed leaves a directory that the baked registry no longer names;
+    // it would load nothing, and it would also be the only stale thing left behind.
+    const wanted = new Set(enabled.map((p) => p.name));
+    for (const entry of readdirSync(pluginsOut, { withFileTypes: true })) {
+      if (!entry.isDirectory() || wanted.has(entry.name)) continue;
+      rmSync(join(pluginsOut, entry.name), { recursive: true, force: true });
+      wrotePayload = true;
+    }
+    const baked = Buffer.from(bakeRegistry(enabled, outcomes));
+    if (writeIfChanged(join(state.payloadDir, "registry.js"), baked)) wrotePayload = true;
 
     // Before the notes, because this is the one report that says whether a plugin will work here.
     verdicts = pluginVerdicts(enabled, generated.tables);
@@ -392,6 +443,10 @@ export function install(ext: string, options: InstallOptions): InstallReport {
   if (!alreadyPatched) {
     writeFileSync(state.bundle, Buffer.concat([PRE_BYTES, backup, POST_BYTES]));
     log(`${ext}: injected (${PATCH_BYTES} bytes added) — reload with Developer: Reload Webviews`);
+  } else if (!wrotePayload && !hostChanged) {
+    // Worth saying: it is the difference between rewriting a payload that happened to be identical
+    // and never having touched this version at all, which is what a weekly report should show.
+    log(`${ext}: already current, nothing written`);
   }
 
   return {

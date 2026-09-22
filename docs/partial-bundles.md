@@ -100,6 +100,34 @@ where the question is only whether a write is in flight *now* — and a file bei
 moves within that window. It is paid by every `install`, `dev` rebuild included, which is the honest
 cost and is under a bundler build.
 
+## `install` writes only what is not already right
+
+Settled with Leo, 2026-09-22. The bundle has always been skip-if-identical — `alreadyPatched`
+compares bytes and leaves them alone — and everything beside it was rewritten every run: `pre.js`,
+`post.js`, `generated.js`, `registry.js`, and `plugins/`, which was deleted whole and copied back.
+So a run over four installed versions rewrote four payloads when one had changed, three of them onto
+directories that were already exactly right, and one of those was under a live webview.
+
+**The check is the content, not a record of it.** A stamp of the inputs — engine version, each
+plugin's version and hash, `config.json`, `anchors.json` — would also skip the harvest, and was
+rejected for where it puts the risk: it has to enumerate every input that affects the output, now
+and for as long as the file exists, and the day one is missed `install` does nothing and says it
+succeeded. That is the failure this milestone exists to remove, reintroduced by an optimisation.
+Comparing what we are about to write against what is there cannot go stale, because there is no
+second copy of the truth to drift from.
+
+The harvest still runs, twice per version, and is left alone: it costs CPU in a process spawned for
+the purpose, not bytes written underneath a running extension.
+
+**`plugins/` is reconciled rather than replaced.** `rmSync` then copy is the one write that makes an
+enabled plugin briefly absent from a directory a live panel is reading, and it happened on every
+run. Each enabled plugin's files are now compared and written only where they differ; a file that is
+no longer part of a plugin, and a plugin that is no longer enabled, are removed.
+
+**Nothing written is worth saying.** A run that changes nothing logs that it changed nothing, which
+is the difference between "we rewrote the payload and it happened to be the same" and "this version
+was already current" — and it is what makes a companion's output channel readable weekly.
+
 ## Where the refusal goes
 
 Not a throw from deep inside `settleWebviewBackup`. `install` refuses *before* it has read or

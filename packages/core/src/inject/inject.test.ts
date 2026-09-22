@@ -7,6 +7,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   statSync,
@@ -17,6 +18,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { harvestableHostReplies, harvestableWebview } from "../../test/fixtures.ts";
+import { sleepSync } from "../extension/bundles.ts";
 import {
   hostVerdict,
   type InstallOptions,
@@ -242,6 +244,75 @@ describe("install", () => {
     const ext = fixture();
     install(ext, { payloadDir: payload() });
     expect(existsSync(join(payloadOutDir(ext), "registry.js"))).toBe(false);
+  });
+});
+
+describe("a second run writes nothing", () => {
+  /** Modification times of every file under a directory, so "was it written" is observable. */
+  function touched(dir: string): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (const entry of readdirSync(dir, { recursive: true, withFileTypes: true })) {
+      const path = join(entry.parentPath, entry.name);
+      if (entry.isFile()) out[path] = statSync(path).mtimeMs;
+    }
+    return out;
+  }
+
+  // The companion runs this on every update, against every installed version — so three of four
+  // runs land on a directory that is already exactly right, one of them under a live webview.
+  it("leaves every payload file alone when nothing has changed", () => {
+    const ext = fixture();
+    const root = tempDir("rigline-plugins-");
+    writePlugin(root, "alpha");
+    const options = { payloadDir: payload(), plugins: withPlugins([root]) };
+
+    install(ext, options);
+    const before = touched(payloadOutDir(ext));
+    // mtime has millisecond resolution, so a rewrite inside the same tick would be invisible.
+    sleepSync(20);
+    const lines: string[] = [];
+    const report = install(ext, { ...options, log: (line) => lines.push(line) });
+
+    expect(touched(payloadOutDir(ext))).toEqual(before);
+    expect(report.action).toBe("refreshed");
+    expect(lines.join("\n")).toMatch(/already current, nothing written/);
+  });
+
+  it("writes the one file that did change, and only that one", () => {
+    const ext = fixture();
+    const root = tempDir("rigline-plugins-");
+    const dir = writePlugin(root, "alpha");
+    const options = { payloadDir: payload(), plugins: withPlugins([root]) };
+
+    install(ext, options);
+    const before = touched(payloadOutDir(ext));
+    sleepSync(20);
+    // What `rigline dev` does: the same plugin, rebuilt. A stamp keyed on its version would miss
+    // this and leave the panel running yesterday's code while reporting success.
+    writeFileSync(join(dir, "index.js"), "export default { setup() { /* rebuilt */ } };\n");
+    install(ext, options);
+
+    const after = touched(payloadOutDir(ext));
+    const moved = Object.keys(after).filter((path) => after[path] !== before[path]);
+    expect(moved).toEqual([join(payloadOutDir(ext), "plugins", "alpha", "index.js")]);
+  });
+
+  it("removes a plugin's directory once it is no longer enabled", () => {
+    const ext = fixture();
+    const root = tempDir("rigline-plugins-");
+    writePlugin(root, "alpha");
+    writePlugin(root, "beta");
+
+    install(ext, { payloadDir: payload(), plugins: withPlugins([root]) });
+    expect(existsSync(join(payloadOutDir(ext), "plugins", "beta"))).toBe(true);
+
+    install(ext, {
+      payloadDir: payload(),
+      plugins: { roots: [root], configPath: writeConfig(["beta"]) },
+    });
+
+    expect(existsSync(join(payloadOutDir(ext), "plugins", "beta"))).toBe(false);
+    expect(existsSync(join(payloadOutDir(ext), "plugins", "alpha"))).toBe(true);
   });
 });
 
