@@ -358,9 +358,16 @@ decorations without a window reload; dismissing it leaves a session's in-flight 
 
 **Built, and most of the acceptance read live on 1.0.0-alpha.9.** A window came up over an unpatched
 extension and the webview offer appeared; taking it put the decorations back without a window
-reload, and declining it took no reload and left the offer on the status bar. What is not read yet:
-that a turn running at the time survives the decline, that the status item re-asks rather than
-reloading, the window-reload variant, and that a real extension replacement stays silent.
+reload, and declining it took no reload and left the offer on the status bar. The window-reload variant is read too, over a host
+patch, with the status on `needs you` as an older engine's exit code makes it.
+
+**What is still unread is the silence on a real replacement**, and it is the one that matters most,
+because it is the only live check on the discriminator D82 rests on. Reaching it needs a version
+whose directory is not already on the machine, installed into the profile the window actually uses:
+a version already present reuses its path, and `--install-extension` without `--profile` lands in
+the default profile, which a window on another profile never sees. Get either wrong and nothing
+moves, so nothing fires — a silence that looks exactly like the one being tested for and means
+nothing at all.
 
 **Triggering it does not need an update to land.** The offer turns on this host having come up over
 an unpatched directory, and `restore` followed by *Developer: Reload Window* produces exactly that,

@@ -9,9 +9,13 @@
  * only shortens the wait (D80).
  *
  * What is watched is the *directory VS Code says the extension is in*, which the companion can ask
- * for and the engine cannot. A new path means a new install; the same path with our bytes gone
- * means somebody restored or reinstalled over it. Both want the same answer, so neither is treated
- * as a special case.
+ * for and the engine cannot. A new path means a new install.
+ *
+ * The same path with our bytes gone — a reinstall of the version already there, or a `restore` —
+ * is **not** noticed, because this compares paths and nothing else. It is picked up at the next
+ * `start` instead, which is the reload such a window needs anyway. Watching the bytes too would
+ * mean telling our own injections apart from somebody else's writes, which is a larger question
+ * than the case has earned.
  */
 import type { Disposable, Editor } from "./editor.ts";
 
