@@ -449,16 +449,17 @@ move forward and re-inject. Owed, per this file's own rule about a pipeline step
 is irreducibly a person's: `pnpm release:finish` needs 2FA. [ci.md](ci.md) carries the rest of what
 delivery still owes.
 
-**Milestone 8 is what is open**, and [m8-companion.md](m8-companion.md) is the working doc. 8a is
-built and published as `1.0.0-alpha.8`, and the published path is read end to end on a machine that
-had never seen Rigline: `npm i -g rigline` then `rigline vscode-setup` installs the engine from npm,
-finds the editor, installs the companion from the bundled VSIX and re-injects. `--remove` undoes it.
+**Milestone 8 is what is open**, and [m8-companion.md](m8-companion.md) is the working doc.
 
-**What that read cannot reach is the point of the milestone.** It ran in WSL, where no Claude Code
-extension is installed, so it proves the acquisition and the plumbing and nothing about the
-behaviour: the companion activating, watching for an update, settling and re-injecting behind one.
-That wants an editor with Claude Code in it and a real extension update, and it is the whole of 8a's
-acceptance.
+**8a is done**, published as `1.0.0-alpha.9` and read live: `npm i -g rigline` then `rigline
+vscode-setup` on a Windows laptop installs the engine from npm, installs the companion from the
+bundled VSIX, injects, and the extension activates. The live read found three bugs no test had,
+which [m8-companion.md](m8-companion.md) records — along with one machine where it did not work,
+and why that is parked rather than solved.
+
+**8b is next**: the reload, offered and never taken. Then 8c, the enable, disable and settings
+surface. The other open piece is the stability half of [partial-bundles.md](partial-bundles.md),
+which needs a decision about making `install` async.
 
 **About this machine.** 2.1.270 and 2.1.278 are both installed and both injected; 2.1.268 and 2.1.269
 were deleted by VS Code once nothing was serving them, which is the behaviour D4 exists for, and all
@@ -863,3 +864,4 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   "is this current" answer split in two before it stops baking unrecognised bytes into the backup.
 - 2026-09-21: Phase 5's gate answered, and the phase promoted to milestone 8. There is no Marketplace policy against an extension patching another extension: the trust model is publisher-based, and `subframe7536.custom-ui-style` advertises exactly this to a hundred thousand installs. The live constraint is Anthropic's, it lands on the harvest rather than the injection, and the response is [anthropic-compliance.md](anthropic-compliance.md) published from the top of the README with a standing invitation (D76, D77, D78). [plugin-policy.md](plugin-policy.md) followed, splitting what the architecture makes impossible from what is asked of an author and saying outright that nobody is checking, because policing behaviour the boundary permits is whack-a-mole against people who can obfuscate (D79). `rigline add` now says the choice is the user's. [m8-companion.md](m8-companion.md) is the working doc; 8a is next.
 - 2026-09-21: **`1.0.0-alpha.8` published**, carrying 8a: the companion extension, `rigline vscode-setup`, the home lock, and `install` refusing an unfinished extension directory. Read end to end from npm on a machine with no Rigline — the engine installs, the verb is reached through the wrapper's empty verb list (D69), the bundled VSIX installs and `--remove` undoes it. `1.0.0-alpha.7` was spent on the way: green on Windows, failed on Linux in the run its own tag triggered, because two test files hardcoded `;` and `C:\`. The fix is in the gate rather than the tests — `pnpm release` now refuses to cut from a commit CI has failed on, and a Linux checkout lives at `~/rigline-linux` in WSL for the fast loop.
+- 2026-09-22: **8a done, `1.0.0-alpha.9` published and read live on a laptop with Claude Code.** The live read found three bugs nothing else could: `vscode-setup` had never worked on Windows at all, because Node refuses to spawn `code.cmd` since the BatBadBut fix and every test injects `run`; the built bundle had never been loaded by anything, which `test/activates.test.ts` now does; and a companion installed before Claude Code went green over an `install` that exits 0 having done nothing. All three are one shape — the artefact was never exercised, only its source. One Windows laptop at alpha.8 had the extension installed and inert with no explanation; [m8-companion.md](m8-companion.md) records what was ruled out and the two candidates left.

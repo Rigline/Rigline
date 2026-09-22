@@ -293,9 +293,47 @@ for the same reason (D73).
 The whole of the value. A companion that acquires an engine, watches, spawns it, and re-injects —
 with no UI beyond a status item and the failure notification.
 
-**Built**, all of it driven by vitest: `nodePath` on the wrapper, `findNode`, `withHomeLock`, the
-`Editor` seam, the acquisition sequence, the watcher, and a `.vsix` that packages. **Left**: landing
-the VSIX in `dist/bundled` so `rigline` can install it, and the live read that is the acceptance.
+**Done, and read live on 1.0.0-alpha.9** — `npm i -g rigline` then `rigline vscode-setup` on a
+Windows laptop, installing the companion and injecting, with the extension activating afterwards.
+That is 8a's acceptance.
+
+Two bugs the live read found that no test could have, both worth knowing because both are the same
+shape — the artefact was never exercised, only its source:
+
+- **`spawn EINVAL` on Windows.** VS Code ships its CLI as `code.cmd`, and Node has refused to spawn a
+  batch file directly since the BatBadBut fix. `vscode-setup` had therefore never worked on Windows
+  at all. Every test injects `run`, so the spawn had no coverage; `editorSpawn` now routes a batch
+  file through `cmd.exe` and is tested for its argv.
+- **The bundle had never been loaded.** Not once, by anything. `test/activates.test.ts` now copies
+  the built `extension.cjs` into a directory with a stubbed `vscode`, requires it as Node will, and
+  calls `activate`.
+
+A third was found by reading rather than running: `install` exits 0 when no Claude Code is installed,
+so a companion installed *before* the extension read that as success and went green over nothing.
+The companion asks the editor now instead of trusting an exit code.
+
+## One machine where it did not work, unexplained
+
+Parked rather than solved, and recorded so nobody re-derives the dead ends. On one Windows laptop at
+alpha.8 the extension was installed and inert: the folder present under `.vscode/extensions` with
+the right `extension.cjs` and manifest, `code --list-extensions` listing it, and the editor showing
+nothing — no entry in *Developer: Show Running Extensions*, nothing in the Extensions view, no output
+channel.
+
+Ruled out: the VS Code version (1.138.0, far above the floor), workspace trust (trusted throughout),
+a wrong `main` or missing activation event (manifest verified), a different editor install
+(*Developer: Open Extensions Folder* named the folder that contained it), and the Windows spawn bug
+(that laptop runs Node 20.10.0, which predates the fix, which is why it reported `installed` where a
+current Node throws).
+
+Never checked, and the two candidates left: `.obsolete` in the extensions directory, which makes VS
+Code ignore a folder entirely and produces every symptom above; and whether `extensions.json`
+actually carries the entry. The same release works on a second laptop, so this is one machine's
+state rather than the artefact.
+
+**Worth noting separately:** that laptop runs Node 20.10.0, below the `>=22.12.0` floor every Rigline
+package declares. npm warns rather than refuses, and the engine ran, but it is not a configuration
+anything tests — and the companion would hand that same Node to npm.
 
 The watcher serialises rather than debounces. An update produces a burst — the event, then a poll,
 then often a second event as the old directory is deleted — and a reaction per signal would be an
