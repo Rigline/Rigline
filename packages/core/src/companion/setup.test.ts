@@ -100,6 +100,29 @@ describe("setupArgv", () => {
   it("uninstalls by extension id, which is what the editor knows it as", () => {
     expect(setupArgv(VSIX, true)).toEqual(["--uninstall-extension", "rigline.rigline"]);
   });
+
+  // Without it the CLI installs into the default profile, and a workspace bound to another never
+  // sees the companion while `code --list-extensions`, the extensions directory and
+  // `extensions.json` all agree it is installed.
+  it("names the profile when given one, on both directions", () => {
+    expect(setupArgv(VSIX, false, "Yarn PNP")).toEqual([
+      "--install-extension",
+      VSIX,
+      "--force",
+      "--profile",
+      "Yarn PNP",
+    ]);
+    expect(setupArgv(VSIX, true, "Yarn PNP")).toEqual([
+      "--uninstall-extension",
+      "rigline.rigline",
+      "--profile",
+      "Yarn PNP",
+    ]);
+  });
+
+  it("says nothing about profiles when none was asked for", () => {
+    expect(setupArgv(VSIX, false).join(" ")).not.toContain("--profile");
+  });
 });
 
 describe("setupCompanion", () => {
@@ -189,6 +212,22 @@ describe("formatSetup", () => {
   it("offers neither on a removal, where there is nothing to install by hand", () => {
     const outcomes = [{ editor: editor("code", "VS Code", "code"), code: 0, output: "" }];
     expect(formatSetup(outcomes, true)).not.toMatch(/Install from VSIX/);
+  });
+
+  // The diagnosis that was missing, and the reason the other one was not enough: somebody using
+  // profiles can check "a different install", find it false, and be left with no next move.
+  it("names profiles as a cause, and says which one it used", () => {
+    const outcomes = [{ editor: editor("code", "VS Code", "code"), code: 0, output: "" }];
+    const report = formatSetup(outcomes, false, VSIX);
+    expect(report).toContain("the default profile");
+    expect(report).toMatch(/--profile NAME/);
+  });
+
+  it("stops suggesting a profile once one was named, and names it instead", () => {
+    const outcomes = [{ editor: editor("code", "VS Code", "code"), code: 0, output: "" }];
+    const report = formatSetup(outcomes, false, VSIX, "Yarn PNP");
+    expect(report).toContain("Yarn PNP");
+    expect(report).not.toMatch(/--profile NAME/);
   });
 });
 

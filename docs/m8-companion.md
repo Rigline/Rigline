@@ -508,28 +508,38 @@ still being written) are recorded. What this milestone will add:
 - **Whether `extensionUri` is passed down or re-derived**, once it is known whether the engine's
   locate step wants a hint or an override.
 
-## One machine where it did not work, unexplained
+## The profile trap, which is what the "one machine" mystery was
 
-Parked rather than solved, and recorded so nobody re-derives the dead ends. On one Windows laptop at
-alpha.8 the extension was installed and inert: the folder present under `.vscode/extensions` with
-the right `extension.cjs` and manifest, `code --list-extensions` listing it, and the editor showing
-nothing — no entry in *Developer: Show Running Extensions*, nothing in the Extensions view, no output
-channel.
+VS Code profiles each carry their own extension set, and a workspace is bound to one. `code
+--install-extension` installs into the **default** profile unless told otherwise. So on a machine
+with profiles the command succeeds, `code --list-extensions` lists it, the directory sits under
+`.vscode/extensions` with the right `extension.cjs` and manifest, and `extensions.json` carries a
+correct entry — while the window shows nothing at all, because that window's profile keeps its own
+`extensions.json` under `User/profiles/<id>/`, and the companion is not in it.
 
-Ruled out: the VS Code version (1.138.0, far above the floor), workspace trust (trusted throughout),
-a wrong `main` or missing activation event (manifest verified), a different editor install
-(*Developer: Open Extensions Folder* named the folder that contained it), and the Windows spawn bug
-(that laptop runs Node 20.10.0, which predates the fix, which is why it reported `installed` where a
-current Node throws).
+Every symptom of a broken artefact, and nothing whatever wrong with the artefact. It looks like an
+extension that failed to load; it is an extension that was never offered to the extension host.
 
-Never checked, and the two candidates left: `.obsolete` in the extensions directory, which makes VS
-Code ignore a folder entirely and produces every symptom above; and whether `extensions.json`
-actually carries the entry. The same release works on a second laptop, so this is one machine's
-state rather than the artefact.
+**The tells, in order of cheapness.** Nothing in the Extensions view — not present-and-inert, absent
+— and nothing in *Developer: Show Running Extensions*. No `Rigline` output channel. And in the
+extension host log, other extensions activating while `rigline.rigline` is not among them, which
+separates "never scanned" from "scanned and refused".
 
-**Worth noting separately:** that laptop runs Node 20.10.0, below the `>=22.12.0` floor every Rigline
-package declares. npm warns rather than refuses, and the engine ran, but it is not a configuration
-anything tests — and the companion would hand that same Node to npm.
+**`--profile NAME` is the repair, and `vscode-setup` passes it through.** The name is the one in VS
+Code's profile switcher. A name that does not match **creates a new empty profile** rather than
+failing, so it wants copying rather than typing.
+
+**The report has to name this, because the honest-looking diagnosis is wrong here.** It already
+warned that `code` may have been a different install, which for somebody using profiles is a claim
+they can check and reject — same editor, same binary, same extensions directory — and having
+rejected it they have no next move. Profiles are named explicitly for that reason: a wrong
+suggestion confidently made is worse than none, because it spends the reader's trust and then their
+afternoon.
+
+It is not inferred. The association between a workspace and its profile lives in VS Code's own
+`storage.json`, under a different path for each of the five editors this supports, and reading a
+private file to guess what the user could simply be asked is how a command acquires knowledge that
+rots. Ask, and say why.
 
 ## Deferred, with triggers
 

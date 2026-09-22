@@ -33,6 +33,16 @@ anything may change between releases.
   a second apart and refuses if anything moved, naming the file and saying an update is probably
   in progress. Every install pays that quarter second.
 
+### Fixed
+
+- `rigline vscode-setup` takes `--profile NAME`, and says which profile it installed into.
+  VS Code extensions belong to a profile and the CLI installs into the default one, so if the
+  workspace you use is bound to any other profile the companion was installed, listed by
+  `code --list-extensions`, present in the extensions directory — and completely invisible to
+  your window, with every check agreeing it was there. The report now names profiles as a
+  cause, because the one it named before (a second editor answering to the same `code`) is a
+  claim somebody using profiles can check, disprove, and be left with nowhere to go.
+
 ## 1.0.0-alpha.9 — 2026-09-22
 
 ### Fixed

@@ -127,7 +127,7 @@ const USAGE = `rigline ${CORE_VERSION}
       Every plugin found, in the order they load: its version, where it came from, whether
       it is switched off, and what its manifest says it can do. --json emits the same as data.
 
-  rigline vscode-setup [--remove]
+  rigline vscode-setup [--profile NAME] [--remove]
       Optional. Install the companion extension into every VS Code found on PATH — including
       Insiders, VSCodium, Cursor and Windsurf — from the VSIX bundled in this engine, and
       inject. Nothing is downloaded, and the companion moves when the engine does. From then
@@ -135,6 +135,10 @@ const USAGE = `rigline ${CORE_VERSION}
       step instead of install rather than after it. Declining it costs nothing: install is
       complete on its own. --remove takes the companion out and leaves the injection alone.
       Reload the window afterwards.
+      Extensions belong to a VS Code profile and this installs into the default one. If your
+      workspace uses another, pass --profile with the name from VS Code's profile switcher,
+      or the companion is installed, listed, and invisible to the window you are in. Copy the
+      name rather than typing it: an unknown one makes a new empty profile instead of failing.
 
   rigline status
       Per installed version: is each bundle vanilla or patched, judged against its backup.
@@ -433,12 +437,21 @@ function listCommand(args: string[]): number {
 async function vscodeSetupCommand(args: string[]): Promise<number> {
   const { values } = parseArgs({
     args,
-    options: { remove: { type: "boolean", default: false } },
+    options: {
+      remove: { type: "boolean", default: false },
+      profile: { type: "string" },
+    },
     allowPositionals: false,
   });
+  if (values.profile !== undefined && values.profile.trim() === "") {
+    // An empty name would reach the CLI as one, and VS Code makes a profile out of whatever it is
+    // given rather than refusing — so the silent outcome is a junk profile nobody asked for.
+    throw new UserError("--profile needs a profile name");
+  }
 
   const outcomes = await setupCompanion({
     remove: values.remove,
+    ...(values.profile === undefined ? {} : { profile: values.profile }),
     run: async (command, argv) => {
       const child = spawn(...editorSpawn(command, argv));
       let output = "";
@@ -457,7 +470,14 @@ async function vscodeSetupCommand(args: string[]): Promise<number> {
     },
   });
 
-  console.log(formatSetup(outcomes, values.remove, values.remove ? undefined : companionVsix()));
+  console.log(
+    formatSetup(
+      outcomes,
+      values.remove,
+      values.remove ? undefined : companionVsix(),
+      values.profile,
+    ),
+  );
   const failed = outcomes.some((o) => o.code !== 0) ? 1 : 0;
 
   // And inject, on `add`'s rule (D55, D56): a command that changes what is installed re-injects, so

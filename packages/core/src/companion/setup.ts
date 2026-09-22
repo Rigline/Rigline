@@ -83,11 +83,15 @@ export function findEditors(options: FindEditorsOptions = {}): readonly FoundEdi
  *
  * `--force` so a re-run is a no-op rather than a refusal about a version already installed, which
  * matters because `update` will want to call this behind the user.
+ *
+ * `--profile` because without it the CLI installs into the *default* profile, and a workspace bound
+ * to any other one never sees the companion while every check says it is installed.
  */
-export function setupArgv(vsix: string, remove: boolean): readonly string[] {
+export function setupArgv(vsix: string, remove: boolean, profile?: string): readonly string[] {
+  const forProfile = profile === undefined ? [] : ["--profile", profile];
   return remove
-    ? ["--uninstall-extension", "rigline.rigline"]
-    : ["--install-extension", vsix, "--force"];
+    ? ["--uninstall-extension", "rigline.rigline", ...forProfile]
+    : ["--install-extension", vsix, "--force", ...forProfile];
 }
 
 /**
@@ -130,6 +134,8 @@ export interface SetupOptions {
   readonly remove?: boolean;
   readonly editors?: readonly FoundEditor[];
   readonly vsix?: string;
+  /** The VS Code profile to install into. Absent means the default one, which is the CLI's own. */
+  readonly profile?: string;
   run(command: string, argv: readonly string[]): Promise<{ code: number; output: string }>;
 }
 
@@ -168,7 +174,8 @@ export async function setupCompanion(options: SetupOptions): Promise<readonly Se
   const vsix = remove ? "" : (options.vsix ?? companionVsix());
   const outcomes: SetupOutcome[] = [];
   for (const editor of editors) {
-    const { code, output } = await options.run(editor.path, setupArgv(vsix, remove));
+    const argv = setupArgv(vsix, remove, options.profile);
+    const { code, output } = await options.run(editor.path, argv);
     outcomes.push({ editor, code, output });
   }
   return outcomes;
@@ -188,15 +195,26 @@ export async function setupCompanion(options: SetupOptions): Promise<readonly Se
  * The VSIX path is printed for the same reason. When the CLI has picked the wrong editor the repair
  * is *Extensions: Install from VSIX…* in the right one, and that needs a file the user would
  * otherwise have to be told how to find.
+ *
+ * **And it names profiles, because the other diagnosis is one a profile user will correctly
+ * reject.** Told that `code` was a different install, somebody with profiles checks — same editor,
+ * same binary, same extensions directory — finds it false, and is left with nothing. Every symptom
+ * is identical and the cause is that the CLI installs into the default profile while their
+ * workspace is bound to another.
  */
 export function formatSetup(
   outcomes: readonly SetupOutcome[],
   remove: boolean,
   vsix?: string,
+  profile?: string,
 ): string {
+  const into = profile === undefined ? "the default profile" : `profile “${profile}”`;
   const lines = outcomes.flatMap(({ editor, code, output }) =>
     code === 0
-      ? [`  ${editor.label}: ${remove ? "removed" : "installed"}`, `    via ${editor.path}`]
+      ? [
+          `  ${editor.label}: ${remove ? "removed" : "installed"}, in ${into}`,
+          `    via ${editor.path}`,
+        ]
       : [`  ${editor.label}: failed (${editor.cli} exited ${code})`, indent(output.trim())],
   );
   const changed = outcomes.some((o) => o.code === 0);
@@ -211,9 +229,18 @@ export function formatSetup(
             ? []
             : [
                 "",
-                "If the editor you are using does not show it in the Extensions view, that `code` was",
-                "a different install. Use Extensions: Install from VSIX… in the right window, with:",
-                `  ${vsix}`,
+                "Not in the Extensions view afterwards? Two causes, and they look identical.",
+                ...(profile === undefined
+                  ? [
+                      "  A profile. Extensions are per-profile and this went to the default one, so a",
+                      "  workspace bound to another will not see it. Re-run with --profile NAME, using",
+                      "  the name in VS Code's profile switcher, copied rather than typed — an unknown",
+                      "  name creates a new empty profile instead of failing.",
+                    ]
+                  : []),
+                "  A different editor answering to the same `code`. Use Extensions: Install from VSIX…",
+                "  in the window you actually want, with:",
+                `    ${vsix}`,
               ]),
         ]
       : []),
