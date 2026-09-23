@@ -188,7 +188,7 @@ flow's verdict; anything in `attention` is a notification naming what needs a pe
 invisible, though: a background `moved` that patched a newly arrived version lands on `ready` rather
 than `ok`, so a glance says whether it is safe to restart without having watched it happen. The
 status answers the user's questions and nothing else, so a directory going away is recorded and
-reacted to not at all (D85).
+reacted to not at all (D85). `ready` shipped in `1.0.0-alpha.10` and has not yet been read live.
 
 **Never breaks the editor.** A companion that throws on activation is worse than no companion,
 because it takes a working extension host down with it. Everything is inside a boundary that reports
@@ -530,6 +530,8 @@ method: revealing the channel is UI, so it stays in `extension.ts`, the one file
 
 Acceptance: the command is on the palette, produces the same listing `rigline list` would from a
 terminal, touches nothing on disk, and makes no network call when an engine is already present.
+
+**Built and unit-tested, shipped in `1.0.0-alpha.10`, not yet read live.**
 
 ## Decisions to record
 

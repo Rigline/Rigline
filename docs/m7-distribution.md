@@ -416,8 +416,8 @@ Gate: the pack-and-install test passes on every CI rung, offline.
 
 **7a ends with a release and a live read**, not with a green CI run. Its real acceptance — `npm i -g
 rigline@<version>` on a machine with no checkout injects, bakes four plugins, and the `RIG` badge
-reports green after a reload — needs a published version, and plan.md's own rule is that a pipeline
-step nobody has run is a defect rather than a gap.
+reports green after a reload — needs a published version, and [verification.md](verification.md)'s
+rule is that a step nobody has run is a defect rather than a gap.
 
 ### 7b: the wrapper and the engine separate
 
@@ -451,6 +451,12 @@ Acceptance: the wrapper adds nothing to stdout for a forwarded verb once an engi
 exits with the child's code; no project in the tree or in a generated scaffold depends on `rigline`;
 and a generated scaffold builds and runs `add` with no global install.
 
+The wrapper half was read on the published `1.0.0-alpha.6`, driven from the registry: `npm install
+rigline` is one binary with no dependencies, `--version` names the absent engine, `check` installs
+`@rigline/core` and forwards, and `list` and `status` return the engine's output and exit code with
+nothing of the wrapper's in front. The same run gave D75 its first real reading — both installed
+versions reported a payload written by engine `1.0.0-alpha.5`.
+
 **The upgrade-in-anger check is deliberately not run** (2026-09-21, Leo). It was to be a manual
 tier-3 pass — an older engine installed, one `rigline update`, every extension version left injected
 by the newer one — and it needs two published versions carrying `rigline-engine`. The registry has
@@ -458,8 +464,9 @@ none: `@rigline/core@1.0.0-alpha.5` has no `bin` at all, so the oldest engine th
 to is whichever release ships this step. Cutting a version before the step, to be the older half,
 was offered and declined. So the path is covered at tier 1 with a faked spawn and at tier 4 against a
 packed tarball, and the one question neither answers — whether a *published* older engine upgrades
-cleanly — is carried as unrun rather than as passed. plan.md's rule about an unrun pipeline step
-applies: treat it as a defect, and the first release that follows one is where it gets discharged.
+cleanly — is carried as unrun rather than as passed, per [verification.md](verification.md)'s rule
+about an unrun step. Every release from `1.0.0-alpha.6` on carries the bin, so it can be run now;
+[plan.md](plan.md)'s Next session carries it.
 
 #### Settled: the help, the typo, and the version
 

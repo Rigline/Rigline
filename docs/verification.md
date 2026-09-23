@@ -41,6 +41,13 @@ This is not tier-specific. In tier 1 it is the assertion above the one you meant
 it is the line you look for in the output channel before concluding that the silence after it was
 the designed silence.
 
+## A step nobody has run is a defect, not a gap
+
+A claim nothing has exercised — a pipeline step, a live acceptance read — is carried as *unrun* until
+something does, and is discharged at the first release that makes it possible. Green tiers around it
+are not evidence for it: the first release driven end to end found five things the pipeline asserted,
+and none of them was true.
+
 ## Tier 1: Node, under vitest
 
 Pure functions and file transforms: every harvest layer, the diff and its successor suggestions,
@@ -62,7 +69,9 @@ Two sources of bundle text, and the difference matters:
   holding `extension.js`, `webview/index.js`, `webview/index.css` and `package.json`) is the only
   guard against a regex drifting away from real minified output. A test that needs a version it does
   not have **skips with a reason** rather than failing, so a fresh clone is not blocked on a
-  download — but a machine that develops Rigline should have it.
+  download — but a machine that develops Rigline should have it. The ground-truth tests sweep every
+  version in `CORPUS_VERSIONS` (`packages/core/test/corpus.ts`); the harness drives one of them,
+  `HARNESS_VERSION`, which moves with the installed extension and the committed `generated.ts`.
 
 The injector's fixtures deliberately carry CRLF line endings and non-ASCII bytes, because
 byte-faithful I/O is the property under test (D37): text-mode I/O on Windows rewrites every line
@@ -105,7 +114,10 @@ Four pieces:
   a stateful mock, because the real host's behaviour is not what is under test. It is seeded with
   the boot floor every surface needs; `get_claude_state`'s `config.openNewInTab` is set true because
   that is what makes the app's own tab-title effect actually call `renameTab()`, turning a dead
-  branch into something a rewrite test can observe.
+  branch into something a rewrite test can observe. `test/page.test.ts` holds each key to a real
+  message type and each reply to the one the harvest pairs with its request, reading the committed
+  `generated.ts`, so it runs without corpus or browser and is exact only while that file and
+  `HARNESS_VERSION` are the same extension.
 - **`preparePayload`** writes exactly what a real injector would leave on disk: `pre.js` and
   `post.js` copied from `@rigline/core`'s `dist/bundled`, `generated.js` harvested fresh from the
   corpus version, a `registry.js` baking whichever fixture plugins the test wants, and each plugin's

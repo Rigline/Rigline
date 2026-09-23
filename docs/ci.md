@@ -154,8 +154,8 @@ than a local one. See [verification.md](verification.md).
 
 ## Outstanding
 
-The model above is implemented. What is left is one capability that was deferred, one gap in the
-matrix, and the two questions only a real release can answer.
+The model above is implemented and has shipped every release since `1.0.0-alpha.4`. What is left
+is one capability that was deferred and one gap in the matrix.
 
 ### Deferred, with the reason
 
@@ -173,15 +173,8 @@ It is also what *one preview line at a time* is standing in for. Two preview lin
 
 ### Settled, so nobody re-asks
 
-`npm login` is done on this machine, and the stage queue was confirmed empty on 2026-09-20 — which
-makes the first release safe whatever a bare `pnpm stage approve` turns out to batch, since with an
-empty queue every reading of it approves the same thing.
-
-Two questions can only be answered by the first real release, and both want `npm stage list` open:
-whether a bare `stage approve` takes this run's batch or everything on the account, and whether
-reconciling `next` costs one authentication or four. Until the first is answered, `releasing.md`
-says to read `npm stage list` before approving anything, rather than that an unwanted stage is
-safe to leave where it is.
-
-**The pipeline has not been driven end to end.** Every claim above is derived from the code and
-from one bootstrap publish done by hand. The first release is the test of it.
+The two questions only a real release could answer are answered, and [releasing.md](releasing.md)
+is written around them. Which stages a bare `stage approve` takes no longer matters, because
+`release:finish` passes the ids it reads from `npm stage list`, and approval is on the website in
+practice because a security key cannot take the pnpm path. Reconciling `next` cost an authentication
+per package, so `next` stays unset while no stable line exists (D61).

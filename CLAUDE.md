@@ -23,7 +23,7 @@ from. Update the plan before writing code; log status there, not here.
   stops an update silently reverting the injection — the fork it derives from (it is a second
   retrieval layer acquiring and running the engine, never a copy of it, D80), the two costs that
   creates, what it watches, what it may reload, and the three phases.
-- [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D75.
+- [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D86.
 
 The internals, for a contributor to Rigline itself. The shape, not the argument — the argument is in
 decisions.md, and each doc cites the decisions it rests on.

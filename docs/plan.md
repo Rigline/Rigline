@@ -376,8 +376,8 @@ assets, the engine's own install path, and the phases with their acceptance crit
 
 **Done, both phases, and released as `1.0.0-alpha.6`.** 7a's blocker is gone — `npm i -g rigline &&
 rigline install` injects — and 7b separated the wrapper from the engine, recorded as D69, D70, D73
-and D74. What the milestone still owes is in "Next session" below: `rigline update` moving off an
-older engine has not been run, because it needs two published versions carrying `rigline-engine`.
+and D74. It still owes one check, `rigline update` moving off an older engine, which is in "Next
+session" below.
 
 ## Milestone 8: the companion extension
 
@@ -391,12 +391,9 @@ directory and deletes the old one, so the injection reverts with nothing said: n
 no error, weekly. `rigline watch` already fixes it and nobody is running it; the companion is a
 process that is.
 
-**8a is next**: acquire, watch, spawn, re-inject, unattended, with no UI beyond a status item and a
-failure notification. It opens with the two things D80 makes load-bearing and no Node-side test can
-see — finding a Node and its npm from inside the extension host, and a lock so the CLI and the
-companion cannot install over each other. It is not published to a marketplace (D76), Anthropic's
-terms rather than Microsoft's are the live constraint (D77), and D78 records the premise underneath
-all of it.
+**8a and 8b are done and read live; 8c and `ready` (D85) shipped in `1.0.0-alpha.10` and await
+their live reads.** It is not published to a marketplace (D76), Anthropic's terms rather than
+Microsoft's are the live constraint (D77), and D78 records the premise underneath all of it.
 
 ## Open questions, not blocking
 
@@ -420,146 +417,27 @@ all of it.
 
 ## Next session
 
-Phases 0 to 4b, phase 6 and milestone 7 are done. `1.0.0-alpha.10` is the newest on `latest` and
-installs from npm on a machine with no checkout.
+`1.0.0-alpha.10` is the newest on `latest`. Milestone 8 is open and
+[m8-companion.md](m8-companion.md) is its working doc. What is left is three live reads, each the
+acceptance of something already shipped.
 
-**7b is closed, all five steps.** `rigline` installs `@rigline/core` into `<RIGLINE_HOME>/engine`,
-spawns it, answers `--version` itself and forwards everything else, and declares no Rigline package
-at all; this repository and the scaffold both declare the engine and spell the bin `rigline-engine`.
-[m7-distribution.md](m7-distribution.md) is the milestone's record until it is condensed.
+1. **`rigline update` off an older engine**, the one check milestone 7 still owes. With the
+   published `rigline` installed, put the engine back to alpha.9 by hand — `npm install --prefix
+   ~/.rigline/engine --save-exact --ignore-scripts @rigline/core@1.0.0-alpha.9` — and run `rigline
+   install` so every payload carries alpha.9's stamp. `rigline update` should then move the engine
+   forward and re-inject, and `rigline doctor` should name the new engine on every version (D75).
+   The age gate withholds a release under a day old and says so (D48); `--now` takes it anyway.
+   When it passes, condense [m7-distribution.md](m7-distribution.md) into `history-m7.md`.
+2. **8c's *Rigline: Show Plugins*.** Reload the window and run it from the Command Palette, against
+   8c's acceptance: the listing `rigline list` gives, nothing written, no network call.
+3. **`ready` (D85).** A Claude Code version arriving under a running window should take the status
+   item to *Rigline: ready to restart*, and it should stay there until a restart. The next real
+   update is the read. To force one, install a version not already on the machine into the window's
+   own profile — the two conditions in m8-companion.md's 8b section — and look for the `installed:`
+   line in the output channel before reading anything into the status item.
 
-**`1.0.0-alpha.6` was the first release carrying the split.** The
-published wrapper was then driven from the registry, which is what nothing before it could do:
-`npm install rigline`, one binary with no dependencies, `--version` naming the absent engine,
-`check` installing `@rigline/core` and forwarding, and `list` and `status` returning the engine's
-output and the engine's exit code with nothing of the wrapper's in front of it.
-
-That run also gave D75 its first real reading. Both installed extension versions reported *its
-payload was written by engine 1.0.0-alpha.5, and this engine is 1.0.0-alpha.6* — a stale injection
-named after a genuine upgrade rather than a synthesised one, which is the case the stamp exists for
-and had never been in.
-
-**What remains unrun is the upgrade itself.** `rigline update` moving off an older *engine* still
-needs two published versions carrying `rigline-engine`, and `1.0.0-alpha.5` has no `bin` at all, so
-`alpha.6` is the oldest that counts. The next release is where that check becomes possible: install
-the engine at `alpha.6` by hand into `<RIGLINE_HOME>/engine`, run `rigline update`, and it should
-move forward and re-inject. Owed, per this file's own rule about a pipeline step nobody has run.
-
-**The release pipeline has now been driven end to end**, tag through approval, with one step that
-is irreducibly a person's: `pnpm release:finish` needs 2FA. [ci.md](ci.md) carries the rest of what
-delivery still owes.
-
-**Milestone 8 is what is open**, and [m8-companion.md](m8-companion.md) is the working doc.
-
-**8a and 8b are both done, read live on 1.0.0-alpha.9.** `npm i -g rigline` then `rigline
-vscode-setup` on a Windows laptop installs the engine from npm, installs the companion from the
-bundled VSIX, injects, and the extension activates. [m8-companion.md](m8-companion.md) records the
-bugs the live read found, the one machine where it did not work and why that is parked, and the
-`extensionUri` finding that corrected D76: scanning the directory is what makes the fast path work.
-
-**8c is built to its settled scope and not yet read live.** Read-only, one Command Palette entry
-(`rigline.showPlugins`), nothing editable — `config.json` stays the only place plugin state lives
-(D84). Unit-tested and the VSIX is installed on the machine this was built on; what remains is
-trying the command after the next window reload.
-
-**`ready` (D85) is built and not yet read live.** The read is the next Claude Code update landing
-under a running window: the status item should go to *Rigline: ready to restart* and stay there
-until a restart.
-
-The stability half of [partial-bundles.md](partial-bundles.md) is settled: `install` stays
-synchronous (D83).
-
-**About this machine.** 2.1.270 and 2.1.278 are both installed and both injected; 2.1.268 and 2.1.269
-were deleted by VS Code once nothing was serving them, which is the behaviour D4 exists for, and all
-four are in the corpus. 2.1.278's `extension.js` is patched and has not been reloaded — worktree-prefix
-is the one plugin that declares a host patch, and a host patch takes effect only after *Developer:
-Reload Window*, which ends every Claude session in that window. `pnpm rigline restore` puts a version
-back to the extension's own bytes and needs neither VS Code nor the extension to be working.
-
-The harness pins one corpus version, `HARNESS_VERSION` in `src/suite.ts`, and the pin follows the
-installed extension: it is 2.1.278, and the reply-table check refuses a `generated.ts` harvested
-from anything else. Moving it is maintenance rather than a decision — the corpus keeps every
-version, so an old pin costs reproducibility nothing and buys testing a bundle nobody runs. A clone
-whose corpus lacks the pinned version skips the suite with a reason, as it always did.
-`CORPUS_VERSIONS`, which the layer and anchor ground-truth tests sweep, is a separate list and holds
-all four.
-
-**The two numbers have been read, on 2.1.278, across the editor and the session list.** Both are
-settled enough to stop asking, and the first one does not say what this section expected it to.
-
-- *Mount re-placement* (D52): `replaced` 0, `moved` 0, `lost` 0, on `commit`, over 328 active mounts
-  and 144,548 commits in one measured run. `multiple` and `abandoned` are both empty.
-
-  **That does not retire `replaceLost`, and the rule that said it would was wrong.** Zero here is
-  the absence of the *trigger*, not of the need. Nothing detached because nothing moved: the
-  conditions that produce a non-zero reading are session-specific — the prototype's vanishing pill
-  needed an attachment chip to reorder the footer — and a transcript row that React rebuilds takes
-  its anchor with it, so the mount is skipped rather than counted. A mechanism whose reading is zero
-  because it was never provoked is not one you delete on the strength of a quiet afternoon. What
-  would retire it is a demonstration that the app cannot detach a mount, and no counter can be that.
-
-- *The sweep meter* (D53): peak 6/s on the editor with 326 entries, sustained near 2/s. Not hot, and
-  not worth optimising — the clone path costs more (10ms over 83 clones) and the commit rate dwarfs
-  both. `querySelectorAll` stays.
-
-  The session-list reading is what mattered, and it was a bug rather than a number: 27/s peak,
-  roughly one sweep per React commit, on a surface whose row anchor is measured as editor and
-  sidebar. `decorateTranscript` now registers nothing where the anchor renders no rows (D68 applied
-  to the second capability that takes one).
-
-**The small items carried into this milestone are closed.** Two built, one declined; what each left
-behind as a standing constraint is below.
-
-**The scaffold's release-age gate** (D50 amended). A scaffolded workspace exempts the two Rigline
-packages by version, substituted from the same string their ranges are so the two cannot diverge.
-The constraint worth keeping: pnpm walks back to the newest version in range that is old enough, so
-what decides whether the gate refuses is *whether a range's floor is itself the newest published
-version*. A derived range always is. A hand-written one becomes so the moment somebody bumps a floor
-to a same-day release — the template's other dependencies satisfy this today by having been written
-earlier, which is luck and not a mechanism.
-
-Writing `minimumReleaseAge: 1440` down — the value pnpm 12.3 already defaults to — is what makes the
-gate *refuse* rather than record the young picks and proceed; explicitness flips
-`minimumReleaseAgeStrict`, at any value. This repository keeps the refusal.
-
-**The harness's reply table.** `REPLY_TABLE` is real TypeScript in `page.ts`, serialised into the
-page, and checked against the harvested layers: each reply must be the one `replyCandidates` pairs
-to its request, and each key must be a message type the protocol has. It caught the second wrong
-entry it was built for — `get_asset_uris` was answered with `get_asset_uris_response`, and the
-extension's reply is `asset_uris_response`. The check reads the committed `generated.ts`, so it runs
-in CI with no corpus and no browser, and is exact only while that file and the version the suite
-pins are the same extension.
-
-**`hostBackupIsCurrent`'s size comparison stays, and the hash that was going to replace it is
-declined (2026-09-21).** Not carried any longer; recorded so it is not re-proposed.
-
-Every installed version has its own directory, `anthropic.claude-code-<version>`, and both `.orig`
-files live inside it. A new extension version is therefore a new directory with no backup in it at
-all, and a superseded one keeps its own matching pair until VS Code deletes the lot. So there is no
-general problem of a backup outliving its bundle: for `extension.js.orig` to go stale beside its own
-`extension.js`, that file has to be rewritten *within an existing version directory*, by a
-same-version rebuild landing at an identical byte size in a directory the installer did not wipe
-first. The cost of being wrong is one `rigline restore`, which needs neither VS Code nor the
-extension to be working.
-
-Against that, three findings made the fix cost more than the fault. Hashing the *pristine* bundle —
-what this entry used to propose — records the backup's own content, which nothing ever mutates, so
-it cannot detect anything. Hashing the bytes the injector *wrote* does detect it, and is destructive
-while `hostBackupIsCurrent` has one caller answering two questions: `inject.ts` uses it both to
-choose which bytes to rebuild from *and* to decide whether to overwrite `extension.js.orig`, so
-bytes it does not recognise become the new pristine baseline. A foreign patch preserving the file's
-size is harmless today and would be baked into the backup under the hash — the same failure that
-rules out recomputing `applyPatches(backup, declared) === live`, and the reason the webview's
-`settleWebviewBackup` has a roll-back branch the host side has no analogue of. Closing the hole
-honestly therefore means splitting that boolean and adding a third file to the extension directory
-for `restore`, `doctor` and `status` to know about, which is a redesign of what the injector does
-with unrecognised bytes rather than a swapped comparison.
-
-Two incidental corrections it turned up, both true of the code as it stands. `restore` reverts from
-`extension.js.orig` whenever one exists and never consults currency at all, so the size check guards
-the harvest and the install's rebuild-from, not the restore this entry used to claim it protected.
-And a record kept in `registry.js`, the D75 stamp's precedent, would not survive: `restore` removes
-the payload directory, and `codegen` and `diff` read extension directories that have none.
+When 2 and 3 read clean, milestone 8 is done: condense m8-companion.md into `history-m8.md`, as
+[history-m6.md](history-m6.md) was.
 
 ## Status log
 

@@ -18,9 +18,9 @@ export const WEBVIEW_CSS = "webview/index.css";
 /**
  * Whether a host backup still belongs to the live file it backs up. A declared host substitution
  * never resizes the file, so a backup of a different length belongs to a different build — the
- * extension was replaced in place — and reading it would hand a harvest an older build's protocol
- * and hand a restore a downgrade. Exported because the injector asks the same question, and the
- * two must not answer differently.
+ * extension was replaced in place — and reading it would hand a harvest an older build's protocol.
+ * Exported because the injector asks the same question, and the two must not answer differently.
+ * Size and not a hash (D86).
  */
 export function hostBackupIsCurrent(backupPath: string, livePath: string): boolean {
   return statSync(backupPath).size === statSync(livePath).size;

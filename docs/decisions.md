@@ -400,12 +400,14 @@ A `moved` rate that does not settle means the host and the app are fighting over
 undoing the other every frame, which is the one way this change could be worse than the gap it
 closes — so it is a number on the panel rather than something to be discovered.
 
-**Re-placement is on probation, and counted so the question can be settled with numbers.** The 0.x
-prototype measured a node appended to a React-owned container surviving *zero* removals on all three
-surfaces, and kept its re-mount anyway because at one observer per anchor it was nearly free; at one
-document-wide observer and 319 mounts it is not. So the host counts re-placements and the probe
-reports the count. If it stays zero on the live panel, `replaceLost` goes, and `place()` loses its
-per-node scan of every peer with it.
+**Re-placement stays, though its count reads zero** (amended 2026-09-21). The host counts
+re-placements and the probe reports the count, because the 0.x prototype measured a node in a
+React-owned container surviving *zero* removals, and re-placement is not free at 319 mounts. The
+count read zero on 2.1.278 over 328 mounts and 144,548 commits ([history-m6.md](history-m6.md)),
+which is the absence of the trigger rather than of the need: nothing detached because nothing moved,
+and a transcript row React rebuilds takes its anchor with it, so its mount is skipped rather than
+counted. So a zero reading does not retire `replaceLost`. A demonstration that the app cannot detach
+a mount would, and no counter can be that.
 
 **D54. A decoration does not join a container whose owner measures its children, and the host
 stops when it finds itself in a fight.** The composer footer runs a three-stage fit ladder over the
@@ -537,6 +539,27 @@ The safety net is a backup, not a question put to the user. `extension.js.orig` 
 the first patch lands, every install rebuilds the host bundle from it, disabling a plugin removes
 its patch, and `restore` needs neither VS Code nor a working extension. That asks nobody to have
 predicted a problem, which is the one thing a prompt cannot do.
+
+**D86. A host backup belongs to its live bundle when the two are the same size, and no hash replaces
+that (2026-09-21).** Size is exact because a declared substitution never resizes the file (D25), and
+its blind spot is narrow. Every extension version has its own directory holding its own backup, so
+`extension.js.orig` goes stale beside its own `extension.js` only when a same-version rebuild lands
+at an identical byte size in a directory the installer did not wipe. The cost of that is one
+`rigline restore`.
+
+A hash costs more than the fault. Hashing the pristine bundle records bytes nothing ever mutates, so
+it detects nothing. Hashing the bytes the injector wrote does detect it, and is destructive while
+`hostBackupIsCurrent` answers two questions for its one caller in `inject.ts`: which bytes to rebuild
+from, and whether to overwrite the backup. Bytes it does not recognise become the new pristine
+baseline, so a foreign patch that preserves the size would be baked into the backup. Recomputing
+`applyPatches(backup, declared)` against the live file fails the same way. Doing it honestly means
+splitting that answer and adding a third file to the extension directory for `restore`, `doctor`
+and `status` to know about. `registry.js`, where D75 keeps its stamp, would not do, because `restore`
+removes the payload directory and `codegen` and `diff` read directories that have none. That is a
+redesign of what the injector does with unrecognised bytes, not a swapped comparison.
+
+The check guards the harvest and the install's rebuild. `restore` reverts from any backup there is
+and never asks.
 
 ### Update flow
 

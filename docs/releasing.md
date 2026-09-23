@@ -347,10 +347,10 @@ a release, cut with an increment, and the runbook above walks it.
 **A staged version you do not want to ship**: do not approve it. It expires. Fix the code, bump
 again, stage again.
 
-Do not leave it unwatched, though. Nobody here has yet established whether a bare `pnpm stage
-approve` takes only the batch the last run staged or everything waiting on the account, so an
-unwanted stage left sitting could be swept up by the next release's approval. Run `npm stage list`
-before you approve anything, and make sure what is waiting is what you mean to ship.
+Do not leave it unwatched, though. The staged-packages page lists everything waiting on the
+account, so an unwanted stage sits beside the next release's and can be approved with it by a
+careless click. Run `npm stage list` before you approve anything, and make sure what is waiting is
+what you mean to ship.
 
 **A version burned by a red run.** The tag and the commit are already pushed, so the number is
 spent: the fix is the next version, not this one. What is left behind is a changelog section

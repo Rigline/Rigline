@@ -60,8 +60,9 @@ incrementally. Three properties fall out of that one choice, and each is worth m
 The pristine bytes are the backup when the backup still belongs to this build, and the live file
 otherwise. "Still belongs" is a size comparison, and it is exact precisely because a declared
 substitution never resizes the file: a backup of a different length belongs to a build
-`extension.js` has since replaced, and reading it would hand a harvest an older build's protocol and
-hand a restore a downgrade.
+`extension.js` has since replaced, and reading it would hand a harvest or the rebuild an older
+build's bytes. `restore` does not ask; it reverts from any backup there is. A hash in place of the
+size was considered and declined (D86).
 
 The backup is written the moment the first patch is about to land, not at install time generally —
 `extension.js.orig` present therefore means something patched the host bundle, which is why
