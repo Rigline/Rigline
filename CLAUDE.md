@@ -172,6 +172,15 @@ The four first-party plugins are bundled inside `@rigline/core` and discovered i
 checkout's `plugins/` shadows them and `disable` is the only way to decline one (D71, D72). In a
 published install they are the only root that has them; here they are found twice, quietly.
 
+**Remove the companion while working on the payload or plugins** (`pnpm rigline vscode-setup
+--remove`; run it without `--remove` to put it back when working on the companion itself). On every
+extension-host start — *Reload Window*, *Restart Extensions*, opening VS Code — it runs `install`
+with the released engine, and a checkout build carries the same version, so the release's payload
+silently replaces this checkout's and the panel runs old code while every check passes. That is the
+companion doing its job, restoring the bytes its engine owns (D80), not a bug to fix. The tell is
+a probe report without what you just built; compare the installed `post.js` with
+`packages/core/dist/bundled/post.js`. The durable fix is an open question in plan.md.
+
 An update installs a new versioned directory and deletes the old one, so it silently reverts the
 injection. A window that was open keeps running the old directory until *Developer: Reload Window*.
 A payload change needs *Developer: Reload Webviews* (current window only, and it ends the in-flight

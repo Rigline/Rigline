@@ -182,9 +182,13 @@ describe("summaries and the advisory scan", () => {
     ).toEqual([{ type: "rename_tab", field: "title", plugins: ["a", "b", "c"] }]);
   });
 
-  it("finds grants in call position only, and reports drift both ways", () => {
+  it("finds grants called or handed over as an argument, and reports drift both ways", () => {
     expect(capabilityUse("ctx.onSessionId((id) => {});")).toEqual(["session"]);
     expect(capabilityUse("const off = ctx.onToolUse(handler);")).toEqual(["tools"]);
+    // storeFrom(ctx.onSessionId, null) is a use, and minified it is `e.onSessionId,null`.
+    expect(capabilityUse("storeFrom(ctx.onSessionId, null)")).toEqual(["session"]);
+    expect(capabilityUse("n(e.onSessionId,null)")).toEqual(["session"]);
+    expect(capabilityUse("subscribe(ctx.onSessionId)")).toEqual(["session"]);
     // A mention without a call is prose, and stays out; a mention with one counts, wherever it is.
     expect(capabilityUse("// see ctx.onSessionId for the derivation")).toEqual([]);
     expect(capabilityUse("// like ctx.onSessionId(handler) does")).toEqual(["session"]);

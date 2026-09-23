@@ -80,7 +80,8 @@ export function describeUses(uses: Uses): string[] {
 }
 
 /**
- * The capabilities a plugin's built source appears to use, by the grant names in call position.
+ * The capabilities a plugin's built source appears to use, by the grant names in call position or
+ * handed over as an argument, as `storeFrom(ctx.onSessionId, null)` does.
  *
  * A textual scan, and deliberately advisory (decisions.md, D16's detection note): a mention in
  * prose that looks like a call counts, and a call through a computed property does not. It exists
@@ -90,7 +91,7 @@ export function describeUses(uses: Uses): string[] {
  */
 export function capabilityUse(source: string): UsesKey[] {
   return CONTRACTS.filter((contract) =>
-    contract.grants.some((grant) => new RegExp(String.raw`\.${grant}\s*\(`).test(source)),
+    contract.grants.some((grant) => new RegExp(String.raw`\.${grant}\s*[(,)]`).test(source)),
   ).map((contract) => contract.key);
 }
 
