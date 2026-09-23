@@ -10,6 +10,15 @@ anything may change between releases.
 
 ## Unreleased
 
+### Changed
+
+- `rigline build` no longer bundles `react`, `react/jsx-runtime` or `react-dom`. The panel now
+  serves one copy of React 19 that every plugin shares, and `rigline install` points a plugin's
+  imports at it, so a plugin that bundled its own React should rebuild. `rigline build` also compiles
+  JSX, and builds `src/index.tsx` when there is no `src/index.ts`.
+- `rigline install` and `rigline check` now name a plugin that imports a package it did not bundle
+  as refused, since the panel cannot load it, rather than leaving you to find the error in the panel.
+
 ### Fixed
 
 - A plugin that bundles its own copy of React no longer breaks transcript decorations for every

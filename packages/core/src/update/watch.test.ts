@@ -7,7 +7,7 @@ import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { harvestableHostReplies, harvestableWebview } from "../../test/fixtures.ts";
+import { harvestableHostReplies, harvestableWebview, writePayload } from "../../test/fixtures.ts";
 import { EXTENSION_NAME_PREFIX } from "../extension/locate.ts";
 import type { FlowReport } from "./flow.ts";
 import { watch } from "./watch.ts";
@@ -38,10 +38,7 @@ function installVersion(extensionsDir: string, version: string): string {
 }
 
 function payload(): string {
-  const dir = tempDir("rigline-payload-");
-  writeFileSync(join(dir, "pre.js"), "export default 1;\n");
-  writeFileSync(join(dir, "post.js"), "export default 2;\n");
-  return dir;
+  return writePayload(tempDir("rigline-payload-"));
 }
 
 function options(extensionsDir: string, reports: FlowReport[], errors: unknown[] = []) {

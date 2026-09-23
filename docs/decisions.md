@@ -1801,3 +1801,22 @@ sampling a directory it has been told changed, where the write may not have star
 sampling one it is about to write into, where the only question is whether a write is in flight now.
 It is paid by every install, so `install` takes `wholeness` and the flow passes it down — the seam
 that keeps the test suite from paying it forty times over.
+
+**D87. The panel serves one React to plugins, and `install` points a plugin's imports at it
+(2026-09-23).** `react`, `react/jsx-runtime` and `react-dom` are built beside the two hooks and served
+from `webview/rigline/runtime/` (`RUNTIME_MODULES`), because Rigline's own shell will render plugin
+components in its tree, and a component whose hooks come from one React cannot be rendered by
+another. A plugin's build leaves those imports bare, and `install` rewrites them in the entry as it
+copies the plugin, to paths relative to that entry. Rewriting at install rather than resolving at
+build keeps the payload's layout out of every plugin's output, so the layout can move without anybody
+rebuilding, and keeps P6's contract one ES module that any bundler with an `external` list can
+produce. A bare import outside the set is named in the plugin's verdict and fails at load, attributed.
+
+The rewrite parses with es-module-lexer rather than a pattern, because a specifier-shaped string in a
+comment or a string literal is exactly what a pattern would also rewrite. It is `@rigline/core`'s
+first third-party runtime dependency, which D47's amendment allows, and it is pinned to an exact
+version: a transitive dependency resolves on the user's machine at install time, outside the
+release-age gate (D48), so a range would ship whatever was newest that day rather than what was
+tested. Tier 4 packs it from the workspace's installed copy, which keeps that run offline.
+
+React's major is part of the plugin contract: moving it is an `api` bump.

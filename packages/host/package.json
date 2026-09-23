@@ -1,14 +1,18 @@
 {
   "name": "@rigline/host",
   "version": "1.0.0-alpha.10",
-  "description": "The injected loader: pre.js wraps the message bus before boot, post.js loads plugins after it",
+  "description": "The injected loader: pre.js wraps the message bus before boot, post.js loads plugins after it, and the runtime modules plugins import",
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "rolldown -c rolldown.config.ts",
-    "typecheck": "tsc -p tsconfig.json"
+    "build": "node ../../scripts/clean-dist.mjs && rolldown -c rolldown.config.ts",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.config.json"
   },
   "dependencies": {
     "@rigline/plugin-api": "workspace:*"
+  },
+  "devDependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
   }
 }

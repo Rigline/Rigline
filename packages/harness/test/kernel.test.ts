@@ -247,6 +247,55 @@ export default { setup() {} };`,
       }
     }, 20000);
 
+    it("serves one React to every plugin that imports it, and fails one importing anything else", async () => {
+      const importer = (name: string): FixturePlugin => ({
+        name,
+        manifest: { uses: {} },
+        source: `import * as React from "react";
+import { jsx } from "react/jsx-runtime";
+import { createPortal } from "react-dom";
+export default { setup() {
+  (window.__react ??= {})[${JSON.stringify(name)}] = {
+    module: React,
+    element: React.isValidElement(jsx("i", {})),
+    portal: typeof createPortal,
+  };
+} };`,
+      });
+      const stray: FixturePlugin = {
+        name: "stray",
+        manifest: { uses: {} },
+        source: `import pad from "left-pad";
+export default { setup() {} };`,
+      };
+      const booted = await boot({ plugins: [importer("first"), importer("second"), stray] });
+      try {
+        const seen = await booted.page.evaluate(() => {
+          type Seen = { module: { version: string }; element: boolean; portal: string };
+          const r = (window as unknown as { __react?: Record<string, Seen> }).__react ?? {};
+          return {
+            same: r.first !== undefined && r.first.module === r.second?.module,
+            version: r.first?.module.version ?? null,
+            element: r.first?.element ?? false,
+            portal: r.first?.portal ?? null,
+          };
+        });
+        expect(seen.same).toBe(true);
+        expect(seen.version).toMatch(/^19\./);
+        expect(seen.element).toBe(true);
+        expect(seen.portal).toBe("function");
+
+        const d = await booted.diagnostics();
+        expect(d.plugins.find((p) => p.name === "first")?.status).toBe("loaded");
+        expect(d.plugins.find((p) => p.name === "second")?.status).toBe("loaded");
+        const failed = d.plugins.find((p) => p.name === "stray");
+        expect(failed?.status).toBe("error");
+        expect(failed?.reason).toContain("left-pad");
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
     it("degrades a plugin over a missing optional and refuses the one that required it", async () => {
       // The acceptance case for D41, at the DOM tier: one identifier gone from the tables the
       // loader reads, two plugins declaring it, and two different verdicts. Nothing about the

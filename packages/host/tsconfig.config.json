@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["esnext"],
+    "types": ["node"]
+  },
+  "include": ["rolldown.config.ts"],
+  "exclude": []
+}

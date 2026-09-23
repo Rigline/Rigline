@@ -17,7 +17,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { harvestableHostReplies, harvestableWebview } from "../../test/fixtures.ts";
+import { harvestableHostReplies, harvestableWebview, writePayload } from "../../test/fixtures.ts";
 import { sleepSync } from "../extension/bundles.ts";
 import {
   hostVerdict,
@@ -90,11 +90,8 @@ function payloadOutDir(ext: string): string {
   return join(ext, "webview", "rigline");
 }
 
-function payload(preContent = "export default 1;\n", postContent = "export default 2;\n"): string {
-  const dir = tempDir("rigline-payload-");
-  writeFileSync(join(dir, "pre.js"), preContent);
-  writeFileSync(join(dir, "post.js"), postContent);
-  return dir;
+function payload(preContent?: string, postContent?: string): string {
+  return writePayload(tempDir("rigline-payload-"), preContent, postContent);
 }
 
 function writePlugin(
@@ -549,6 +546,74 @@ describe("plugins", () => {
     const report = install(ext, { payloadDir: payload(), plugins: withPlugins([root]) });
 
     expect(report.notes).toContain("req_0.field_0 is rewritten by first, then second");
+  });
+});
+
+describe("the runtime modules", () => {
+  it("copies the runtime, and drops a chunk the new build no longer has", () => {
+    const ext = fixture();
+    const first = payload();
+    writeFileSync(join(first, "runtime", "shared-old.js"), "export {};\n");
+    install(ext, { payloadDir: first });
+    expect(existsSync(join(payloadOutDir(ext), "runtime", "shared-old.js"))).toBe(true);
+
+    install(ext, { payloadDir: payload() });
+
+    expect(existsSync(join(payloadOutDir(ext), "runtime", "react.js"))).toBe(true);
+    expect(existsSync(join(payloadOutDir(ext), "runtime", "shared-old.js"))).toBe(false);
+  });
+
+  it("refuses a payload without the runtime, and touches nothing", () => {
+    const ext = fixture();
+    const original = readFileSync(bundlePath(ext));
+    const partial = payload();
+    rmSync(join(partial, "runtime"), { recursive: true, force: true });
+
+    expect(() => install(ext, { payloadDir: partial })).toThrow(
+      /payload is missing runtime\/react\.js/,
+    );
+    expect(readFileSync(bundlePath(ext))).toEqual(original);
+  });
+
+  it("points a plugin entry's runtime imports at the payload, and leaves its source alone", () => {
+    const ext = fixture();
+    const root = tempDir("rigline-plugins-");
+    const source = 'import { useState } from "react";\nexport default { setup() {} };\n';
+    const dir = writePlugin(root, "hooks", { entry: "dist/index.js" });
+    mkdirSync(join(dir, "dist"));
+    writeFileSync(join(dir, "dist", "index.js"), source);
+
+    const report = install(ext, { payloadDir: payload(), plugins: withPlugins([root]) });
+
+    const copied = readFileSync(join(payloadOutDir(ext), "plugins", "hooks", "dist", "index.js"));
+    expect(copied.toString("utf8")).toBe(
+      'import { useState } from "../../../runtime/react.js";\nexport default { setup() {} };\n',
+    );
+    expect(readFileSync(join(dir, "dist", "index.js"), "utf8")).toBe(source);
+    expect(report.verdicts[0]?.refusal).toBeNull();
+  });
+
+  it("copies an entry with no runtime imports byte for byte", () => {
+    const ext = fixture();
+    const root = tempDir("rigline-plugins-");
+    const bytes = Buffer.from("export default { setup() {} };\r\n// caf\xe9\r\n", "latin1");
+    const dir = writePlugin(root, "plain");
+    writeFileSync(join(dir, "index.js"), bytes);
+
+    install(ext, { payloadDir: payload(), plugins: withPlugins([root]) });
+
+    expect(readFileSync(join(payloadOutDir(ext), "plugins", "plain", "index.js"))).toEqual(bytes);
+  });
+
+  it("reports a plugin importing what the panel does not provide, and still installs it", () => {
+    const ext = fixture();
+    const root = tempDir("rigline-plugins-");
+    writePlugin(root, "stray", {}, 'import pad from "left-pad";\nexport default { setup() {} };\n');
+
+    const report = install(ext, { payloadDir: payload(), plugins: withPlugins([root]) });
+
+    expect(report.verdicts[0]?.refusal).toMatch(/imports "left-pad", which the panel does not/);
+    expect(existsSync(join(payloadOutDir(ext), "plugins", "stray", "index.js"))).toBe(true);
   });
 });
 

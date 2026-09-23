@@ -67,6 +67,8 @@ export type {
   PatchOutcome,
 } from "./inject/hostpatch.ts";
 export { applyPatches, patchRefusal } from "./inject/hostpatch.ts";
+export type { ResolvedImports } from "./inject/imports.ts";
+export { importProblem, resolveRuntimeImports } from "./inject/imports.ts";
 export type {
   Injection,
   InstallOptions,

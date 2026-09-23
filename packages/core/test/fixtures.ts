@@ -3,7 +3,8 @@
  * every fixture that needs to stay harvestable.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { RUNTIME_MODULES } from "@rigline/plugin-api";
 
 /**
  * A minified-looking snippet reproducing react-dom's own devtools hook integration closely enough
@@ -117,4 +118,19 @@ export function writeFixtureExtension(ext: string, version = "2.1.263"): string 
   );
   writeFileSync(join(ext, "package.json"), JSON.stringify({ version }));
   return ext;
+}
+
+/** A payload directory as `install` requires one: the two hooks and the runtime modules. */
+export function writePayload(
+  dir: string,
+  pre = "export default 1;\n",
+  post = "export default 2;\n",
+): string {
+  writeFileSync(join(dir, "pre.js"), pre);
+  writeFileSync(join(dir, "post.js"), post);
+  for (const file of Object.values(RUNTIME_MODULES)) {
+    mkdirSync(dirname(join(dir, file)), { recursive: true });
+    writeFileSync(join(dir, file), "export default {};\n");
+  }
+  return dir;
 }

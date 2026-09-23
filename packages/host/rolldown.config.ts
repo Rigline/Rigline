@@ -1,3 +1,6 @@
+import { createRequire } from "node:module";
+import { basename } from "node:path";
+import { RUNTIME_MODULES } from "@rigline/plugin-api";
 import { defineConfig } from "rolldown";
 
 /**
@@ -26,4 +29,55 @@ const hook = (name: "pre" | "post") =>
     },
   });
 
-export default [hook("pre"), hook("post")];
+const VIRTUAL = "\0rigline-runtime:";
+
+/** Every export `specifier` has, as the production build defines them. */
+function exportNames(specifier: string): string[] {
+  const previous = process.env.NODE_ENV;
+  process.env.NODE_ENV = "production";
+  try {
+    const module = createRequire(import.meta.url)(specifier) as Record<string, unknown>;
+    return Object.keys(module).filter((name) => /^[A-Za-z_$][\w$]*$/.test(name));
+  } finally {
+    process.env.NODE_ENV = previous;
+  }
+}
+
+/** React ships CommonJS, over which `export *` gives no reliable named exports, so name each one. */
+function runtimeEntry(specifier: string): string {
+  const exports = exportNames(specifier).filter((name) => name !== "default");
+  return [
+    `import runtime from ${JSON.stringify(specifier)};`,
+    ...exports.map((name) => `export const ${name} = runtime.${name};`),
+    "export default runtime;",
+    "",
+  ].join("\n");
+}
+
+/** The modules plugins import (RUNTIME_MODULES): one entry each, sharing one chunk, so one React. */
+const runtime = defineConfig({
+  input: Object.fromEntries(
+    Object.entries(RUNTIME_MODULES).map(([specifier, file]) => [
+      basename(file, ".js"),
+      VIRTUAL + specifier,
+    ]),
+  ),
+  platform: "browser",
+  plugins: [
+    {
+      name: "rigline-runtime-entries",
+      resolveId: (id) => (id.startsWith(VIRTUAL) ? id : null),
+      load: (id) => (id.startsWith(VIRTUAL) ? runtimeEntry(id.slice(VIRTUAL.length)) : null),
+    },
+  ],
+  transform: { define: { "process.env.NODE_ENV": JSON.stringify("production") } },
+  output: {
+    dir: "dist/runtime",
+    format: "esm",
+    entryFileNames: "[name].js",
+    chunkFileNames: "[name]-[hash].js",
+    minify: true,
+  },
+});
+
+export default [hook("pre"), hook("post"), runtime];

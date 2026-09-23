@@ -29,8 +29,11 @@ const fail = (message) => failWith(message, "bundle-assets");
 const BUNDLED = join(ROOT, "packages", "core", "dist", "bundled");
 const PLUGINS_DIR = join(ROOT, "plugins");
 
-/** The two files the host builds to, taken from its `dist` and laid flat in `dist/bundled`. */
+/** The two hook files the host builds to, taken from its `dist` and laid flat in `dist/bundled`. */
 const PAYLOAD_FILES = ["pre.js", "post.js"];
+
+/** The modules plugins import, which the host builds beside the hooks; copied whole. */
+const RUNTIME_DIR = "runtime";
 
 /**
  * Every plugin in `plugins/`, found rather than listed. Everything in there is first-party and
@@ -83,6 +86,11 @@ mkdirSync(BUNDLED, { recursive: true });
 for (const file of PAYLOAD_FILES) {
   copy(join(ROOT, "packages", "host", "dist", file), join(BUNDLED, file));
 }
+const runtimeFrom = join(ROOT, "packages", "host", "dist", RUNTIME_DIR);
+if (!existsSync(runtimeFrom)) fail(`${runtimeFrom} is missing: run \`pnpm -r build\` first`);
+for (const file of readdirSync(runtimeFrom)) {
+  copy(join(runtimeFrom, file), join(BUNDLED, RUNTIME_DIR, file));
+}
 
 const plugins = firstPartyPlugins();
 for (const name of plugins) {
@@ -103,6 +111,6 @@ for (const name of plugins) {
 copy(join(ROOT, "packages", "vscode", "rigline.vsix"), join(BUNDLED, "rigline.vsix"));
 
 say(
-  `bundled ${PAYLOAD_FILES.length} payload files, ${plugins.length} plugins and the companion ` +
+  `bundled ${PAYLOAD_FILES.length} payload files, the runtime, ${plugins.length} plugins and the companion ` +
     `into ${BUNDLED}`,
 );

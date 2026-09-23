@@ -12,7 +12,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ANCHORS } from "@rigline/plugin-api";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { harvestableHostReplies, harvestableWebview } from "../../test/fixtures.ts";
+import { harvestableHostReplies, harvestableWebview, writePayload } from "../../test/fixtures.ts";
 import { generate } from "../codegen/generate.ts";
 import { readBundles } from "../extension/bundles.ts";
 import { harvestAll } from "../layers/index.ts";
@@ -104,10 +104,7 @@ var carried={${name}:"${value}"};var carriedUse=[carried.${name}]`;
 }
 
 function payload(): string {
-  const dir = tempDir("rigline-payload-");
-  writeFileSync(join(dir, "pre.js"), "export default 1;\n");
-  writeFileSync(join(dir, "post.js"), "export default 2;\n");
-  return dir;
+  return writePayload(tempDir("rigline-payload-"));
 }
 
 /** A plugin root holding one plugin, declaring `uses`. */

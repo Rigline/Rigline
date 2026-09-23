@@ -9,11 +9,12 @@
  * and turn a two-line patch into a diff nobody could audit (D37).
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { dirname, join, posix, relative, sep } from "node:path";
 import {
   capabilityViolation,
   type IdentifierTables,
   optionalGaps,
+  RUNTIME_MODULES,
   sharedFields,
 } from "@rigline/plugin-api";
 import {
@@ -47,6 +48,7 @@ import {
   readConfig,
 } from "../plugins/discover.ts";
 import { applyPatches, type PatchOutcome } from "./hostpatch.ts";
+import { importProblem, resolveRuntimeImports } from "./imports.ts";
 
 /**
  * The payload directory, under the extension's `webview/`.
@@ -77,6 +79,9 @@ const POST_BYTES = Buffer.from(POST_LINE, "utf8");
 export const PATCH_BYTES = PRE_BYTES.byteLength + POST_BYTES.byteLength;
 
 const PAYLOAD_FILES = ["pre.js", "post.js"];
+
+/** The modules plugins import, copied whole: its shared chunks are named by content hash. */
+const RUNTIME_DIR = "runtime";
 
 /** Everything on disk for one installed extension directory, read once and reused. */
 export interface Injection {
@@ -189,36 +194,68 @@ function writeIfChanged(path: string, bytes: Buffer): boolean {
   return true;
 }
 
-/** The files of a plugin that belong in the payload, relative to its directory. */
-function pluginFiles(dir: string): readonly string[] {
+/** The files under `dir` that `admit` accepts, relative to it. */
+function filesUnder(dir: string, admit: (name: string) => boolean): readonly string[] {
   return readdirSync(dir, { recursive: true, withFileTypes: true })
     .filter((entry) => entry.isFile())
     .map((entry) => relative(dir, join(entry.parentPath, entry.name)))
-    .filter(isPluginOutput);
+    .filter(admit);
 }
 
 /**
- * Bring one plugin's directory to match its source, file by file.
+ * Bring `dest` to match `src`, file by file, passing each file's bytes through `transform`.
  *
  * Not `rmSync` and copy, which is the one write that makes an enabled plugin briefly absent from a
  * directory a live panel may be reading, and which happened on every run whether anything had
  * changed or not.
  */
-function syncPluginDir(src: string, dest: string): boolean {
-  const wanted = pluginFiles(src);
+function syncDir(
+  src: string,
+  dest: string,
+  admit: (name: string) => boolean = () => true,
+  transform: (name: string, bytes: Buffer) => Buffer = (_name, bytes) => bytes,
+): boolean {
+  const wanted = filesUnder(src, admit);
   let wrote = false;
   for (const name of wanted) {
     const to = join(dest, name);
     mkdirSync(dirname(to), { recursive: true });
-    if (writeIfChanged(to, readFileSync(join(src, name)))) wrote = true;
+    if (writeIfChanged(to, transform(name, readFileSync(join(src, name))))) wrote = true;
   }
   const keep = new Set(wanted);
-  for (const name of existsSync(dest) ? pluginFiles(dest) : []) {
+  for (const name of existsSync(dest) ? filesUnder(dest, admit) : []) {
     if (keep.has(name)) continue;
     rmSync(join(dest, name), { force: true });
     wrote = true;
   }
   return wrote;
+}
+
+/** A manifest's `entry` as a posix path relative to the plugin's directory. */
+function entryPath(entry: string): string {
+  return posix.normalize(entry.replaceAll("\\", "/"));
+}
+
+/**
+ * The entry's bytes with its runtime imports pointed at the payload, `payloadPath` being where it
+ * lands inside the payload directory. The bytes untouched when there is nothing to point, or when
+ * the entry cannot be read, which the plugin's verdict reports.
+ */
+function withRuntimeImports(bytes: Buffer, payloadPath: string): Buffer {
+  const source = bytes.toString("utf8");
+  let resolved: string;
+  try {
+    resolved = resolveRuntimeImports(source, payloadPath).source;
+  } catch {
+    return bytes;
+  }
+  return resolved === source ? bytes : Buffer.from(resolved, "utf8");
+}
+
+/** Why a plugin's entry cannot load here because of what it imports, or null. */
+function entryImportProblem(p: DiscoveredPlugin): string | null {
+  const path = join(p.dir, entryPath(p.manifest.entry));
+  return existsSync(path) ? importProblem(readFileSync(path, "utf8")) : null;
 }
 
 export interface InstallOptions {
@@ -244,7 +281,10 @@ export interface InstallOptions {
 /** One enabled plugin's verdict against the tables harvested from this extension directory (D43). */
 export interface PluginVerdict {
   readonly plugin: string;
-  /** Why this version will refuse it at load, naming the identifier that is gone, or null. */
+  /**
+   * Why it will not load on this version, or null: the identifier that is gone, or an import the
+   * panel does not provide.
+   */
   readonly refusal: string | null;
   /** Optional declarations this version cannot honour: what it will load without. */
   readonly missingOptional: readonly string[];
@@ -285,7 +325,7 @@ export function pluginVerdicts(
 ): PluginVerdict[] {
   return enabled.map((p) => ({
     plugin: p.name,
-    refusal: capabilityViolation(p.manifest.uses, tables),
+    refusal: capabilityViolation(p.manifest.uses, tables) ?? entryImportProblem(p),
     missingOptional: optionalGaps(p.manifest.uses, tables),
     rawClasses: Object.values(p.manifest.uses.classes).reduce((n, l) => n + l.length, 0),
   }));
@@ -300,7 +340,7 @@ export function pluginVerdicts(
 export function install(ext: string, options: InstallOptions): InstallReport {
   const log = options.log ?? (() => {});
 
-  for (const file of PAYLOAD_FILES) {
+  for (const file of [...PAYLOAD_FILES, ...Object.values(RUNTIME_MODULES)]) {
     if (!existsSync(join(options.payloadDir, file))) {
       throw new UserError(`payload is missing ${file}: ${options.payloadDir}`);
     }
@@ -331,6 +371,9 @@ export function install(ext: string, options: InstallOptions): InstallReport {
   for (const file of PAYLOAD_FILES) {
     const from = readFileSync(join(options.payloadDir, file));
     if (writeIfChanged(join(state.payloadDir, file), from)) wrotePayload = true;
+  }
+  if (syncDir(join(options.payloadDir, RUNTIME_DIR), join(state.payloadDir, RUNTIME_DIR))) {
+    wrotePayload = true;
   }
   const overrides = options.anchors ?? NO_ANCHOR_OVERRIDES;
   const harvest = harvestAll(readBundles(ext));
@@ -393,7 +436,11 @@ export function install(ext: string, options: InstallOptions): InstallReport {
     const pluginsOut = join(state.payloadDir, "plugins");
     mkdirSync(pluginsOut, { recursive: true });
     for (const p of enabled) {
-      if (syncPluginDir(p.dir, join(pluginsOut, p.name))) wrotePayload = true;
+      const entry = entryPath(p.manifest.entry);
+      const payloadPath = `plugins/${p.name}/${entry}`;
+      const rewrite = (name: string, bytes: Buffer): Buffer =>
+        name.split(sep).join("/") === entry ? withRuntimeImports(bytes, payloadPath) : bytes;
+      if (syncDir(p.dir, join(pluginsOut, p.name), isPluginOutput, rewrite)) wrotePayload = true;
     }
     // A plugin switched off or removed leaves a directory that the baked registry no longer names;
     // it would load nothing, and it would also be the only stale thing left behind.

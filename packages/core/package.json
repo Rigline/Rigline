@@ -42,7 +42,8 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@rigline/plugin-api": "workspace:*"
+    "@rigline/plugin-api": "workspace:*",
+    "es-module-lexer": "2.3.2"
   },
   "devDependencies": {
     "rolldown": "^1.2.8"

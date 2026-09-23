@@ -224,8 +224,9 @@ Three details are load-bearing:
   as a dependency npm cannot resolve. pnpm substitutes the exact version, which is also what lets
   the tarballs resolve each other (D46).
 - **`--offline`**, so a run that silently reached for the registry would fail rather than becoming a
-  test of the network. Nothing needs it: rolldown is a devDependency now, and the published packages'
-  only dependencies are each other.
+  test of the network. Nothing needs it: the published packages depend on each other, and the
+  engine's one third-party dependency is pinned exactly and packed from the copy this workspace
+  installed (D87), which is what the registry would have served.
 - **`--ignore-scripts`**, because nothing here has an install script and the surface is declined
   rather than defended (D47). And `RIGLINE_HOME` points into the temporary directory, so the run
   cannot read or write the developer's own config, plugins or baseline.

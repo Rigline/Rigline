@@ -54,6 +54,8 @@ export {
   SURFACES,
   validateManifest,
 } from "./manifest.ts";
+export type { RuntimeSpecifier } from "./runtime.ts";
+export { isRuntimeSpecifier, RUNTIME_MODULES } from "./runtime.ts";
 export { manifestSchema, manifestSchemaJson } from "./schema.ts";
 export { nextSessionId } from "./session.ts";
 export type { ToolResult, ToolUse } from "./stream.ts";

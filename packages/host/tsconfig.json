@@ -9,6 +9,6 @@
       "@rigline/plugin-api": ["../plugin-api/src/index.ts"]
     }
   },
-  "include": ["src/**/*.ts", "rolldown.config.ts"],
+  "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts"]
 }

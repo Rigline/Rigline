@@ -90,6 +90,33 @@ function pack(name: string): string {
   return path;
 }
 
+/**
+ * The engine's third-party runtime dependencies, packed from the copies this workspace installed,
+ * which is the exact version each is pinned at: what the registry would have served, offline.
+ */
+function packThirdParty(): string[] {
+  const tarballs: string[] = [];
+  for (const name of ENGINE_PACKAGES) {
+    const manifest = JSON.parse(
+      readFileSync(join(ROOT, "packages", name, "package.json"), "utf8"),
+    ) as { dependencies?: Record<string, string> };
+    for (const dep of Object.keys(manifest.dependencies ?? {})) {
+      if (dep.startsWith("@rigline/")) continue;
+      const dir = join(ROOT, "packages", name, "node_modules", dep);
+      const out = run(
+        process.execPath,
+        [findNpmCli(), "pack", dir, "--pack-destination", work, "--ignore-scripts"],
+        work,
+      );
+      // npm prints the file name it wrote as the last non-empty line.
+      const path = join(work, out.trim().split(/\r?\n/).at(-1)?.trim() ?? "");
+      if (!existsSync(path)) throw new Error(`npm pack wrote no tarball for ${dep}: ${out}`);
+      tarballs.push(path);
+    }
+  }
+  return tarballs;
+}
+
 beforeAll(() => {
   // Asked first and through the resolver, so an unbuilt or stale workspace fails with the build
   // command rather than with an npm error about a tarball that has no `dist` in it.
@@ -103,15 +130,15 @@ beforeAll(() => {
   mkdirSync(engine, { recursive: true });
 
   // The engine, through the argv the wrapper itself would hand npm. `--offline` is the one addition,
-  // because with rolldown gone nothing here needs the registry and a run that silently reached for
-  // one would be a test of the network; `--ignore-scripts` is already in there (D47, D73).
+  // because with every dependency packed here nothing needs the registry and a run that silently
+  // reached for one would be a test of the network; `--ignore-scripts` is already in there (D47, D73).
   run(
     process.execPath,
     [
       ...engineInstallArgv({
         npmCli: findNpmCli(),
         prefix: engine,
-        specs: ENGINE_PACKAGES.map(pack),
+        specs: [...ENGINE_PACKAGES.map(pack), ...packThirdParty()],
       }),
       "--offline",
       "--no-package-lock",

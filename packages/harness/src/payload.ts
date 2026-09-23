@@ -3,9 +3,15 @@
  * injector leaves on disk"): pre.js and post.js from the host build, generated.js harvested fresh
  * from the corpus, and a registry baking whichever fixture plugins one test wants active.
  */
-import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { copyFileSync, cpSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { bundledDir, generate, harvestAll, missingAnchorReason } from "@rigline/core";
+import {
+  bundledDir,
+  generate,
+  harvestAll,
+  missingAnchorReason,
+  resolveRuntimeImports,
+} from "@rigline/core";
 import {
   type AnchorName,
   EMPTY_USES,
@@ -47,7 +53,7 @@ export interface PreparePayloadOptions {
   readonly remove?: RemovedIdentifiers;
 }
 
-/** Write pre.js, post.js, generated.js, registry.js and plugins/<name>/index.js into `dir`. */
+/** Write pre.js, post.js, runtime/, generated.js, registry.js and plugins/<name>/index.js into `dir`. */
 export function preparePayload(dir: string, options: PreparePayloadOptions): void {
   // From `dist/bundled`, which is what a user's install carries, so this tier drives the bytes
   // they get rather than a second source of truth. `bundledDir` also carries the staleness chain
@@ -59,6 +65,7 @@ export function preparePayload(dir: string, options: PreparePayloadOptions): voi
   for (const file of PAYLOAD_FILES) {
     copyFileSync(join(bundled, file), join(dir, file));
   }
+  cpSync(join(bundled, "runtime"), join(dir, "runtime"), { recursive: true });
 
   const generated = generate(harvestAll(corpusBundles(options.version)));
   writeFileSync(join(dir, "generated.js"), withoutIdentifiers(generated.runtime, options.remove));
@@ -79,7 +86,9 @@ export const patches = [];
   for (const plugin of options.plugins) {
     const pluginDir = join(dir, "plugins", plugin.name);
     mkdirSync(pluginDir, { recursive: true });
-    writeFileSync(join(pluginDir, "index.js"), plugin.source, "utf8");
+    // What `install` does to an entry as it copies it, so a fixture may import `react` bare.
+    const { source } = resolveRuntimeImports(plugin.source, `plugins/${plugin.name}/index.js`);
+    writeFileSync(join(pluginDir, "index.js"), source, "utf8");
   }
 }
 

@@ -4,13 +4,15 @@
  *
  * The contract a plugin meets is an output, not a toolchain (decisions.md, P6): one browser-target
  * ES module plus rigline.json. This is the shortest way to produce that output and nothing more.
- * Everything the entry imports is bundled in, `@rigline/plugin-api` included, because a plugin
- * directory is copied into the extension as it stands and nothing there resolves a bare specifier.
+ * Everything the entry imports is bundled in, `@rigline/plugin-api` included, except the runtime
+ * modules the panel serves (`RUNTIME_MODULES`), which stay bare for `install` to point at the
+ * payload's copies.
  * Source maps are inline for the same reason the loader's are: the webview's CSP makes a sibling
  * `.map` fetch a gamble.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
+import { RUNTIME_MODULES } from "@rigline/plugin-api";
 import type { build as bundle } from "rolldown";
 import { UserError } from "../errors.ts";
 
@@ -39,8 +41,12 @@ async function rolldown(): Promise<typeof bundle> {
 export interface BuildOptions {
   /** The plugin directory. Defaults to the current directory. */
   readonly dir?: string;
-  /** The TypeScript entry, relative to the plugin directory. Defaults to src/index.ts. */
+  /** The TypeScript entry, relative to the plugin directory. Defaults to src/index.ts, then .tsx. */
   readonly source?: string;
+}
+
+function defaultSource(dir: string): string {
+  return existsSync(join(dir, "src", "index.ts")) ? "src/index.ts" : "src/index.tsx";
 }
 
 /** Build one plugin from its source entry to the `entry` its manifest names. */
@@ -54,7 +60,7 @@ export async function buildPlugin(
   if (typeof manifest.entry !== "string" || manifest.entry.length === 0) {
     throw new UserError(`${manifestPath} has no "entry"`);
   }
-  const input = resolve(dir, options.source ?? "src/index.ts");
+  const input = resolve(dir, options.source ?? defaultSource(dir));
   if (!existsSync(input)) throw new UserError(`no plugin source at ${input}`);
   const output = resolve(dir, manifest.entry);
 
@@ -62,6 +68,8 @@ export async function buildPlugin(
   await bundle({
     input,
     platform: "browser",
+    external: Object.keys(RUNTIME_MODULES),
+    transform: { jsx: "react-jsx" },
     output: { file: output, format: "esm", sourcemap: "inline", codeSplitting: false },
   });
   return { input: relative(dir, input), output: relative(dir, output) };

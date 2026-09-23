@@ -21,7 +21,8 @@ command surface over it.
 
 **The webview, at boot.** Two injected lines load a pre hook and a post hook. The pre hook wraps the
 bus before the app touches it; the post hook reads the data Node left, builds a `ctx` per plugin and
-loads them. This is `@rigline/host`, built to exactly two files.
+loads them. This is `@rigline/host`, built to the two hook files and, beside them, the runtime
+modules plugins import: one React for every plugin (D87).
 
 The channel between them is a directory of files, and nothing else. There is no protocol, no
 handshake, and no way for the panel to ask a follow-up question:
@@ -44,14 +45,14 @@ each host patch is carried into `registry.js` rather than derived: nothing in a 
 | `packages/plugin-api` | `@rigline/plugin-api` | The shared vocabulary: `PluginContext`, the manifest type and its JSON schema, the anchor names and specs, the capability *contracts*, and the pure derivations (session rule, stream shape, transcript join). Pure data and pure functions, so both machines import it. |
 | `packages/core` | `@rigline/core` | The engine. Node: locate, harvest, codegen, inject, restore, discover, bake, the install flow, the anchor table, the plugin manager, and every command but `update`, behind the bin `rigline-engine`. Also ships the assets — see below. |
 | `packages/cli` | `rigline` | The retrieval layer (D69). It installs the engine under `~/.rigline/engine`, spawns it, owns `update` and the remote half of `add`, and forwards the rest. Depends on no Rigline package. |
-| `packages/host` | `@rigline/host` (private) | The injected runtime: `pre.js` and `post.js`. |
+| `packages/host` | `@rigline/host` (private) | The injected runtime: `pre.js`, `post.js`, and `runtime/` (D87). |
 | `packages/create-plugin` | `create-rigline-plugin` | The scaffold, as real files under `template/`. |
 | `packages/vscode` | `@rigline/vscode` (private) | The companion extension: a second retrieval layer that acquires the engine and spawns it when an extension update lands (D80). Built to `rigline.vsix`. |
 | `packages/harness` | (private) | Playwright over the real bundle. See [verification.md](verification.md). |
 | `plugins/*` | first-party plugins | `session-id`, `worktree-prefix`, `time-marks`, `probe`. |
 
-**Core carries the assets, in `dist/bundled/`** (D71): `pre.js`, `post.js`, and each first-party
-plugin's `rigline.json` and built entry. `@rigline/host` is private and `plugins/*` are not
+**Core carries the assets, in `dist/bundled/`** (D71): `pre.js`, `post.js`, `runtime/`, and each
+first-party plugin's `rigline.json` and built entry. `@rigline/host` is private and `plugins/*` are not
 published, so without this nothing a person installs holds the thing that gets injected — which is
 what `rigline install` threw `payload is missing pre.js` over. Core rather than the wrapper, because
 core is what injects and what discovers. The companion's `rigline.vsix` ships there too, so

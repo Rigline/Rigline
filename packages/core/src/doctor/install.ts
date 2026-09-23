@@ -14,6 +14,7 @@
  */
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { RUNTIME_MODULES } from "@rigline/plugin-api";
 import { HOST_BACKUP, WEBVIEW_BACKUP } from "../extension/bundles.ts";
 import { extensionVersion } from "../extension/locate.ts";
 import type { PatchOutcome } from "../inject/hostpatch.ts";
@@ -58,7 +59,7 @@ export interface InstallState {
   readonly webviewBackup: FileFact | null;
   readonly hostBackup: FileFact | null;
   readonly payloadDir: string;
-  /** The payload files as installed: `pre.js`, `post.js`, `generated.js`, `registry.js`. */
+  /** The payload files as installed: the two hooks, the runtime entries, the two tables. */
   readonly payload: readonly FileFact[];
   readonly registry: BakedRegistry;
   readonly problems: readonly string[];
@@ -146,7 +147,13 @@ export function parseRegistry(source: string): BakedRegistry {
   };
 }
 
-const PAYLOAD_FILES = ["pre.js", "post.js", "generated.js", "registry.js"];
+const PAYLOAD_FILES = [
+  "pre.js",
+  "post.js",
+  ...Object.values(RUNTIME_MODULES),
+  "generated.js",
+  "registry.js",
+];
 
 /**
  * Everything one extension directory can say about itself, with no way to throw.

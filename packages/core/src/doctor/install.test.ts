@@ -9,6 +9,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { writePayload } from "../../test/fixtures.ts";
 import type { PatchOutcome } from "../inject/hostpatch.ts";
 import { bakeRegistry, discoverPlugins } from "../plugins/discover.ts";
 import { CORE_VERSION } from "../version.ts";
@@ -123,8 +124,7 @@ describe("installState", () => {
     const ext = extensionDir({ patched: true });
     const payload = join(ext, "webview", "rigline");
     mkdirSync(payload, { recursive: true });
-    writeFileSync(join(payload, "pre.js"), "1;");
-    writeFileSync(join(payload, "post.js"), "2;");
+    writePayload(payload, "1;", "2;");
     writeFileSync(join(payload, "generated.js"), "3;");
     writeFileSync(
       join(payload, "registry.js"),
@@ -132,9 +132,14 @@ describe("installState", () => {
     );
 
     const state = installState(ext);
-    expect(state.payload.map((f) => f.path.slice(payload.length + 1))).toEqual([
+    expect(
+      state.payload.map((f) => f.path.slice(payload.length + 1).replaceAll("\\", "/")),
+    ).toEqual([
       "pre.js",
       "post.js",
+      "runtime/react.js",
+      "runtime/jsx-runtime.js",
+      "runtime/react-dom.js",
       "generated.js",
       "registry.js",
     ]);
