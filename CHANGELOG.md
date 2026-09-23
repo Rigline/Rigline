@@ -10,6 +10,8 @@ anything may change between releases.
 
 ## Unreleased
 
+## 1.0.0-alpha.10 — 2026-09-23
+
 ### Added
 
 - The companion adds **Rigline: Show Plugins** to the Command Palette, which lists what's
