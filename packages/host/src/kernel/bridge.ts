@@ -70,6 +70,7 @@ export interface Diagnostics {
   readonly react: {
     hook: "installed" | "chained";
     version: string | null;
+    foreign: number;
     commits: number;
     notified: number;
   };

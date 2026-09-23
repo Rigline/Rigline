@@ -195,6 +195,7 @@ export interface ReportFacts {
     readonly version: string | null;
     readonly commits: number;
     readonly notified: number;
+    readonly foreign: number;
   };
   readonly mounts: {
     readonly driver: string;
@@ -303,7 +304,8 @@ export function formatReport(facts: ReportFacts, groups: readonly CheckGroup[]):
   out.push(`  boot       pre ${facts.preAt}ms, post ${post}`);
   out.push(
     `  react      ${facts.react.version ?? "no renderer"}, hook ${facts.react.hook}, ` +
-      `${facts.react.commits} commits / ${facts.react.notified} notified`,
+      `${facts.react.commits} commits / ${facts.react.notified} notified` +
+      (facts.react.foreign > 0 ? `, ${facts.react.foreign} other renderer(s) ignored` : ""),
   );
   out.push(
     `  mounts     ${facts.mounts.active} active, ${facts.mounts.replaced} re-placed, ` +

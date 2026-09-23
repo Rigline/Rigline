@@ -191,6 +191,62 @@ export default { setup() {} };`,
       }
     }, 20000);
 
+    it("keeps the app's renderer when another injects after it", async () => {
+      // What a second react-dom does to the hook: a plugin carrying its own React, or Rigline's
+      // own shell. Its fiber lookup knows only its own tree, so taking it would leave every row
+      // unidentified, and its commits are not the app's re-renders.
+      const intruder: FixturePlugin = {
+        name: "intruder",
+        manifest: { uses: { transcript: true } },
+        source: `export default { setup(ctx) {
+    const hook = window.__REACT_DEVTOOLS_GLOBAL_HOOK__;
+    window.__intruder = hook.inject({
+      version: "19.1.0",
+      rendererPackageName: "react-dom",
+      findFiberByHostInstance: () => null,
+    });
+    ctx.decorateTranscript((entry) => {
+      const d = document.createElement("i");
+      d.className = "harness-time";
+      d.textContent = entry.at === null ? "?" : "t";
+      return d;
+    });
+  } };`,
+      };
+      const booted = await boot({ plugins: [intruder] });
+      try {
+        await booted.page.waitForFunction(() => {
+          const rows = [...document.getElementsByClassName("message_07S1Yg")];
+          return (
+            rows.length === 2 &&
+            rows.every((row) => row.getElementsByClassName("harness-time").length === 1)
+          );
+        });
+
+        // Synchronous, so nothing of the app's can commit in between the two reads.
+        const commits = await booted.page.evaluate(() => {
+          const w = window as unknown as {
+            __intruder: unknown;
+            __REACT_DEVTOOLS_GLOBAL_HOOK__: { onCommitFiberRoot(id: unknown, root: unknown): void };
+            __rigline: { diagnostics: { react: { commits: number } } };
+          };
+          const before = w.__rigline.diagnostics.react.commits;
+          for (let i = 0; i < 50; i++)
+            w.__REACT_DEVTOOLS_GLOBAL_HOOK__.onCommitFiberRoot(w.__intruder, {});
+          return { before, after: w.__rigline.diagnostics.react.commits };
+        });
+        expect(commits.after).toBe(commits.before);
+
+        const d = await booted.diagnostics();
+        expect(d.react.version).toMatch(/^18\./);
+        expect(d.react.foreign).toBe(1);
+        expect(d.transcript.timed).toBe(2);
+        expect(booted.consoleErrors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
     it("degrades a plugin over a missing optional and refuses the one that required it", async () => {
       // The acceptance case for D41, at the DOM tier: one identifier gone from the tables the
       // loader reads, two plugins declaring it, and two different verdicts. Nothing about the

@@ -10,6 +10,12 @@ anything may change between releases.
 
 ## Unreleased
 
+### Fixed
+
+- A plugin that bundles its own copy of React no longer breaks transcript decorations for every
+  plugin in the panel. Rigline now keeps to the app's own renderer, and the diagnostics report says
+  when another has loaded.
+
 ## 1.0.0-alpha.10 — 2026-09-23
 
 ### Added

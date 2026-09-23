@@ -168,10 +168,13 @@ interface RiglineBridge {
     react: {
       /** Ours, or wrapped around a hook something else had already installed. */
       hook: "installed" | "chained";
-      /** react-dom's version as it reported on injecting. Null means no renderer ever did. */
+      /** The app's react-dom version as it reported on injecting. Null means it never did. */
       version: string | null;
       commits: number;
       notified: number;
+      /** Renderers that injected after the app's — a plugin's own React, or Rigline's — and are
+       * otherwise ignored. */
+      foreign: number;
     };
     /**
      * What decorateTranscript is seeing. Published by post.ts, which owns the concept; declared
@@ -327,7 +330,7 @@ interface RiglineBridge {
    */
   readonly react: {
     /**
-     * Run `handler` after React commits, at most once a frame.
+     * Run `handler` after the app's React commits, at most once a frame.
      *
      * Coalesced because commits fire per streamed token. A frame is the right grain: nothing
      * downstream can be seen sooner, and in a hidden webview frames stop, which pauses the work
@@ -335,14 +338,14 @@ interface RiglineBridge {
      */
     onCommit(handler: () => void): () => void;
     /**
-     * The fiber React associates with `element`, or null.
+     * The fiber the app's renderer associates with `element`, or null.
      *
      * React's own lookup, handed over when the renderer injected — not a scan for the
      * `__reactFiber$..` key it happens to be implemented with. Null before any renderer has
      * injected, and for an element React does not own.
      */
     fiberFor(element: Element): unknown;
-    /** react-dom's version, once a renderer has injected. Null means none has, and none will. */
+    /** The app's react-dom version, once it has injected. Null means it has not, and will not. */
     rendererVersion(): string | null;
   };
   /**
@@ -669,6 +672,14 @@ try {
   let rendererVersion: string | null = null;
   let nextRendererId = 1;
 
+  /**
+   * The first renderer to inject is the app's: react-dom initialises in the bundle body, and nothing
+   * else can load one before post.js runs. A later one's fiber lookup knows only its own tree, and
+   * its commits are not the app's re-renders, so neither may reach the transcript or the mount pass.
+   */
+  let appInjected = false;
+  let appRendererId: unknown = null;
+
   /** Run the commit handlers once, on the next frame, however many commits arrive before it. */
   function scheduleCommitNotice(): void {
     if (commitScheduled || commitHandlers.size === 0) return;
@@ -691,13 +702,20 @@ try {
   }
 
   /**
-   * Keep what the renderer handed over: its version, and its element-to-fiber lookup.
+   * Keep what the app's renderer handed over: its id, its version, and its element-to-fiber lookup.
+   * Any later renderer is only counted.
    *
    * Everything else in the internals object is devtools' business. Taking the lookup from here
    * rather than reading the `__reactFiber$..` key ourselves is the point of using the hook at all —
    * that key's suffix is randomised per load, and React already has a function for it.
    */
-  function noteInjection(internals: unknown): void {
+  function noteInjection(id: unknown, internals: unknown): void {
+    if (appInjected) {
+      bridge.diagnostics.react.foreign++;
+      return;
+    }
+    appInjected = true;
+    appRendererId = id;
     const renderer = internals as { version?: unknown; findFiberByHostInstance?: unknown } | null;
     if (!renderer || typeof renderer !== "object") return;
     if (typeof renderer.version === "string") {
@@ -707,6 +725,13 @@ try {
     if (typeof renderer.findFiberByHostInstance === "function") {
       findFiber = renderer.findFiberByHostInstance as (element: Element) => unknown;
     }
+  }
+
+  function noteCommit(rendererId: unknown): void {
+    if (!appInjected || rendererId !== appRendererId) return;
+    bridge.diagnostics.react.commits++;
+    meter("commit");
+    scheduleCommitNotice();
   }
 
   const bridge: RiglineBridge = {
@@ -732,7 +757,7 @@ try {
       hostPatches: [],
       identifiersFor: null,
       engine: null,
-      react: { hook: "installed", version: null, commits: 0, notified: 0 },
+      react: { hook: "installed", version: null, commits: 0, notified: 0, foreign: 0 },
       transcript: { entries: 0, timed: 0, sweeps: 0, rebuilds: 0 },
       mounts: {
         driver: "commit",
@@ -864,16 +889,22 @@ try {
     const hook = existing as Record<string, unknown>;
     const realInject = hook.inject;
     hook.inject = function (this: unknown, internals: unknown): unknown {
-      noteInjection(internals);
-      return typeof realInject === "function"
-        ? (realInject as (i: unknown) => unknown).call(this, internals)
-        : nextRendererId++;
+      // The id is the existing hook's to mint, and noted even if minting throws, as it was when
+      // noting came first.
+      let id: unknown = null;
+      try {
+        id =
+          typeof realInject === "function"
+            ? (realInject as (i: unknown) => unknown).call(this, internals)
+            : nextRendererId++;
+        return id;
+      } finally {
+        noteInjection(id, internals);
+      }
     };
     const realCommit = hook.onCommitFiberRoot;
     hook.onCommitFiberRoot = function (this: unknown, ...args: unknown[]): unknown {
-      bridge.diagnostics.react.commits++;
-      meter("commit");
-      scheduleCommitNotice();
+      noteCommit(args[0]);
       return typeof realCommit === "function"
         ? (realCommit as (...a: unknown[]) => unknown).apply(this, args)
         : undefined;
@@ -887,18 +918,16 @@ try {
       supportsFiber: true,
       renderers: new Map<number, unknown>(),
       inject(internals: unknown): number {
-        noteInjection(internals);
         const id = nextRendererId++;
         (hostWindow[DEVTOOLS_HOOK] as { renderers: Map<number, unknown> }).renderers.set(
           id,
           internals,
         );
+        noteInjection(id, internals);
         return id;
       },
-      onCommitFiberRoot(): void {
-        bridge.diagnostics.react.commits++;
-        meter("commit");
-        scheduleCommitNotice();
+      onCommitFiberRoot(rendererId: unknown): void {
+        noteCommit(rendererId);
       },
       // Called by react-dom at module load to check the build was dead-code-eliminated. It only
       // needs to exist; devtools uses it to warn about a development build.

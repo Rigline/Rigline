@@ -102,16 +102,18 @@ export function hostErrorsVerdict(errors: readonly string[]): CheckVerdict {
   return { verdict: "fail", detail: errors.slice(0, 3).join("; ") };
 }
 
-/** The React devtools hook is installed and the renderer is known. */
+/** The React devtools hook is installed and the app's renderer is known. */
 export function reactVerdict(react: {
   readonly hook: "installed" | "chained";
   readonly version: string | null;
   readonly commits: number;
   readonly notified: number;
+  readonly foreign: number;
 }): CheckVerdict {
+  const others = react.foreign > 0 ? `, ${react.foreign} other renderer(s) ignored` : "";
   return {
     verdict: react.version !== null ? "pass" : "fail",
-    detail: `${react.hook}, ${react.version ?? "no version"}, ${react.commits} -> ${react.notified}`,
+    detail: `${react.hook}, ${react.version ?? "no version"}, ${react.commits} -> ${react.notified}${others}`,
   };
 }
 

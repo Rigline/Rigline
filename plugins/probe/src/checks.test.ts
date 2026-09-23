@@ -180,7 +180,7 @@ describe("formatReport", () => {
     surface: "editor",
     preAt: 12,
     postAt: 486,
-    react: { hook: "installed", version: "19.1.0", commits: 4821, notified: 92 },
+    react: { hook: "installed", version: "19.1.0", commits: 4821, notified: 92, foreign: 0 },
     mounts: { driver: "commit", active: 6, replaced: 1, lost: 0, abandoned: [] },
     storage: { available: true, writes: 14, failures: 0, bytes: 18_600, lastError: null },
     bus: {
@@ -223,6 +223,12 @@ describe("formatReport", () => {
     expect(text).toContain("2.1.270, surface editor");
     expect(text).toContain("6 active, 1 re-placed, 0 lost, on commit");
     expect(text).toContain("14 writes");
+    expect(text).not.toContain("ignored");
+  });
+
+  it("names a renderer the host ignored, since that is a plugin carrying its own React", () => {
+    const text = formatReport({ ...facts, react: { ...facts.react, foreign: 1 } }, groups);
+    expect(text).toContain("92 notified, 1 other renderer(s) ignored");
   });
 
   it("reads a meter that has gone quiet as zero, not as its last burst", () => {

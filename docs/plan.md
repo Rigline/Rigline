@@ -320,12 +320,7 @@ built. The first two change what a plugin is written against.
   longer passes `findFiberByHostInstance`, and the React layer asserts that literal (D11), so the day
   Claude Code ships React 19 the harvest fails and `install` refuses that version outright — every
   plugin, not only the transcript's. The `"__reactFiber$"` key prefix is an unminified literal in
-  both majors and is the obvious replacement. The same code has a second hazard: `noteInjection` in
-  `pre.ts` keeps the *last* renderer to inject, so a plugin bundling its own react-dom 18 replaces
-  the app's fiber lookup with one that knows only its own fibers, and `decorateTranscript` goes
-  silent for every plugin. The app's renderer is always the first to inject, since it initialises in
-  the bundle body before `post.js` can import anything; keeping that one, and filtering
-  `onCommitFiberRoot` by its id, closes it.
+  both majors and is the obvious replacement.
 
 ## Deferred, with triggers
 

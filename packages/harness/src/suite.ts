@@ -47,7 +47,11 @@ export interface HarnessDiagnostics {
   readonly bufferSealed: boolean;
   readonly identifiersFor: string | null;
   readonly errors: readonly string[];
-  readonly react: { readonly hook: string; readonly version: string | null };
+  readonly react: {
+    readonly hook: string;
+    readonly version: string | null;
+    readonly foreign: number;
+  };
   readonly plugins: readonly PluginStatus[];
   readonly rewrites: readonly RewriteRecord[];
   readonly transcript: {

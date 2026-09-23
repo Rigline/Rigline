@@ -58,8 +58,11 @@ harvested identifier and reads no generated table. What it does:
   a fresh request id for it, and refuses a resend while the chain is running.
 - Counts outbound sends per type at the egress, so a rewriter registering late can be told how many
   it missed.
-- Installs or chains the React devtools hook, records the renderer's version and its
-  `findFiberByHostInstance`, and coalesces commit notices to one per animation frame.
+- Installs or chains the React devtools hook, and coalesces the app's commit notices to one per
+  animation frame. The first renderer to inject is the app's, since react-dom initialises in the
+  bundle body before `post.js` can load another: its version and `findFiberByHostInstance` are kept,
+  and a later renderer — a plugin's own React, or Rigline's — is counted in
+  `diagnostics.react.foreign` and otherwise ignored.
 - Publishes all of this on `globalThis.__rigline` as the bridge the post hook drives, with a
   `diagnostics` object the probe reads. The bridge is host-internal; no plugin sees it.
 

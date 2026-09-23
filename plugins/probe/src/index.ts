@@ -55,6 +55,7 @@ interface ProbeDiagnostics {
     readonly version: string | null;
     readonly commits: number;
     readonly notified: number;
+    readonly foreign: number;
   };
   readonly mounts: {
     readonly driver: "commit" | "observer";

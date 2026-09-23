@@ -126,12 +126,37 @@ describe("hostErrorsVerdict", () => {
 
 describe("reactVerdict", () => {
   it("passes only once a version is known", () => {
-    const known = reactVerdict({ hook: "installed", version: "19.1.0", commits: 4, notified: 2 });
+    const known = reactVerdict({
+      hook: "installed",
+      version: "19.1.0",
+      commits: 4,
+      notified: 2,
+      foreign: 0,
+    });
     expect(known.verdict).toBe("pass");
     expect(known.detail).toContain("19.1.0");
-    const unknown = reactVerdict({ hook: "chained", version: null, commits: 0, notified: 0 });
+    expect(known.detail).not.toContain("ignored");
+    const unknown = reactVerdict({
+      hook: "chained",
+      version: null,
+      commits: 0,
+      notified: 0,
+      foreign: 0,
+    });
     expect(unknown.verdict).toBe("fail");
     expect(unknown.detail).toContain("no version");
+  });
+
+  it("names renderers it ignored, without failing over them", () => {
+    const result = reactVerdict({
+      hook: "installed",
+      version: "18.3.1",
+      commits: 4,
+      notified: 2,
+      foreign: 1,
+    });
+    expect(result.verdict).toBe("pass");
+    expect(result.detail).toContain("1 other renderer(s) ignored");
   });
 });
 

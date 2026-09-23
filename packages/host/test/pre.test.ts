@@ -35,11 +35,23 @@ interface Diagnostics {
   tapCloneMaxMs: number;
   tapCloneMaxType: string | null;
   resent: number;
+  react: {
+    hook: "installed" | "chained";
+    version: string | null;
+    commits: number;
+    notified: number;
+    foreign: number;
+  };
   errors: string[];
 }
 
 interface Bridge {
   diagnostics: Diagnostics;
+  react: {
+    onCommit(handler: () => void): () => void;
+    fiberFor(element: unknown): unknown;
+    rendererVersion(): string | null;
+  };
   bus: {
     on(type: string, handler: (payload: unknown) => void): () => void;
     sealBuffer(): void;
@@ -75,7 +87,21 @@ interface Harness {
 
 type MessageListener = (event: { data: unknown }) => void;
 
-const TOUCHED_GLOBALS = ["document", "addEventListener", "acquireVsCodeApi", "__rigline"] as const;
+const HOOK = "__REACT_DEVTOOLS_GLOBAL_HOOK__";
+
+/** The part of the devtools hook react-dom calls. */
+interface DevtoolsHook {
+  inject(internals: unknown): unknown;
+  onCommitFiberRoot(rendererId: unknown, root?: unknown): unknown;
+}
+
+const TOUCHED_GLOBALS = [
+  "document",
+  "addEventListener",
+  "acquireVsCodeApi",
+  "__rigline",
+  HOOK,
+] as const;
 
 function globalRecord(): Record<string, unknown> {
   return globalThis as unknown as Record<string, unknown>;
@@ -108,7 +134,7 @@ afterAll(() => {
  * pre.js is a side-effecting module with no exports, so each case needs its own evaluation: the
  * cache-busting query is the only way to get one, since a module instance is per URL.
  */
-async function boot(): Promise<Harness> {
+async function boot(existingHook?: DevtoolsHook): Promise<Harness> {
   const sent: unknown[] = [];
   const appReceived: unknown[] = [];
   const listeners: MessageListener[] = [];
@@ -126,6 +152,8 @@ async function boot(): Promise<Harness> {
     setState: () => {},
   })) as unknown;
   delete g.__rigline;
+  if (existingHook) g[HOOK] = existingHook;
+  else delete g[HOOK];
 
   await import(`${pathToFileURL(BUILT).href}?case=${Math.random()}`);
 
@@ -628,5 +656,73 @@ describe("resending the app's last message", () => {
 
     expect(h.sent[1]).toEqual({ type: "log_event", name: "original" });
     expect((h.sent[1] as Record<string, unknown>).request).toBeUndefined();
+  });
+});
+
+describe("the app's renderer, and any other", () => {
+  function hook(): DevtoolsHook {
+    return globalRecord()[HOOK] as DevtoolsHook;
+  }
+
+  function renderer(version: string, fiber: string) {
+    return { version, rendererPackageName: "react-dom", findFiberByHostInstance: () => fiber };
+  }
+
+  /** Past the commit notice's coalescing, which falls back to a 16ms timer with no animation frame. */
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 50));
+
+  it("keeps the first renderer's lookup and version, and only counts a later one", async () => {
+    const h = await boot();
+    hook().inject(renderer("18.3.1", "app fiber"));
+    hook().inject(renderer("19.1.0", "foreign fiber"));
+
+    expect(h.bridge.react.fiberFor({})).toBe("app fiber");
+    expect(h.bridge.react.rendererVersion()).toBe("18.3.1");
+    expect(h.bridge.diagnostics.react.version).toBe("18.3.1");
+    expect(h.bridge.diagnostics.react.foreign).toBe(1);
+  });
+
+  it("notifies on the app's commits and never on another renderer's", async () => {
+    const h = await boot();
+    const app = hook().inject(renderer("18.3.1", "app fiber"));
+    const other = hook().inject(renderer("19.1.0", "foreign fiber"));
+    let notices = 0;
+    h.bridge.react.onCommit(() => {
+      notices += 1;
+    });
+
+    for (let i = 0; i < 3; i++) hook().onCommitFiberRoot(other, {});
+    await settle();
+    expect(notices).toBe(0);
+    expect(h.bridge.diagnostics.react.commits).toBe(0);
+
+    hook().onCommitFiberRoot(app, {});
+    await settle();
+    expect(notices).toBe(1);
+    expect(h.bridge.diagnostics.react.commits).toBe(1);
+  });
+
+  it("does the same when chained to a hook that was already there, passing everything on", async () => {
+    const passed: unknown[] = [];
+    let next = 7;
+    const existing: DevtoolsHook = {
+      inject: () => next++,
+      onCommitFiberRoot: (id) => {
+        passed.push(id);
+      },
+    };
+    const h = await boot(existing);
+    expect(h.bridge.diagnostics.react.hook).toBe("chained");
+
+    const app = hook().inject(renderer("18.3.1", "app fiber"));
+    const other = hook().inject(renderer("19.1.0", "foreign fiber"));
+    expect([app, other]).toEqual([7, 8]);
+    expect(h.bridge.react.fiberFor({})).toBe("app fiber");
+
+    hook().onCommitFiberRoot(other, {});
+    hook().onCommitFiberRoot(app, {});
+    expect(passed).toEqual([8, 7]);
+    expect(h.bridge.diagnostics.react.commits).toBe(1);
+    expect(h.bridge.diagnostics.react.foreign).toBe(1);
   });
 });

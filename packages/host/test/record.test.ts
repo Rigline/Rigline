@@ -33,7 +33,7 @@ function diagnostics(over: Partial<Diagnostics> = {}): Diagnostics {
     rewrites: [],
     hostPatches: [],
     identifiersFor: "2.1.270",
-    react: { hook: "installed", version: "19.1.0", commits: 400, notified: 40 },
+    react: { hook: "installed", version: "19.1.0", commits: 400, notified: 40, foreign: 0 },
     transcript: { entries: 319, timed: 300, sweeps: 88, rebuilds: 9 },
     mounts: { driver: "commit", active: 6, replaced: 1, lost: 0 },
     meters: {
