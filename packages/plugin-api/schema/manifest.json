@@ -131,6 +131,10 @@
           "type": "boolean",
           "description": "reads every transcript entry's identity and time, and draws on transcript rows"
         },
+        "menu": {
+          "type": "boolean",
+          "description": "Adds to Rigline's menu."
+        },
         "optional": {
           "title": "uses.optional",
           "description": "The same keys, for what this plugin can do without. A missing one is reported and costs the plugin that decoration; it never refuses the plugin.",
@@ -218,6 +222,10 @@
             "transcript": {
               "type": "boolean",
               "description": "reads every transcript entry's identity and time, and draws on transcript rows"
+            },
+            "menu": {
+              "type": "boolean",
+              "description": "Adds to Rigline's menu."
             }
           }
         }

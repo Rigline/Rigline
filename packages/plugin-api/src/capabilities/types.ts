@@ -33,6 +33,8 @@ export interface Declarations {
   readonly session: boolean;
   /** Whether the plugin decorates transcript rows through `ctx.decorateTranscript()`. */
   readonly transcript: boolean;
+  /** Whether the plugin adds to Rigline's menu through `ctx.menu()`. */
+  readonly menu: boolean;
 }
 
 /** Everything a plugin declared under `uses`: the required half, plus the optional half nested. */

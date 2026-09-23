@@ -2,10 +2,10 @@
   "$schema": "node_modules/@rigline/plugin-api/schema/manifest.json",
   "api": 1,
   "name": "probe",
-  "description": "Rigline's diagnostics panel. Renders every contributor's checks — the host's own under core, then each plugin's — as a small badge in the composer footer, and contributes the handful nothing else can run.",
+  "description": "Rigline's diagnostics, in Rigline's menu. Renders every contributor's checks — the host's own under core, then each plugin's — and contributes the handful nothing else can run.",
   "entry": "dist/index.js",
   "uses": {
-    "anchors": ["footerSpacer", "modelPill", "transcriptRow", "sessionListItem"],
+    "anchors": ["modelPill", "transcriptRow", "sessionListItem"],
     "messages": [
       "init",
       "request",
@@ -19,8 +19,7 @@
     "rewrites": {
       "rename_tab": ["title"]
     },
-    "mount": true,
-    "style": true,
-    "transcript": true
+    "transcript": true,
+    "menu": true
   }
 }

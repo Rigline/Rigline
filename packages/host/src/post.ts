@@ -25,6 +25,7 @@ import { CORE, createCheckService, kernelChecks } from "./kernel/checks.ts";
 import { createMountService } from "./kernel/mounts.ts";
 import { createRecorder } from "./kernel/record.ts";
 import { createSessionService } from "./kernel/session.ts";
+import { createShellService } from "./kernel/shell.ts";
 import { detectSurface } from "./kernel/surface.ts";
 import { createToolService } from "./kernel/tools.ts";
 import { createTranscriptService } from "./kernel/transcript.ts";
@@ -182,9 +183,10 @@ async function main(): Promise<void> {
 
   const mounts = createMountService(message, react, diagnostics.mounts, meter);
   const checks = createCheckService();
+  const surface = detectSurface();
   const kernel: Kernel = {
     tables,
-    surface: detectSurface(),
+    surface,
     bus,
     react,
     diagnostics,
@@ -201,6 +203,10 @@ async function main(): Promise<void> {
       meter,
     ),
     checks,
+    shell: createShellService(tables, surface, mounts, checks, (reason) => {
+      diagnostics.errors.push(`shell: ${reason}`);
+      console.error(`[rigline] shell: ${reason}`);
+    }),
     plugins: entries,
   };
 
@@ -236,6 +242,8 @@ async function main(): Promise<void> {
     // finally because a buffer growing for the life of the window is worse than whatever failed.
     bus.sealBuffer();
   }
+  // After the seal, so the pill's first count is not taken while checks still cannot be true.
+  await kernel.shell.start();
 }
 
 main().catch((e) => console.error("[rigline] post-hook", e));

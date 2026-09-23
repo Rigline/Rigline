@@ -5,10 +5,12 @@
     "types": [],
     "noEmit": true,
     "allowImportingTsExtensions": true,
+    "jsx": "react-jsx",
     "paths": {
-      "@rigline/plugin-api": ["../plugin-api/src/index.ts"]
+      "@rigline/plugin-api": ["../plugin-api/src/index.ts"],
+      "@rigline/plugin-api/ui": ["../plugin-api/src/ui/index.ts"]
     }
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["src/**/*.test.ts"]
 }

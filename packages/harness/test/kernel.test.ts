@@ -237,9 +237,11 @@ export default { setup() {} };`,
         });
         expect(commits.after).toBe(commits.before);
 
+        // The shell's own react-dom is the other renderer, and injects once the shell has loaded.
+        await booted.page.waitForSelector(".rigline-pill");
         const d = await booted.diagnostics();
         expect(d.react.version).toMatch(/^18\./);
-        expect(d.react.foreign).toBe(1);
+        expect(d.react.foreign).toBe(2);
         expect(d.transcript.timed).toBe(2);
         expect(booted.consoleErrors).toEqual([]);
       } finally {
@@ -300,6 +302,76 @@ export default { setup() {} };`,
         const failed = d.plugins.find((p) => p.name === "stray");
         expect(failed?.status).toBe("error");
         expect(failed?.reason).toContain("left-pad");
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
+    it("opens Rigline's menu from the pill, holding what a store caught from boot", async () => {
+      // The app sends rename_tab during its own boot, before any plugin loads, so only a store
+      // subscribed in setup has it by the time the menu opens (D88). The store is written out
+      // because a fixture is unbundled and cannot import the plugin-api root.
+      const contributor: FixturePlugin = {
+        name: "contributor",
+        manifest: { uses: { menu: true, messages: ["rename_tab"] } },
+        source: `import { jsx } from "react/jsx-runtime";
+import { useStore } from "@rigline/plugin-api/ui";
+export default { setup(ctx) {
+  let value = null;
+  const listeners = new Set();
+  const title = {
+    get: () => value,
+    set: (next) => { value = next; for (const l of [...listeners]) l(); },
+    subscribe: (l) => { listeners.add(l); return () => listeners.delete(l); },
+  };
+  ctx.onMessage("rename_tab", (payload) => title.set(payload.title));
+  ctx.menu(() => jsx("span", { className: "harness-entry", children: useStore(title) ?? "nothing" }));
+} };`,
+      };
+      const booted = await boot({ plugins: [contributor] });
+      try {
+        await booted.page.waitForSelector(".rigline-pill");
+        expect(await booted.page.$(".harness-entry")).toBeNull();
+
+        await booted.page.click(".rigline-pill");
+        const entry = await booted.page.waitForSelector(".harness-entry");
+        expect(await entry.textContent()).not.toBe("nothing");
+
+        await booted.page.keyboard.press("Escape");
+        await booted.page.waitForSelector(".harness-entry", { state: "detached" });
+        const d = await booted.diagnostics();
+        expect(d.plugins.find((p) => p.name === "contributor")?.status).toBe("loaded");
+        expect(booted.consoleErrors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
+    it("disables a plugin whose menu component throws, and keeps everybody else's", async () => {
+      const entry = (name: string, body: string): FixturePlugin => ({
+        name,
+        manifest: { uses: { menu: true } },
+        source: `import { jsx } from "react/jsx-runtime";
+export default { setup(ctx) { ctx.menu(() => { ${body} }); } };`,
+      });
+      const booted = await boot({
+        plugins: [
+          entry("thrower", 'throw new Error("no menu for you");'),
+          entry("steady", 'return jsx("span", { className: "harness-steady", children: "ok" });'),
+        ],
+      });
+      try {
+        await booted.page.waitForSelector(".rigline-pill");
+        await booted.page.click(".rigline-pill");
+        await booted.page.waitForSelector(".harness-steady");
+
+        const d = await booted.diagnostics();
+        const thrower = d.plugins.find((p) => p.name === "thrower");
+        expect(thrower?.status).toBe("error");
+        expect(thrower?.reason).toContain("no menu for you");
+        expect(d.plugins.find((p) => p.name === "steady")?.status).toBe("loaded");
+        // The shell itself is unharmed: its own errors would be here.
+        expect(d.errors).toEqual([]);
       } finally {
         await booted.close();
       }
@@ -685,7 +757,8 @@ export default { setup() {} };`,
                 ?.parentElement?.classList.contains("inputFooter_gGYT1w") ?? false,
           };
         });
-        expect(placement.order).toEqual(["first", "second"]);
+        // Rigline's own pill after every plugin, nearest the spacer.
+        expect(placement.order).toEqual(["first", "second", "rigline"]);
         expect(placement.inFooter).toBe(true);
 
         const d = await booted.diagnostics();

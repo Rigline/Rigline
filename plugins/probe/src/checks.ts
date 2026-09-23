@@ -82,24 +82,6 @@ export function immutabilityVerdict(
 }
 
 /**
- * The node this plugin mounted is still in the document. `mounted` is whether `build()` has run at
- * least once; a node the host has since rebuilt (after its anchor's children were wholly replaced)
- * is a different element, so the caller passes the *current* one, not the first.
- *
- * The host's own `mount:` checks ask this of every mount and read the mount service's own idea of
- * where a node belongs. This one is deliberately the naive version, asked from outside: it is what a
- * plugin can see about itself with nothing but a DOM reference, and so it is the worked example of
- * the shape every third-party check will have.
- */
-export function badgeMountedVerdict(
-  mounted: boolean,
-  connected: boolean,
-): { verdict: Verdict; detail: string } {
-  if (!mounted) return { verdict: "n/a", detail: "not mounted yet" };
-  return { verdict: connected ? "pass" : "fail", detail: connected ? "connected" : "detached" };
-}
-
-/**
  * The two-rewriter chain on `rename_tab` composes. `composed` latches true the first time the
  * second rewriter sees the first's mark; once true it stays true, because the claim being proved is
  * "we have been seen to compose", which a later message cannot un-observe.

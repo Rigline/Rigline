@@ -1827,3 +1827,26 @@ every published package costs each release its own approvals, and the subpath is
 already follows — types from `plugin-api` at build time, the implementation from the panel at run
 time. The root stays React-free, so core still runs it in Node, and React is an optional peer
 dependency the engine's install never fetches.
+
+**D88. Rigline owns one React root, the shell, and renders every plugin component inside it
+(2026-09-23).** A plugin contributes components and never creates a root. What decides it is where
+this is going: a shared menu whose entries come from several plugins, and a layout editor that wraps
+plugin components in its own selection and drag state. Both need context to reach from Rigline's
+tree into plugin components — choosing an entry closes the menu, focus moves across entries from
+different plugins — and context never crosses roots, while a portal carries it. So the shell renders
+plugin components, portalling them wherever they belong.
+
+What that costs is isolation by construction, and an error boundary per contribution buys it back:
+a render or effect error reaches the kernel through the owning plugin's error path and disables that
+plugin by name, as every other failure does. Event-handler errors escape boundaries, as a DOM
+listener's always have.
+
+Rejected: a root per plugin, which isolates structurally but leaves every menu behaviour to be
+rebuilt over events; a React per plugin behind a custom element, which answers independently shipped
+fragments on different framework versions, where we version the contract instead (D87); and the
+app's own React, which is unreachable without patching the webview bundle's body, moves when
+Anthropic moves it, and puts a plugin's throw inside the app's tree (D2).
+
+State that has to outlive a component — shared between contributions, which have no common React
+parent, or caught from boot, which an effect subscribes too late for — goes in a store made in
+`setup`. Everything else is ordinary React state.

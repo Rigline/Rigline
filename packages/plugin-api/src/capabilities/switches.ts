@@ -20,6 +20,16 @@ export const styleContract: CapabilityContract<"style"> = {
   summary: (declared) => (declared ? ["adds a stylesheet, which can restyle the panel"] : []),
 };
 
+/** A place in Rigline's own menu, behind the RIG pill. Depends on nothing harvested. */
+export const menuContract: CapabilityContract<"menu"> = {
+  key: "menu",
+  grants: ["menu"],
+  schema: { type: "boolean", description: "Adds to Rigline's menu." },
+  shape: booleanShape,
+  gaps: () => [],
+  summary: (declared) => (declared ? ["adds to Rigline's menu"] : []),
+};
+
 /**
  * Tool calls lifted out of the conversation stream. A switch rather than a list of tool names:
  * tool names belong to the CLI and to whoever wrote the tool, so there is nothing to check them

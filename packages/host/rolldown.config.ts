@@ -58,14 +58,20 @@ function runtimeEntry(specifier: string): string {
   ].join("\n");
 }
 
-/** The modules plugins import (RUNTIME_MODULES): one entry each, sharing one chunk, so one React. */
+/**
+ * The modules plugins import (RUNTIME_MODULES), one entry each, and the shell, which post.js loads:
+ * all over shared chunks, so one React and one `@rigline/plugin-api/ui` (D88).
+ */
 const runtime = defineConfig({
-  input: Object.fromEntries(
-    Object.entries(RUNTIME_MODULES).map(([specifier, file]) => [
-      basename(file, ".js"),
-      VIRTUAL + specifier,
-    ]),
-  ),
+  input: {
+    ...Object.fromEntries(
+      Object.entries(RUNTIME_MODULES).map(([specifier, file]) => [
+        basename(file, ".js"),
+        VIRTUAL + specifier,
+      ]),
+    ),
+    shell: "src/shell/index.tsx",
+  },
   platform: "browser",
   plugins: [
     {
@@ -74,7 +80,10 @@ const runtime = defineConfig({
       load: (id) => (id.startsWith(VIRTUAL) ? runtimeEntry(id.slice(VIRTUAL.length)) : null),
     },
   ],
-  transform: { define: { "process.env.NODE_ENV": JSON.stringify("production") } },
+  transform: {
+    define: { "process.env.NODE_ENV": JSON.stringify("production") },
+    jsx: "react-jsx",
+  },
   output: {
     dir: "dist/runtime",
     format: "esm",

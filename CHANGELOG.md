@@ -12,6 +12,11 @@ anything may change between releases.
 
 ### Added
 
+- **Rigline's menu.** The RIG pill in the composer footer is now Rigline's own, and clicking it
+  opens a menu that plugins add to with `ctx.menu(Component)` — a React component, declared as
+  `"menu": true` in `uses`. A component that throws disables only its own plugin. The pill still
+  shows how many checks are failing, and the diagnostics that used to open from it are now in the
+  menu.
 - Stores, for state a plugin keeps outside its components: `store(initial)` and
   `storeFrom(ctx.onSessionId, null)` in `@rigline/plugin-api`, and `useStore` to read one from React
   in `@rigline/plugin-api/ui`. A store made in `setup` catches what the panel replays from boot,

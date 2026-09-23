@@ -102,6 +102,23 @@ export function hostErrorsVerdict(errors: readonly string[]): CheckVerdict {
   return { verdict: "fail", detail: errors.slice(0, 3).join("; ") };
 }
 
+/**
+ * The shell has loaded and its pill is in the document. Not yet in the document is `n/a`: the
+ * composer footer it sits beside may not have rendered, and whether it ever does is the mount
+ * capability's watch check, which has a clock.
+ */
+export function shellVerdict(
+  started: boolean,
+  error: string | null,
+  pillConnected: boolean,
+): CheckVerdict {
+  if (error !== null) return { verdict: "fail", detail: error };
+  if (!started) return { verdict: "n/a", detail: "the shell has not loaded yet" };
+  return pillConnected
+    ? { verdict: "pass", detail: "placed" }
+    : { verdict: "n/a", detail: "nowhere to place it yet" };
+}
+
 /** The React devtools hook is installed and the app's renderer is known. */
 export function reactVerdict(react: {
   readonly hook: "installed" | "chained";

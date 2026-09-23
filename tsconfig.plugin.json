@@ -6,8 +6,10 @@
     "types": [],
     "noEmit": true,
     "allowImportingTsExtensions": true,
+    "jsx": "react-jsx",
     "paths": {
-      "@rigline/plugin-api": ["./packages/plugin-api/src/index.ts"]
+      "@rigline/plugin-api": ["./packages/plugin-api/src/index.ts"],
+      "@rigline/plugin-api/ui": ["./packages/plugin-api/src/ui/index.ts"]
     }
   },
   "files": ["generated.ts"]

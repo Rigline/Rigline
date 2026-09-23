@@ -95,13 +95,17 @@ describe.skipIf(skip !== null)(
         // footer measures its element children to pick a fit stage and moves the pill out of itself
         // at the widest one, so a badge anchored to the pill leaves and re-enters the container
         // being measured and oscillates against the measurement (D54). Asserting the spacer here is
-        // what would notice the anchor being quietly moved back.
+        // what would notice the anchor being quietly moved back. Rigline's own pill sits between the
+        // two, because the host places it after every plugin.
         const info = await booted.page.evaluate(() => {
           const badge = document.getElementById("rigline-session-id");
           const spacer = document.getElementsByClassName("spacer_gGYT1w")[0] ?? null;
+          const pill = spacer?.previousElementSibling ?? null;
           return {
             mountAttr: badge?.getAttribute("data-rigline-mount") ?? null,
-            isPreviousSibling: spacer !== null && spacer.previousElementSibling === badge,
+            isPreviousSibling:
+              pill?.getAttribute("data-rigline-mount") === "rigline" &&
+              pill.previousElementSibling === badge,
             inFooter: badge?.parentElement?.classList.contains("inputFooter_gGYT1w") ?? false,
             text: badge?.textContent ?? null,
             title: badge?.title ?? null,

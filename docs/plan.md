@@ -97,10 +97,10 @@ carries: its manifest key and schema fragment; its expansion into identifier-lay
 the sentence `describeUses` prints; the runtime grant that builds its slice of `ctx` for one plugin;
 its diagnostics; and its probe check. The `post.js` kernel loads the registry, checks declarations,
 builds each plugin's `ctx` by asking every capability module for its slice, and isolates failures.
-The ten: `classes` (raw `cls`), `anchors` (curated), `messages` (`onMessage`), `mount` (`mount`,
+The eleven: `classes` (raw `cls`), `anchors` (curated), `messages` (`onMessage`), `mount` (`mount`,
 `mountAfter`, `mountBefore`, `watch`), `style`, `rewrites` (`rewrite`, `resend`), `tools`
-(`onToolUse`, `onToolResult`), `session` (`onSessionId`), `transcript` (`decorateTranscript`), and
-`surface`.
+(`onToolUse`, `onToolResult`), `session` (`onSessionId`), `transcript` (`decorateTranscript`),
+`menu` (`menu`, D88), and `surface`.
 
 **Anchors** (core table; names flow to plugin-api). The curated map from a stable name to a
 module-scoped class and the selector it resolves to: `modelPill` is `{ module: "gGYT1w", local:

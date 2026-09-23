@@ -20,6 +20,7 @@ import type { Bus, Diagnostics, ReactBridge } from "./bridge.ts";
 import type { Check, CheckService } from "./checks.ts";
 import type { MountService } from "./mounts.ts";
 import type { SessionService } from "./session.ts";
+import type { ShellService } from "./shell.ts";
 import type { ToolService } from "./tools.ts";
 import type { TranscriptService } from "./transcript.ts";
 
@@ -46,6 +47,7 @@ export interface Kernel {
   readonly tools: ToolService;
   readonly transcript: TranscriptService;
   readonly checks: CheckService;
+  readonly shell: ShellService;
   /**
    * The registry as the injector baked it, before any of it has loaded.
    *

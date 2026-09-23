@@ -8,6 +8,7 @@ import { classesContract } from "./classes.ts";
 import { messagesContract } from "./messages.ts";
 import { rewritesContract } from "./rewrites.ts";
 import {
+  menuContract,
   mountContract,
   sessionContract,
   styleContract,
@@ -26,6 +27,7 @@ export const CONTRACTS: readonly CapabilityContract[] = [
   toolsContract,
   sessionContract,
   transcriptContract,
+  menuContract,
   // Each contract is typed to its own key; the registry erases that once, here, and every walk
   // over it re-narrows by `contract.key`.
 ] as unknown as readonly CapabilityContract[];

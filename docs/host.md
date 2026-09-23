@@ -15,7 +15,7 @@ For every installed extension directory `anthropic.claude-code-<version>-<platfo
     webview/rigline/pre.js       the pre hook, one prebuilt file
     webview/rigline/post.js      the post hook, one prebuilt file
     webview/rigline/runtime/     the modules plugins import — react, its JSX runtime, react-dom,
-                                 and @rigline/plugin-api/ui (D87)
+                                 and @rigline/plugin-api/ui (D87) — and shell.js (D88)
     webview/rigline/generated.js the identifier tables harvested from this directory's bundles
     webview/rigline/registry.js  the enabled plugins, their declarations, and patch outcomes
     webview/rigline/plugins/<name>/…   each enabled plugin's directory, tests excluded, its entry's
@@ -88,6 +88,19 @@ Dynamically imported after boot. In order:
       the throw disables the plugin.
    f. Call `setup(ctx)` in its own try/catch; keep its teardown.
 4. Seal the replay buffer, in a `finally`.
+5. Start the shell (D88): place the RIG pill beside the footer spacer, or in a corner where there is
+   none; start the once-a-second check run that sets its failing count; and import
+   `runtime/shell.js`, the React root that draws the pill and the menu. Failing to load it is an
+   error in `diagnostics.errors` and costs the menu, never a plugin.
+
+## The shell
+
+Rigline's one React root, built with the runtime so it shares React and `@rigline/plugin-api/ui`
+with every plugin it renders (D87, D88). It renders into a container on `body` and portals only the
+pill into the host-placed node beside the spacer. The menu stays out of the footer, which
+re-measures on any mutation inside it (D54). Each `ctx.menu` contribution renders, in registry
+order, inside an error boundary that disables its plugin through the plugin's own error path; the
+root's `onCaughtError` is silenced because that path already logs it, attributed.
 
 Per-plugin status is `loaded`, `refused`, `error` or `inactive`, each with a reason, on
 `diagnostics.plugins` in registry order. Disabling a plugin at runtime runs every teardown it
@@ -181,6 +194,7 @@ not going to install it anyway.
 | `tools` | `true` | `onToolUse(handler)` | `io_message` |
 | `session` | `true` | `onSessionId(handler)` | `update_session_state` |
 | `transcript` | `true` | `decorateTranscript(build)` | `get_session_response`, `io_message`, anchor `transcriptRow` |
+| `menu` | `true` | `menu(Component)` | nothing |
 
 `decorateTranscript` registers nothing on a surface where `transcriptRow` is measured as not
 rendering, the same reading `watch` makes of its own anchor (D68). Not merely tidy: the sweep runs on

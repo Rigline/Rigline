@@ -5,6 +5,7 @@
 import type { CapabilityModule } from "../kernel/types.ts";
 import { anchorsModule } from "./anchors.ts";
 import { classesModule } from "./classes.ts";
+import { menuModule } from "./menu.ts";
 import { messagesModule } from "./messages.ts";
 import { mountModule } from "./mount.ts";
 import { rewritesModule } from "./rewrites.ts";
@@ -23,4 +24,5 @@ export const MODULES: readonly CapabilityModule[] = [
   toolsModule,
   sessionModule,
   transcriptModule,
+  menuModule,
 ] as unknown as readonly CapabilityModule[];

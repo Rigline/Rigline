@@ -19,6 +19,12 @@ import type { TranscriptEntry } from "./transcript.ts";
 /** Undo whatever a registration did. Returned by everything that adds a listener or DOM. */
 export type Teardown = () => void;
 
+/**
+ * A React function component taking no props. Typed without React's own types, so that this
+ * package's root never needs them (D87); anything React can render is a fine return value.
+ */
+export type MenuComponent = () => unknown;
+
 /** An outbound message type whose payload fields are known, and so may be rewritten. */
 export type RewritableType = keyof OutboundFields;
 
@@ -218,6 +224,14 @@ export interface PluginContext {
   decorateTranscript(
     build: (entry: TranscriptEntry, entries: readonly TranscriptEntry[]) => Element | null,
   ): Teardown;
+
+  /**
+   * Add `component` to Rigline's menu, the pop-over behind the RIG pill. It renders there while the
+   * menu is open, after earlier plugins' contributions, inside an error boundary of its own: a throw
+   * while rendering disables this plugin and leaves the menu to everybody else. State it shares with
+   * anything outside the menu belongs in a store made in `setup`. Requires `uses.menu`.
+   */
+  menu(component: MenuComponent): Teardown;
 }
 
 /** The default export of a plugin's entry module. */

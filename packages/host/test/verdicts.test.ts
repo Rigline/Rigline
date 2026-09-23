@@ -19,6 +19,7 @@ import {
   preHookOrderVerdict,
   reactVerdict,
   sessionIdVerdict,
+  shellVerdict,
   stylesheetsVerdict,
   tablesLoadedVerdict,
   toolCallsVerdict,
@@ -121,6 +122,24 @@ describe("hostErrorsVerdict", () => {
     const result = hostErrorsVerdict(["a", "b", "c", "d"]);
     expect(result.verdict).toBe("fail");
     expect(result.detail).toBe("a; b; c");
+  });
+});
+
+describe("shellVerdict", () => {
+  it("fails with the reason the shell did not load", () => {
+    expect(shellVerdict(false, "import failed", false)).toEqual({
+      verdict: "fail",
+      detail: "import failed",
+    });
+  });
+
+  it("is n/a while loading, and while there is nowhere to place the pill", () => {
+    expect(shellVerdict(false, null, false).verdict).toBe("n/a");
+    expect(shellVerdict(true, null, false).verdict).toBe("n/a");
+  });
+
+  it("passes once loaded and placed", () => {
+    expect(shellVerdict(true, null, true).verdict).toBe("pass");
   });
 });
 

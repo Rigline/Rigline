@@ -121,6 +121,7 @@ the whole plugin. Resolve an optional name through `ctx.optional.anchor()`, whic
 | `tools` | `ctx.onToolUse`, `ctx.onToolResult` |
 | `session` | `ctx.onSessionId` |
 | `transcript` | `ctx.decorateTranscript` |
+| `menu` | `ctx.menu(Component)` — a React component in Rigline's menu, behind the RIG pill |
 
 Calling one you did not declare throws and disables the plugin. That is deliberate: a declaration
 you can forget is a declaration the install cannot check. `rigline install` scans your built source
@@ -128,6 +129,29 @@ and says so when the two disagree, in either direction.
 
 Two members of `ctx` are on it without a declaration, because neither widens what you can reach:
 `ctx.surface`, which is a string, and `ctx.check`, below.
+
+### React, and state that outlives a component
+
+`ctx.menu` takes a React function component. Write it in a `.tsx` file with `react` and
+`@rigline/plugin-api/ui` imported as usual; the panel serves both, one copy for every plugin, so
+`rigline-engine build` leaves them out of your bundle. A component that throws while rendering
+disables your plugin and leaves the menu to everyone else.
+
+Ordinary UI state is `useState`. Two kinds of state are not: state your components share with
+anything outside them, and state from the panel's startup, which an effect in a component runs too
+late to catch. Put those in a store made in `setup` and read it with `useStore`:
+
+```tsx
+import { definePlugin, storeFrom } from "@rigline/plugin-api";
+import { useStore } from "@rigline/plugin-api/ui";
+
+export default definePlugin({
+  setup(ctx) {
+    const sessionId = storeFrom(ctx.onSessionId, null);
+    ctx.menu(() => <span>{useStore(sessionId) ?? "no session yet"}</span>);
+  },
+});
+```
 
 ## Say when you are working: `ctx.check`
 

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  badgeMountedVerdict,
   type CheckGroup,
   chainComposeVerdict,
   errorMessage,
@@ -106,17 +105,6 @@ describe("immutabilityVerdict", () => {
     expect(immutabilityVerdict(true, false, true).detail).toBe("top not frozen");
     expect(immutabilityVerdict(true, true, false).detail).toBe("nested not frozen");
     expect(immutabilityVerdict(true, false, false).detail).toBe("top and nested not frozen");
-  });
-});
-
-describe("badgeMountedVerdict", () => {
-  it("is n/a before the first mount", () => {
-    expect(badgeMountedVerdict(false, false).verdict).toBe("n/a");
-  });
-
-  it("reflects the current node's connectedness once mounted", () => {
-    expect(badgeMountedVerdict(true, true).verdict).toBe("pass");
-    expect(badgeMountedVerdict(true, false)).toEqual({ verdict: "fail", detail: "detached" });
   });
 });
 
