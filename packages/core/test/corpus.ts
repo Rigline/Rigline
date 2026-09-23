@@ -38,4 +38,4 @@ export function corpusBundles(version: string): Bundles {
 }
 
 /** Every version present in the corpus, for tests that want to run across all of them. */
-export const CORPUS_VERSIONS = ["2.1.268", "2.1.269", "2.1.270", "2.1.278"] as const;
+export const CORPUS_VERSIONS = ["2.1.268", "2.1.269", "2.1.270", "2.1.278", "2.1.280"] as const;

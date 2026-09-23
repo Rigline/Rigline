@@ -401,3 +401,5 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
 - 2026-09-23: `1.0.0-alpha.10`: 8b, 8c and `ready`.
 - 2026-09-23: Milestones 7 and 8 condensed into history docs, with the companion's reference in
   companion.md.
+- 2026-09-23: 2.1.280 snapshotted, `generated.ts` regenerated and the harness moved to it; two
+  classes gone, neither ours.

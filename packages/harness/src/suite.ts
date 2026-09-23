@@ -130,7 +130,7 @@ async function chromiumLaunchFailure(): Promise<string | null> {
  * corpus keeps every version, so an old pin costs reproducibility nothing and buys testing a bundle
  * nobody runs.
  */
-export const HARNESS_VERSION = "2.1.278";
+export const HARNESS_VERSION = "2.1.280";
 
 /**
  * Why this file's tests cannot run, or null. Read at module scope so a `describe.skipIf` can use
