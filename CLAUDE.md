@@ -12,7 +12,8 @@ from. Update the plan before writing code; log status there, not here.
 ## Knowledge base
 
 - [docs/plan.md](docs/plan.md): what Rigline is, the physics that shape it, the architecture,
-  the phases and milestones, what is deferred, the next session, and the status log.
+  the phases and milestones, the open questions that are the next work, what is deferred, the next
+  session, and the status log.
 - [history-m6.md](docs/history-m6.md), [history-m7.md](docs/history-m7.md) and
   [history-m8.md](docs/history-m8.md): archaeology for closed work — what each turned on and what
   its live reads found. Nothing in them is load-bearing.

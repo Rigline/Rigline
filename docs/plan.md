@@ -240,8 +240,6 @@ and pinned by synthetic fixtures plus the corpus. Codegen (`generated.ts` plus t
 written per extension directory), byte-stable under `--check`. The extension locator, the
 pristine-bundle rules, the stability diff, and the anchor table.
 
-Deferred out of the phase and still open: `rigline corpus fetch <version>` for Marketplace VSIXs.
-
 ### Phase 2: injector, host kernel, probe — done 2026-09-14
 
 Inject, restore and status with byte-faithful I/O and the backup file as the authority. `pre.js`
@@ -296,7 +294,10 @@ A VS Code extension that notices a Claude Code update and re-injects, acquiring 
 engine rather than embedding it (D76 to D85). [history-m8.md](history-m8.md) is the archaeology and
 [companion.md](companion.md) the reference. One live read is owed.
 
-## Open questions, not blocking
+## Open questions
+
+The work after milestone 8. None of it is planned yet, and each wants a decision before anything is
+built. The first two change what a plugin is written against.
 
 - **Whether a plugin may have the resolved selector**, as `ctx.selector(name)`. `ctx.anchor()` hands
   back a bare class, which serves the two uses D7 names — borrowing a class for your own markup, and
@@ -305,18 +306,28 @@ engine rather than embedding it (D76 to D85). [history-m8.md](history-m8.md) is 
   but not taken, because it is the first plugin-facing API that hands over something version-derived
   and composable. Until it is settled the authoring guide says: scope a rule to something you
   placed, never to an anchor's bare class.
+- **Whether `ctx.style` refuses a selector naming a class the plugin did not declare, or only
+  lints.**
 - **Anchor governance** (D44): who may add to the table, and what evidence an entry needs. Half of
   the promotion path exists already: an override whose anchor this version resolves without it is
   reported as changing nothing, which is the signal that the shipped table has caught up and the
   entry can go. What is missing is the other end — how an entry gets into the shipped table, and on
   whose say-so.
-- **Whether `ctx.style` refuses a selector naming a class the plugin did not declare, or only
-  lints.**
-- **Per-plugin settings** are not needed yet. time-marks persists its toggle in `localStorage` and
-  that is the right answer for a value only the panel cares about. A `ctx.settings` API earns its
-  place when a value must be editable from outside the panel, and not before.
+- **Whether macOS has to be run before 1.0.** Nothing has run there: CI is Linux and one Windows row
+  ([ci.md](ci.md)), and every live read has been on Windows.
+- **What 1.0 needs.** This plan names milestones, not the bar a 1.0 release has to clear.
 
 ## Deferred, with triggers
+
+- **Per-plugin settings.** time-marks keeps its toggle in `localStorage`, which is right for a value
+  only the panel cares about. A `ctx.settings` API earns its place when a value must be editable from
+  outside the panel.
+- **What a diagnostic check may do**, left open by phase 6. Be `async`: no for now, because lines
+  landing at different times make the badge count briefly wrong. Be collapsed per contributor: when
+  `core` outgrows a screen. Ask for host state: that is a request for a capability, decided by name.
+- **`rigline corpus fetch <version>`**, a Marketplace VSIX into the corpus. Every version so far was
+  snapshotted from a live install; the trigger is one that was missed.
+- **Line tags for a superseded major** ([ci.md](ci.md)): when a `2.x` branch opens.
 
 - **git as a plugin source.** No publish ceremony and no npm account: GitHub, GitLab and Codeberg
   serve `archive/<ref>.tar.gz`, which the tar reader already handles, with `{kind: "git", url, ref,
@@ -339,8 +350,8 @@ Check the output channel for the `installed:` line first, which is what says the
 arrived. If you would rather not wait, [companion.md](companion.md)'s *Reading it live* has the
 recipe for forcing one. When it reads clean, milestone 8 is done.
 
-Nothing else is scheduled. This plan does not yet say what 1.0 needs beyond the milestones it has
-closed.
+After it, the open questions above are the work. None is planned yet, so the next step there is to
+pick one and settle it.
 
 ## Status log
 

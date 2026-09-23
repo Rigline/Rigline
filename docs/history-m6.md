@@ -98,8 +98,4 @@ The sweep meter peaked at 6/s on the editor with 326 entries, sustained near 2/s
 
 ## Left open
 
-- Whether a check may be `async`. No, for now: an awaited verdict means lines landing at different
-  times and a badge count briefly wrong.
-- Whether the panel should let a contributor be collapsed. Not until `core` outgrows a screen.
-- Whether a check may ask for host state after all. That is a request for a capability, decided by
-  name, the way `ctx.copy` would be.
+Three questions about what a check may do. [plan.md](plan.md)'s deferred list carries them.
