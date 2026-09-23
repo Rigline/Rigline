@@ -113,8 +113,8 @@ export interface Watcher extends Disposable {
  * Watch, and react once per move.
  *
  * Reactions are serialised rather than debounced. An update produces a burst — the event, then a
- * poll, then often a second event as VS Code deletes the old directory — and a reaction that ran
- * three times would run three npm installs, each waiting on the last one's lock. A run in flight
+ * poll, then often a second event — and a reaction that ran three times would run three npm
+ * installs, each waiting on the last one's lock. A run in flight
  * therefore marks itself and the follower is dropped, because the work is idempotent and the
  * follower would only discover what the leader already has.
  */

@@ -317,8 +317,7 @@ so a companion installed *before* the extension read that as success and went gr
 The companion asks the editor now instead of trusting an exit code.
 
 The watcher serialises rather than debounces. An update produces a burst — the event, then a poll,
-then often a second event as the old directory is deleted — and a reaction per signal would be an
-npm install per signal, each queueing on the last one's lock. A run in flight marks itself and the
+then often a second event — and a reaction per signal would be an npm install per signal, each queueing on the last one's lock. A run in flight marks itself and the
 follower is dropped, which is safe precisely because the work is idempotent: the follower would only
 discover what the leader already has.
 

@@ -53,7 +53,9 @@ at all in CI.
 
 **So cut from a commit CI has already been green on.** Push, watch `ci.yml` go green across its
 matrix, and only then run `pnpm release`. That costs one CI run and closes the whole class, not just
-the platform half — it is the only check that sees what the release run will see.
+the platform half — it is the only check that sees what the release run will see. Finish any tidying
+before that push: the cut refuses a dirty tree, and `ci.yml` cancels an in-progress run when a newer
+push arrives, so a fix made while waiting starts the wait again.
 
 `pnpm release` now asks GitHub for that verdict on the exact commit it would tag, and refuses on a
 known failure. It is advisory in the other direction on purpose: no `gh`, no run yet, or a push
@@ -154,9 +156,10 @@ tier, so the local run is the stronger one.
    and pushes. Add `--dry-run` to see all of that without writing anything, or `--skip-checks` when
    you have just run them by hand.
 2. Watch the run the tag triggered. Its summary names each package and version staged, because
-   nothing notifies you that a stage is waiting. A green tick is not the check — the *absence* of
-   `[WARN] Skipped OIDC` in the log is. The Stage step's log prints `staged with id <uuid>` per
-   package, but `npm stage list --json` is the reliable place to read them.
+   nothing notifies you that a stage is waiting. A green tick is not the check. `npm stage list
+   --json` is: all four at the new version, each with `"actorType": "trusted automation"`, which only
+   a successful OIDC exchange leaves. Reading the log for the absence of `[WARN] Skipped OIDC` says
+   the same thing less directly.
 3. **Approve the four** at `https://www.npmjs.com/settings/<user>/staged-packages`. `pnpm
    release:finish` will try to do it for you, and can only succeed for an account that can type a
    one-time password; a security key has none to give, and the website is the route that always

@@ -152,8 +152,8 @@ describe("watchExtension", () => {
   });
 
   it("reacts once to a burst, not once per signal", async () => {
-    // An update fires the event, then the poll, then often the event again as the old directory is
-    // deleted. Three reactions would be three npm installs queueing on each other's lock.
+    // An update fires the event, then the poll, then often the event again. Three reactions would
+    // be three npm installs queueing on each other's lock.
     const h = harness("/ext/claude-code-2.1.278");
     let reactions = 0;
     let release: (() => void) | undefined;
