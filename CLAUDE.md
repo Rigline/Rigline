@@ -7,7 +7,9 @@ community-maintained.
 
 **Start with [docs/plan.md](docs/plan.md)** for where the work is and what comes next, and
 [docs/decisions.md](docs/decisions.md) for the principles and decisions the architecture is derived
-from. Update the plan before writing code; log status there, not here.
+from. **New work is planned in `.local/plans/<topic>.md`**, which is gitignored: a plan is a working
+document, and whatever should outlive it goes into `docs/` as the work lands. `docs/plan.md` takes
+no new plans. Update the plan before writing code; log status there, not here.
 
 ## Knowledge base
 
@@ -190,7 +192,7 @@ the Marketplace.
 
 Work on `main` and commit straight to it; commit at each checkpoint rather than accumulating a
 large tree. Stage by path if `git status` shows changes you did not make. Commit messages go
-through a file (`.commitmsg.tmp`, gitignored) and `git commit -F`.
+through a file (`.local/.commitmsg.tmp`) and `git commit -F`.
 
 **A user-visible change updates `CHANGELOG.md` in the same commit**, under `## Unreleased` (D60).
 User-visible means somebody installing a package would notice: behaviour, the CLI's surface, what a
