@@ -274,9 +274,9 @@ A plugin is an ordinary npm package carrying `rigline.json` and its built entry:
 
 `@rigline/plugin-api` stays a **devDependency**: `rigline-engine build` bundles everything your
 entry imports, so what you publish has no runtime dependency for anyone to install. The exception is
-React — `react`, `react/jsx-runtime` and `react-dom` — which the panel serves, one copy for every
-plugin: the build leaves those imports as they are, and `rigline install` points them at the panel's
-copy. Any other package you import must be bundled. Rigline runs no
+React — `react`, `react/jsx-runtime`, `react-dom` and `@rigline/plugin-api/ui` — which the panel
+serves, one copy for every plugin: the build leaves those imports as they are, and `rigline install`
+points them at the panel's copy. Any other package you import must be bundled. Rigline runs no
 package manager when it installs your plugin — it fetches the tarball, checks it against the
 registry's integrity hash, unpacks it and validates the manifest.
 

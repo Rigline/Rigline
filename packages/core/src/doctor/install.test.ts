@@ -140,6 +140,7 @@ describe("installState", () => {
       "runtime/react.js",
       "runtime/jsx-runtime.js",
       "runtime/react-dom.js",
+      "runtime/ui.js",
       "generated.js",
       "registry.js",
     ]);

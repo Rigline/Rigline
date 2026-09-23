@@ -14,7 +14,8 @@ For every installed extension directory `anthropic.claude-code-<version>-<platfo
     extension.js.orig           only once any enabled plugin declares a patch
     webview/rigline/pre.js       the pre hook, one prebuilt file
     webview/rigline/post.js      the post hook, one prebuilt file
-    webview/rigline/runtime/     the modules plugins import — react, its JSX runtime, react-dom (D87)
+    webview/rigline/runtime/     the modules plugins import — react, its JSX runtime, react-dom,
+                                 and @rigline/plugin-api/ui (D87)
     webview/rigline/generated.js the identifier tables harvested from this directory's bundles
     webview/rigline/registry.js  the enabled plugins, their declarations, and patch outcomes
     webview/rigline/plugins/<name>/…   each enabled plugin's directory, tests excluded, its entry's

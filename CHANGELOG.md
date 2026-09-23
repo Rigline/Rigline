@@ -10,12 +10,21 @@ anything may change between releases.
 
 ## Unreleased
 
+### Added
+
+- Stores, for state a plugin keeps outside its components: `store(initial)` and
+  `storeFrom(ctx.onSessionId, null)` in `@rigline/plugin-api`, and `useStore` to read one from React
+  in `@rigline/plugin-api/ui`. A store made in `setup` catches what the panel replays from boot,
+  which an effect in a component runs too late for.
+
 ### Changed
 
-- `rigline build` no longer bundles `react`, `react/jsx-runtime` or `react-dom`. The panel now
-  serves one copy of React 19 that every plugin shares, and `rigline install` points a plugin's
-  imports at it, so a plugin that bundled its own React should rebuild. `rigline build` also compiles
-  JSX, and builds `src/index.tsx` when there is no `src/index.ts`.
+- `rigline build` no longer bundles `react`, `react/jsx-runtime`, `react-dom` or
+  `@rigline/plugin-api/ui`. The panel now serves one copy of each — React 19 — that every plugin
+  shares, and `rigline install` points a plugin's imports at it, so a plugin that bundled its own
+  React should rebuild. `rigline build` also compiles JSX, and builds `src/index.tsx` when there is
+  no `src/index.ts`. `@rigline/plugin-api` lists React as an optional peer dependency, needed only
+  by a plugin that uses `/ui`.
 - `rigline install` and `rigline check` now name a plugin that imports a package it did not bundle
   as refused, since the panel cannot load it, rather than leaving you to find the error in the panel.
 

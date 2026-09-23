@@ -43,8 +43,12 @@ function exportNames(specifier: string): string[] {
   }
 }
 
-/** React ships CommonJS, over which `export *` gives no reliable named exports, so name each one. */
+/**
+ * React ships CommonJS, over which `export *` gives no reliable named exports, so name each one.
+ * Our own modules are ES modules, and re-export as they stand.
+ */
 function runtimeEntry(specifier: string): string {
+  if (specifier.startsWith("@rigline/")) return `export * from ${JSON.stringify(specifier)};\n`;
   const exports = exportNames(specifier).filter((name) => name !== "default");
   return [
     `import runtime from ${JSON.stringify(specifier)};`,

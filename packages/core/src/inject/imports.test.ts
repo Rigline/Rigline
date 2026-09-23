@@ -55,7 +55,7 @@ describe("importProblem", () => {
   it("names what cannot be resolved and what can", () => {
     expect(importProblem('import pad from "left-pad";')).toBe(
       'it imports "left-pad", which the panel does not provide; bundle it, or import only ' +
-        "react, react/jsx-runtime, react-dom",
+        "react, react/jsx-runtime, react-dom, @rigline/plugin-api/ui",
     );
   });
 

@@ -42,7 +42,7 @@ each host patch is carried into `registry.js` rather than derived: nothing in a 
 
 | path | package | what it is |
 | --- | --- | --- |
-| `packages/plugin-api` | `@rigline/plugin-api` | The shared vocabulary: `PluginContext`, the manifest type and its JSON schema, the anchor names and specs, the capability *contracts*, and the pure derivations (session rule, stream shape, transcript join). Pure data and pure functions, so both machines import it. |
+| `packages/plugin-api` | `@rigline/plugin-api` | The shared vocabulary: `PluginContext`, the manifest type and its JSON schema, the anchor names and specs, the capability *contracts*, and the pure derivations (session rule, stream shape, transcript join). Pure data and pure functions, so both machines import it. Its `/ui` subpath is the React half, which the panel serves and core never imports (D87). |
 | `packages/core` | `@rigline/core` | The engine. Node: locate, harvest, codegen, inject, restore, discover, bake, the install flow, the anchor table, the plugin manager, and every command but `update`, behind the bin `rigline-engine`. Also ships the assets — see below. |
 | `packages/cli` | `rigline` | The retrieval layer (D69). It installs the engine under `~/.rigline/engine`, spawns it, owns `update` and the remote half of `add`, and forwards the rest. Depends on no Rigline package. |
 | `packages/host` | `@rigline/host` (private) | The injected runtime: `pre.js`, `post.js`, and `runtime/` (D87). |
@@ -66,7 +66,8 @@ edge from core to the plugins would be a cycle. `bundledDir()` in
 refuses a bundle older than the builds it was copied from.
 
 `plugin-api` is the load-bearing one, and the rule that keeps it honest is that it may import
-nothing from core or host and must run in both. A capability's *contract* lives there — the manifest
+nothing from core or host and its root must run in both — which is why the React half is a subpath
+that the root never imports. A capability's *contract* lives there — the manifest
 shape, what it depends on, what it says about itself — and its *grant* lives in host. That is what
 lets `rigline install` and the kernel ask the same question of a manifest and be unable to disagree:
 both call `capabilityViolation(uses, tables)`, from `plugin-api`.

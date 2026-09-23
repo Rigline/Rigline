@@ -1803,8 +1803,9 @@ It is paid by every install, so `install` takes `wholeness` and the flow passes 
 that keeps the test suite from paying it forty times over.
 
 **D87. The panel serves one React to plugins, and `install` points a plugin's imports at it
-(2026-09-23).** `react`, `react/jsx-runtime` and `react-dom` are built beside the two hooks and served
-from `webview/rigline/runtime/` (`RUNTIME_MODULES`), because Rigline's own shell will render plugin
+(2026-09-23).** `react`, `react/jsx-runtime`, `react-dom` and `@rigline/plugin-api/ui` are built
+beside the two hooks and served from `webview/rigline/runtime/` (`RUNTIME_MODULES`), because
+Rigline's own shell will render plugin
 components in its tree, and a component whose hooks come from one React cannot be rendered by
 another. A plugin's build leaves those imports bare, and `install` rewrites them in the entry as it
 copies the plugin, to paths relative to that entry. Rewriting at install rather than resolving at
@@ -1820,3 +1821,9 @@ release-age gate (D48), so a range would ship whatever was newest that day rathe
 tested. Tier 4 packs it from the workspace's installed copy, which keeps that run offline.
 
 React's major is part of the plugin contract: moving it is an `api` bump.
+
+The React half of the plugin API is a subpath, `@rigline/plugin-api/ui`, not a package of its own:
+every published package costs each release its own approvals, and the subpath is the pattern `ctx`
+already follows — types from `plugin-api` at build time, the implementation from the panel at run
+time. The root stays React-free, so core still runs it in Node, and React is an optional peer
+dependency the engine's install never fetches.

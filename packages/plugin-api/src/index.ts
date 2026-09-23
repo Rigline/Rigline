@@ -58,6 +58,8 @@ export type { RuntimeSpecifier } from "./runtime.ts";
 export { isRuntimeSpecifier, RUNTIME_MODULES } from "./runtime.ts";
 export { manifestSchema, manifestSchemaJson } from "./schema.ts";
 export { nextSessionId } from "./session.ts";
+export type { Store } from "./store.ts";
+export { store, storeFrom } from "./store.ts";
 export type { ToolResult, ToolUse } from "./stream.ts";
 export { PENDING_TOOL_LIMIT, toolResults, toolUses } from "./stream.ts";
 export type { IdentifierTables } from "./tables.ts";

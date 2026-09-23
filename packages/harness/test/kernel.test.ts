@@ -254,11 +254,13 @@ export default { setup() {} };`,
         source: `import * as React from "react";
 import { jsx } from "react/jsx-runtime";
 import { createPortal } from "react-dom";
+import { useStore } from "@rigline/plugin-api/ui";
 export default { setup() {
   (window.__react ??= {})[${JSON.stringify(name)}] = {
     module: React,
     element: React.isValidElement(jsx("i", {})),
     portal: typeof createPortal,
+    useStore: typeof useStore,
   };
 } };`,
       });
@@ -271,19 +273,26 @@ export default { setup() {} };`,
       const booted = await boot({ plugins: [importer("first"), importer("second"), stray] });
       try {
         const seen = await booted.page.evaluate(() => {
-          type Seen = { module: { version: string }; element: boolean; portal: string };
+          type Seen = {
+            module: { version: string };
+            element: boolean;
+            portal: string;
+            useStore: string;
+          };
           const r = (window as unknown as { __react?: Record<string, Seen> }).__react ?? {};
           return {
             same: r.first !== undefined && r.first.module === r.second?.module,
             version: r.first?.module.version ?? null,
             element: r.first?.element ?? false,
             portal: r.first?.portal ?? null,
+            useStore: r.first?.useStore ?? null,
           };
         });
         expect(seen.same).toBe(true);
         expect(seen.version).toMatch(/^19\./);
         expect(seen.element).toBe(true);
         expect(seen.portal).toBe("function");
+        expect(seen.useStore).toBe("function");
 
         const d = await booted.diagnostics();
         expect(d.plugins.find((p) => p.name === "first")?.status).toBe("loaded");
