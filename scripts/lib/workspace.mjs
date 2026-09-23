@@ -97,9 +97,19 @@ export function run(command, args, options = {}) {
   return execFileSync(command, args, { cwd: ROOT, stdio: "inherit", shell: false, ...options });
 }
 
-/** Run a command for its output, and hand back the trimmed text. */
+/**
+ * Run a command for its output, and hand back the trimmed text.
+ *
+ * Stderr is captured, never echoed: callers catch a failure as an answer — no such release, no
+ * session — and it stays on the error as `stderr` for the ones that read it.
+ */
 export function capture(command, args) {
-  return execFileSync(command, args, { cwd: ROOT, encoding: "utf8", shell: false }).trim();
+  return execFileSync(command, args, {
+    cwd: ROOT,
+    encoding: "utf8",
+    shell: false,
+    stdio: "pipe",
+  }).trim();
 }
 
 /**

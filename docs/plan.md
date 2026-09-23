@@ -420,7 +420,7 @@ all of it.
 
 ## Next session
 
-Phases 0 to 4b, phase 6 and milestone 7 are done. `1.0.0-alpha.9` is the newest on `latest` and
+Phases 0 to 4b, phase 6 and milestone 7 are done. `1.0.0-alpha.10` is the newest on `latest` and
 installs from npm on a machine with no checkout.
 
 **7b is closed, all five steps.** `rigline` installs `@rigline/core` into `<RIGLINE_HOME>/engine`,
@@ -877,3 +877,6 @@ One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs
   land back on the same `ok` as steady state, so nothing said whether it was safe yet to accept VS
   Code's own restart prompt; accepting it too early is how the gap was found, landing on 8b's offer.
   A removal is no longer reacted to at all: it changes no answer the status gives and does no work.
+- 2026-09-23: **`1.0.0-alpha.10` published**, carrying 8b, 8c and D85, cut from a commit CI was
+  green on and staged by trusted automation for all four packages. Approved on the website, as
+  every release so far has been. Neither 8c's command nor `ready` has been read live yet.
