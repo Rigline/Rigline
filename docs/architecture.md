@@ -5,7 +5,7 @@ being built and in what order; [decisions.md](decisions.md) says why the shape i
 says where things are and what may talk to what. The five other topic docs go a level down:
 [identifiers.md](identifiers.md), [bus.md](bus.md), [patches.md](patches.md),
 [transcript.md](transcript.md), [verification.md](verification.md). [host.md](host.md) is the
-injected runtime in detail.
+injected runtime in detail, and [companion.md](companion.md) the VS Code extension.
 
 ## Two machines, one channel
 
@@ -102,6 +102,8 @@ writing nothing (D55). The flow in `core/src/update/flow.ts` runs over every ins
 directory; per directory, `inject.ts`'s `install()` does this, in this order, and the order is
 load-bearing at three points:
 
+0. **Refuse a directory that is not whole**: a file missing, or one still growing between two
+   samples a quarter of a second apart (D81, D83). See [partial-bundles.md](partial-bundles.md).
 1. **Settle the webview backup.** `index.js.orig` is the authority on whether a bundle is patched
    (D38), and everything downstream harvests from it, so it is made trustworthy first: no backup
    means the live bytes become one; live equal to the backup, or equal to this loader's own patch
@@ -130,8 +132,23 @@ which means our regex has drifted rather than that the extension has, and a fail
 build.
 
 `restore` is the inverse and the recovery path: copy both backups back, re-read to confirm the bytes
-match, remove the payload directory. It needs only Node and this checkout — not VS Code, and not a
+match, remove the payload directory. It needs only Node and the engine — not VS Code, and not a
 working extension.
+
+## The update pipeline
+
+`rigline update` is the wrapper's (D69), and its order is the engine first, so the new engine does
+the placing and the injecting:
+
+1. Resolve `@rigline/core`'s tag and install it into `<RIGLINE_HOME>/engine` only if the version
+   differs. The release-age gate applies unless no engine is installed yet (D48), and a failed
+   resolution is reported while the run carries on with the engine it has.
+2. Resolve each recorded plugin source, and fetch, vet and stage the ones that moved; the engine
+   `add`s each, which re-injects (D70).
+3. If the engine moved, run one `install`, or the payload on disk stays the previous engine's (D75).
+
+The companion does step 1 and then an `install` on every activation and every arriving Claude Code
+version ([companion.md](companion.md)).
 
 ## The boot pipeline
 

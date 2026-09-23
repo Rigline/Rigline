@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
  * Copy the injected payload and the first-party plugins into `@rigline/core`'s `dist/bundled`,
- * which is how they reach anybody who installed from npm (docs/m7-distribution.md, D71).
+ * which is how they reach anybody who installed from npm (D71).
  *
- * A workspace step rather than part of core's own build, because the plugins are built by `rigline
- * build`, which is the CLI, which depends on core: a build-order edge from core to the plugins
+ * A workspace step rather than part of core's own build, because the plugins are built by
+ * `rigline-engine build`, which is core's own bin: a build-order edge from core to the plugins
  * would be a cycle. So the root `build` runs `pnpm -r build` and then this, and every caller that
  * matters — `ci.yml`, `release.yml` and the release script's pre-cut gate — already runs the root
  * `build`.

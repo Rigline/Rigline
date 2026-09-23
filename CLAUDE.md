@@ -12,25 +12,24 @@ from. Update the plan before writing code; log status there, not here.
 ## Knowledge base
 
 - [docs/plan.md](docs/plan.md): what Rigline is, the physics that shape it, the architecture,
-  phases with acceptance criteria, status log.
+  the phases and milestones, what is deferred, the next session, and the status log.
+- [history-m6.md](docs/history-m6.md), [history-m7.md](docs/history-m7.md) and
+  [history-m8.md](docs/history-m8.md): archaeology for closed work — what each turned on and what
+  its live reads found. Nothing in them is load-bearing.
 - [docs/partial-bundles.md](docs/partial-bundles.md): why `install` refuses an unfinished extension
   directory — recording a half-written bundle as the pristine backup is silent and destroys
   `restore` (D81, D83). Both halves: structure, and a stability sample that blocks with
   `Atomics.wait` rather than making `install` async. Carries a negative result worth not
   re-proposing: a content check on the bundle's tail was evidenced against the corpus and rejected,
   because a rule that fits today's bundler refuses every install the day it changes.
-- [docs/m8-companion.md](docs/m8-companion.md): the open milestone. The companion extension that
-  stops an update silently reverting the injection — the fork it derives from (it is a second
-  retrieval layer acquiring and running the engine, never a copy of it, D80), the two costs that
-  creates, what it watches, what it may reload, and the three phases.
 - [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D86.
 
 The internals, for a contributor to Rigline itself. The shape, not the argument — the argument is in
 decisions.md, and each doc cites the decisions it rests on.
 
 - [docs/architecture.md](docs/architecture.md): the map. What runs in Node and what in the webview,
-  the one channel between them, the packages, the three registries, the install and boot pipelines,
-  failure isolation, where state lives, which reload a change needs. Start here.
+  the one channel between them, the packages, the three registries, the install, update and boot
+  pipelines, failure isolation, where state lives, which reload a change needs. Start here.
 - [docs/identifiers.md](docs/identifiers.md): the layer contract, the five layers and what each
   anchors on, floors and views, the stability diff, codegen's two outputs, adding a layer.
 - [docs/bus.md](docs/bus.md): the protocol's three shapes, the single egress, what a tap is handed,
@@ -39,6 +38,9 @@ decisions.md, and each doc cites the decisions it rests on.
   kernel, the capability module contract, the manifest, the registry, diagnostics.
 - [docs/patches.md](docs/patches.md): byte substitutions in `extension.js` — why the capability
   exists, rebuild-from-backup, the three refusals, and how to write one.
+- [docs/companion.md](docs/companion.md): the VS Code extension that re-injects after an update — a
+  second retrieval layer (D80), finding Node, the home lock, what it watches, the reload offer, the
+  profile trap, and how to reproduce each case live.
 - [docs/transcript.md](docs/transcript.md): the three-way join behind an entry, row identity through
   React, the sweep, and what a decoration must never do to a row.
 - [docs/verification.md](docs/verification.md): the four tiers, the corpus, the harness, the probe,

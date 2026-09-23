@@ -1,10 +1,9 @@
 # Rigline 1.0 plan
 
 The working document: what is being built, in what order, and where it stands. Durable rules live
-in [decisions.md](decisions.md); this file is about getting to 1.0. Phases 0 to 4b, phase 6 and
-milestone 7 are done; **milestone 8, the companion extension, is what is open**, and
-[m8-companion.md](m8-companion.md) owns it. Delivery has its own document, [ci.md](ci.md) — the
-branching rule, the release commands and the two workflows.
+in [decisions.md](decisions.md); this file is about getting to 1.0. Phases 0 to 4b and 6 are done,
+and milestones 7 and 8 are built with three live reads owed, in **Next session**. Delivery has its
+own document, [ci.md](ci.md) — the branching rule, the release commands and the two workflows.
 
 ## What Rigline is
 
@@ -277,59 +276,24 @@ outstanding live in [ci.md](ci.md); [releasing.md](releasing.md) is the runbook.
 
 ### Phase 5: companion VS Code extension — promoted to milestone 8
 
-Outgrew a phase entry. **[m8-companion.md](m8-companion.md)** owns it.
-
 ### Phase 6: a plugin contributes its own diagnostics — done 2026-09-21
 
-A check is a thing that is contributed. The kernel and each capability module contribute the host's
-lines under `core`; a plugin contributes its own through `ctx.check(name, run)`, which declares
-nothing and is handed nothing. Checks are pulled on the panel's cadence rather than pushed, a
-throwing one fails its own line without disabling its plugin, and the panel groups by contributor in
-an order that does not move as verdicts change. The probe is left rendering the registry and
-contributing six of its own, which is the test of whether the shape is right.
+A check is contributed rather than written into the probe: the kernel and each capability module
+under `core`, and each plugin through `ctx.check` (D63 to D68). Read live on 2.1.278.
+[history-m6.md](history-m6.md) is the archaeology; [host.md](host.md),
+[verification.md](verification.md) and [authoring.md](authoring.md) are the reference.
 
-So "the badge is red and it names your plugin" replaces "the badge is green and your plugin quietly
-does nothing" — P8 applied to the one layer that never had it.
+## Milestone 7: distribution — built 2026-09-21
 
-session-id, time-marks and worktree-prefix go through `ctx.check` exactly as a stranger's plugin
-does, and the scaffold ships one, so a plugin starts with the habit rather than acquiring it after
-the first silent failure.
+`rigline` became a retrieval layer over the `@rigline/core` engine, and the payload and the four
+first-party plugins ship inside core (D69 to D75). [history-m7.md](history-m7.md) is the
+archaeology and [architecture.md](architecture.md) the reference. One live read is owed.
 
-Read live on 2.1.278, on the editor and the session list: every line green or legitimately `n/a`, no
-red flash at boot, and the three plugins that have no work on the session list reported `inactive`
-rather than broken. The read found three things a green harness had not (D67, D68), which is the
-phase justifying itself on the two days it took to build.
+## Milestone 8: the companion extension — built 2026-09-23
 
-[history-m6.md](history-m6.md) is the archaeology; the reference is spread across
-[host.md](host.md), [verification.md](verification.md) and [authoring.md](authoring.md), and the
-argument is D63 to D68.
-
-## Milestone 7: distribution
-
-**[m7-distribution.md](m7-distribution.md)** owns it: the split between the `rigline` retrieval
-layer and the `@rigline/core` engine, the payload and the four first-party plugins as bundled
-assets, the engine's own install path, and the phases with their acceptance criteria.
-
-**Done, both phases, and released as `1.0.0-alpha.6`.** 7a's blocker is gone — `npm i -g rigline &&
-rigline install` injects — and 7b separated the wrapper from the engine, recorded as D69, D70, D73
-and D74. It still owes one check, `rigline update` moving off an older engine, which is in "Next
-session" below.
-
-## Milestone 8: the companion extension
-
-**[m8-companion.md](m8-companion.md)** owns it: the fork it derives from — the companion is a second
-retrieval layer, acquiring and running `@rigline/core` the way `rigline` does rather than embedding
-it (D80) — the two costs that shape creates, what it watches, what it may and may not reload, how it
-is installed, and the three phases with their acceptance criteria.
-
-The problem is the last silent failure in the project. An extension update installs a fresh
-directory and deletes the old one, so the injection reverts with nothing said: no badge, no plugins,
-no error, weekly. `rigline watch` already fixes it and nobody is running it; the companion is a
-process that is.
-
-**8a and 8b are done and read live; 8c and `ready` (D85) shipped in `1.0.0-alpha.10` and await
-their live reads.** It is not published to a marketplace (D76), Anthropic's terms rather than
-Microsoft's are the live constraint (D77), and D78 records the premise underneath all of it.
+A VS Code extension that notices a Claude Code update and re-injects, acquiring and running the
+engine rather than embedding it (D76 to D85). [history-m8.md](history-m8.md) is the archaeology and
+[companion.md](companion.md) the reference. Two live reads are owed.
 
 ## Open questions, not blocking
 
@@ -351,346 +315,89 @@ Microsoft's are the live constraint (D77), and D78 records the premise underneat
   that is the right answer for a value only the panel cares about. A `ctx.settings` API earns its
   place when a value must be editable from outside the panel, and not before.
 
+## Deferred, with triggers
+
+- **git as a plugin source.** No publish ceremony and no npm account: GitHub, GitLab and Codeberg
+  serve `archive/<ref>.tar.gz`, which the tar reader already handles, with `{kind: "git", url, ref,
+  sha}` as the source record D49 left room for. Its one cost is that the built entry must be
+  committed at the ref, since an author's build never runs on a user's machine (D33). Revisit D33
+  when it is taken.
+- **A plugins repository**, the home for a first-party plugin that is not part of the product.
+  Triggered by the first such plugin; the git source comes first.
+- **Auto-updating the companion.** A sideloaded VSIX does not update itself, and under D80 it barely
+  needs to. Revisit if the VSIX changes more often than expected, or if D77's conversation makes a
+  listing wanted.
+
 ## Next session
 
-`1.0.0-alpha.10` is the newest on `latest`. Milestone 8 is open and
-[m8-companion.md](m8-companion.md) is its working doc. What is left is three live reads, each the
-acceptance of something already shipped.
+`1.0.0-alpha.10` is the newest on `latest`. Milestones 7 and 8 are built, and three live reads are
+left, each the acceptance of something already shipped. Take them in this order: the companion
+moves the engine on every window reload, which would spend the older engine read 1 needs.
 
-1. **`rigline update` off an older engine**, the one check milestone 7 still owes. With the
-   published `rigline` installed, put the engine back to alpha.9 by hand — `npm install --prefix
-   ~/.rigline/engine --save-exact --ignore-scripts @rigline/core@1.0.0-alpha.9` — and run `rigline
-   install` so every payload carries alpha.9's stamp. `rigline update` should then move the engine
-   forward and re-inject, and `rigline doctor` should name the new engine on every version (D75).
-   The age gate withholds a release under a day old and says so (D48); `--now` takes it anyway.
-   When it passes, condense [m7-distribution.md](m7-distribution.md) into `history-m7.md`.
-2. **8c's *Rigline: Show Plugins*.** Reload the window and run it from the Command Palette, against
-   8c's acceptance: the listing `rigline list` gives, nothing written, no network call.
+1. **`rigline update` off an older engine**, which milestone 7 owes. It needs the published wrapper
+   (`npm i -g rigline`) and an engine behind the newest release, which `rigline --version` names.
+   If the engine is current, put one back by hand — `npm install --prefix ~/.rigline/engine
+   --save-exact --ignore-scripts @rigline/core@1.0.0-alpha.9` — and run `rigline install`, so every
+   payload carries the older stamp. Then `rigline update` should report the engine moving and
+   re-inject, and `rigline doctor` should name the new engine on every version (D75). A release
+   under a day old is withheld and named (D48); `--now` takes it anyway.
+2. **8c's *Rigline: Show Plugins*.** Reload the window and run it from the Command Palette. The
+   **Rigline** output channel should show the listing `rigline list` gives, and nothing about
+   fetching an engine.
 3. **`ready` (D85).** A Claude Code version arriving under a running window should take the status
-   item to *Rigline: ready to restart*, and it should stay there until a restart. The next real
-   update is the read. To force one, install a version not already on the machine into the window's
-   own profile — the two conditions in m8-companion.md's 8b section — and look for the `installed:`
-   line in the output channel before reading anything into the status item.
+   item to *Rigline: ready to restart*, where it stays until a restart. The next real update is the
+   read; to force one, [companion.md](companion.md)'s *Reading it live* has the recipe.
 
-When 2 and 3 read clean, milestone 8 is done: condense m8-companion.md into `history-m8.md`, as
-[history-m6.md](history-m6.md) was.
+Log each as it reads clean. When read 1 does, close the *Left open* section of
+[history-m7.md](history-m7.md).
 
 ## Status log
 
-One line per day. The reasoning lives in [decisions.md](decisions.md); the diffs live in git.
+One entry per piece of work completed, a sentence long, newest last. The reasoning is in
+[decisions.md](decisions.md), the story in the history docs, and the diffs in git.
 
-- 2026-09-13: Archive assembled, anchors validated on 2.1.270, corpus snapshotted, plan and
-  decisions written, workspace scaffolded. Phase 0 done.
-- 2026-09-13: Phase 1 done. Harvest of 2.1.270: 104 modules, 1009 classes, 108 outbound requests, 9
-  notifications, 9 inbound pushes, 22 inbound requests, 105 replies, 151 payload fields; three
-  requests have no reply by convention; two stylesheet modules are unreachable. Drift 2.1.268 to
-  2.1.270: modules 99.0% kept, classes 98.2%, local names 99.6%, message types 99.3%, React anchors
-  100%.
-- 2026-09-14: Phase 2 done, then two defects found live. **Superseded payload directories**: install
-  and restore only ever wrote and removed the *current* payload directory, so a webview opened
-  before a reinstall went on running a whole superseded loader from disk — a second observer, hook
-  chain, tap and sweep — which is what locked a window up with two surfaces open. Both commands now
-  delete superseded directories by name. **The probe's boot-window false negative**: its first poll
-  ran inside its own `setup()`, before the kernel seals the replay buffer, so every
-  diagnostics-driven check was being read before its answer could exist. Deferred to a macrotask.
-- 2026-09-14: Direction validated against Leo's two questions — third-party install and version
-  spread. The third-party mechanism already worked; the version question split four ways and
-  produced D40 to D45. His reframe set the priority: design against the gap between an update
-  landing and a maintainer catching up, not against a spread of old versions.
-- 2026-09-14: Distribution settled as npm with a CI publish pipeline, after a git-repo channel was
-  proposed and rejected — the cadence argument for git belongs to the anchor table, which repairs in
-  an hour without an author. D46 to D49, D33 amended. Template shape settled as D50.
-- 2026-09-14: Phase 3 built and merged, and the three plugins earned their keep by finding two
-  faults in the layer they were the first consumers of: an optionally-declared switch, tap or
-  rewrite was not granted at all, and a mount was rebuilt rather than re-placed.
-- 2026-09-14: Mount service moved off its document-wide observer onto the React commit signal (D52).
-  Then the drifting-mount gap it left reproduced the same afternoon and was fixed: a pass now asks
-  where a mount *belongs*, not only whether it is still there.
-- 2026-09-14: Three first-party decorations turned out to be mounted on the agent-map button rather
-  than the model picker, because both carry `modelPill_gGYT1w`. An audit found five of fifteen
-  identity anchors already ambiguous on 2.1.270. P2 and D7 amended; the work built the same day —
-  `kind` split three ways, application-site counts carried into the diff as `classes.reused`,
-  selector resolution, runtime multiplicity. The harvest showed `modelPill` at two sites on 2.1.268,
-  so the agent-map button arrived in 2.1.269 and `classes.reused` is what would have said so.
-- 2026-09-14: Observability landed (D53): rates and peaks on nine hot paths, a bounded
-  `localStorage` ring that survives a force-close, and the probe's copy carrying the whole picture.
-- 2026-09-14: The composer footer turned out to measure its own element children and reset that
-  measurement through `flushSync` on any foreign mutation, which is the flicker Leo saw whenever a
-  file was attached (D54). Fixed at the anchor — `footerSpacer` plus `ctx.mountBefore` — and
-  generalised into a damper: a mount or watch corrected on thirty consecutive passes without
-  settling is abandoned by name rather than fought at frame rate.
-- 2026-09-15: A harness test that failed once and passed alone turned out to be `boot()` returning
-  before plugins had loaded. It now waits on `diagnostics.bufferSealed`, which means every plugin
-  has had its chance, refusals included.
-- 2026-09-15: Phase 4's opening cut back by Leo, and `rigline update` renamed out of existence:
-  `install` is the one write command, `check` its read-only half, and `update` belongs to plugins
-  (D55).
-- 2026-09-18: `rigline list` built, and `describeUses` finally has a caller. Building it surfaced the
-  same noise problem one level down — the anchor summary emitted a line per anchor carrying the
-  table's prose, ten near-identical sentences about a pop-up's look burying the one line that said
-  where it appeared. It groups by what the plugin does with the anchor now: fifteen lines to five.
-- 2026-09-18: Trimmed the register and this plan to what is true now, and cut `doctor` back to
-  Rigline's own install state (D53 amended), dropping about 1,600 lines of VS Code log parsing and
-  the redaction machinery that existed to make reading those logs safe.
-- 2026-09-18: The template and the authoring guide landed. Scaffolding one and running it end to
-  end — install, typecheck, test, codegen, build, add, load — found two faults nothing else would
-  have: the template pinned TypeScript 5 and vitest 3 rather than the versions this repo tests
-  against, and with `allowBuilds: {}` that pnpm fails the very first install over an ignored
-  esbuild build script.
-- 2026-09-18: `add` from npm and `update` landed, with a tar reader of our own (D57) and no version
-  ranges (D58). Two things the design got wrong and the work corrected: the release-age gate was
-  written as a walk back to the newest version old enough, which would install a patch to an old
-  line that no tag points at, and is now a gate that refuses and names the flag; and the reader
-  required every tarball member under `package/`, which the first live fetch disproved — `@types/*`
-  pack under `node/`, and npm's own rule is to strip one leading directory whatever it is called.
-- 2026-09-18: `add` and `remove` landed, and with them the rule that one name is one plugin (D56):
-  discovery had been flattening its roots without deduplicating, so two directories of a name baked
-  two registry entries and loaded the plugin twice. `add` is what made that reachable, so it refuses
-  a name already discovered somewhere it does not own, and discovery keeps the first and reports the
-  shadow. `config.json` grew `sources` and is now written back through a read-modify-write that
-  keeps keys nothing here knows about.
-- 2026-09-18: The local anchor override landed, and phase 4's first item with it (D44 amended).
-  Building it turned up two things the design had not said. The manifest's shape check was refusing
-  any anchor name outside the shipped table, which stops being an answerable question once the table
-  is extensible — it now checks shape only, and a name the installed table has not got is a
-  per-plugin refusal rather than a failed install. And the flow's `--codegen` rewrite was rendering
-  `generated.ts` from the merged table, so one machine's local repair would have been committed into
-  the record every other checkout reads; the write is now the shipped table's answer, byte for byte,
-  and a test holds it there.
-- 2026-09-19: The six topic docs landed, and phase 4 item 5 with them. Writing them turned up one
-  stale fact in three places: D17 put the refusal fixtures under `fixtures/`, and the directory was
-  never made — the harness carries them as module source strings instead, which serves the decision
-  better, since there is nothing on disk for discovery to find. D17, this plan's package table and
-  the README now say so.
-- 2026-09-19: Reading the code against the docs found five more things the docs asserted and the
-  code did not. `CapabilityContract.violation` is `gaps` and returns a list; `CapabilityModule` takes
-  a `Grant` and has `grantOptional`; neither `probes` nor `ProbeCheck` has ever existed, so "checks
-  are contributed by the capability modules" was true of the design and of nothing else — phase 6
-  now owns making it true, and four documents describe what the code does until it is. D49 still said
-  `upgrade`, which D55 had already abolished. And `restore` discarded the host bundle's result, while
-  `revert` threw on an I/O error: an `extension.js` that could not be written back was unreportable,
-  and a throw would have stranded every directory after it, which is the opposite of what
-  `restoreAll` promises. `revert` now catches and `restore` reports `hostReason`; the CLI prints it
-  and exits non-zero. The harness's stale-`dist` rule became a guard that refuses the run.
-- 2026-09-19: Line endings stopped being everybody's problem (D37 amended). `* text=auto` and
-  Biome's `lineEnding: "auto"` replace `eol=lf`, so git normalises on commit and no tool has to be
-  taught; `generated.ts` and the committed schema stay pinned, and codegen normalises its own
-  output, because both are compared byte for byte against what is on disk. Converting the tree
-  found the reason one file never normalised: `sharedFields` joined a composite map key with a NUL
-  byte, which made git classify `capabilities/rewrites.ts` as **binary** — every change to it
-  rendered as `Binary files differ`, with no reviewable diff, in a repo meant to be
-  community-maintained. Two nested maps need no separator.
-- 2026-09-19: `pnpm stage publish` completes the OIDC exchange, verified against a stand-in registry
-  rather than inferred, so D46 and D50 keep the one command they lean on. Three things the check
-  changed. The exchange is per package, so the trusted publisher is too: four entries, not one. The
-  staged manifest carries exact versions in place of `workspace:*`. And pnpm emits no registry stage
-  id, so the run summary names what was staged instead of an id to quote. Two things the check
-  found on the way: there are four publishable packages rather than three, `create-rigline-plugin`
-  having arrived after D46 was written, and none of them has a `repository` field, without which npm
-  refuses provenance. [releasing.md](releasing.md) is the checklist for the setup that is Leo's.
-- 2026-09-19: The repository is `Rigline/Rigline` and the workflow is on it, green end to end on a
-  dry run against the real registry in 26 seconds. It surfaced the thing no stand-in could: the
-  exchange 404s while the packages do not exist, and pnpm reports that as `[WARN] Skipped OIDC` and
-  carries on unauthenticated — so the error a maintainer eventually sees is about authentication and
-  names nothing about the publisher that caused it, and a dry run, which never uploads, passes
-  either way. releasing.md now says both. Also landed, because a bootstrap publish is the first
-  thing anybody sees: a README and LICENSE per published package, and `repository`, `homepage`,
-  `bugs` and `keywords` in all four manifests.
-- 2026-09-19: All four bootstrapped to npm under `--tag next`, and running the *published*
-  `create-rigline-plugin` found what running the one in the tree never could: the template's
-  hand-written `^1.0.0` cannot match `1.0.0-alpha.0`, because a caret range admits a prerelease only
-  when it names one. Every scaffold it produced failed on `pnpm install`, the first command its
-  README gives. The range is now derived from the scaffolder's own version (D50), so it is right on
-  an alpha, right at 1.0.0 and never hand-maintained; the placeholder test that would have caught it
-  matches any `__UPPER__` rather than the keys it knew about. Fixed in the tree and still broken on
-  npm until the first staged release ships it. Also learned, and not ours: npm generates the
-  abbreviated packument every installer asks for *after* the publish returns, so a brand-new scoped
-  package 404s for `pnpm install` while `curl` and `pnpm view` both see it.
-- 2026-09-19: `1.0.0-alpha.1` went out through the pipeline rather than by hand, all four attested
-  now the repository is public, and the published scaffold was driven end to end from npm: create,
-  install, codegen against the installed 2.1.270, build, typecheck, test. So phase 4 closes, with
-  the template carrying the publish workflow D50 always said it would. Two things the release
-  taught. A package must have a `latest`, so the bootstrap publish pinned one whatever `--tag`
-  said, and it still names `alpha.0` — which is the broken scaffold, and what `npm create
-  rigline-plugin` resolves, so moving that tag is the difference between the fix being published
-  and being reachable. And a dry run does perform the OIDC exchange after all: it does not gate on
-  the result, so the tick means nothing, but the absence of `Skipped OIDC` in its log means every
-  trusted publisher works.
-- 2026-09-20: `1.0.0-alpha.2` published to `latest`, and `npm create rigline-plugin` verified
-  end to end from the registry: scaffold, install, build, typecheck, test, with the release
-  workflow in it. Getting there found the second factor is where this path is thin. `pnpm
-  dist-tag` takes `--otp` and nothing else, so a security key cannot use it; `pnpm stage approve`
-  asked for a code at the last step too. The npm CLI is the way through — `auth-type` defaults to
-  `web`, so `npm login` completes against a key, and `npm stage list` / `approve` work on stages
-  pnpm created, because a stage belongs to the registry rather than to the client that made it.
-  That also retires a claim repeated in four places here: the registry does issue a stage id and
-  `npm stage list` shows it; it is pnpm's output that carries none.
-- 2026-09-20: CI on push and pull request (D59), over Node 22.12.0, 24 and 26 — and with it an
-  `engines` floor in all four published packages, the workspace root and the template, none of
-  which had one. 22.12.0 is where vitest starts, so it is the oldest Node this suite can run on;
-  the whole suite was run on it before the number was written down, tier 2 and its Chromium
-  included, and `pnpm build` with it, so the published CLI is known to work there rather than
-  assumed to. `pnpm/action-setup` moved off the `v4` that runs on GitHub's deprecated node20
-  runner, to `v6.1.0` rather than `v6`: the floating major still resolves to the last release
-  before pnpm v12 support, which is a thing to check on any action before trusting the major to be
-  the newest thing under it. The template's workflow carried the same `v4` and moved with it.
-- 2026-09-20: The template ships CI as well (D50 amended), which is D59's argument one level out:
-  a scaffolded repository ran its tests only when it published, and a contributor's pull request
-  was checked by nothing. Same three rungs, so an author's own `engines` floor is one their own CI
-  stands on. The scaffold now carries the publishable metadata it can know — the `rigline-plugin`
-  keyword and `publishConfig.access` — and deliberately not `repository`, the one field a publish
-  needs and a scaffold cannot guess: npm binds provenance to it, so the release workflow refuses a
-  publishable package that has none, by name, before it builds anything. That refusal was run
-  against a real scaffold in all three of its states rather than reasoned about. None of it
-  reaches an author until the next release.
-- 2026-09-20: A Windows row on the matrix (D59, amended), at the floor rung rather than a second
-  axis: this machine runs the whole suite on Windows at Node 26 many times a day, so what CI adds
-  is Windows on an older Node, with exactly one variable between it and the Linux floor job. It
-  also turns the `eol=lf` pins on `generated.ts` and the committed schema from a comment that
-  asserts something into a thing a run proves, because a CRLF checkout is precisely what that row
-  gets. The scaffolder's template stays on one platform: the argument for this row is about this
-  machine and does not transfer to an author's.
-- 2026-09-20: `.github/dependabot.yml` for the `github-actions` ecosystem (D59), one grouped pull
-  request a week, arriving checked because CI runs on `pull_request`. It is the answer to a `v4`
-  that was six months behind upstream the day it was written here, and was found by somebody
-  reading a warning. Two gaps it does not close, both written down rather than left to be
-  discovered: the template's own workflows are not at the repository root and so are not watched,
-  and enabling version updates is a repository setting rather than a file.
-- 2026-09-20: `CHANGELOG.md`, `pnpm release` and `pnpm release:check` (D60) — entries written
-  as the change lands, one command to cut a version across every manifest, and a release that
-  refuses a version the changelog does not describe. D61 records why moving `next` cannot be CI's
-  job: npm's OIDC exchange authenticates `publish` and `stage publish` and nothing else, and
-  `otplease` needs a TTY, so the retag belongs to `release:finish` beside the approval.
-- 2026-09-20: Phase 4b closes. A release is `pnpm release <increment>` and `pnpm release:finish`,
-  with a pushed tag between them (D60) and both dist-tags derived rather than chosen (D61). The
-  derivation is tier 1 in `scripts/lib/tags.test.mjs`, which is where the two silent failures live:
-  a maintenance release staged to `latest` is a downgrade for everybody, and a `next` left behind
-  strands whoever follows it.
-- 2026-09-20: [ci.md](ci.md)'s review lands in full, and what is left there is deferred rather
-  than outstanding. The dispatch dry run was broken and passing by luck — a dry run checks a tree
-  whose version is already published, which the derivation refuses, and only `next` lagging
-  `latest` by one version kept that quiet — so the workflow now tells `release:check` whether the
-  run will stage, gets the placeholder `dry-run` back when it will not, and the Stage step refuses
-  that tag by name. `release:finish` repeats end to end: approval is decided three ways per
-  package from `versions`, and `next` moves one package at a time, each caught and named. A lapsed
-  npm session fails before the tag is pushed. CI runs on a `<major>.x` branch and a dispatch may
-  come from one. D62's invariant is restated around the preview window that made it false, with
-  *one preview line at a time* as the constraint the wider naming now makes it possible to
-  violate. [releasing.md](releasing.md) gains what the machine needs, the three runbooks — steady
-  state, a preview line and its promotion, two lines at once — and no longer contradicts D61.
-- 2026-09-21: `1.0.0-alpha.4` published to `latest`, the first release driven end to end. Five
-  things the pipeline asserted turned out false the moment it ran: the cut left `CORE_VERSION`
-  behind, approval refused unless HEAD was the tagged commit, `pnpm stage approve` cannot do a
-  security key any more than `pnpm dist-tag` can, and the `next` retag cost four authentications a
-  release to keep one pointer agreeing with another (D61 amended — `next` is unset until a stable
-  line exists). `1.0.0-alpha.3` was burned by a red run and folded back; the cut now runs lint,
-  typecheck, build and test before it spends a version. Treat any part of this pipeline that has not
-  actually been run as a defect rather than a gap.
-- 2026-09-21: Phase 6 closes on a clean live read of both surfaces on 2.1.278. It found a third
-  thing first: the session list had been sweeping the transcript once per React commit — 27,000
-  times in one run — for rows whose anchor is measured as editor and sidebar, so
-  `decorateTranscript` now registers nothing where there are no rows to find. The two numbers the
-  plan had been holding are read and settled, and `replaced` at zero does **not** retire
-  `replaceLost`: it is the absence of the trigger, not of the need, and the rule that said otherwise
-  was wrong.
-- 2026-09-21: 2.1.278 landed mid-session, eight versions on from 2.1.270, and every plugin survived
-  it untouched: react anchors, messages, replies and payload fields all 100% kept, classes 99.4%
-  (six gone, all but one from the same usage-popup module, and the exception carries a successor).
-  Snapshotted to the corpus and `generated.ts` regenerated. The first unplanned extension update
-  Rigline has seen, and it cost a codegen and a reload.
-- 2026-09-20: Phase 6's first live read found two mistakes, which is the phase justifying itself on
-  the day it was built (D67, D68). A check with no "not yet" state flashed red at boot; the split is
-  by who can answer, so the host's watches check waits and a plugin's says `n/a` until it is handed
-  something. session-id claimed all three surfaces for a composer-footer badge, and the host was
-  ignoring the `surfaces` its own anchor table has recorded since it was written.
-- 2026-09-20: Phase 6 built. A check is contributed rather than written into the probe (D63 to D66):
-  nine lines from the kernel, nine from the capability modules, six left in the probe, and
-  `ctx.check` for everybody else. Pulled rather than pushed, so a verdict cannot go stale; a
-  throwing check fails its own line and leaves its plugin loaded. The three first-party plugins went
-  through the plugin-facing API rather than a privileged one, which is what tested it, and each
-  turned out to have a failure that was silent — time-marks most completely, since it can be loaded,
-  toggled on and decorating nothing while every other line says it is fine. Live read outstanding.
-- 2026-09-21: M7 phase 7a built. `@rigline/core` ships `dist/bundled` — the payload and the four
-  first-party plugins, copied by a workspace step and resolved by walking up to core's own
-  `package.json`, which is the one rule that answers correctly under vitest's alias, in `dist` and in
-  `node_modules`. Discovery gained the bundled root and records an override rather than logging a
-  collision; `disable` and `enable` switch a bundled plugin off and on; `list` gained a version
-  column; `registry.js` carries the engine that wrote it, read by `doctor`, `check` and the probe;
-  rolldown became a lazy import and a devDependency, with the scaffold declaring its own. Tier 4
-  packs the three tarballs, installs them offline into a clean prefix and runs `install` out of it —
-  the thing that had never been done, and the reason this was broken for two releases. 789 tests
-  green. Released as `1.0.0-alpha.5`.
-- 2026-09-21: **M7 phase 7a done, on the read rather than on the run.** `npm i -g rigline` on a
-  machine with no checkout injected 2.1.269 and 2.1.278, applied worktree-prefix's host patch,
-  resolved 27 of 27 anchors on each, and baked all four plugins. The `RIG` badge is green on both
-  surfaces: four loaded on the editor, three `inactive` and probe loaded on the session list (D68),
-  no host errors, and the session-id pill and time marks visible. The payload stamp reads
-  `engine 1.0.0-alpha.5` (D75), which is what makes this a reading rather than an impression — the
-  badge alone cannot say whether the payload is the one the installed engine would write.
-- 2026-09-21: M7 phase 7b steps 1 and 2. The command surface and the `rigline-engine` bin are
-  core's; the registry client, the tarball reader, `add`'s remote half and `update` are the
-  wrapper's. There is one `add`, in the engine, taking a path — a published plugin reaches it as a
-  staging directory the wrapper vetted (D70). `add --source` refuses a kind it cannot read back
-  where `readConfig` skips one (D74), and `list --json` is how the wrapper will learn what `update`
-  can move without reading `config.json`. Each published package now empties its own `dist` before
-  `tsc` refills it, after a module cut a week earlier was found still compiled there. 798 green.
-- 2026-09-21: M7 phase 7b step 3: **the wrapper and the engine are separate processes.** `rigline`
-  declares no Rigline package, installs `@rigline/core` into `<RIGLINE_HOME>/engine` with npm and
-  spawns its bin, answering only `--version` itself (D69, D70, D73, D74). This repository's own
-  scripts moved in the same step, onto `@rigline/core` and `rigline-engine`, because `pnpm build`
-  runs `rigline build` in four packages and there is no green tree between the halves. Two things
-  the work decided that the plan had left open: the release-age gate is `update`'s and not a first
-  run's, since a machine with no engine has nothing to stay on; and an `update` that moves only the
-  engine now re-injects, which nothing else would have done. Tier 4 became the two prefixes a user
-  actually has, installing the engine through `engineInstallArgv`, the wrapper's own npm
-  construction, rather than a copy of it. 818 green.
-- 2026-09-21: M7 phase 7b step 4, the template, which takes the two changes this repository just
-  took and is checked by generating one: scaffold, install against locally packed tarballs,
-  codegen, build, typecheck, test, all green, with `rigline-engine build` resolving rolldown from
-  the scaffold's own `node_modules` — the thing the split made non-obvious and nothing else asks.
-  A guard now holds the acceptance criterion directly: no manifest in the tree or in a generated
-  scaffold declares `rigline`, which otherwise fails slowly from inside pnpm with an error about a
-  version rather than about the mistake. The run also found that a scaffold cannot install the
-  release that produced it for a day; carried above rather than fixed.
-- 2026-09-21: M7 phase 7b step 5, the docs, and with it the milestone. Both package READMEs now say
-  what their package is — `rigline` a retrieval layer with the engine install spelled out, core the
-  engine with its bin and the scripts a plugin workspace runs — and the authoring guide, the two
-  scaffolder READMEs, the package tables, the state sections and CONTRIBUTING follow. releasing.md
-  gained the one thing the split takes away: `pnpm stage approve`'s dependency-order skip protects
-  every package whose dependency did not make it, and the wrapper no longer has one, so the pair is
-  checked by eye.
-- 2026-09-21: `1.0.0-alpha.6` published to `latest` — the split, the template, the docs, all four
-  packages staged over OIDC with no `Skipped OIDC` in the log. Two things the run taught, both
-  about the half that is a person's. `pnpm stage approve` with no arguments now exits
-  `ERR_PNPM_STAGE_ID_REQUIRED` rather than asking for a second factor, so `release:finish` was
-  failing on an argument error wearing the costume of the 2FA wall; it reads the ids from `npm
-  stage list --json` and passes them, which gets as far as the wall the message describes. And
-  pnpm's staging output *does* carry stage ids now, retiring a claim this file, releasing.md and
-  the summary script all made — the summary still prints none, deliberately, because what it says
-  works whether or not one exists.
-- 2026-09-21: The first `rigline update` on a fresh machine, minutes after `alpha.6` went out,
-  refused the engine as too young and installed it anyway — and skipped the re-injection, because
-  the decision to re-inject reads the outcome the refusal had already written. The rule was right
-  and applied in one of the two places that needed it: the gate is about staying on what you have,
-  so `updateEngine` now skips it when nothing is installed, as `ensureEngine` always did. The
-  result type says which outcomes carry which versions, so `staying on undefined` is a shape the
-  compiler refuses rather than a string somebody has to notice.
-- 2026-09-21: The three carried items closed. A scaffolded workspace could not install the release
-  that scaffolded it, because pnpm's walk-back needs an older version *in range* and a derived
-  caret's floor is the newest one — so the exclusion is by version, narrow enough that widening the
-  gate to reject everything still refuses 62 third-party packages and no Rigline one. The harness's
-  reply table moved into TypeScript and gained a check that pairs each reply to its request the way
-  the harvest does; it failed on the entry it was built for. And `hostBackupIsCurrent` keeps its
-  size comparison: every extension version has its own directory carrying its own backup, so the
-  fault needs a same-version rebuild at an identical size, while the fix needs the injector's one
-  "is this current" answer split in two before it stops baking unrecognised bytes into the backup.
-- 2026-09-21: Phase 5's gate answered, and the phase promoted to milestone 8. There is no Marketplace policy against an extension patching another extension: the trust model is publisher-based, and `subframe7536.custom-ui-style` advertises exactly this to a hundred thousand installs. The live constraint is Anthropic's, it lands on the harvest rather than the injection, and the response is [anthropic-compliance.md](anthropic-compliance.md) published from the top of the README with a standing invitation (D76, D77, D78). [plugin-policy.md](plugin-policy.md) followed, splitting what the architecture makes impossible from what is asked of an author and saying outright that nobody is checking, because policing behaviour the boundary permits is whack-a-mole against people who can obfuscate (D79). `rigline add` now says the choice is the user's. [m8-companion.md](m8-companion.md) is the working doc; 8a is next.
-- 2026-09-21: **`1.0.0-alpha.8` published**, carrying 8a: the companion extension, `rigline vscode-setup`, the home lock, and `install` refusing an unfinished extension directory. Read end to end from npm on a machine with no Rigline — the engine installs, the verb is reached through the wrapper's empty verb list (D69), the bundled VSIX installs and `--remove` undoes it. `1.0.0-alpha.7` was spent on the way: green on Windows, failed on Linux in the run its own tag triggered, because two test files hardcoded `;` and `C:\`. The fix is in the gate rather than the tests — `pnpm release` now refuses to cut from a commit CI has failed on, and a Linux checkout lives at `~/rigline-linux` in WSL for the fast loop.
-- 2026-09-22: **8a done, `1.0.0-alpha.9` published and read live on a laptop with Claude Code.** The live read found three bugs nothing else could: `vscode-setup` had never worked on Windows at all, because Node refuses to spawn `code.cmd` since the BatBadBut fix and every test injects `run`; the built bundle had never been loaded by anything, which `test/activates.test.ts` now does; and a companion installed before Claude Code went green over an `install` that exits 0 having done nothing. All three are one shape — the artefact was never exercised, only its source. One Windows laptop at alpha.8 had the extension installed and inert with no explanation; [m8-companion.md](m8-companion.md) records what was ruled out and the two candidates left.
-- 2026-09-23: `Health` gains `ready` (D85). A background patch of a newly arrived version used to
-  land back on the same `ok` as steady state, so nothing said whether it was safe yet to accept VS
-  Code's own restart prompt; accepting it too early is how the gap was found, landing on 8b's offer.
-  A removal is no longer reacted to at all: it changes no answer the status gives and does no work.
-- 2026-09-23: **`1.0.0-alpha.10` published**, carrying 8b, 8c and D85, cut from a commit CI was
-  green on and staged by trusted automation for all four packages. Approved on the website, as
-  every release so far has been. Neither 8c's command nor `ready` has been read live yet.
+- 2026-09-13: Phase 0: archive, plan and decisions, the corpus, the workspace.
+- 2026-09-13: Phase 1: the five identifier layers and codegen, harvested from 2.1.270.
+- 2026-09-14: Phase 2: injector, host kernel and probe; superseded payload directories are deleted.
+- 2026-09-14: Distribution is npm with a CI publish pipeline (D46 to D50).
+- 2026-09-14: Phase 3: the plugins, the build preset, the install flow and the CLI.
+- 2026-09-14: Mounts re-placed on the React commit signal, by position rather than presence (D52).
+- 2026-09-14: Anchor ambiguity: `kind` split three ways, and anchors resolve to selectors (D7).
+- 2026-09-14: Observability: rates, peaks, and a ring that survives the window (D53).
+- 2026-09-14: The composer-footer damper, and footer decorations on `footerSpacer` (D54).
+- 2026-09-15: `install` is the one write command and `check` its read-only half (D55).
+- 2026-09-18: `rigline list`, and `doctor` cut back to Rigline's own install state (D53).
+- 2026-09-18: The template and the authoring guide (D50).
+- 2026-09-18: `add` from a path and from npm, `remove` and `update`, over our own tar reader (D56 to
+  D58).
+- 2026-09-18: The local anchor override, `~/.rigline/anchors.json` (D44).
+- 2026-09-19: The six topic docs, and the code brought into line with them.
+- 2026-09-19: Line endings left to git (D37).
+- 2026-09-19: The release workflow on `Rigline/Rigline`, and all four packages bootstrapped to npm.
+- 2026-09-19: `1.0.0-alpha.1` through the pipeline, attested; phase 4 done.
+- 2026-09-20: `1.0.0-alpha.2` to `latest`, and the published scaffold driven end to end.
+- 2026-09-20: CI on every push and pull request, over three Node rungs and a Windows row (D59).
+- 2026-09-20: The template ships CI (D50), and Dependabot watches the action pins (D59).
+- 2026-09-20: `CHANGELOG.md`, `pnpm release` and `release:finish` (D60, D61); phase 4b done.
+- 2026-09-20: Phase 6 built, and its first live read fixed two checks (D63 to D68).
+- 2026-09-21: `1.0.0-alpha.4`, the first release driven end to end (D61).
+- 2026-09-21: Phase 6 done, on a live read of both surfaces.
+- 2026-09-21: 2.1.278 snapshotted and `generated.ts` regenerated; every plugin survived it.
+- 2026-09-21: 7a: core ships the payload and the plugins, and tier 4 installs the tarballs;
+  `1.0.0-alpha.5`, read live.
+- 2026-09-21: 7b: the wrapper and the engine are separate processes (D69, D70, D73, D74);
+  `1.0.0-alpha.6`.
+- 2026-09-21: `update` applies the age gate only when an engine is installed.
+- 2026-09-21: The scaffold's release-age exclusion (D50), the reply-table check, and the
+  `hostBackupIsCurrent` decline (D86).
+- 2026-09-21: Phase 5 promoted to milestone 8; compliance position and plugin policy published (D76
+  to D79).
+- 2026-09-21: `1.0.0-alpha.8`: 8a, `vscode-setup`, the home lock, and `install` refusing an
+  unfinished directory (D80, D81, D83). Releases cut from green CI after `alpha.7` was spent.
+- 2026-09-22: `1.0.0-alpha.9`, and 8a read live on a laptop.
+- 2026-09-22: 8b: the reload offer, and the directory scan that replaced `extensionUri` (D76, D82).
+- 2026-09-22: 8c settled read-only and built (D84).
+- 2026-09-23: `ready` (D85).
+- 2026-09-23: `1.0.0-alpha.10`: 8b, 8c and `ready`.
+- 2026-09-23: Milestones 7 and 8 condensed into history docs, with the companion's reference in
+  companion.md.

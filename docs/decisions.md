@@ -1318,15 +1318,15 @@ poll cycles produced no reaction at all. Scanning the extensions directory is wh
 reacting while the old extension is still live; `extensionUri` keeps the narrower job of telling the
 reload decision what *this window* loaded (D82).
 
-**Amended 2026-09-22 — the loop does not close without a keystroke, which is not the compromise it
-first looked like.** The premise that patching lands on disk while the old extension is still live,
-so the reload the user was going to do anyway arrives already patched, does not hold: the window
-that would need to notice is the one whose host is frozen, so nothing puts the patch there in time.
-The reload offer is therefore not the rare case — it is the weekly recovery mechanism, every time,
-decided from the bytes rather than the exit code (D82). `workbench.action.webview.reloadWebviewAction`
-is a real registered command the companion can offer, for a payload-only change; a host patch asks
-for a window reload instead. Offer, never take: reloading webviews ends the in-flight turn of every
-Claude session in the window, which is not a thing to do to somebody unasked.
+**Amended 2026-09-22 — the offer is for a window that restarted first.** With the directory scan,
+the patch lands on disk while the old extension is still live, and the next reload comes up patched
+in silence, which 8b read live on a real replacement. The reload offer covers the other case: a host
+that came up over a directory not yet patched, usually because VS Code's own restart prompt was
+accepted before the companion finished (D85). It is decided from the bytes rather than the exit code
+(D82). `workbench.action.webview.reloadWebviewAction` is a real registered command the companion can
+offer for a payload-only change; a host patch asks for a window reload instead. Offer, never take:
+reloading webviews ends the in-flight turn of every Claude session in the window, which is not a
+thing to do to somebody unasked.
 
 **D77. Rigline states its compliance position publicly and invites Anthropic to correct it
 (2026-09-21).** The Claude Code extension is `© Anthropic PBC. All rights reserved.`, and three
@@ -1434,8 +1434,8 @@ is always installed is the easier thing to develop against, and each convenience
 invisible until somebody who declined it asks why a document describes a Rigline they do not have. A
 locked-down machine cannot install an extension at all, and that user is not a lesser case.
 
-Two costs, both recorded in [m8-companion.md](m8-companion.md) rather than here because they are
-design work rather than settled rules. **There is no npm beside the extension host**: `process
+Two costs, whose mechanics are in [companion.md](companion.md). **There is no npm beside the
+extension host**: `process
 .execPath` is VS Code's Electron binary, so `findNpmCli` finds nothing. D73's rule survives —
 npm must belong to the Node that runs it — and only the starting point moves: resolve `node` first,
 then take the npm beside *that*. `ELECTRON_RUN_AS_NODE` supplies an interpreter, not an npm, and does
