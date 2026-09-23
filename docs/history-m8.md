@@ -42,10 +42,11 @@ stayed silent.
 
 **8c**: *Rigline: Show Plugins*, read-only, settled with Leo (D84). Enable, disable and settings in
 the extension were declined: a second place plugin state could be read from is a synchronisation
-problem with no owner.
+problem with no owner. Read live on 2026-09-23.
 
 **`ready`** (D85): a patched arrival used to land back on the same `ok` as steady state, so nothing
 said whether it was safe yet to accept VS Code's restart prompt. Found by accepting it too early.
+Its live read waits for the next Claude Code update ([plan.md](plan.md)).
 
 ## What the live reads found that no test could
 

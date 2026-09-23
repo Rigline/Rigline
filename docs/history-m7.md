@@ -1,7 +1,7 @@
 # Milestone 7: distribution
 
 Archaeology for the milestone that made an installed Rigline work. Built 2026-09-21: 7a shipped in
-`1.0.0-alpha.5`, and 7b in `1.0.0-alpha.6`. The argument is D69 to D75 in
+`1.0.0-alpha.5`, and 7b in `1.0.0-alpha.6`. Closed 2026-09-23 on its last live read. The argument is D69 to D75 in
 [decisions.md](decisions.md); the reference is [architecture.md](architecture.md) for the packages,
 the update pipeline and where state lives, and [verification.md](verification.md) for tier 4.
 Nothing here is load-bearing.
@@ -60,9 +60,10 @@ the outcome the refusal had written. The gate is about staying on what you have,
 only when an engine is installed. The result type says which outcomes carry which versions, so
 "staying on undefined" is a shape the compiler refuses.
 
-## Left open
+## The last read
 
-Whether a *published* older engine upgrades cleanly under `rigline update`. The check needed two
-published versions carrying `rigline-engine`, and `alpha.5` had no `bin`. Cutting a throwaway version
-to be the older half was offered and declined, so it was carried as unrun. Every release from
-`alpha.6` on makes it possible, and [plan.md](plan.md)'s Next session holds it.
+Whether a *published* older engine upgrades cleanly under `rigline update`. It needed two published
+versions carrying `rigline-engine`, and `alpha.5` had no `bin`. Cutting a throwaway version to be the
+older half was declined, so the check was carried as unrun for four releases. On 2026-09-23 the
+engine the companion had installed was `alpha.8`, and one `rigline update --now` moved it to
+`alpha.10` and re-injected every installed version.

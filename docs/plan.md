@@ -1,9 +1,10 @@
 # Rigline 1.0 plan
 
 The working document: what is being built, in what order, and where it stands. Durable rules live
-in [decisions.md](decisions.md); this file is about getting to 1.0. Phases 0 to 4b and 6 are done,
-and milestones 7 and 8 are built with three live reads owed, in **Next session**. Delivery has its
-own document, [ci.md](ci.md) — the branching rule, the release commands and the two workflows.
+in [decisions.md](decisions.md); this file is about getting to 1.0. Phases 0 to 4b and 6 and
+milestone 7 are done, and milestone 8 is built with one live read owed, in **Next session**.
+Delivery has its own document, [ci.md](ci.md) — the branching rule, the release commands and the
+two workflows.
 
 ## What Rigline is
 
@@ -283,17 +284,17 @@ under `core`, and each plugin through `ctx.check` (D63 to D68). Read live on 2.1
 [history-m6.md](history-m6.md) is the archaeology; [host.md](host.md),
 [verification.md](verification.md) and [authoring.md](authoring.md) are the reference.
 
-## Milestone 7: distribution — built 2026-09-21
+## Milestone 7: distribution — done 2026-09-23
 
 `rigline` became a retrieval layer over the `@rigline/core` engine, and the payload and the four
 first-party plugins ship inside core (D69 to D75). [history-m7.md](history-m7.md) is the
-archaeology and [architecture.md](architecture.md) the reference. One live read is owed.
+archaeology and [architecture.md](architecture.md) the reference.
 
 ## Milestone 8: the companion extension — built 2026-09-23
 
 A VS Code extension that notices a Claude Code update and re-injects, acquiring and running the
 engine rather than embedding it (D76 to D85). [history-m8.md](history-m8.md) is the archaeology and
-[companion.md](companion.md) the reference. Two live reads are owed.
+[companion.md](companion.md) the reference. One live read is owed.
 
 ## Open questions, not blocking
 
@@ -330,26 +331,16 @@ engine rather than embedding it (D76 to D85). [history-m8.md](history-m8.md) is 
 
 ## Next session
 
-`1.0.0-alpha.10` is the newest on `latest`. Milestones 7 and 8 are built, and three live reads are
-left, each the acceptance of something already shipped. Take them in this order: the companion
-moves the engine on every window reload, which would spend the older engine read 1 needs.
+`1.0.0-alpha.10` is the newest on `latest`. One live read is left, and it is milestone 8's last:
 
-1. **`rigline update` off an older engine**, which milestone 7 owes. It needs the published wrapper
-   (`npm i -g rigline`) and an engine behind the newest release, which `rigline --version` names.
-   If the engine is current, put one back by hand — `npm install --prefix ~/.rigline/engine
-   --save-exact --ignore-scripts @rigline/core@1.0.0-alpha.9` — and run `rigline install`, so every
-   payload carries the older stamp. Then `rigline update` should report the engine moving and
-   re-inject, and `rigline doctor` should name the new engine on every version (D75). A release
-   under a day old is withheld and named (D48); `--now` takes it anyway.
-2. **8c's *Rigline: Show Plugins*.** Reload the window and run it from the Command Palette. The
-   **Rigline** output channel should show the listing `rigline list` gives, and nothing about
-   fetching an engine.
-3. **`ready` (D85).** A Claude Code version arriving under a running window should take the status
-   item to *Rigline: ready to restart*, where it stays until a restart. The next real update is the
-   read; to force one, [companion.md](companion.md)'s *Reading it live* has the recipe.
+**`ready` (D85), on the next Claude Code update.** When the new version lands under a running
+window, the status item should go to *Rigline: ready to restart* and stay there until a restart.
+Check the output channel for the `installed:` line first, which is what says the update actually
+arrived. If you would rather not wait, [companion.md](companion.md)'s *Reading it live* has the
+recipe for forcing one. When it reads clean, milestone 8 is done.
 
-Log each as it reads clean. When read 1 does, close the *Left open* section of
-[history-m7.md](history-m7.md).
+Nothing else is scheduled. This plan does not yet say what 1.0 needs beyond the milestones it has
+closed.
 
 ## Status log
 
@@ -403,3 +394,6 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   companion.md.
 - 2026-09-23: 2.1.280 snapshotted, `generated.ts` regenerated and the harness moved to it; two
   classes gone, neither ours.
+- 2026-09-23: `rigline update` moved a published `alpha.8` engine to `alpha.10` and re-injected;
+  milestone 7 done.
+- 2026-09-23: 8c's *Rigline: Show Plugins* read live.
