@@ -117,7 +117,9 @@ Four pieces:
   branch into something a rewrite test can observe. `test/page.test.ts` holds each key to a real
   message type and each reply to the one the harvest pairs with its request, reading the committed
   `generated.ts`, so it runs without corpus or browser and is exact only while that file and
-  `HARNESS_VERSION` are the same extension.
+  `HARNESS_VERSION` are the same extension. Nothing it sends makes the app post
+  `update_session_state`, so `ctx.onSessionId` reports `null` throughout, and behaviour that needs a
+  session id — session-id's click-to-copy — is not covered at this tier.
 - **`preparePayload`** writes exactly what a real injector would leave on disk: `pre.js` and
   `post.js` copied from `@rigline/core`'s `dist/bundled`, `generated.js` harvested fresh from the
   corpus version, a `registry.js` baking whichever fixture plugins the test wants, and each plugin's
