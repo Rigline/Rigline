@@ -57,11 +57,12 @@ pnpm workspace, TypeScript throughout, every package a real package with its own
 
 | path | package | what it is |
 | --- | --- | --- |
-| `packages/core` | `@rigline/core` | Node library: locate installed extensions, harvest identifier layers, generate types and runtime tables, inject and restore, discover plugins and bake the registry, run the install flow, watch for updates, hold the curated anchor table. Ships `dist/bundled` — the payload and the four first-party plugins (D71) — so it is what a published install injects from. The CLI and a future companion extension both consume it. |
+| `packages/core` | `@rigline/core` | Node library: locate installed extensions, harvest identifier layers, generate types and runtime tables, inject and restore, discover plugins and bake the registry, run the install flow, watch for updates, hold the curated anchor table. Ships `dist/bundled` — the payload and the four first-party plugins (D71) — so it is what a published install injects from. The CLI and the companion both run it as a child process (D69, D80). |
 | `packages/cli` | `rigline` | The retrieval layer (D69): installs `@rigline/core` under `<RIGLINE_HOME>/engine`, spawns its `rigline-engine` bin, and forwards every verb but the two that are about acquiring bytes — `update` and the remote half of `add`. Answers `--version` itself. Depends on no Rigline package, and belongs in no project's dependencies. |
 | `packages/host` | `@rigline/host` (private) | The injected runtime: `pre.js` (bus tap, buffer, rewrite chain, React devtools hook, meters) and `post.js` (kernel plus capability modules). Built to exactly two files. |
 | `packages/plugin-api` | `@rigline/plugin-api` | What a plugin is written against: `PluginContext`, the manifest type and JSON schema, `definePlugin`, the anchor names, and the pure helpers shared by host and core (capability contracts, session rule, stream shape, transcript derivations). |
 | `packages/create-plugin` | `create-rigline-plugin` | The scaffold: `template/` as real files, copied and substituted. Published, and the only package here whose payload is not code. |
+| `packages/vscode` | `@rigline/vscode` (private) | The companion extension (D80): a second retrieval layer that acquires the engine, watches for an extension update and spawns the engine to re-inject. Built to `rigline.vsix`, which ships in core's `dist/bundled`. |
 | `packages/harness` | (private) | The Playwright tier: boots the real webview bundle from the corpus with a faked `acquireVsCodeApi` and a replayed bus. |
 | `plugins/session-id` | first-party plugin | Session id and inter-agent messaging address in the composer footer. |
 | `plugins/worktree-prefix` | first-party plugin | Worktree prefix on the session tab label; declares the worktree-list host patch. |
@@ -192,13 +193,15 @@ the harvest reduced to its layer views, which is the baseline the install flow d
 A user's machine keeps its own state under `~/.rigline/`: `config.json` (enabled plugins,
 per-plugin settings, and the source each installed plugin came from — the engine's to write, D74),
 `plugins/` (installed third-party plugins), `anchors.json` (local overrides and additions to the
-curated anchor table), `baseline.json` (the last harvest), and `engine/`, the npm prefix `rigline`
-installs `@rigline/core` into (D73). A clone of this repo is for developing Rigline, not for using
+curated anchor table), `baseline.json` (the last harvest), `engine/`, the npm prefix `rigline`
+installs `@rigline/core` into (D73), and `.lock`, held while an engine installs so the CLI and the
+companion cannot install over each other. A clone of this repo is for developing Rigline, not for using
 it.
 
 ### Distribution
 
-`@rigline/core`, `@rigline/plugin-api` and the `rigline` CLI are published to npm; plugins are npm
+`@rigline/core`, `@rigline/plugin-api`, the `rigline` CLI and `create-rigline-plugin` are published
+to npm; plugins are npm
 packages carrying a `rigline.json` and a built entry, installed with `rigline add <spec>`, or a
 local directory during development. The version-specific half (identifier tables, registry, resolved
 anchors) is derived on the installing machine from the bundle in front of it, so there is no version
@@ -259,80 +262,13 @@ composer-footer damper (D54), and observability (D53).
 
 ### Phase 4: the community layer — done 2026-09-19
 
-In order.
-
-1. **`~/.rigline/anchors.json`, the local anchor override** (D44, amended) — done 2026-09-18.
-   Merged over the shipped table, reaching the `generated.js` the loader reads, and named per
-   version at install with what that version makes of it. [anchors.md](anchors.md) is its
-   reference, written for a user rather than for us. It came first because it had to be there
-   before anybody else installed a plugin, and that condition is now met.
-2. **`rigline add` from a path, and `remove`** — done 2026-09-18. No network, and what makes
-   `~/.rigline/plugins/` a managed directory rather than one people copy into. `add` is where
-   `describeUses` says what arrived, at the moment it means something.
-
-   `add <path>` validates the manifest as data against its own `name` rather than the source
-   directory's, copies the directory through the same output filter the installer uses, records a
-   source (D49), prints what the plugin can do and any host patch it declares, and re-injects so
-   one reload has it in the panel. `remove <name>` is its inverse and refuses anything that is not
-   in `~/.rigline/plugins/`. `config.json` grows `sources`, written back without losing keys
-   nothing here knows about, and `list` says which plugins have no source record and so cannot be
-   upgraded. Neither command runs a package manager or evaluates a plugin (D47, D12).
-3. **`rigline add` from npm, and `rigline update`** (D47, D48, D49) — done 2026-09-18. The tarball
-   fetch and integrity check, the minimum release age with `--now` and a report naming what was withheld and why, and
-   the source record with its kind discriminator. D47's premise already holds: `rigline build`
-   bundles everything the entry imports, `@rigline/plugin-api` included, so a published plugin has
-   no runtime dependency to install and the template must keep plugin-api a *devDependency* as the
-   first-party plugins do.
-
-   Four pieces. A tar reader that refuses rather than reproduces (D57). A registry client: fetch a
-   packument, pick a version by dist-tag and publish time, fetch and integrity-check the tarball —
-   with the fetch injectable, because no test here touches the network. `add <name>` in front of
-   what `add <path>` already does, and `update` over the recorded sources. Exact versions and tags
-   only, no ranges (D58).
-4. **The authoring guide and the `create-rigline-plugin` template** (D50) — done 2026-09-18.
-   [authoring.md](authoring.md) is the guide. A pnpm workspace with
-   `plugins/*`, one member scaffolded, `rigline codegen --out` run once at the root, and the
-   manifest JSON schema from plugin-api. One ordering dependency, proved when D40 landed: module
-   augmentation is per-program, so each plugin's tsconfig must pull the shared root harvest in,
-   which a shared base config does.
-
-   The template is real files under `packages/create-plugin/template/`, copied and substituted
-   rather than rendered from strings, so it stays readable and reviewable; the scaffold writes a
-   placeholder `generated.ts` so a fresh clone typechecks before `codegen` has ever run, which is
-   D40's own promise made true at the one moment it is easiest to break. It ships without the
-   publish workflow: D50 has the template carry it, and item 6 is where it is proven before it is
-   handed to anybody.
-5. **Topic docs** — done 2026-09-19. [anchors.md](anchors.md) covers the anchor half of surviving
-   an update and [authoring.md](authoring.md) covers publishing a plugin, so what is left is the
-   internals a contributor to Rigline itself reads. Six, on [host.md](host.md)'s model — the shape,
-   not the argument, with the argument in [decisions.md](decisions.md):
-   [architecture.md](architecture.md) (the map: what runs where, the seams, the two pipelines),
-   [identifiers.md](identifiers.md) (the layer contract, the five layers, views, codegen, adding
-   one), [bus.md](bus.md) (the protocol, the single egress, the tap, the rewrite chain, the derived
-   services), [patches.md](patches.md) (the second bundle and why it is a different kind of change),
-   [transcript.md](transcript.md) (the three-way join and the sweep), and
-   [verification.md](verification.md) (the three tiers and what belongs in each).
-6. **Our own release pipeline** (D46) — done 2026-09-19.
-   `.github/workflows/release.yml` stages the four publishable packages from
-   `main` over OIDC, with provenance and a dist-tag chosen per run, and a summary step naming what
-   is waiting and the command that approves it, because nothing notifies a maintainer. Proven on a real release: `1.0.0-alpha.1` went out through it, all four
-   attested. [releasing.md](releasing.md) is the runbook.
-
-   `1.0.0-alpha.2` then went out to `latest`, which is how the tag stranded on `alpha.0` by the
-   bootstrap publish was corrected — by publishing to it rather than moving it, since `pnpm
-   dist-tag` accepts only a typed one-time password and this account's second factor is a security
-   key. `next` sits one version behind as a result, which costs nothing and corrects itself at the
-   next release.
-
-7. **The template carries the publish workflow** (D50) — the last of phase 4, unblocked now the
-   path is proven. An author should get the good path by generating a repository rather than by
-   reading a guide. Its workflow is ours with the workspace-specific parts taken out: no lint step,
-   since the template ships no linter, and the summary inline rather than a script, since a
-   single-plugin repo stages one package and a second file to maintain earns less than it costs.
-
-   One thing to check rather than assume: npm renames `.gitignore` inside a published tarball,
-   which is why the template ships it undotted, and whether the same happens to `.github/` decides
-   whether the scaffolder needs the same trick a second time.
+The local anchor override, `~/.rigline/anchors.json` (D44, [anchors.md](anchors.md)). `rigline add`
+from a path and from npm, `remove` and `update`: a tar reader of our own, exact versions only, and a
+source record per plugin (D47 to D49, D56 to D58). The authoring guide and the
+`create-rigline-plugin` template, carrying CI and the publish workflow (D50,
+[authoring.md](authoring.md)). The six topic docs, [architecture.md](architecture.md) and its five
+siblings. Our own release pipeline, first proven on `1.0.0-alpha.1` (D46,
+[releasing.md](releasing.md)).
 
 ### Phase 4b: the changelog, and the release pipeline — done 2026-09-20
 

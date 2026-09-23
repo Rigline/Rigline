@@ -46,6 +46,7 @@ each host patch is carried into `registry.js` rather than derived: nothing in a 
 | `packages/cli` | `rigline` | The retrieval layer (D69). It installs the engine under `~/.rigline/engine`, spawns it, owns `update` and the remote half of `add`, and forwards the rest. Depends on no Rigline package. |
 | `packages/host` | `@rigline/host` (private) | The injected runtime: `pre.js` and `post.js`. |
 | `packages/create-plugin` | `create-rigline-plugin` | The scaffold, as real files under `template/`. |
+| `packages/vscode` | `@rigline/vscode` (private) | The companion extension: a second retrieval layer that acquires the engine and spawns it when an extension update lands (D80). Built to `rigline.vsix`. |
 | `packages/harness` | (private) | Playwright over the real bundle. See [verification.md](verification.md). |
 | `plugins/*` | first-party plugins | `session-id`, `worktree-prefix`, `time-marks`, `probe`. |
 
@@ -53,8 +54,8 @@ each host patch is carried into `registry.js` rather than derived: nothing in a 
 plugin's `rigline.json` and built entry. `@rigline/host` is private and `plugins/*` are not
 published, so without this nothing a person installs holds the thing that gets injected — which is
 what `rigline install` threw `payload is missing pre.js` over. Core rather than the wrapper, because
-core is what injects and what discovers, and the phase 5 companion extension consumes core and will
-need the same assets (D31).
+core is what injects and what discovers. The companion's `rigline.vsix` ships there too, so
+`rigline vscode-setup` installs the companion the engine was built with and fetches nothing.
 
 The copy is a workspace step, `scripts/bundle-assets.mjs`, run by the root `build` after `pnpm -r
 build`: the plugins are built by `rigline-engine build`, which is core's own bin, so a build-order
@@ -180,7 +181,8 @@ and the `sources` record `update` reads — all of it the engine's to write, nev
 D74), `plugins/` (installed third-party plugins), `anchors.json` (local overrides and additions to
 the anchor table), `baseline.json` (the last harvest), and `engine/` (the npm prefix the wrapper
 installs `@rigline/core` into, D73 — the one directory here that `rm -rf` is the documented repair
-for). A clone of this repo is for developing Rigline, not for using it.
+for), and `.lock`, held while an engine installs so the CLI and the companion cannot install over
+each other. A clone of this repo is for developing Rigline, not for using it.
 
 **In the extension directory**, everything under `webview/rigline/` plus the two `.orig` backups.
 All of it is derived and all of it is disposable — except the backups, which are the only recovery
