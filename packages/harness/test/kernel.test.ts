@@ -377,6 +377,136 @@ export default { setup(ctx) { ctx.menu(() => { ${body} }); } };`,
       }
     }, 20000);
 
+    it("moves focus across two plugins' entries, drills in and out, and keeps Escape from the app", async () => {
+      const alpha: FixturePlugin = {
+        name: "alpha",
+        manifest: { uses: { menu: true } },
+        source: `import { jsx } from "react/jsx-runtime";
+import { MenuItem } from "@rigline/plugin-api/ui";
+export default { setup(ctx) {
+  ctx.menu(() => jsx(MenuItem, { label: "Alpha one", onSelect: () => { window.__chosen = "alpha"; } }));
+} };`,
+      };
+      const beta: FixturePlugin = {
+        name: "beta",
+        manifest: { uses: { menu: true } },
+        source: `import { jsx, jsxs } from "react/jsx-runtime";
+import { MenuItem, Submenu } from "@rigline/plugin-api/ui";
+export default { setup(ctx) {
+  ctx.menu(() => jsxs(Submenu, { label: "Beta sub", children: [
+    jsx(MenuItem, { label: "Inner one" }, "1"),
+    jsx(MenuItem, { label: "Inner two" }, "2"),
+  ] }));
+} };`,
+      };
+      const booted = await boot({ plugins: [alpha, beta] });
+      const { page } = booted;
+      const focused = (): Promise<string | null> =>
+        page.evaluate(() => {
+          const el = document.activeElement;
+          return el?.getAttribute("role") === "menu" ? "(menu)" : (el?.textContent ?? null);
+        });
+      try {
+        await page.waitForSelector(".rigline-pill");
+        await page.evaluate(() => {
+          const w = window as unknown as { __escapes: number };
+          w.__escapes = 0;
+          document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") w.__escapes += 1;
+          });
+        });
+
+        await page.focus(".rigline-pill");
+        await page.keyboard.press("Enter");
+        await page.waitForSelector(".rigline-menu");
+        expect(await focused()).toBe("Alpha one");
+        await page.keyboard.press("ArrowDown");
+        expect(await focused()).toContain("Beta sub");
+        await page.keyboard.press("ArrowDown");
+        expect(await focused()).toBe("Alpha one");
+        await page.keyboard.press("ArrowUp");
+        expect(await focused()).toContain("Beta sub");
+
+        await page.keyboard.press("ArrowRight");
+        expect(await focused()).toBe("Inner one");
+        expect(await page.isVisible("text=Alpha one")).toBe(false);
+        await page.keyboard.press("End");
+        expect(await focused()).toBe("Inner two");
+        await page.keyboard.press("ArrowLeft");
+        expect(await focused()).toContain("Beta sub");
+
+        await page.keyboard.press("Enter");
+        expect(await focused()).toBe("Inner one");
+        await page.keyboard.press("Escape");
+        expect(await focused()).toContain("Beta sub");
+        await page.keyboard.press("Escape");
+        await page.waitForSelector(".rigline-menu", { state: "detached" });
+        expect(await page.evaluate(() => document.activeElement?.className)).toContain(
+          "rigline-pill",
+        );
+        expect(
+          await page.evaluate(() => (window as unknown as { __escapes: number }).__escapes),
+        ).toBe(0);
+
+        // Opened with the pointer, nothing is highlighted until something moves.
+        await page.click(".rigline-pill");
+        await page.waitForSelector(".rigline-menu");
+        expect(await focused()).toBe("(menu)");
+        await page.click("text=Alpha one");
+        await page.waitForSelector(".rigline-menu", { state: "detached" });
+        expect(
+          await page.evaluate(() => (window as unknown as { __chosen?: string }).__chosen),
+        ).toBe("alpha");
+        expect(booted.consoleErrors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
+    it("keeps the menu open when onSelect prevents it, and disables a plugin whose handler throws", async () => {
+      const item = (name: string, label: string, body: string): FixturePlugin => ({
+        name,
+        manifest: { uses: { menu: true } },
+        source: `import { jsx } from "react/jsx-runtime";
+import { MenuItem } from "@rigline/plugin-api/ui";
+export default { setup(ctx) {
+  ctx.menu(() => jsx(MenuItem, { label: ${JSON.stringify(label)}, onSelect: (event) => { ${body} } }));
+} };`,
+      });
+      const booted = await boot({
+        plugins: [
+          item(
+            "keeper",
+            "Keep",
+            "event.preventDefault(); window.__kept = (window.__kept ?? 0) + 1;",
+          ),
+          item("faulty", "Explode", 'throw new Error("handler boom");'),
+        ],
+      });
+      const { page } = booted;
+      try {
+        await page.waitForSelector(".rigline-pill");
+        await page.click(".rigline-pill");
+        await page.click("text=Keep");
+        expect(await page.isVisible(".rigline-menu")).toBe(true);
+        expect(await page.evaluate(() => (window as unknown as { __kept?: number }).__kept)).toBe(
+          1,
+        );
+
+        await page.click("text=Explode");
+        await page.waitForSelector("text=Explode", { state: "detached" });
+        expect(await page.isVisible("text=Keep")).toBe(true);
+        const d = await booted.diagnostics();
+        const faulty = d.plugins.find((p) => p.name === "faulty");
+        expect(faulty?.status).toBe("error");
+        expect(faulty?.reason).toContain("handler boom");
+        expect(d.plugins.find((p) => p.name === "keeper")?.status).toBe("loaded");
+        expect(d.errors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
     it("degrades a plugin over a missing optional and refuses the one that required it", async () => {
       // The acceptance case for D41, at the DOM tier: one identifier gone from the tables the
       // loader reads, two plugins declaring it, and two different verdicts. Nothing about the

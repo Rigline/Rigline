@@ -17,6 +17,11 @@ anything may change between releases.
   `"menu": true` in `uses`. A component that throws disables only its own plugin. The pill still
   shows how many checks are failing, and the diagnostics that used to open from it are now in the
   menu.
+- **Menu components.** `MenuItem`, `Submenu` and `MenuNote` in `@rigline/plugin-api/ui` build a
+  menu entry that draws in the app's own colours. The menu works from the keyboard across every
+  plugin's entries: the arrows move, Enter or Right opens a submenu, Left or Escape goes back, and
+  Escape closes the menu without reaching the app. Each plugin's entries sit together, with a
+  divider between plugins.
 - Stores, for state a plugin keeps outside its components: `store(initial)` and
   `storeFrom(ctx.onSessionId, null)` in `@rigline/plugin-api`, and `useStore` to read one from React
   in `@rigline/plugin-api/ui`. A store made in `setup` catches what the panel replays from boot,
@@ -28,8 +33,8 @@ anything may change between releases.
   `@rigline/plugin-api/ui`. The panel now serves one copy of each — React 19 — that every plugin
   shares, and `rigline install` points a plugin's imports at it, so a plugin that bundled its own
   React should rebuild. `rigline build` also compiles JSX, and builds `src/index.tsx` when there is
-  no `src/index.ts`. `@rigline/plugin-api` lists React as an optional peer dependency, needed only
-  by a plugin that uses `/ui`.
+  no `src/index.ts`. `@rigline/plugin-api` lists React and React DOM as optional peer dependencies,
+  needed only by a plugin that uses `/ui`.
 - `rigline install` and `rigline check` now name a plugin that imports a package it did not bundle
   as refused, since the panel cannot load it, rather than leaving you to find the error in the panel.
 

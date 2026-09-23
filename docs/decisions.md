@@ -1850,3 +1850,28 @@ Anthropic moves it, and puts a plugin's throw inside the app's tree (D2).
 State that has to outlive a component — shared between contributions, which have no common React
 parent, or caught from boot, which an effect subscribes too late for — goes in a store made in
 `setup`. Everything else is ordinary React state.
+
+**D89. The RIG menu is ordered by plugin, drawn on the app's design tokens, and drills down
+(2026-09-23).** Contributions are grouped by plugin in registry order, with a divider between
+plugins, and a plugin's own come in the order it called `ctx.menu`. Registry order is the answer the
+codebase already gives to "in what order" (D23, D66). If users are to reorder the menu, that is a
+list of plugin names, which exist already, so the API carries no ids for it. Rejected: the menu as a
+zone of elements, which is the element model — an author who wants a movable entry declares an
+element; and weights declared by plugins, which asks plugins that know nothing of each other to rank
+themselves against each other.
+
+`@rigline/plugin-api/ui` writes its own CSS against the app's `--app-*` custom properties, each
+falling back to the `--vscode-*` variable the app aliases it to. The app's menu classes are a thin
+layer over those tokens, which are defined on `html`, never minified or module-hashed, and present
+in every reference bundle. Borrowing the classes was rejected: the app has four `menuItem` classes
+in four modules, none has a keyboard-focus or checked state, so our CSS would sit on top of them in
+a specificity fight, and the served module has no manifest to declare anchors in. A token that
+disappears degrades to the theme variable it aliased, which is what theme variables alone would
+have given everywhere.
+
+A submenu replaces the menu's contents under a back row rather than flying out beside it. The panel
+is often a narrow sidebar with no room beside the menu, the diagnostics are wider than a flyout
+could be, and drill-down needs none of a flyout's hover-intent machinery.
+
+`MenuItem` guards the `onSelect` it is handed, so a throw there disables the plugin as a render
+throw does, where a handler on a plugin's own element still escapes (D88).

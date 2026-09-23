@@ -8,6 +8,16 @@
 import { useSyncExternalStore } from "react";
 import type { Store } from "../store.ts";
 
+export {
+  MenuItem,
+  type MenuItemProps,
+  MenuNote,
+  type MenuNoteProps,
+  type MenuSelectEvent,
+  Submenu,
+  type SubmenuProps,
+} from "./menu.tsx";
+
 /** A store's current value, re-rendering whenever it changes. */
 export function useStore<T>(source: Store<T>): T {
   return useSyncExternalStore(source.subscribe, source.get);

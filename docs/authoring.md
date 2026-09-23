@@ -143,12 +143,58 @@ late to catch. Put those in a store made in `setup` and read it with `useStore`:
 
 ```tsx
 import { definePlugin, storeFrom } from "@rigline/plugin-api";
-import { useStore } from "@rigline/plugin-api/ui";
+import { MenuItem, useStore } from "@rigline/plugin-api/ui";
 
 export default definePlugin({
   setup(ctx) {
     const sessionId = storeFrom(ctx.onSessionId, null);
-    ctx.menu(() => <span>{useStore(sessionId) ?? "no session yet"}</span>);
+    ctx.menu(() => <MenuItem label="Session" description={useStore(sessionId) ?? "none yet"} />);
+  },
+});
+```
+
+### Building a menu entry
+
+Build what you add to the menu from `@rigline/plugin-api/ui`'s components, which draw in the app's
+own colours and work from the keyboard alongside every other plugin's entries:
+
+- `MenuItem` — `label`, an optional `description`, and `onSelect`. Choosing it closes the menu
+  unless `onSelect` calls `event.preventDefault()`, which is what you want for a copy that flashes
+  "copied", or a toggle whose check should visibly change. Give it `checked` and it becomes a
+  checkbox, with a check on the right while `checked` is true.
+- `Submenu` — a `label` and children. Choosing it shows the children in place of the menu, under a
+  row that leads back. The children can be items, notes, further submenus, or any content of your
+  own.
+- `MenuNote` — a line of text that is not an item, for "nothing here yet".
+
+Your entries sit together, in the order you called `ctx.menu`, with a divider between your plugin
+and the next. They mount when the menu opens and unmount when it closes, so an effect in one costs
+nothing while the menu is shut, and anything that must survive closing it belongs in a store.
+A throw in `onSelect` disables your plugin, as a throw while rendering does.
+
+```tsx
+import { definePlugin, store } from "@rigline/plugin-api";
+import { MenuItem, useStore } from "@rigline/plugin-api/ui";
+
+export default definePlugin({
+  setup(ctx) {
+    const shown = store(true);
+    shown.subscribe(() => {
+      /* switch the feature on or off */
+    });
+    ctx.menu(() => {
+      const on = useStore(shown);
+      return (
+        <MenuItem
+          label="Show the thing"
+          checked={on}
+          onSelect={(event) => {
+            event.preventDefault();
+            shown.set(!on);
+          }}
+        />
+      );
+    });
   },
 });
 ```

@@ -3,6 +3,7 @@
   "compilerOptions": {
     "lib": ["esnext", "dom"],
     "types": [],
+    "jsx": "react-jsx",
     "rewriteRelativeImportExtensions": true,
     // The published JavaScript carries no comments. This codebase annotates heavily and those
     // notes are written for somebody changing the code, which is done in the repository, not in a
@@ -14,6 +15,6 @@
     "rootDir": "src",
     "outDir": "dist"
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["src/**/*.test.ts"]
 }

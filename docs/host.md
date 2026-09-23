@@ -98,9 +98,23 @@ Dynamically imported after boot. In order:
 Rigline's one React root, built with the runtime so it shares React and `@rigline/plugin-api/ui`
 with every plugin it renders (D87, D88). It renders into a container on `body` and portals only the
 pill into the host-placed node beside the spacer. The menu stays out of the footer, which
-re-measures on any mutation inside it (D54). Each `ctx.menu` contribution renders, in registry
-order, inside an error boundary that disables its plugin through the plugin's own error path; the
-root's `onCaughtError` is silenced because that path already logs it, attributed.
+re-measures on any mutation inside it (D54).
+
+The menu itself is `@rigline/plugin-api/ui`'s, not the shell's: the panel, its levels and its keys
+live beside the components plugins build entries from, because those components read a context the
+panel provides, and a context is shared only by code importing the same module instance. The shell
+takes the panel from `@rigline/plugin-api/ui/internal`, which is in the runtime build's shared
+chunks and not in `RUNTIME_MODULES`. The runtime build resolves plugin-api through its `exports`
+with tsconfig off, for the same reason: `paths` would give the shell the source and the served
+entries the build, and two copies of the context mean every plugin's `MenuItem` throws.
+
+Each contribution renders, grouped by plugin in registry order with a divider between plugins
+(D89), inside an error boundary that disables its plugin through the plugin's own error path; the
+root's `onCaughtError` is silenced because that path already logs it, attributed. Contributions
+mount when the menu opens and unmount when it closes. A submenu portals its level into the panel and
+only the top level shows, so the levels beneath keep their state. The panel listens for keys on
+`window`, in capture, and stops the ones it takes, so the app's own `document` listeners never see
+an Escape that closed the menu.
 
 Per-plugin status is `loaded`, `refused`, `error` or `inactive`, each with a reason, on
 `diagnostics.plugins` in registry order. Disabling a plugin at runtime runs every teardown it

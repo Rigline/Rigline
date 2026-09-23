@@ -14,11 +14,13 @@
  * else's, which is what keeps the panel honest about the API it is displaying.
  */
 import { definePlugin, type Surface } from "@rigline/plugin-api";
+import { MenuItem, Submenu } from "@rigline/plugin-api/ui";
 import { type ReactNode, useEffect, useState } from "react";
 import {
   type CheckGroup,
   chainComposeVerdict,
   errorMessage,
+  failingCount,
   formatGroups,
   formatReport,
   immutabilityVerdict,
@@ -196,34 +198,31 @@ function Diagnostics(props: { readonly surface: Surface }): ReactNode {
     return () => clearTimeout(timer);
   }, [flash]);
 
+  const failing = failingCount(groups);
   return (
-    <div className="rigline-probe" style={{ padding: "4px 10px" }}>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
-        <button
-          type="button"
-          title="Copy the full report — versions, peaks, plugins and the previous run"
-          style={{
-            padding: 0,
-            border: "none",
-            background: "none",
-            font: "inherit",
-            fontSize: 10,
-            color: "var(--vscode-textLink-foreground, #8ab4f8)",
-            cursor: "pointer",
-          }}
-          onClick={() =>
-            setFlash(
-              copyToClipboard(clipboardText(groups, props.surface)) ? "copied" : "copy failed",
-            )
-          }
-        >
-          {flash ?? "copy"}
-        </button>
-      </div>
-      <pre style={{ margin: 0, font: "11px/1.45 monospace", whiteSpace: "pre-wrap" }}>
+    <Submenu label="Diagnostics" description={failing > 0 ? `${failing} failing` : "all pass"}>
+      <MenuItem
+        label={flash ?? "Copy report"}
+        description="Versions, peaks, plugins and the previous run"
+        onSelect={(event) => {
+          event.preventDefault();
+          setFlash(
+            copyToClipboard(clipboardText(groups, props.surface)) ? "Copied" : "Copy failed",
+          );
+        }}
+      />
+      <pre
+        style={{
+          margin: 0,
+          padding: "4px 12px",
+          font: "11px/1.45 var(--app-monospace-font-family, monospace)",
+          whiteSpace: "pre-wrap",
+          userSelect: "text",
+        }}
+      >
         {formatGroups(groups)}
       </pre>
-    </div>
+    </Submenu>
   );
 }
 

@@ -73,6 +73,9 @@ const runtime = defineConfig({
     shell: "src/shell/index.tsx",
   },
   platform: "browser",
+  // The shell reaches plugin-api through its exports, as the entries do. tsconfig paths would hand
+  // it the source and them the build: two copies of the menu's context (D88).
+  tsconfig: false,
   plugins: [
     {
       name: "rigline-runtime-entries",
