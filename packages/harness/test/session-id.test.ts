@@ -11,7 +11,7 @@
  */
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { EMPTY_DECLARATIONS } from "@rigline/plugin-api";
+import type { Page } from "playwright";
 import { describe, expect, it } from "vitest";
 import type { FixturePlugin } from "../src/payload.ts";
 import { harnessSkipReason, register, HARNESS_VERSION as VERSION } from "../src/suite.ts";
@@ -20,18 +20,33 @@ const DIST_PATH = fileURLToPath(
   new URL("../../../plugins/session-id/dist/index.js", import.meta.url),
 );
 
-const OPTIONAL_ANCHORS = [
-  "footerMenuPopup",
-  "footerMenuPopupRight",
-  "footerMenuHeader",
-  "footerMenuHeaderTitle",
-  "footerMenuHeaderHint",
-  "footerMenuDivider",
-  "footerMenuItem",
-  "footerMenuItemText",
-  "footerMenuItemLabel",
-  "footerMenuItemDescription",
-] as const;
+/** A ListAgents result carrying this session's own address, in the CLI's exact wording. */
+async function pushAddress(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const push = (window as unknown as { __harness?: { push: (m: unknown) => void } }).__harness
+      ?.push;
+    if (!push) throw new Error("harness push missing");
+    push({
+      type: "io_message",
+      channelId: "harness-address-channel",
+      message: {
+        type: "user",
+        uuid: "addr-1",
+        timestamp: new Date().toISOString(),
+        message: {
+          role: "user",
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "addr-call",
+              content: "This session is abcd-1234-ticket-work-46 [fa26a5] - the name others use.",
+            },
+          ],
+        },
+      },
+    });
+  });
+}
 
 /** The built plugin as a fixture, or the reason it could not be loaded as one. Read at module scope,
  * same as `harnessSkipReason`, so a missing build skips with a reason rather than failing every
@@ -50,7 +65,7 @@ function loadSessionIdPlugin(): { plugin: FixturePlugin | null; reason: string |
             messages: ["io_message"],
             mount: true,
             session: true,
-            optional: { ...EMPTY_DECLARATIONS, anchors: OPTIONAL_ANCHORS },
+            menu: true,
           },
         },
         source: readFileSync(DIST_PATH, "utf8"),
@@ -126,10 +141,10 @@ describe.skipIf(skip !== null)(
       }
     }, 20000);
 
-    it("keeps the session id in the pill and the address in the pop-up, once one is observed", async () => {
+    it("keeps the session id in the pill and the address in the menu, once one is observed", async () => {
       // The behaviour this plugin was changed to have, pinned against the real bundle. A messaging
       // address is as wide as somebody's worktree directory or Remote Control session title, and
-      // the pill has room for a token, so an observed address must reach the pop-up and leave the
+      // the pill has room for a token, so an observed address must reach the menu and leave the
       // pill alone. It used to take the pill, which is how a 24-character name ended up in the
       // composer footer.
       const booted = await boot({ plugins: [sessionIdPlugin as FixturePlugin] });
@@ -143,32 +158,7 @@ describe.skipIf(skip !== null)(
           () => document.getElementById("rigline-session-id")?.textContent ?? null,
         );
 
-        // A ListAgents result carrying this session's own address, in the CLI's exact wording.
-        await booted.page.evaluate(() => {
-          const push = (window as unknown as { __harness?: { push: (m: unknown) => void } })
-            .__harness?.push;
-          if (!push) throw new Error("harness push missing");
-          push({
-            type: "io_message",
-            channelId: "harness-address-channel",
-            message: {
-              type: "user",
-              uuid: "addr-1",
-              timestamp: new Date().toISOString(),
-              message: {
-                role: "user",
-                content: [
-                  {
-                    type: "tool_result",
-                    tool_use_id: "addr-call",
-                    content:
-                      "This session is abcd-1234-ticket-work-46 [fa26a5] - the name others use.",
-                  },
-                ],
-              },
-            },
-          });
-        });
+        await pushAddress(booted.page);
 
         const after = await booted.page.evaluate(() => {
           const badge = document.getElementById("rigline-session-id");
@@ -178,7 +168,7 @@ describe.skipIf(skip !== null)(
         expect(after.text).toBe(before);
         expect(after.text).not.toContain("abcd-1234-ticket-work-46");
         expect(after.text).not.toContain("fa26a5");
-        // The address did land, though — the tooltip and the pop-up are where it belongs.
+        // The address did land, though — the tooltip and the menu are where it belongs.
         expect(after.title).toContain("abcd-1234-ticket-work-46 [fa26a5]");
 
         const d = await booted.diagnostics();
@@ -189,49 +179,26 @@ describe.skipIf(skip !== null)(
       }
     }, 20000);
 
-    it("opens a pop-up on click, borrowing the footer's own menu styling", async () => {
+    it("lists every identifier under Session identifiers in Rigline's menu, copying on choice", async () => {
       const booted = await boot({ plugins: [sessionIdPlugin as FixturePlugin] });
+      const { page } = booted;
       try {
-        await booted.page.waitForFunction(() => {
-          const el = document.getElementById("rigline-session-id");
-          return el !== null && (el.textContent?.length ?? 0) > 0;
-        });
-        await booted.page.click("#rigline-session-id");
+        await page.waitForSelector("#rigline-session-id", { state: "attached" });
+        await pushAddress(page);
+        await page.click(".rigline-pill");
+        await page.click("text=Session identifiers");
 
-        const info = await booted.page.evaluate(() => {
-          const badge = document.getElementById("rigline-session-id");
-          // The pop-up is the badge's second child: the label span is always first, and openPopup()
-          // appends the pop-up straight onto the badge so it is torn down for free with it.
-          const popup = badge?.children[1] ?? null;
-          return {
-            found: popup !== null,
-            // footerMenuPopup is a real, present anchor on 2.1.270, so this run should take the
-            // borrowed-styling branch rather than the no-anchor fallback.
-            hasBorrowedClass: popup?.className.includes("menuPopup") ?? false,
-            rowCount: popup?.querySelectorAll("button, [class*=menuHeader]").length ?? 0,
-          };
-        });
-        expect(info.found).toBe(true);
-        expect(info.hasBorrowedClass).toBe(true);
-        expect(info.rowCount).toBeGreaterThan(0);
+        // The harness host never assigns a session id, so its rows are a note in their slot.
+        const address = page.getByRole("menuitem", { name: /Messaging address/ });
+        expect(await address.textContent()).toContain("abcd-1234-ticket-work-46 [fa26a5]");
+        expect(await page.isVisible("text=No session id yet")).toBe(true);
 
-        // The dimming belongs to the label, never to the badge. `opacity` applies to a whole
-        // subtree, so a badge at 0.35 takes the pop-up down with it and the transcript shows
-        // through the text — which is what it did, live, before this assertion existed. Checking
-        // the badge rather than the pop-up is deliberate: a descendant's own computed opacity
-        // reads 1 whatever an ancestor does, so the pop-up cannot report its own dimming.
-        const dimming = await booted.page.evaluate(() => {
-          const badge = document.getElementById("rigline-session-id");
-          const label = badge?.children[0] ?? null;
-          return {
-            badge: badge === null ? null : getComputedStyle(badge).opacity,
-            label: label === null ? null : getComputedStyle(label).opacity,
-          };
-        });
-        expect(dimming.badge).toBe("1");
-        expect(Number(dimming.label)).toBeLessThan(1);
+        await address.click();
+        expect(await page.isVisible(".rigline-menu")).toBe(true);
+        expect(await address.textContent()).toMatch(/copied|copy failed/);
 
         const d = await booted.diagnostics();
+        expect(d.plugins).toContainEqual({ name: "session-id", status: "loaded" });
         expect(d.errors).toEqual([]);
         expect(booted.consoleErrors).toEqual([]);
       } finally {

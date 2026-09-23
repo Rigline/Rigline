@@ -97,5 +97,33 @@ describe.skipIf(skipReason !== null)(
         await booted.close();
       }
     }, 20000);
+
+    it("removes every mark from the menu's toggle, and puts them back", async () => {
+      const booted = await boot({ plugins: [timeMarks as FixturePlugin] });
+      const { page } = booted;
+      const marks = (): Promise<number> =>
+        page.evaluate(() => document.getElementsByClassName("rigline-tm-time").length);
+      try {
+        await page.waitForFunction(
+          () => document.getElementsByClassName("rigline-tm-time").length === 2,
+        );
+        await page.click(".rigline-pill");
+        const toggle = page.getByRole("menuitemcheckbox", { name: /Time markers/ });
+        expect(await toggle.getAttribute("aria-checked")).toBe("true");
+
+        await toggle.click();
+        expect(await toggle.getAttribute("aria-checked")).toBe("false");
+        expect(await marks()).toBe(0);
+
+        await toggle.click();
+        await page.waitForFunction(
+          () => document.getElementsByClassName("rigline-tm-time").length === 2,
+        );
+        expect(await toggle.getAttribute("aria-checked")).toBe("true");
+        expect(booted.consoleErrors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
   },
 );

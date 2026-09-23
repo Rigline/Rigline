@@ -66,13 +66,14 @@
  * a text selection, or read aloud by a screen reader. Turning it back on simply re-registers and
  * the host redraws whatever is on screen, which costs nothing worth caching state to avoid.
  */
-import { definePlugin, type TranscriptEntry } from "@rigline/plugin-api";
+import { definePlugin, type Store, store, type TranscriptEntry } from "@rigline/plugin-api";
+import { MenuItem, useStore } from "@rigline/plugin-api/ui";
+import type { ReactNode } from "react";
 
 /** Below this, a gap "reads as continuous" and gets no divider. */
 const GAP_MS = 10 * 60 * 1000;
 
 const STORAGE_KEY = "rigline.time-marks.visible";
-const ICON_ID = "rigline-time-marks";
 
 /** Present on both a plain time node and a divider; a divider adds LEAD_CLASS alongside it. */
 const TIME_CLASS = "rigline-tm-time";
@@ -232,39 +233,19 @@ function storeVisible(visible: boolean): void {
   }
 }
 
-const SVG_NS = "http://www.w3.org/2000/svg";
-
-/**
- * A hand-drawn clock rather than an emoji glyph: the platform's emoji clocks are colour glyphs and
- * ignore `currentColor`, so one would sit wrong on a dark theme, a light theme and a custom one
- * indiscriminately. `stroke="currentColor"` inherits the button's own colour instead.
- */
-function buildClockIcon(): SVGSVGElement {
-  const svg = document.createElementNS(SVG_NS, "svg");
-  svg.setAttribute("width", "13");
-  svg.setAttribute("height", "13");
-  svg.setAttribute("viewBox", "0 0 16 16");
-  svg.setAttribute("fill", "none");
-  svg.setAttribute("stroke", "currentColor");
-  svg.setAttribute("stroke-width", "1.4");
-  svg.setAttribute("stroke-linecap", "round");
-  svg.setAttribute("stroke-linejoin", "round");
-  svg.setAttribute("aria-hidden", "true");
-
-  const face = document.createElementNS(SVG_NS, "circle");
-  face.setAttribute("cx", "8");
-  face.setAttribute("cy", "8");
-  face.setAttribute("r", "6.2");
-  svg.appendChild(face);
-
-  // Hour and minute hands as one bent line from the centre rather than two separate ones: the
-  // exact angle says nothing (this toggles a mode, it is not a real clock), so one path reads as
-  // "clock" at 13px just as well.
-  const hands = document.createElementNS(SVG_NS, "path");
-  hands.setAttribute("d", "M8 4.4V8.3L11 10.6");
-  svg.appendChild(hands);
-
-  return svg;
+function Toggle(props: { readonly visible: Store<boolean> }): ReactNode {
+  const on = useStore(props.visible);
+  return (
+    <MenuItem
+      label="Time markers"
+      description="When each part of the session happened"
+      checked={on}
+      onSelect={(event) => {
+        event.preventDefault();
+        props.visible.set(!on);
+      }}
+    />
+  );
 }
 
 export default definePlugin({
@@ -362,78 +343,24 @@ export default definePlugin({
       return mark.lead === null ? buildPlain(mark.time) : buildDivider(mark.lead, mark.time);
     }
 
-    let visible = storedVisible();
+    const visible = store(storedVisible());
     let decorateOff: (() => void) | null = null;
 
     function applyDecoration(): void {
-      if (visible && decorateOff === null) {
+      if (visible.get() && decorateOff === null) {
         decorateOff = ctx.decorateTranscript(build);
-      } else if (!visible && decorateOff !== null) {
+      } else if (!visible.get() && decorateOff !== null) {
         decorateOff();
         decorateOff = null;
       }
     }
     applyDecoration();
-
-    // The host builds a mount once and re-places that same node through an ordinary re-render, so
-    // this reference stays good for the life of one mount. What does build a second button is the
-    // anchor itself being swapped for a new element, which ctx.watch reports and which starts a
-    // fresh mount: buildIcon() then repoints this at whichever node is actually live, so a toggle
-    // click reaches what is on screen rather than a detached predecessor.
-    let currentIcon: HTMLButtonElement | null = null;
-
-    function applyIconState(): void {
-      if (!currentIcon) return;
-      currentIcon.setAttribute("aria-pressed", String(visible));
-      currentIcon.style.opacity = visible ? "0.75" : "0.3";
-      currentIcon.title = visible
-        ? "Time markers are on — click to hide them"
-        : "Time markers are off — click to show when the session happened";
-    }
-
-    function setVisible(next: boolean): void {
-      if (next === visible) return;
-      visible = next;
-      storeVisible(visible);
-      applyIconState();
+    visible.subscribe(() => {
+      storeVisible(visible.get());
       applyDecoration();
-    }
+    });
 
-    function buildIcon(): HTMLButtonElement {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.id = ICON_ID;
-      button.setAttribute("aria-label", "Toggle transcript time markers");
-      Object.assign(button.style, {
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "inherit",
-        background: "none",
-        border: "none",
-        cursor: "pointer",
-        padding: "0",
-      });
-      button.appendChild(buildClockIcon());
-      button.addEventListener("click", () => setVisible(!visible));
-      currentIcon = button;
-      applyIconState();
-      return button;
-    }
-
-    // footerSpacer carries only the toggle: losing it costs the button, never the feature, since
-    // the stored preference already governs whether decoration runs regardless of whether this ever
-    // fires. Declared optional so an extension update that retires the spacer costs this one
-    // decoration rather than the plugin (D41); ctx.watch already answers "the class is gone" the
-    // same way an unfound anchor answers everywhere else, by watching nothing rather than throwing.
-    //
-    // The spacer rather than the model pill, which is the obvious anchor and the wrong one: the
-    // footer measures its own element children to choose a fit stage and moves the pill out of
-    // itself at the widest one, so a decoration anchored to the pill leaves and re-enters the
-    // measured container on every change of mind and re-triggers the measurement by doing it (D54).
-    // mountBefore rather than mountAfter because the spacer is `flex-grow:1`: before it is the end
-    // of the footer's left cluster, after it is out beside the send button.
-    ctx.watch("footerSpacer", (el) => ctx.mountBefore(el, buildIcon));
+    ctx.menu(() => <Toggle visible={visible} />);
 
     /**
      * Whether any time is actually on screen.
@@ -454,7 +381,7 @@ export default definePlugin({
      * record behind it yet.
      */
     ctx.check("marks are being placed", () => {
-      if (!visible) return { verdict: "n/a", detail: "markers are switched off" };
+      if (!visible.get()) return { verdict: "n/a", detail: "markers are switched off" };
       if (asked === 0) return { verdict: "n/a", detail: "no transcript rows yet" };
       if (marked > 0) return { verdict: "pass", detail: `${marked} marked of ${asked} asked` };
       const waited = unmarkedSince === null ? 0 : performance.now() - unmarkedSince;
@@ -462,23 +389,6 @@ export default definePlugin({
         return { verdict: "fail", detail: `${asked} rows, none carried a time` };
       }
       return { verdict: "n/a", detail: `${asked} rows, none timed yet` };
-    });
-
-    /**
-     * The toggle is on screen. Two ways that is legitimately not a failure, and neither is this
-     * plugin guessing: the spacer is declared optional, so an extension that has retired it costs
-     * this one button and never the feature (D41); and until the host has handed over a footer
-     * there is nothing to be connected to. Whether a footer that should have appeared never did is
-     * core's line, which owns the watch and has a clock.
-     */
-    ctx.check("toggle is mounted", () => {
-      if (ctx.optional.anchor("footerSpacer") === null) {
-        return { verdict: "n/a", detail: "this extension has no footer spacer to mount on" };
-      }
-      if (currentIcon === null) return { verdict: "n/a", detail: "no composer footer yet" };
-      return currentIcon.isConnected
-        ? { verdict: "pass", detail: visible ? "on" : "off" }
-        : { verdict: "fail", detail: "the toggle is not in the document" };
     });
   },
 });

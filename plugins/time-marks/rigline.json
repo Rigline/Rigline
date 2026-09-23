@@ -2,16 +2,16 @@
   "$schema": "node_modules/@rigline/plugin-api/schema/manifest.json",
   "api": 1,
   "name": "time-marks",
-  "description": "The clock time on every transcript entry, and a divider where the conversation jumped a day or paused. A small clock icon in the composer footer toggles the whole feature, on by default.",
+  "description": "The clock time on every transcript entry, and a divider where the conversation jumped a day or paused. Time markers in Rigline's menu toggles the whole feature, on by default.",
   "entry": "dist/index.js",
   "surfaces": ["editor", "sidebar"],
   "uses": {
     "anchors": ["transcriptRow"],
-    "mount": true,
     "style": true,
     "transcript": true,
+    "menu": true,
     "optional": {
-      "anchors": ["footerSpacer", "itemTime"]
+      "anchors": ["itemTime"]
     }
   }
 }

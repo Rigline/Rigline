@@ -4,8 +4,8 @@ Puts the clock time on every transcript entry — one per content block, the den
 actually writes at, not one per assistant turn — hanging in the empty padding band above the row
 rather than taking a line or a column of its own. Where the conversation jumped a calendar day or
 paused ten minutes or more, that entry gets a full-width divider instead: a lead ("Today",
-"Yesterday", a weekday and date, or "3h 12m later") plus its own time. A small hand-drawn clock
-icon in the composer footer toggles the whole feature; the choice persists in `localStorage`, and
+"Yesterday", a weekday and date, or "3h 12m later") plus its own time. **Time markers** in Rigline's
+menu, behind the RIG pill, toggles the whole feature; the choice persists in `localStorage`, and
 absence there means on — the feature is why the plugin is installed.
 
 ## Depends on
@@ -19,16 +19,11 @@ absence there means on — the feature is why the plugin is installed.
   class internally to find rows at all (`packages/plugin-api/src/capabilities/switches.ts`), so
   declaring it optional here would buy nothing: losing it costs the whole capability already, not
   one decoration.
-- `uses.optional.anchors: ["footerSpacer", "itemTime"]` — both cosmetic. `footerSpacer` carries only
-  the toggle icon's placement; without it the feature still runs at its stored (default: on)
-  setting, just with no button in the composer footer to flip it. It is the spacer and not the model
-  pill because the footer measures its own children to pick a fit stage and moves the pill out of
-  itself at the widest one, which a decoration anchored to the pill then oscillates against (D54).
-  `itemTime` is a borrowed style class that
-  makes this plugin's time read like the app's own dimmed label; without it the time still renders,
-  from inline styles alone.
-- `uses.mount`, `uses.style`, both required — placing the toggle icon and injecting the one
-  stylesheet rule.
+- `uses.optional.anchors: ["itemTime"]` — cosmetic: a borrowed style class that makes this
+  plugin's time read like the app's own dimmed label; without it the time still renders, from
+  inline styles alone.
+- `uses.style`, required — injecting the one stylesheet rule.
+- `uses.menu`, required — the Time markers toggle in Rigline's menu.
 
 ## The one app-owned rule, and why
 

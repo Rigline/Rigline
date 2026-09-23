@@ -19,7 +19,7 @@ import {
   type Identity,
   messagingIdentity,
   type Observed,
-} from "./index.ts";
+} from "./index.tsx";
 
 /** One `io_message` carrying a single `tool_result` content block, the shape a real
  * `ListAgents`/`SendMessage` result arrives in. */

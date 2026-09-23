@@ -6,7 +6,7 @@
  */
 import type { TranscriptEntry } from "@rigline/plugin-api";
 import { describe, expect, it } from "vitest";
-import { gapName, markFor, styleRules } from "./index.ts";
+import { gapName, markFor, styleRules } from "./index.tsx";
 
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;

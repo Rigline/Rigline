@@ -29,6 +29,11 @@ anything may change between releases.
 
 ### Changed
 
+- **session-id**: the pop-up of identifiers has moved into Rigline's menu, under Session
+  identifiers, where choosing one copies it. A plain click on the badge now copies the full session
+  id, which used to take alt-click or shift-click.
+- **time-marks**: the clock icon in the composer footer is gone; the feature is switched on and off
+  from Time markers in Rigline's menu, and remembers the choice as before.
 - `rigline build` no longer bundles `react`, `react/jsx-runtime`, `react-dom` or
   `@rigline/plugin-api/ui`. The panel now serves one copy of each — React 19 — that every plugin
   shares, and `rigline install` points a plugin's imports at it, so a plugin that bundled its own

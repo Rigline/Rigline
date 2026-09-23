@@ -15,11 +15,22 @@ export default defineConfig({
   resolve: {
     // Tests read the workspace packages from source, so a test never runs against a stale dist/.
     // Builds and typechecks resolve through each package's exports as a consumer would.
-    alias: {
-      "@rigline/plugin-api": fileURLToPath(
-        new URL("./packages/plugin-api/src/index.ts", import.meta.url),
-      ),
-      "@rigline/core": fileURLToPath(new URL("./packages/core/src/index.ts", import.meta.url)),
-    },
+    // Anchored, so the root's alias does not also rewrite `@rigline/plugin-api/ui`.
+    alias: [
+      {
+        find: /^@rigline\/plugin-api\/ui$/,
+        replacement: fileURLToPath(
+          new URL("./packages/plugin-api/src/ui/index.ts", import.meta.url),
+        ),
+      },
+      {
+        find: /^@rigline\/plugin-api$/,
+        replacement: fileURLToPath(new URL("./packages/plugin-api/src/index.ts", import.meta.url)),
+      },
+      {
+        find: /^@rigline\/core$/,
+        replacement: fileURLToPath(new URL("./packages/core/src/index.ts", import.meta.url)),
+      },
+    ],
   },
 });

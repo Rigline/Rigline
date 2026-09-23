@@ -43,8 +43,8 @@ loader — keeping a byte-faithful backup of every bundle it touches. Then reloa
 Command Palette with *Developer: Reload Webviews*.
 
 Four plugins come with it and are switched on: the **session-id** pill in the composer footer,
-**time marks** on transcript rows, the **worktree prefix** on session tab labels, and the `RIG`
-badge, which is the diagnostics panel and the thing that tells you whether the rest of it is
+**time marks** on transcript rows, the **worktree prefix** on session tab labels, and the
+**probe**, whose diagnostics in the menu behind the `RIG` pill tell you whether the rest of it is
 working. `rigline list` names them; `rigline disable NAME` switches one off. Writing your own is
 [docs/authoring.md](docs/authoring.md).
 

@@ -64,7 +64,7 @@ pnpm workspace, TypeScript throughout, every package a real package with its own
 | `packages/create-plugin` | `create-rigline-plugin` | The scaffold: `template/` as real files, copied and substituted. Published, and the only package here whose payload is not code. |
 | `packages/vscode` | `@rigline/vscode` (private) | The companion extension (D80): a second retrieval layer that acquires the engine, watches for an extension update and spawns the engine to re-inject. Built to `rigline.vsix`, which ships in core's `dist/bundled`. |
 | `packages/harness` | (private) | The Playwright tier: boots the real webview bundle from the corpus with a faked `acquireVsCodeApi` and a replayed bus. |
-| `plugins/session-id` | first-party plugin | Session id and inter-agent messaging address in the composer footer. |
+| `plugins/session-id` | first-party plugin | Session id in the composer footer; every identifier, the messaging address included, in Rigline's menu. |
 | `plugins/worktree-prefix` | first-party plugin | Worktree prefix on the session tab label; declares the worktree-list host patch. |
 | `plugins/time-marks` | first-party plugin | Clock times and pause dividers on transcript rows. |
 | `plugins/probe` | first-party plugin | The live integration harness: a check per capability and the `RIG` badge in the composer footer. |
