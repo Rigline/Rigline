@@ -64,8 +64,22 @@ describe.skipIf(skip !== null)(`the Layout submenu${skip ? ` (${skip})` : ""}`, 
     const { page } = booted;
     try {
       await openLayout(page);
+      const pillTop = () =>
+        page.evaluate(() => document.querySelector(".rigline-pill")?.getBoundingClientRect().top);
+      const opened = await pillTop();
       await choose(page, "Three", "Move to rigRow");
       await page.waitForSelector('[data-rigline-zone="rigRow"] .deck-three');
+      // The new row grows the composer and lifts the pill; the open menu follows it off the pill.
+      expect(await pillTop()).toBeLessThan(opened ?? 0);
+      await expect
+        .poll(() =>
+          page.evaluate(() => {
+            const pill = document.querySelector(".rigline-pill")?.getBoundingClientRect();
+            const menu = document.querySelector(".rigline-menu")?.getBoundingClientRect();
+            return !!pill && !!menu && menu.bottom <= pill.top;
+          }),
+        )
+        .toBe(true);
 
       const link = page.locator('a.rigline-menu-item[href^="vscode://rigline.rigline/layout?p="]');
       const href = (await link.getAttribute("href")) ?? "";

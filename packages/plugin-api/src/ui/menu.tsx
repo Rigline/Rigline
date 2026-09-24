@@ -508,7 +508,23 @@ export function MenuPanel(props: MenuPanelProps): ReactNode {
     [stack, panel, enter, back, forget, onClose],
   );
 
-  useLayoutEffect(() => setPosition(positionFrom(anchor)), [anchor]);
+  // Followed while open, not placed once: a layout move can change the composer's height, which
+  // moves the pill, and a menu left where it opened then covers it.
+  useLayoutEffect(() => {
+    let frame = 0;
+    let last = "";
+    const follow = (): void => {
+      const next = positionFrom(anchor);
+      const key = JSON.stringify(next);
+      if (key !== last) {
+        last = key;
+        setPosition(next);
+      }
+      frame = requestAnimationFrame(follow);
+    };
+    follow();
+    return () => cancelAnimationFrame(frame);
+  }, [anchor]);
 
   useLayoutEffect(() => {
     current.current = stack;
