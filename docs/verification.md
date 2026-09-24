@@ -157,6 +157,24 @@ a stale `host/dist` copied faithfully into a newer `bundled` passes the first li
 refusal names the build command. The rule used to live in `CLAUDE.md` and rely on everybody
 remembering it.
 
+**The harness footer fits at any width.** The fake host configures no models, so the model pill is
+nearly empty and the fit ladder never leaves stage 0. A test about fit stages widens the pill with a
+stylesheet — `.inputFooter_gGYT1w .modelPill_gGYT1w{min-width:240px}`, which the ladder measures as
+a long model name — and then narrows the viewport. A stylesheet is not a mutation inside the footer,
+so it does not reset the ladder itself.
+
+**A question about a transient polls every animation frame.** The panel reads its checks once a
+second, which lands in the frame between React moving a node and the pass moving it back only
+sometimes — live, a blip on the RIG pill. A harness case asking whether that ever happens reads the
+checks in a `requestAnimationFrame` loop, and asserts the trigger was seen as well as the failure
+not.
+
+**An exploratory read lives in `.local/reads/`**, which is gitignored: a measurement taken to inform
+a plan rather than a property to keep. It gets a `vitest.config.ts` of its own that spreads the
+root's and sets `root` to the repository and `include` to itself, and runs with
+`--reporter=verbose`, since the default reporter hides a passing test's output. What it finds goes
+into the plan; the file does not ship.
+
 A file skips, with a reason, when the corpus lacks its version or Chromium will not launch — and the
 reason says which.
 
@@ -188,6 +206,10 @@ none of them can answer: whether the lines are true of a real panel.
 Three verdicts, and **`n/a` is a real state**: a check that cannot apply on this surface, or has had
 no opportunity yet, says so instead of guessing. The panel, the badge count and the clipboard are
 all built from one run of the registry, so they cannot disagree about what a check found.
+
+A question about how something looks, before anything is built for it, is a snippet pasted into
+*Developer: Open Webview Developer Tools* that places the candidates in the real panel to be
+compared by eye.
 
 The loop is: `pnpm build`, `pnpm rigline install`, *Developer: Reload Webviews*, read the `RIG`
 badge — on the full editor, the sidebar and the session list, because the three surfaces differ in

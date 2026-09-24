@@ -104,7 +104,9 @@ Written for somebody else, so don't rewrite them for us:
   ending on Windows. Line endings in the repo are git's problem, not yours: `* text=auto`
   normalises to LF on commit and checks out native, so write files however your tools write
   them, and run `pnpm format` before `pnpm lint`: Biome's `lineEnding: "auto"` wants the platform's
-  ending, so a file written with LF fails lint on Windows until it is formatted. Only `generated.ts` and `packages/plugin-api/schema/manifest.json` are pinned to LF,
+  ending, so a file written with LF fails lint on Windows until it is formatted. Format before
+  `pnpm build` too: it rewrites sources, and a build older than its sources is one `bundledDir()`
+  refuses, which fails every harness file at once. Only `generated.ts` and `packages/plugin-api/schema/manifest.json` are pinned to LF,
   because we generate their bytes and then compare them against what is on disk.
 - **Code that parses a repo file must not assume LF.** The working tree carries whatever git
   checked out, which here is CRLF, so `indexOf("## Heading\n")` finds nothing and `/^\n+/` strips

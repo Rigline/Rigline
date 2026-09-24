@@ -467,6 +467,13 @@ the cadence cannot be narrowed to panel-open; the cost of that lands on the cont
 with the same standing as "a rewriter is synchronous". A check that wants an expensive answer caches
 it where the work already happens.
 
+**A check about state the host corrects judges persistence, not an instant (amended 2026-09-24).**
+The host puts a mount back on the frame after React moves it, so a check reading the DOM at a moment
+can land between the two, and a red that turns green by itself teaches the reader that red is noise.
+Placement fails only once a node has been out of place for a second, on a clock the pass restarts
+whenever it finds or puts the node in place; a watch's five seconds of settling is the same answer.
+A fight the host cannot win is still reported, by `abandon` (D54).
+
 **D65. A check that throws fails its own line and does not disable its plugin.** The one plugin
 callback the host calls without `guard`. `guard` disables because a throw inside the app's message
 flow or a React commit means the plugin is broken at its job and has left the host somewhere nobody
