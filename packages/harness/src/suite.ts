@@ -15,6 +15,7 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { Layout } from "@rigline/plugin-api";
 import { type Browser, type ConsoleMessage, chromium, type Page } from "playwright";
 import { afterAll, beforeAll } from "vitest";
 import { missing, versionDir } from "../../core/test/corpus.ts";
@@ -109,6 +110,7 @@ export interface BootOptions {
   readonly surface?: "editor" | "sidebar" | "sessionList";
   /** Identifiers to delete from the tables the loader reads, to stand up an extension update. */
   readonly remove?: RemovedIdentifiers;
+  readonly layout?: Layout;
 }
 
 interface HarnessWindow {
@@ -165,6 +167,7 @@ export function register(version: string): (options?: BootOptions) => Promise<Bo
       version,
       plugins: options.plugins ?? [],
       remove: options.remove,
+      layout: options.layout,
     });
     const harness: Harness = await startHarness({
       bundleDir: join(versionDir(version), "webview"),

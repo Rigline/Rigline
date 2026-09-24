@@ -38,7 +38,12 @@ import { diffScans, formatDiff, type Scan, scansDiffer, type ViewDiff } from "..
 import { type Harvest, harvestAll } from "../layers/index.ts";
 import { riglinePaths } from "../paths.ts";
 import { readConfig } from "../plugins/config.ts";
-import { discoverPlugins, enabledPlugins, registryEngine } from "../plugins/discover.ts";
+import {
+  discoverPlugins,
+  enabledPlugins,
+  layoutNotes,
+  registryEngine,
+} from "../plugins/discover.ts";
 import { CORE_VERSION } from "../version.ts";
 import { type BaselineSource, GENERATED_FILE, readBaseline, writeBaseline } from "./baseline.ts";
 
@@ -201,9 +206,9 @@ export function check(options: FlowOptions = {}): FlowReport {
         log: (line) => discovery.push(line),
       })
     : [];
-  const plugins = options.plugins
-    ? enabledPlugins(discovered, readConfig(options.plugins.configPath))
-    : [];
+  const config = options.plugins ? readConfig(options.plugins.configPath) : null;
+  const plugins = config ? enabledPlugins(discovered, config, (line) => discovery.push(line)) : [];
+  if (config) discovery.push(...layoutNotes(config, plugins));
   const enabled = plugins.map((p) => p.name);
   const disabled = discovered.filter((p) => !enabled.includes(p.name)).map((p) => p.name);
 

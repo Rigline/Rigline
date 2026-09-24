@@ -1940,3 +1940,37 @@ A command that reads the settings first splits a `config.json` it finds alone: `
 `sources.json`, everything else into `config.yaml`, then removes it. A `config.json` beside the new
 files was written by an older engine; it is not read, and the command names it. `anchors.json` stays
 JSON: it is a repair pasted from a release note, not a file anyone maintains.
+
+**D92. The layout is a list per place, recording departures from the authors' defaults (2026-09-24,
+Leo).** `config.yaml`'s `layout` maps a place to the elements a person has put there, in order, each
+written as `plugin/element`. A place is a zone (`rigRow`), a slot spelled as every report prints it
+(`before footerSpacer`), or `off`. An element in no list is where its author put it. A plugin
+installed later therefore arrives at its defaults, and an author who moves a default takes along
+everyone who has not moved that element. A place shows its listed elements first, then any others
+that default there, in registry and manifest order. Order holds in a slot as in a zone: a listed
+element's mount rank is its index less 2^20, ahead of every registry rank.
+
+The layout is keyed by place because that is how a person reads the panel and how an editor will
+show it, and because a list says it has an order. Rejected:
+
+- One line per element, `plugin/element: place`. It is the most compact form, but its order would
+  ride on key order, which a reader is taught a map lacks and which sorting the file silently changes.
+- `place` beside `order`, which names an element twice when it is both moved and reordered.
+- Nesting by plugin, which cannot interleave two plugins in one zone.
+- A complete arrangement per zone, under which every plugin installed later appears nowhere until
+  placed.
+
+An element has one place, which settles whether it could have several. Two places would be two
+copies of a component whose state diverges, and an author who wants that declares two elements. The
+first list naming an element decides, and a later one is reported. An entry that does not resolve
+is reported by `install` and `check`, leaves the element at its default, and stays in the file: a
+place that is not one, a plugin not installed, an element not declared, or a place its element does
+not offer. Its plugin may come back, and deleting a person's choice over an absence is not the
+engine's call. A disabled plugin's entries are neither reported nor removed.
+
+`install` bakes the layout into `registry.js` as written, unresolved entries included, and the
+kernel resolves each element against it with `placeElement`, the function `install` reports from.
+The baked layout is where a panel starts, not what it is fixed to. A layout editor will hold a
+working copy, and saving writes that copy over the file's layout, warning when it overwrites a
+change made since the panel loaded; merging edits from several sources is deferred. That is why the
+bake keeps unresolved entries: a copy holding only what resolved would delete the rest on save.

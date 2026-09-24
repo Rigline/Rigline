@@ -13,6 +13,8 @@ import { basename, join } from "node:path";
 import {
   capabilityDrift,
   capabilityUse,
+  type Layout,
+  layoutProblems,
   type Uses,
   type ValidManifest,
   validateManifest,
@@ -197,6 +199,14 @@ export function enabledPlugins(
   return discovered.filter((p) => !disabled.has(p.name));
 }
 
+/** Each entry of the layout that does not resolve against `enabled`, naming the file (D92). */
+export function layoutNotes(config: PluginsConfig, enabled: readonly DiscoveredPlugin[]): string[] {
+  const plugins = enabled.map((p) => ({ name: p.name, elements: p.manifest.elements }));
+  return layoutProblems(config.layout, plugins, config.disabled).map(
+    (problem) => `${config.path}: ${problem}`,
+  );
+}
+
 /** Every enabled plugin's declared host patches, flattened and named by the plugin that owns each. */
 export function declaredPatches(enabled: readonly DiscoveredPlugin[]): DeclaredPatch[] {
   return enabled.flatMap((p) => p.manifest.patches.map((patch) => ({ plugin: p.name, patch })));
@@ -207,13 +217,17 @@ function normalizeEntry(entry: string): string {
 }
 
 /**
- * The ES module the loader imports to learn which plugins are enabled and what happened to their
- * host patches. Registry order is discovery order — the order mounts sharing an anchor appear in
- * and the order rewriters compose in — so it is baked as an array, never a map.
+ * The ES module the loader imports to learn which plugins are enabled, what happened to their host
+ * patches, and the person's layout. Registry order is discovery order — the order mounts sharing an
+ * anchor appear in and the order rewriters compose in — so it is baked as an array, never a map.
+ *
+ * The layout goes in whole, entries that do not resolve included, because it is also what the panel
+ * would save back (D92).
  */
 export function bakeRegistry(
   enabled: readonly DiscoveredPlugin[],
   outcomes: readonly PatchOutcome[],
+  layout: Layout = {},
 ): string {
   const entries = enabled.map((p) =>
     JSON.stringify({
@@ -232,6 +246,7 @@ export const plugins = [
 ${body}
 ];
 export const patches = ${JSON.stringify(outcomes)};
+export const layout = ${JSON.stringify(layout)};
 `;
 }
 

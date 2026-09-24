@@ -47,6 +47,7 @@ import {
   discoverPlugins,
   enabledPlugins,
   isPluginOutput,
+  layoutNotes,
 } from "../plugins/discover.ts";
 import { applyPatches, type PatchOutcome } from "./hostpatch.ts";
 import { importProblem, resolveRuntimeImports } from "./imports.ts";
@@ -401,6 +402,7 @@ export function install(ext: string, options: InstallOptions): InstallReport {
     const discovered = discoverPlugins(roots, { last, bundledRoot, log });
     const config = readConfig(configPath);
     const enabled = enabledPlugins(discovered, config, log);
+    for (const note of layoutNotes(config, enabled)) log(note);
     enabledNames = enabled.map((p) => p.name);
     const enabledSet = new Set(enabledNames);
     disabledNames = discovered.filter((p) => !enabledSet.has(p.name)).map((p) => p.name);
@@ -454,7 +456,7 @@ export function install(ext: string, options: InstallOptions): InstallReport {
       rmSync(join(pluginsOut, entry.name), { recursive: true, force: true });
       wrotePayload = true;
     }
-    const baked = Buffer.from(bakeRegistry(enabled, outcomes));
+    const baked = Buffer.from(bakeRegistry(enabled, outcomes, config.layout));
     if (writeIfChanged(join(state.payloadDir, "registry.js"), baked)) wrotePayload = true;
 
     // Before the notes, because this is the one report that says whether a plugin will work here.

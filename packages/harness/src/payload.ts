@@ -16,6 +16,7 @@ import {
   type AnchorName,
   type Elements,
   EMPTY_USES,
+  type Layout,
   SURFACES,
   type Surface,
   type Uses,
@@ -53,6 +54,8 @@ export interface PreparePayloadOptions {
   readonly version: string;
   readonly plugins: readonly FixturePlugin[];
   readonly remove?: RemovedIdentifiers;
+  /** The person's layout, as `install` would bake it from `config.yaml`. */
+  readonly layout?: Layout;
 }
 
 /** Write pre.js, post.js, runtime/, generated.js, registry.js and plugins/<name>/index.js into `dir`. */
@@ -83,6 +86,7 @@ export function preparePayload(dir: string, options: PreparePayloadOptions): voi
   const registrySource = `// Written by @rigline/harness's preparePayload for one test run. Do not edit.
 export const plugins = ${JSON.stringify(plugins, null, 2)};
 export const patches = [];
+export const layout = ${JSON.stringify(options.layout ?? {})};
 `;
   writeFileSync(join(dir, "registry.js"), registrySource, "utf8");
 

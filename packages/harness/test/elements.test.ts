@@ -371,5 +371,75 @@ export default { setup(ctx) { ${setup} } };`,
         await booted.close();
       }
     }, 20000);
+
+    it("puts elements where the layout says, listed ones first in its order, the rest after", async () => {
+      // Two plugins, so "listed first" is shown to beat registry order and not merely follow it.
+      const item = (name: string) =>
+        `ctx.element("${name}", () => jsx("span", { className: "harness-item", children: "${name}" }));`;
+      const early: FixturePlugin = {
+        name: "early",
+        manifest: {
+          elements: {
+            e: { title: "E", placements: ["rigRow"], default: "rigRow" },
+            f: { title: "F", placements: [SPACER], default: SPACER },
+          },
+        },
+        source: `import { jsx } from "react/jsx-runtime";
+export default { setup(ctx) { ${item("e")} ${item("f")} } };`,
+      };
+      const laid: FixturePlugin = {
+        name: "laid",
+        manifest: {
+          elements: {
+            a: { title: "A", placements: [SPACER, "rigRow"], default: SPACER },
+            b: { title: "B", placements: ["rigRow"], default: "rigRow" },
+            c: { title: "C", placements: ["rigRow"], default: null },
+            d: { title: "D", placements: [SPACER], default: SPACER },
+            g: { title: "G", placements: [SPACER], default: SPACER },
+          },
+        },
+        source: `import { jsx } from "react/jsx-runtime";
+export default { setup(ctx) { ${["a", "b", "c", "d", "g"].map(item).join(" ")} } };`,
+      };
+      const booted = await boot({
+        plugins: [early, laid],
+        layout: {
+          rigRow: ["laid/c", "laid/a"],
+          "before footerSpacer": ["laid/g"],
+          off: ["laid/d"],
+        },
+      });
+      const { page } = booted;
+      try {
+        await page.waitForSelector('[data-rigline-zone="rigRow"] .harness-item');
+        await page.waitForSelector('[data-rigline-slot="laid/g"] .harness-item');
+        const seen = await page.evaluate(() => {
+          const zone = document.querySelector('[data-rigline-zone="rigRow"]');
+          const slot = document.querySelector('[data-rigline-slot="laid/g"]');
+          return {
+            row: [...(zone?.querySelectorAll(".harness-item") ?? [])].map((e) => e.textContent),
+            footer: [slot, slot?.nextElementSibling, slot?.nextElementSibling?.nextElementSibling]
+              .map(
+                (e) =>
+                  e?.getAttribute("data-rigline-slot") ?? e?.getAttribute("data-rigline-mount"),
+              )
+              .join(" "),
+            d: document.querySelector('[data-rigline-slot="laid/d"]') !== null,
+          };
+        });
+        expect(seen).toEqual({
+          row: ["c", "a", "e", "b"],
+          footer: "laid/g early/f rigline",
+          d: false,
+        });
+        expect(await coreCheck(page, "elements are placed")).toMatchObject({
+          verdict: "pass",
+          detail: "6 placed, 1 off",
+        });
+        expect(booted.consoleErrors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
   },
 );

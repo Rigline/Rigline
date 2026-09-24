@@ -28,6 +28,10 @@ anything may change between releases.
   `rigRow`, a new row at the foot of the composer box, under its controls, which appears only while
   something is in it. A place this version of the extension cannot provide is reported at install
   and on the diagnostics panel, and costs the plugin that element and nothing else.
+- **Your layout.** `layout` in `~/.rigline/config.yaml` moves an element to another place its plugin
+  allows, orders the elements in a place, or switches one off, and leaves everything you have not
+  mentioned where its plugin put it. `rigline install` and `rigline check` name any entry that does
+  not work, and leave that element where its plugin puts it. See [docs/config.md](docs/config.md).
 - `Pill` in `@rigline/plugin-api/ui`: a rounded label in the app's own pill colours, like the model
   picker's, and a button when given `onClick`.
 - The `composerBox` anchor: the composer's bordered box.
@@ -59,6 +63,7 @@ anything may change between releases.
   and tests.
 - `rigline install` and `rigline check` now name a plugin that imports a package it did not bundle
   as refused, since the panel cannot load it, rather than leaving you to find the error in the panel.
+- `rigline check` now names a switched-off plugin that is not installed, as `install` already did.
 
 ### Fixed
 

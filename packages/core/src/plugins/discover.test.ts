@@ -189,7 +189,11 @@ describe("enabledPlugins", () => {
     writePlugin(root, "gamma");
     const discovered = discoverPlugins([root]);
 
-    const enabled = enabledPlugins(discovered, { path: "config.yaml", disabled: ["beta"] });
+    const enabled = enabledPlugins(discovered, {
+      path: "config.yaml",
+      disabled: ["beta"],
+      layout: {},
+    });
     expect(enabled.map((p) => p.name)).toEqual(["alpha", "gamma"]);
   });
 
@@ -200,7 +204,9 @@ describe("enabledPlugins", () => {
     const lines: string[] = [];
 
     const path = join(tempDir(), "config.yaml");
-    enabledPlugins(discovered, { path, disabled: ["ghost"] }, (line) => lines.push(line));
+    enabledPlugins(discovered, { path, disabled: ["ghost"], layout: {} }, (line) =>
+      lines.push(line),
+    );
 
     // Names the file a person has to open, not the shape of its name: a message that says
     // "config.yaml" leaves them looking for which one.
@@ -234,9 +240,20 @@ describe("bakeRegistry", () => {
     const mod = (await import(pathToFileURL(path).href)) as {
       plugins: unknown[];
       patches: unknown[];
+      layout: unknown;
     };
     expect(mod.plugins).toEqual([]);
     expect(mod.patches).toEqual([]);
+    expect(mod.layout).toEqual({});
+  });
+
+  it("carries the layout in the order the file wrote its places (D92)", async () => {
+    const layout = { rigRow: ["a/x"], off: ["b/y"], "before footerSpacer": ["a/z"] };
+    const path = join(tempDir(), "registry.mjs");
+    writeFileSync(path, bakeRegistry([], [], layout));
+    const mod = (await import(pathToFileURL(path).href)) as { layout: object };
+    expect(Object.keys(mod.layout)).toEqual(["rigRow", "off", "before footerSpacer"]);
+    expect(mod.layout).toEqual(layout);
   });
 
   it("rewrites each entry's path relative to the plugins directory and carries surfaces and uses", () => {
@@ -255,7 +272,11 @@ describe("bakeRegistry", () => {
     writePlugin(root, "alpha");
     writePlugin(root, "beta");
     const discovered = discoverPlugins([root]);
-    const enabled = enabledPlugins(discovered, { path: "config.yaml", disabled: ["beta"] });
+    const enabled = enabledPlugins(discovered, {
+      path: "config.yaml",
+      disabled: ["beta"],
+      layout: {},
+    });
 
     const source = bakeRegistry(enabled, []);
     expect(source).toContain('"name":"alpha"');

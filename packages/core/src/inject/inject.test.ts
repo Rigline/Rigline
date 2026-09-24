@@ -311,6 +311,29 @@ describe("a second run writes nothing", () => {
     expect(existsSync(join(payloadOutDir(ext), "plugins", "beta"))).toBe(false);
     expect(existsSync(join(payloadOutDir(ext), "plugins", "alpha"))).toBe(true);
   });
+
+  it("bakes the layout as written and reports each entry that does not resolve (D92)", () => {
+    const ext = fixture();
+    const root = tempDir("rigline-plugins-");
+    writePlugin(root, "clock", {
+      elements: { face: { title: "Face", placements: ["rigRow"], default: null } },
+    });
+    const configPath = join(tempDir("rigline-config-"), "config.yaml");
+    writeFileSync(configPath, "layout:\n  rigRow: [clock/face, gone/away]\n");
+    const lines: string[] = [];
+
+    install(ext, {
+      payloadDir: payload(),
+      plugins: { roots: [root], configPath },
+      log: (l) => lines.push(l),
+    });
+
+    // Kept whole: the panel's copy is what a save would write back.
+    expect(readFileSync(join(payloadOutDir(ext), "registry.js"), "utf8")).toContain(
+      'export const layout = {"rigRow":["clock/face","gone/away"]};',
+    );
+    expect(lines).toContain(`${configPath}: gone/away: no plugin "gone" is installed`);
+  });
 });
 
 describe("a directory still being written", () => {

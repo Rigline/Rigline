@@ -68,6 +68,8 @@ export type {
   OutboundFields,
   RiglineIdentifiers,
 } from "./identifiers.ts";
+export type { ElementPlace, Layout, LayoutPlugin } from "./layout.ts";
+export { layoutProblems, OFF, parsePlace, placeElement, placeName } from "./layout.ts";
 export type { DeclaredUses, HostPatch, Manifest, ValidManifest } from "./manifest.ts";
 export {
   byteLength,

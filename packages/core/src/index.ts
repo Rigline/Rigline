@@ -116,6 +116,7 @@ export {
   discoverPlugins,
   enabledPlugins,
   isPluginOutput,
+  layoutNotes,
   readManifest,
   registryEngine,
 } from "./plugins/discover.ts";

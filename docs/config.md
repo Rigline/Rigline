@@ -25,11 +25,46 @@ put them back.
 A name nothing has installed is reported by `install` rather than ignored, since it is usually a
 typo.
 
+## Where things go in the panel
+
+Some plugins put things in the panel: a pill in the composer's footer, a line in the row under the
+composer's controls. Each of those is an *element*. Its plugin decides where it goes, and whether it
+starts switched off. `layout` is where you overrule that:
+
+    layout:
+      rigRow:
+        - session-id/address
+        - session-id/full-id
+      off:
+        - session-id/short-id
+
+Each key is a place, and under it are the elements you have put there, in the order you want them,
+each named `plugin/element`. A place is one of:
+
+- `rigRow`, Rigline's row at the foot of the composer box, which is only there while something is
+  in it.
+- `before`, `after` or `inside` one of the app's controls, by its anchor name: `before footerSpacer`
+  is the composer footer, beside Rigline's own pill.
+- `off`, for an element you do not want to see.
+
+An element can only go where its plugin allows. The plugin's `rigline.json` lists its elements under
+`elements`, with the places each may take.
+
+Leave an element out and it stays where its plugin puts it, and so does everything a plugin you
+install later brings. In a place, the elements you list come first, in your order, and anything else
+that belongs there follows.
+
+An entry that does not work — a misspelt place, a plugin you have removed, a place its element cannot
+go — is named by `rigline install` and `rigline check`. The element stays where its plugin puts it,
+and the entry stays in the file, so a plugin you remove and add back finds its place waiting. An
+element listed under two places goes to the first, and the second is reported.
+
 ## Mistakes
 
 A file that is not valid YAML stops every command that reads it, naming the file and the line, and
-changes nothing. So does a `disabled` that is not a list of names. `disabled:` with nothing after it
-is an empty list, not a mistake.
+changes nothing. So does a `disabled` that is not a list of names, or a `layout` that is not places
+with lists under them. A key with nothing after it, like `disabled:`, is an empty list, not a
+mistake.
 
 ## The other files here
 

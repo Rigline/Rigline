@@ -6,6 +6,7 @@
  * keeps everything a person wrote there, comments included. The second only the engine writes (D74).
  */
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import type { Layout } from "@rigline/plugin-api";
 import { Document, isMap, isScalar, isSeq, parseDocument } from "yaml";
 import { UserError } from "../errors.ts";
 
@@ -45,6 +46,8 @@ export interface PluginsConfig {
   /** Where it was read from, so a report about it can name the file somebody has to edit. */
   readonly path: string;
   readonly disabled: readonly string[];
+  /** As written, entries that do not resolve included (D92). */
+  readonly layout: Layout;
 }
 
 /** The three files the split is between, as `riglinePaths` names them. */
@@ -64,7 +67,7 @@ const TO_STRING = { flowCollectionPadding: false } as const;
 
 /** Absent means nothing is disabled; malformed is a person's mistake, loud. */
 export function readConfig(path: string): PluginsConfig {
-  if (!existsSync(path)) return { path, disabled: [] };
+  if (!existsSync(path)) return { path, disabled: [], layout: {} };
   return configOf(path, parseConfig(path, readFileSync(path, "utf8")));
 }
 
@@ -126,7 +129,28 @@ function configOf(path: string, doc: Document): PluginsConfig {
   if (!Array.isArray(disabled) || !disabled.every((d) => typeof d === "string")) {
     throw new UserError(`${path}: "disabled" must be a list of plugin names`);
   }
-  return { path, disabled };
+  return { path, disabled, layout: layoutOf(path, value.layout) };
+}
+
+/**
+ * The layout's shape, which is a person's mistake when wrong and so loud. What its entries mean is
+ * `layoutProblems`', and reported rather than thrown.
+ */
+function layoutOf(path: string, value: unknown): Layout {
+  if (value === undefined || value === null) return {};
+  if (typeof value !== "object" || Array.isArray(value)) {
+    throw new UserError(`${path}: "layout" must be a mapping of places to lists of elements`);
+  }
+  const layout: Record<string, readonly string[]> = {};
+  for (const [place, names] of Object.entries(value)) {
+    if (names === null) layout[place] = [];
+    else if (Array.isArray(names) && names.every((n) => typeof n === "string")) {
+      layout[place] = names;
+    } else {
+      throw new UserError(`${path}: "layout.${place}" must be a list of plugin/element names`);
+    }
+  }
+  return layout;
 }
 
 /**

@@ -28,7 +28,7 @@ The channel between them is a directory of files, and nothing else. There is no 
 handshake, and no way for the panel to ask a follow-up question:
 
     webview/rigline/generated.js   the identifier tables harvested from this directory's bundle
-    webview/rigline/registry.js    the enabled plugins, their declarations, and patch outcomes
+    webview/rigline/registry.js    the enabled plugins, their declarations, patch outcomes, the layout
     webview/rigline/plugins/<name>/  each enabled plugin's directory
 
 Two consequences run through everything. **The payload is version-independent** (P7): `pre.js` and

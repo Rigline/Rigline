@@ -11,8 +11,10 @@ import {
   type ElementComponent,
   type ElementSpec,
   type IdentifierTables,
+  type Layout,
   type MenuComponent,
   type Placement,
+  placeElement,
   placementGap,
   placementLabel,
   type Surface,
@@ -30,6 +32,9 @@ const OWNER = "rigline";
 
 /** After every plugin's mount at the same anchor, so the pill sits nearest the spacer. */
 const PILL_ORDER = Number.MAX_SAFE_INTEGER;
+
+/** Subtracted from a listed element's index, which puts it ahead of registry order, from 0 (D92). */
+const LISTED = 2 ** 20;
 
 /** How often the failing count on the pill is refreshed, which is how often every check runs. */
 const POLL_MS = 1000;
@@ -57,8 +62,8 @@ export interface ShellService {
     onError: (reason: string) => void,
   ): Teardown;
   /**
-   * Render `component` at the element's default placement. `index` is its position in the manifest,
-   * which orders a plugin's own elements. Throws when `owner` has already bound `id`.
+   * Render `component` where the layout puts the element, or at its default. `index` is its position
+   * in the manifest, which orders a plugin's own elements. Throws when `owner` has already bound `id`.
    */
   element(
     owner: string,
@@ -85,6 +90,7 @@ interface Zone {
 export function createShellService(
   tables: IdentifierTables,
   surface: Surface,
+  layout: Layout,
   mounts: MountService,
   checks: CheckService,
   fail: (reason: string) => void,
@@ -203,9 +209,10 @@ export function createShellService(
     element(owner, order, index, id, spec, component, onError) {
       const name = `${owner}/${id}`;
       if (bound.has(name)) throw new Error(`element "${id}" is already bound`);
-      const placement = spec.default;
+      const { placement, listed } = placeElement(layout, name, spec);
       if (placement === null) {
-        bound.set(name, { state: "off", detail: "off by default" });
+        const detail = listed === null ? "off by default" : "switched off in the layout";
+        bound.set(name, { state: "off", detail });
         return () => bound.delete(name);
       }
       const where = resolve(placement);
@@ -215,7 +222,7 @@ export function createShellService(
       }
       // A plugin's own elements between its registry slot and the next plugin's, in manifest order,
       // so two of them at one anchor never claim the same position.
-      const rank = order + index / 1024;
+      const rank = listed === null ? order + index / 1024 : listed - LISTED;
       let target: Element;
       let targetKey: string;
       let unplace: Teardown;

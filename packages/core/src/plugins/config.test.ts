@@ -29,7 +29,37 @@ const SOURCE = { kind: "path", from: "/somewhere/clock", addedAt: "2026-09-18T11
 describe("readConfig", () => {
   it("returns an empty disabled list when the file is absent, and still says where it looked", () => {
     const path = join(tempDir(), "config.yaml");
-    expect(readConfig(path)).toEqual({ path, disabled: [] });
+    expect(readConfig(path)).toEqual({ path, disabled: [], layout: {} });
+  });
+
+  it("reads the layout as written, a place it does not know included (D92)", () => {
+    const path = join(tempDir(), "config.yaml");
+    writeFileSync(
+      path,
+      [
+        "layout:",
+        "  rigRow:",
+        "    - session-id/address",
+        "  before footerSpacer: [session-id/short-id]",
+        "  rigrow: [typo/kept]",
+        "  off:",
+        "",
+      ].join("\n"),
+    );
+    expect(readConfig(path).layout).toEqual({
+      rigRow: ["session-id/address"],
+      "before footerSpacer": ["session-id/short-id"],
+      rigrow: ["typo/kept"],
+      off: [],
+    });
+  });
+
+  it("rejects a layout that is not a mapping of lists of names", () => {
+    const path = join(tempDir(), "config.yaml");
+    writeFileSync(path, "layout: [rigRow]\n");
+    expect(() => readConfig(path)).toThrow(/"layout" must be a mapping/);
+    writeFileSync(path, "layout:\n  rigRow: session-id/address\n");
+    expect(() => readConfig(path)).toThrow(/"layout.rigRow" must be a list/);
   });
 
   it("reads a list in either style", () => {

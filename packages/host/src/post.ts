@@ -15,6 +15,7 @@ import {
   type ElementComponent,
   elementGaps,
   type IdentifierTables,
+  type Layout,
   type OptionalContext,
   optionalGaps,
   type PluginContext,
@@ -42,6 +43,8 @@ interface RegistryModule {
   readonly engine?: string;
   readonly plugins?: readonly Omit<PluginRecord, "order">[];
   readonly patches?: Bridge["diagnostics"]["hostPatches"];
+  /** The person's layout (D92). Absent in a payload older than it. */
+  readonly layout?: Layout;
 }
 
 async function loadPlugin(plugin: PluginRecord, kernel: Kernel): Promise<PluginStatus> {
@@ -197,11 +200,13 @@ async function main(): Promise<void> {
   }
 
   let entries: readonly PluginRecord[] = [];
+  let layout: Layout = {};
   try {
     const registry = (await import(
       new URL("./registry.js", import.meta.url).href
     )) as RegistryModule;
     entries = (registry.plugins ?? []).map((p, order) => ({ ...p, order }));
+    layout = registry.layout ?? {};
     diagnostics.hostPatches = [...(registry.patches ?? [])];
     // Carried onto diagnostics rather than left in the module, so a plugin reads it the way it
     // reads every other host-provided value and never imports the host to get it (D18, D63, D75).
@@ -232,7 +237,7 @@ async function main(): Promise<void> {
       meter,
     ),
     checks,
-    shell: createShellService(tables, surface, mounts, checks, (reason) => {
+    shell: createShellService(tables, surface, layout, mounts, checks, (reason) => {
       diagnostics.errors.push(`shell: ${reason}`);
       console.error(`[rigline] shell: ${reason}`);
     }),

@@ -17,7 +17,7 @@ For every installed extension directory `anthropic.claude-code-<version>-<platfo
     webview/rigline/runtime/     the modules plugins import — react, its JSX runtime, react-dom,
                                  and @rigline/plugin-api/ui (D87) — and shell.js (D88)
     webview/rigline/generated.js the identifier tables harvested from this directory's bundles
-    webview/rigline/registry.js  the enabled plugins, their declarations, and patch outcomes
+    webview/rigline/registry.js  the enabled plugins, their declarations, patch outcomes, the layout
     webview/rigline/plugins/<name>/…   each enabled plugin's directory, tests excluded, its entry's
                                        runtime imports pointed at runtime/
 
@@ -331,10 +331,16 @@ Baked by the injector per extension directory:
 ```js
 export const engine = "<the rigline version that wrote this>";
 export const plugins = [
-  { name, entry: "./plugins/<name>/<entry>", surfaces, uses, patchRefusal: null | "reason" },
+  { name, entry: "./plugins/<name>/<entry>", surfaces, uses, elements, patchRefusal: null | "reason" },
 ];
 export const patches = [{ plugin, why, required, applied, reason? }];
+export const layout = { "<place>": ["<plugin>/<element>", ...] };
 ```
+
+`layout` is `config.yaml`'s, as written, entries that do not resolve included (D92). The shell
+resolves each element against it as `ctx.element` binds it, with `placeElement` from `plugin-api`,
+the same function `install` reports from: the first list naming an element puts it there if it
+offers that place, and a listed element's rank is its index less 2^20, ahead of every registry rank.
 
 Registry order is discovery order: the configured plugin directories in order, each `readdirSync`
 sorted, with the probe last. It is the order mounts sharing an anchor appear in and the order
