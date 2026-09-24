@@ -3,6 +3,8 @@
  * it, so the shell shares React and `@rigline/plugin-api/ui` with the plugins it renders (D88).
  */
 import type { ElementComponent, MenuComponent, Store } from "@rigline/plugin-api";
+import type { LayoutEditor } from "../kernel/layout.ts";
+import type { ElementReading } from "../kernel/shell.ts";
 
 export interface Contribution {
   /** Stable for the contribution's life: React's key. */
@@ -37,6 +39,10 @@ export interface ShellOptions {
   readonly elements: Store<readonly PlacedElement[]>;
   /** How many checks were failing at the last run. */
   readonly failing: Store<number>;
+  /** The layout editor the Layout submenu drives (D93). */
+  readonly editor: LayoutEditor;
+  /** What became of each bound element, keyed `plugin/element`. */
+  readonly readings: ReadonlyMap<string, ElementReading>;
   /** A fault in the shell itself, rather than in a contribution. */
   readonly onError: (reason: string) => void;
 }

@@ -15,7 +15,7 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Layout } from "@rigline/plugin-api";
+import type { Layout, SaveRecord } from "@rigline/plugin-api";
 import { type Browser, type ConsoleMessage, chromium, type Page } from "playwright";
 import { afterAll, beforeAll } from "vitest";
 import { missing, versionDir } from "../../core/test/corpus.ts";
@@ -90,6 +90,8 @@ export interface OutboundEnvelope {
 
 export interface Booted {
   readonly page: Page;
+  /** What the page loads Rigline from, so a test can rewrite a file under it mid-run. */
+  readonly payloadDir: string;
   /** Everything the page logged at error level, plus any uncaught page error. */
   readonly consoleErrors: readonly string[];
   readonly bootMs: number;
@@ -111,6 +113,7 @@ export interface BootOptions {
   /** Identifiers to delete from the tables the loader reads, to stand up an extension update. */
   readonly remove?: RemovedIdentifiers;
   readonly layout?: Layout;
+  readonly save?: SaveRecord | null;
 }
 
 interface HarnessWindow {
@@ -168,6 +171,7 @@ export function register(version: string): (options?: BootOptions) => Promise<Bo
       plugins: options.plugins ?? [],
       remove: options.remove,
       layout: options.layout,
+      save: options.save,
     });
     const harness: Harness = await startHarness({
       bundleDir: join(versionDir(version), "webview"),
@@ -208,6 +212,7 @@ export function register(version: string): (options?: BootOptions) => Promise<Bo
 
     return {
       page,
+      payloadDir: dir,
       consoleErrors,
       bootMs,
       kernelMs,

@@ -20,11 +20,14 @@ import {
   optionalGaps,
   type PluginContext,
   type RiglinePlugin,
+  type SaveRecord,
   type Teardown,
 } from "@rigline/plugin-api";
 import { MODULES } from "./capabilities/index.ts";
 import { type Bridge, bridge as findBridge, type PluginStatus } from "./kernel/bridge.ts";
 import { CORE, createCheckService, kernelChecks } from "./kernel/checks.ts";
+import { createLayoutEditor } from "./kernel/layout.ts";
+import { guardLinks } from "./kernel/links.ts";
 import { createMountService } from "./kernel/mounts.ts";
 import { createRecorder } from "./kernel/record.ts";
 import { createSessionService } from "./kernel/session.ts";
@@ -45,6 +48,22 @@ interface RegistryModule {
   readonly patches?: Bridge["diagnostics"]["hostPatches"];
   /** The person's layout (D92). Absent in a payload older than it. */
   readonly layout?: Layout;
+  /** What the panel's Save goes through (D93). Absent in a payload older than it. */
+  readonly save?: SaveRecord | null;
+}
+
+let reads = 0;
+
+/** The layout `registry.js` holds now, since a fresh query is a fresh read (D93). */
+async function readSavedLayout(): Promise<Layout | null> {
+  try {
+    const registry = (await import(
+      new URL(`./registry.js?read=${++reads}`, import.meta.url).href
+    )) as RegistryModule;
+    return registry.layout ?? {};
+  } catch {
+    return null;
+  }
 }
 
 async function loadPlugin(plugin: PluginRecord, kernel: Kernel): Promise<PluginStatus> {
@@ -199,14 +218,18 @@ async function main(): Promise<void> {
     return;
   }
 
+  guardLinks();
+
   let entries: readonly PluginRecord[] = [];
   let layout: Layout = {};
+  let save: SaveRecord | null = null;
   try {
     const registry = (await import(
       new URL("./registry.js", import.meta.url).href
     )) as RegistryModule;
     entries = (registry.plugins ?? []).map((p, order) => ({ ...p, order }));
     layout = registry.layout ?? {};
+    save = registry.save ?? null;
     diagnostics.hostPatches = [...(registry.patches ?? [])];
     // Carried onto diagnostics rather than left in the module, so a plugin reads it the way it
     // reads every other host-provided value and never imports the host to get it (D18, D63, D75).
@@ -216,6 +239,12 @@ async function main(): Promise<void> {
   }
 
   const mounts = createMountService(message, react, diagnostics.mounts, meter);
+  const editor = createLayoutEditor({
+    baked: layout,
+    plugins: entries.map((p) => ({ name: p.name, elements: p.elements })),
+    save,
+    readSaved: readSavedLayout,
+  });
   const checks = createCheckService();
   const surface = detectSurface();
   const kernel: Kernel = {
@@ -237,7 +266,7 @@ async function main(): Promise<void> {
       meter,
     ),
     checks,
-    shell: createShellService(tables, surface, layout, mounts, checks, (reason) => {
+    shell: createShellService(tables, surface, editor, mounts, checks, (reason) => {
       diagnostics.errors.push(`shell: ${reason}`);
       console.error(`[rigline] shell: ${reason}`);
     }),

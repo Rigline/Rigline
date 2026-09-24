@@ -6,37 +6,27 @@
  */
 import {
   type ElementSpec,
-  elementRank,
   type Layout,
-  OFF,
+  layoutView,
   type Placement,
   parsePlace,
-  placeElement,
   placementLabel,
   placeName,
   samePlacement,
-  ZONE_NAMES,
+  type ViewElement,
+  type ViewPlace,
 } from "@rigline/plugin-api";
 import { type Document, isMap, isScalar, isSeq } from "yaml";
 import { UserError } from "../errors.ts";
 import { addToList, editConfig, type PluginsConfig, removeFromList } from "./config.ts";
 import { type DiscoveredPlugin, layoutNotes } from "./discover.ts";
 
-/** One element in the view. */
-export interface LaidOutElement {
-  /** `plugin/element`, as the layout and the commands spell it. */
-  readonly name: string;
-  readonly title: string;
-  /** Whether the layout put it here, rather than its plugin. */
-  readonly listed: boolean;
-  /** The other places it may go, as the file spells them. */
-  readonly also: readonly string[];
-}
+export type LaidOutElement = ViewElement;
 
 export interface LayoutView {
   readonly path: string;
   /** Each place something is in: zones, then slots, then off. */
-  readonly places: readonly { readonly place: string; readonly elements: LaidOutElement[] }[];
+  readonly places: readonly ViewPlace[];
   /** Each entry that does not resolve, as `install` reports it. */
   readonly problems: readonly string[];
 }
@@ -46,33 +36,12 @@ export function viewLayout(
   enabled: readonly DiscoveredPlugin[],
   config: PluginsConfig,
 ): LayoutView {
-  const byPlace = new Map<string, (LaidOutElement & { readonly rank: number })[]>();
-  enabled.forEach((plugin, order) => {
-    Object.entries(plugin.manifest.elements).forEach(([id, spec], index) => {
-      const name = `${plugin.name}/${id}`;
-      const placed = placeElement(config.layout, name, spec);
-      const { placement } = placed;
-      const place = placeName(placement);
-      const also = spec.placements
-        .filter((p) => placement === null || !samePlacement(p, placement))
-        .map(placeName);
-      const rank = elementRank(placed, order, index);
-      const list = byPlace.get(place) ?? [];
-      list.push({ name, title: spec.title, listed: placed.listed !== null, also, rank });
-      byPlace.set(place, list);
-    });
-  });
-  const kind = (place: string): number =>
-    place === OFF ? 2 : (ZONE_NAMES as readonly string[]).includes(place) ? 0 : 1;
-  const places = [...byPlace.keys()].sort((a, b) => kind(a) - kind(b) || a.localeCompare(b));
   return {
     path: config.path,
-    places: places.map((place) => ({
-      place,
-      elements: (byPlace.get(place) ?? [])
-        .sort((a, b) => a.rank - b.rank)
-        .map(({ rank: _, ...element }) => element),
-    })),
+    places: layoutView(
+      config.layout,
+      enabled.map((p) => ({ name: p.name, elements: p.manifest.elements })),
+    ),
     problems: layoutNotes(config, enabled),
   };
 }

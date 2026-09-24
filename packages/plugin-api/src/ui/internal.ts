@@ -3,5 +3,12 @@
  * would bundle a copy whose context the served components cannot see.
  */
 export { FaultContext } from "./fault.ts";
-export { MENU_CSS, type MenuEntry, MenuPanel, type MenuPanelProps } from "./menu.tsx";
+export {
+  MENU_CSS,
+  type MenuEntry,
+  MenuLink,
+  type MenuLinkProps,
+  MenuPanel,
+  type MenuPanelProps,
+} from "./menu.tsx";
 export { PILL_CSS } from "./pill.tsx";

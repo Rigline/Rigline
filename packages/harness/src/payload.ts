@@ -17,6 +17,7 @@ import {
   type Elements,
   EMPTY_USES,
   type Layout,
+  type SaveRecord,
   SURFACES,
   type Surface,
   type Uses,
@@ -56,6 +57,8 @@ export interface PreparePayloadOptions {
   readonly remove?: RemovedIdentifiers;
   /** The person's layout, as `install` would bake it from `config.yaml`. */
   readonly layout?: Layout;
+  /** What the panel's Save goes through, as `install` would bake it (D93). */
+  readonly save?: SaveRecord | null;
 }
 
 /** Write pre.js, post.js, runtime/, generated.js, registry.js and plugins/<name>/index.js into `dir`. */
@@ -87,6 +90,7 @@ export function preparePayload(dir: string, options: PreparePayloadOptions): voi
 export const plugins = ${JSON.stringify(plugins, null, 2)};
 export const patches = [];
 export const layout = ${JSON.stringify(options.layout ?? {})};
+export const save = ${JSON.stringify(options.save ?? null)};
 `;
   writeFileSync(join(dir, "registry.js"), registrySource, "utf8");
 

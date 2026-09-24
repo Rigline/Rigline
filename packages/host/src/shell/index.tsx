@@ -9,10 +9,11 @@
  */
 import { useStore } from "@rigline/plugin-api/ui";
 import { FaultContext, MENU_CSS, MenuPanel, PILL_CSS } from "@rigline/plugin-api/ui/internal";
-import { Component, type ReactNode, useCallback, useRef, useState } from "react";
+import { Component, type ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
-import type { PlacedElement, ShellOptions } from "./types.ts";
+import { layoutMenu } from "./layout.tsx";
+import type { Contribution, PlacedElement, ShellOptions } from "./types.ts";
 
 const CSS = `
 .rigline-pill {
@@ -113,8 +114,8 @@ function Elements(props: { readonly elements: readonly PlacedElement[] }): React
   );
 }
 
-function Shell(props: ShellOptions): ReactNode {
-  const { pill, contributions, elements, failing } = props;
+function Shell(props: ShellOptions & { readonly own: Contribution }): ReactNode {
+  const { pill, contributions, elements, failing, own } = props;
   const [open, setOpen] = useState<"first" | "menu" | null>(null);
   const button = useRef<HTMLButtonElement>(null);
   const close = useCallback((restoreFocus: boolean) => {
@@ -122,7 +123,13 @@ function Shell(props: ShellOptions): ReactNode {
     if (restoreFocus) button.current?.focus();
   }, []);
   const count = useStore(failing);
-  const items = useStore(contributions);
+  const contributed = useStore(contributions);
+  const laidOut = useStore(props.editor.view).length > 0;
+  // Rigline's own entry after every plugin's, which the menu divides from them by owner.
+  const items = useMemo(
+    () => (laidOut ? [...contributed, own] : contributed),
+    [contributed, own, laidOut],
+  );
   const placed = useStore(elements);
   const summary = count > 0 ? `${count} failing` : "all checks pass";
 
@@ -159,7 +166,13 @@ export function startShell(options: ShellOptions): () => void {
     onCaughtError: () => {},
     onUncaughtError: (error) => options.onError(message(error)),
   });
-  root.render(<Shell {...options} />);
+  const own: Contribution = {
+    key: -1,
+    owner: "rigline",
+    component: layoutMenu(options.editor, options.readings),
+    onError: options.onError,
+  };
+  root.render(<Shell {...options} own={own} />);
   return () => {
     root.unmount();
     style.remove();

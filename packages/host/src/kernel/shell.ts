@@ -18,6 +18,7 @@ import {
   placeElement,
   placementGap,
   placementLabel,
+  placeName,
   type Surface,
   store,
   type Teardown,
@@ -26,6 +27,7 @@ import {
 } from "@rigline/plugin-api";
 import type { Contribution, PlacedElement, StartShell } from "../shell/types.ts";
 import type { CheckService } from "./checks.ts";
+import type { LayoutEditor } from "./layout.ts";
 import type { MountService } from "./mounts.ts";
 
 /** Whose mount the pill and the zones are, in `data-rigline-mount` and in the mount diagnostics. */
@@ -85,10 +87,23 @@ interface Zone {
   stop: Teardown | null;
 }
 
+/** One bound element: what it was bound with, and where it is placed now. */
+interface Binding {
+  readonly owner: string;
+  readonly order: number;
+  readonly index: number;
+  readonly id: string;
+  readonly spec: ElementSpec;
+  readonly component: ElementComponent;
+  readonly onError: (reason: string) => void;
+  /** Its place and rank as one key, and how to take it away; null until first placed. */
+  at: { readonly key: string; readonly unplace: Teardown } | null;
+}
+
 export function createShellService(
   tables: IdentifierTables,
   surface: Surface,
-  layout: Layout,
+  editor: LayoutEditor,
   mounts: MountService,
   checks: CheckService,
   fail: (reason: string) => void,
@@ -100,6 +115,7 @@ export function createShellService(
   const placed: (PlacedElement & { readonly order: number })[] = [];
   const elements = store<readonly PlacedElement[]>([]);
   const bound = new Map<string, ElementReading>();
+  const bindings = new Map<string, Binding>();
   const zones = new Map<string, Zone>();
   const failing = store(0);
   let next = 0;
@@ -192,6 +208,83 @@ export function createShellService(
     failing.set(checks.run().reduce((total, group) => total + group.failing, 0));
   }
 
+  /** Places `b` where `layout` puts it, and does nothing when that has not moved. */
+  function settle(name: string, b: Binding, layout: Layout): void {
+    const place = placeElement(layout, name, b.spec);
+    const rank = elementRank(place, b.order, b.index);
+    const key = `${placeName(place.placement)}#${rank}`;
+    if (b.at?.key === key) return;
+    b.at?.unplace();
+    b.at = { key, unplace: placeAt(name, b, place.placement, place.listed, rank) };
+  }
+
+  /** Renders `b` at `placement`, recording what became of it; returns how to take it away. */
+  function placeAt(
+    name: string,
+    b: Binding,
+    placement: Placement | null,
+    listed: number | null,
+    rank: number,
+  ): Teardown {
+    const { owner, id, component, onError } = b;
+    if (placement === null) {
+      bound.set(name, {
+        state: "off",
+        detail: listed === null ? "off by default" : "switched off in the layout",
+      });
+      return () => {};
+    }
+    const where = resolve(placement);
+    if ("state" in where) {
+      bound.set(name, where);
+      return () => {};
+    }
+    let target: Element;
+    let targetKey: string;
+    let unplace: Teardown;
+    if (typeof placement === "string") {
+      target = join(placement, where.anchor, where.selector);
+      targetKey = `zone:${placement}`;
+      unplace = () => leave(placement);
+    } else {
+      const slot = document.createElement("span");
+      slot.className = "rigline-slot";
+      slot.setAttribute("data-rigline-slot", name);
+      target = slot;
+      targetKey = `slot:${name}`;
+      unplace = mounts.watch(
+        { anchor: where.anchor, selector: where.selector, unique: unique(where.anchor) },
+        owner,
+        (anchor) =>
+          mounts.attach(
+            anchor,
+            placement.at,
+            rank,
+            owner,
+            () => slot,
+            onError,
+            `element "${id}"`,
+          ) ?? undefined,
+        onError,
+      );
+    }
+    const entry = { key: next++, owner, id, component, onError, target, targetKey, order: rank };
+    placed.push(entry);
+    publishElements();
+    bound.set(name, { state: "placed", detail: placementLabel(placement) });
+    return () => {
+      const i = placed.indexOf(entry);
+      if (i !== -1) placed.splice(i, 1);
+      publishElements();
+      unplace();
+    };
+  }
+
+  editor.working.subscribe(() => {
+    const layout = editor.working.get();
+    for (const [name, b] of bindings) settle(name, b, layout);
+  });
+
   return {
     contribute(owner, order, component, onError) {
       const entry = { key: next++, owner, order, component, onError };
@@ -206,59 +299,15 @@ export function createShellService(
     },
     element(owner, order, index, id, spec, component, onError) {
       const name = `${owner}/${id}`;
-      if (bound.has(name)) throw new Error(`element "${id}" is already bound`);
-      const place = placeElement(layout, name, spec);
-      const { placement } = place;
-      if (placement === null) {
-        const detail = place.listed === null ? "off by default" : "switched off in the layout";
-        bound.set(name, { state: "off", detail });
-        return () => bound.delete(name);
-      }
-      const where = resolve(placement);
-      if ("state" in where) {
-        bound.set(name, where);
-        return () => bound.delete(name);
-      }
-      const rank = elementRank(place, order, index);
-      let target: Element;
-      let targetKey: string;
-      let unplace: Teardown;
-      if (typeof placement === "string") {
-        target = join(placement, where.anchor, where.selector);
-        targetKey = `zone:${placement}`;
-        unplace = () => leave(placement);
-      } else {
-        const slot = document.createElement("span");
-        slot.className = "rigline-slot";
-        slot.setAttribute("data-rigline-slot", name);
-        target = slot;
-        targetKey = `slot:${name}`;
-        unplace = mounts.watch(
-          { anchor: where.anchor, selector: where.selector, unique: unique(where.anchor) },
-          owner,
-          (anchor) =>
-            mounts.attach(
-              anchor,
-              placement.at,
-              rank,
-              owner,
-              () => slot,
-              onError,
-              `element "${id}"`,
-            ) ?? undefined,
-          onError,
-        );
-      }
-      const entry = { key: next++, owner, id, component, onError, target, targetKey, order: rank };
-      placed.push(entry);
-      publishElements();
-      bound.set(name, { state: "placed", detail: placementLabel(placement) });
+      if (bindings.has(name)) throw new Error(`element "${id}" is already bound`);
+      const b: Binding = { owner, order, index, id, spec, component, onError, at: null };
+      bindings.set(name, b);
+      settle(name, b, editor.working.get());
       return () => {
+        if (bindings.get(name) !== b) return;
+        b.at?.unplace();
+        bindings.delete(name);
         bound.delete(name);
-        const i = placed.indexOf(entry);
-        if (i !== -1) placed.splice(i, 1);
-        publishElements();
-        unplace();
       };
     },
     bound,
@@ -276,7 +325,16 @@ export function createShellService(
         if (typeof shell.startShell !== "function") {
           throw new Error("runtime/shell.js exports no startShell");
         }
-        shell.startShell({ pill, layer, contributions, elements, failing, onError: fail });
+        shell.startShell({
+          pill,
+          layer,
+          contributions,
+          elements,
+          failing,
+          editor,
+          readings: bound,
+          onError: fail,
+        });
         state.started = true;
       } catch (e) {
         state.error = e instanceof Error ? e.message : String(e);

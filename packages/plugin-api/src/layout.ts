@@ -123,6 +123,106 @@ export interface LayoutPlugin {
   readonly elements: Elements;
 }
 
+/** One element in a view of the layout. */
+export interface ViewElement {
+  /** `plugin/element`, as the layout and the commands spell it. */
+  readonly name: string;
+  readonly title: string;
+  /** Whether the layout put it here, rather than its plugin. */
+  readonly listed: boolean;
+  /** The other places it may go, as the file spells them. */
+  readonly also: readonly string[];
+}
+
+export interface ViewPlace {
+  readonly place: string;
+  readonly elements: readonly ViewElement[];
+}
+
+/**
+ * Every element of `plugins`, grouped by where `layout` puts it — zones, then slots, then off — and
+ * in the order each place shows them. What `rigline layout` prints and the panel's editor lists.
+ */
+export function layoutView(layout: Layout, plugins: readonly LayoutPlugin[]): ViewPlace[] {
+  const byPlace = new Map<string, (ViewElement & { readonly rank: number })[]>();
+  plugins.forEach((plugin, order) => {
+    Object.entries(plugin.elements).forEach(([id, spec], index) => {
+      const name = `${plugin.name}/${id}`;
+      const placed = placeElement(layout, name, spec);
+      const { placement } = placed;
+      const place = placeName(placement);
+      const also = spec.placements
+        .filter((p) => placement === null || !samePlacement(p, placement))
+        .map(placeName);
+      const rank = elementRank(placed, order, index);
+      const list = byPlace.get(place) ?? [];
+      list.push({ name, title: spec.title, listed: placed.listed !== null, also, rank });
+      byPlace.set(place, list);
+    });
+  });
+  const kind = (place: string): number =>
+    place === OFF ? 2 : (ZONE_NAMES as readonly string[]).includes(place) ? 0 : 1;
+  return [...byPlace.keys()]
+    .sort((a, b) => kind(a) - kind(b) || a.localeCompare(b))
+    .map((place) => ({
+      place,
+      elements: (byPlace.get(place) ?? [])
+        .sort((a, b) => a.rank - b.rank)
+        .map(({ rank: _, ...element }) => element),
+    }));
+}
+
+/**
+ * `layout` with `name` out of every list and last in `place`'s, or at its default when `place` is
+ * null. A list left empty goes. Built as entries, so a place called `__proto__` stays a key.
+ */
+export function withElementAt(layout: Layout, name: string, place: string | null): Layout {
+  const lists = new Map<string, string[]>();
+  for (const [at, names] of Object.entries(layout)) {
+    const kept = names.filter((n) => n !== name);
+    if (kept.length > 0) lists.set(at, kept);
+  }
+  if (place !== null) lists.set(place, [...(lists.get(place) ?? []), name]);
+  return Object.fromEntries(lists);
+}
+
+/** `layout` with `place` listing exactly `names`, each taken out of any other list. */
+export function withOrder(layout: Layout, place: string, names: readonly string[]): Layout {
+  const lists = new Map<string, string[]>();
+  for (const [at, listed] of Object.entries(layout)) {
+    if (at === place) continue;
+    const kept = listed.filter((n) => !names.includes(n));
+    if (kept.length > 0) lists.set(at, kept);
+  }
+  if (names.length > 0) lists.set(place, [...names]);
+  return Object.fromEntries(lists);
+}
+
+/**
+ * The `rigline layout` commands that turn `from` into `to`, for a panel with no companion to save
+ * through (D93). Only the places that differ are named: a command cannot write back an entry that
+ * does not resolve, so one left alone in an untouched place is kept rather than reset away.
+ */
+export function layoutCommands(from: Layout, to: Layout): string[] {
+  const at = (layout: Layout, place: string): readonly string[] =>
+    Object.hasOwn(layout, place) ? (layout[place] ?? []) : [];
+  const kept = new Set(Object.values(to).flat());
+  const commands: string[] = [];
+  for (const place of new Set([...Object.keys(to), ...Object.keys(from)])) {
+    const want = at(to, place);
+    const had = at(from, place);
+    if (want.length === had.length && want.every((n, i) => n === had[i])) continue;
+    if (want.length > 0) {
+      commands.push(`rigline layout order ${place} ${want.join(" ")}`);
+      continue;
+    }
+    for (const name of had) {
+      if (!kept.has(name)) commands.push(`rigline layout place ${name} default`);
+    }
+  }
+  return commands;
+}
+
 /**
  * Every entry of `layout` that does not resolve against `plugins`, one line each. Reported, never a
  * refusal: the element stays at its default, and the entry stays in the file, since its plugin may

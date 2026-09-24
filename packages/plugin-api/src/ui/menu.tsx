@@ -68,6 +68,10 @@ export const MENU_CSS = `
   background: var(--app-list-active-background, var(--vscode-list-activeSelectionBackground));
   color: var(--app-list-active-foreground, var(--vscode-list-activeSelectionForeground));
 }
+a.rigline-menu-item {
+  color: inherit;
+  text-decoration: none;
+}
 .rigline-menu-item[aria-disabled="true"] {
   opacity: 0.5;
   cursor: default;
@@ -335,6 +339,45 @@ export function Submenu(props: SubmenuProps): ReactNode {
           menu.panel,
         )}
     </>
+  );
+}
+
+export interface MenuLinkProps {
+  readonly href: string;
+  readonly label: ReactNode;
+  readonly description?: ReactNode;
+  readonly title?: string;
+  /** Called as the link is followed; the menu stays open. */
+  readonly onFollow?: () => void;
+}
+
+/**
+ * A row that is a real link, for a URL VS Code routes to an extension (D93). Neither prevented nor
+ * stopped, since VS Code acts only on a click that reaches its own listener; the host's guard
+ * cancels the navigation. Enter on it is the browser's own click.
+ */
+export function MenuLink(props: MenuLinkProps): ReactNode {
+  const { href, label, description, title, onFollow } = props;
+  useMenu("MenuLink");
+  const fault = useContext(FaultContext);
+  return (
+    <a
+      href={href}
+      role="menuitem"
+      tabIndex={-1}
+      className="rigline-menu-item"
+      title={title}
+      onPointerMove={focusOnPointer}
+      onClick={() => {
+        try {
+          onFollow?.();
+        } catch (e) {
+          fault(`its menu link threw: ${message(e)}`);
+        }
+      }}
+    >
+      <Text label={label} description={description} />
+    </a>
   );
 }
 
