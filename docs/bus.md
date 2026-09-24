@@ -40,7 +40,10 @@ of envelope.
 The app calls `acquireVsCodeApi` exactly once, during boot, and every outbound message goes through
 the object it returns. The pre hook wraps that function before the bundle body runs, caches the
 single real call, and returns its own object — so there is exactly one place an outbound message can
-be seen or changed, and it is ours.
+be seen or changed, and it is ours. Once the app has made that call, the kernel replaces the global,
+before any plugin loads, with one that throws as VS Code's own does on a second call, so a plugin
+reaches the bus through `ctx`. That is not a wall: a plugin shares the app's page and can reach the
+app's own code (D79).
 
 Inbound, a `message` listener registered at static-import time precedes the app's own.
 
@@ -100,8 +103,8 @@ plugin loading is done, refusals included.
 
 The rules, together, are D20 and P4:
 
-- **Outbound only.** There is no way to originate a message and no way to touch an inbound one. A
-  plugin adds to what the app said; it does not speak for the app.
+- **Outbound only.** The chain cannot originate a message or touch an inbound one. A plugin adds to
+  what the app said; it does not speak for the app.
 - **Patch-shaped.** A rewriter returns an object of fields to replace, or nothing. It never returns
   a message.
 - **Declared.** Only fields named under `uses.rewrites` for that type, and only fields the harvest

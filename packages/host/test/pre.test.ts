@@ -208,7 +208,7 @@ describe("the wrapper itself", () => {
     expect(h.bridge.diagnostics.acquireCalled).toBe(true);
   });
 
-  it("returns the same object on every call, as the real API does", async () => {
+  it("returns the cached object to a repeated call, until the kernel seals it", async () => {
     const h = await boot();
     const again = (globalRecord().acquireVsCodeApi as () => Api)();
     expect(again).toBe(h.api);

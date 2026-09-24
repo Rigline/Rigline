@@ -67,7 +67,8 @@ harvested identifier and reads no generated table. What it does:
   and a later renderer — a plugin's own React, or Rigline's — is counted in
   `diagnostics.react.foreign` and otherwise ignored.
 - Publishes all of this on `globalThis.__rigline` as the bridge the post hook drives, with a
-  `diagnostics` object the probe reads. The bridge is host-internal; no plugin sees it.
+  `diagnostics` object the probe reads. The bridge is host-internal and not part of `ctx`; the probe
+  is the one plugin that reads it.
 
 ## post.js: the kernel
 
@@ -76,7 +77,9 @@ Dynamically imported after boot. In order:
 1. Import `./generated.js`. If that fails, load nothing and say why: empty tables would refuse
    every plugin naming an identifier that has not gone.
 2. Import `./registry.js`. Publish the recorded patch outcomes to diagnostics.
-3. For each registry entry, in registry order:
+3. If the app has made its one call to `acquireVsCodeApi`, replace the global with one that throws,
+   as VS Code's own does on a second call (D79). Never before, or a plugin could get there first.
+4. For each registry entry, in registry order:
    a. If the injector recorded a required patch as not applied, refuse with that reason.
    b. Check the manifest's `uses` against the tables through the capability contracts (below).
       A violation refuses the plugin by name with the specific identifier and never imports it.
@@ -87,8 +90,8 @@ Dynamically imported after boot. In order:
       what this plugin declared. A method the plugin did not declare for throws when called, and
       the throw disables the plugin.
    f. Call `setup(ctx)` in its own try/catch; keep its teardown.
-4. Seal the replay buffer, in a `finally`.
-5. Start the shell (D88): place the RIG pill beside the footer spacer, or in a corner where there is
+5. Seal the replay buffer, in a `finally`.
+6. Start the shell (D88): place the RIG pill beside the footer spacer, or in a corner where there is
    none; start the once-a-second check run that sets its failing count; and import
    `runtime/shell.js`, the React root that draws the pill, the menu and every element. Failing to
    load it is an error in `diagnostics.errors` and costs the menu and the elements, never a plugin.

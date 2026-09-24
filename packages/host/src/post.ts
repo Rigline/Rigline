@@ -263,6 +263,14 @@ async function main(): Promise<void> {
   // reports that and does nothing (D53).
   createRecorder(diagnostics, kernel.surface);
 
+  // Sealed as VS Code seals its own after one call, so a plugin posts through `ctx` (D79). Never
+  // before the app has acquired, or a plugin could get there first and the app's call would throw.
+  if (diagnostics.acquireCalled) {
+    globalThis.acquireVsCodeApi = () => {
+      throw new Error("An instance of the VS Code API has already been acquired");
+    };
+  }
+
   try {
     for (const plugin of entries) {
       const status = await loadPlugin(plugin, kernel);

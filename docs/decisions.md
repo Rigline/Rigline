@@ -1412,6 +1412,24 @@ section in the compliance document itself. None of it conditional on publishing:
 wrote for themselves modifies Anthropic's extension exactly as much as a published one, and a policy
 filed under "before you publish" is one a personal-plugin author never reads.
 
+**Amended 2026-09-24 — bus writes are confined for what `ctx` gives, not for a hostile plugin.**
+The list above said a hostile plugin's bus writes were confined to declared fields, and they are
+not. A plugin shares the panel's page, so it can reach the app's own code. `acquireVsCodeApi` stayed
+callable after the app's one call, and even with that closed, a structural walk of React's fiber
+tree reaches the app's own connection and sends through it; a plugin can also type into the composer
+and press send. What that reaches is what the panel reaches — send a prompt, open a file or a link —
+and nothing Claude Code's host would not do for the panel itself. The rest of the list holds for a
+hostile plugin: no request of its own, no file, nothing run in Node, nothing at install time.
+
+The kernel now seals `acquireVsCodeApi` before plugins load, as VS Code seals its own after one
+call, and only once the app has made that call, so a bundle that acquired lazily is never beaten to
+it. That keeps an honest plugin on `ctx`, where its writes are declared. It is not a wall, and the
+documents no longer describe the bus as one.
+
+Said in proportion, without alarm (Leo, 2026-09-24): a dependency in any Node project runs with the
+user's files, network and processes on every machine with Node, where a Rigline plugin reaches only
+people who installed Rigline and chose it, with the panel's reach and nothing more.
+
 **D80. The companion extension is a second retrieval layer, not a scheduler (2026-09-21).**
 Confirmed by Leo: it plays the role `rigline` plays, in a different shell. It installs and updates
 `@rigline/core` under `<RIGLINE_HOME>/engine` over npm and runs that engine for every piece of work

@@ -52,8 +52,8 @@ takes a minute.
 Rigline modifies Anthropic's extension and publishes a compliance position saying what it does and
 does not do. Your plugin runs inside that modification, so the position has to hold for it too.
 
-Most of it is not left to you — the webview has no network egress, no filesystem, and no way into
-the extension host, so the usual ways to do harm are absent rather than forbidden. What the policy
+Most of it is not left to you — the webview has no network egress, no filesystem, and no way to run
+code in the extension host, so the usual ways to do harm are absent rather than forbidden. What the policy
 asks is the part the architecture cannot cover: do not deceive the person using it, do not reach for
 credentials, do not carry conversation content off the machine by a path the closed network does not
 cover, and keep any host patch to switching on a capability the extension already has.

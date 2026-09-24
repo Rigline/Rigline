@@ -287,13 +287,14 @@ installing a plugin is the act that says yes, and nothing after it asks again. `
 
 What the system adds is shape rather than restraint. A read tap is handed a frozen clone and cannot
 write. A rewrite is a patch over declared fields of a message the app already chose to send, and the
-app's message reaches the extension host whatever you do. One plugin's failure never costs another
-its load. And every host patch is reversible from the backup without anybody having predicted
+app's message reaches the extension host whatever you do. `acquireVsCodeApi` throws for a plugin, as
+VS Code's own does after the app's one call, so the bus is reached through `ctx`. One plugin's
+failure never costs another its load. And every host patch is reversible from the backup without anybody having predicted
 anything.
 
 Some of the shape is hard enough to be worth knowing you have. The webview's CSP is `default-src
-'none'` with no `connect-src`, so no plugin can make a network request, read a file or reach the
-extension host — not because we forbid it but because the egress is absent. Nothing runs at install
+'none'` with no `connect-src`, so no plugin can make a network request of its own, read a file or run
+anything in the extension host — not because we forbid it but because the egress is absent. Nothing runs at install
 time. A host patch is not code: it is a declared equal-length byte substitution the installer
 applies.
 

@@ -69,7 +69,7 @@ with Anthropic. Rigline is not a harness and does not host one.
 **It makes no network requests at runtime, and cannot.** The injected code does not call `fetch`,
 open a socket, or contact any server, Anthropic's or ours. This one is stronger than a claim about
 our own code: the webview's CSP is `default-src 'none'` with no `connect-src`, so nothing running in
-the panel has an egress — ours, a plugin's, or anybody's. There is no telemetry and no analytics,
+the panel can make a request of its own — ours, a plugin's, or anybody's. There is no telemetry and no analytics,
 because there is no mechanism by which there could be.
 
 **It does not redistribute Claude Code.** Rigline ships no Anthropic code, no bundle, no fragment of
@@ -93,14 +93,20 @@ prefix on tab labels, and the diagnostics badge. They are ours, they are what th
 about, and they are all that an install puts on a machine. Anything third-party is installed by the
 user, by name, one plugin at a time.
 
-**The boundary is architectural, and it holds for a hostile plugin as well as an honest one.** No
-plugin can make a network request, because the CSP has no `connect-src`. None can read a file or
-reach the extension host, because nothing in a webview can. None can execute code in the Node
-process: a host patch is not code but a declared equal-length byte substitution in the plugin's
-manifest, with a mandatory statement of why, applied by our installer against the pristine bundle.
-None runs at install time, because the tarball reader writes regular files and refuses everything
-else. Writes to the internal message bus are outbound only, patch-shaped, and confined to fields the
-plugin declared and the app already sends.
+**The walls are architectural, and they hold for a hostile plugin as well as an honest one.** No
+plugin can make a network request of its own, because the CSP has no `connect-src`. None can read a
+file, because nothing in a webview can. None can execute code in the Node process: a host patch is
+not code but a declared equal-length byte substitution in the plugin's manifest, with a mandatory
+statement of why, applied by our installer against the pristine bundle. None runs at install time,
+because the tarball reader writes regular files and refuses everything else.
+
+**Inside the walls, a plugin has the panel's reach and no more.** What Rigline gives a plugin on the
+internal message bus is outbound only, patch-shaped, and confined to fields it declared and the app
+already sends. But a plugin runs in the same page as the extension's own interface, so one that goes
+around what it is given can do what a person at the panel can — send a prompt, open a file or a
+link — and ask the extension for anything the interface asks it for. For scale: a dependency in any
+Node project runs with the user's files, network and processes on every machine with Node, where a
+Rigline plugin reaches only people who installed Rigline and chose it.
 
 That is containment rather than safety, and we would rather say so. A plugin still renders what it
 likes in the panel, and the CSP does not stop a convincing lie. So

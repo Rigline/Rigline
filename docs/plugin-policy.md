@@ -21,16 +21,21 @@ help: there is no clever way to reach something that is not there.
 - **No network, at all.** The webview's CSP is `default-src 'none'` with no `connect-src`. `fetch`,
   `XMLHttpRequest` and `WebSocket` do not work from a plugin any more than from the rest of the
   payload. There is no egress, so there is no telemetry you could add if you wanted to.
-- **No filesystem, and no extension host.** Nothing in the webview can read a file or reach the Node
-  process.
-- **No arbitrary code in the extension host.** A host patch is not code. It is a declared byte
-  substitution in `rigline.json` — `find`, `replace`, a mandatory `why`, the same byte length —
-  applied by our installer against the pristine bundle.
+- **No filesystem.** Nothing in the webview can read or write a file.
+- **No code in the extension host.** Nothing in the webview runs in the Node process, and a host
+  patch is not code either. It is a declared byte substitution in `rigline.json` — `find`,
+  `replace`, a mandatory `why`, the same byte length — applied by our installer against the pristine
+  bundle.
 - **No install-time execution.** `rigline add` never runs a lifecycle script. The tar reader writes
   regular files and refuses everything else by name.
-- **Bus writes are outbound, declared and patch-shaped.** A rewrite replaces only fields named under
-  `uses.rewrites`, only fields the app already sends, and only with the same `typeof`. You cannot
-  originate a message or touch an inbound one.
+
+Inside those walls your plugin has the panel's reach. It runs in the same page as Claude Code's own
+interface, so it can do there what a person at the panel can — send a prompt, open a file or a link —
+and ask the extension for anything the interface asks it for. `ctx` gives you less than that on
+purpose: a rewrite replaces only fields named under `uses.rewrites`, only fields the app already
+sends, and only with the same `typeof`, and nothing in it originates a message. `acquireVsCodeApi`
+throws for a plugin, as VS Code's own does after the app's call. Going around `ctx` through the
+app's own code is possible, and keeping to `ctx` is asked of you below rather than enforced.
 
 This is containment, not safety. A plugin still renders whatever it likes in the panel, and a host
 patch can still do harm inside its equal-length constraint. What the boundary buys is that the
@@ -45,6 +50,9 @@ worst case is bounded and local, not that there is no bad case.
   neither is the clipboard or a file a user is told to send. Do not build that path.
 - **Do not reach for credentials.** Do not read, store, display, forward or prompt for API keys,
   OAuth tokens or session tokens, and do not interfere with sign-in.
+- **Write to the bus through `ctx`.** What your manifest declares is what `ctx` lets you do, and it
+  is what somebody deciding whether to install your plugin reads. Sending through the app's own code
+  what `ctx` would not send is doing something your manifest does not say.
 - **Do not route Claude usage.** No endpoint substitution, no proxying, no reselling, no billing
   anything to anyone but the user whose account it is.
 - **Keep host patches to reaching what the extension already does.** The justified shape is a
@@ -69,7 +77,7 @@ people who can obfuscate, and entering it would mean owning every round we lost.
 
 So this page is a statement of obligations, not a filter. What we actually have:
 
-- **A boundary that holds regardless.** Everything in the first section is true of a hostile plugin
+- **A boundary that holds regardless.** Every wall in the first section is true of a hostile plugin
   and an honest one alike. That is why it is worth more than the second section.
 - **Declarations that are cheap to check.** `uses` and `patches` say what a plugin reaches for,
   before anybody reads its code. They do not prove good behaviour; they make a mismatch something a

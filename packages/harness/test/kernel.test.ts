@@ -129,6 +129,34 @@ describe.skipIf(skipReason !== null)(
       }
     }, 20000);
 
+    it("seals acquireVsCodeApi before plugins load, and the app still posts after", async () => {
+      const acquirer: FixturePlugin = {
+        name: "acquirer",
+        manifest: { uses: {} },
+        source: `export default { setup() { globalThis.acquireVsCodeApi(); } };`,
+      };
+      const booted = await boot({ plugins: [acquirer, mounterPlugin] });
+      try {
+        await booted.page.waitForSelector(".harness-badge");
+        const d = await booted.diagnostics();
+        const acquirerStatus = d.plugins.find((p) => p.name === "acquirer");
+        expect(acquirerStatus?.status).toBe("error");
+        expect(acquirerStatus?.reason).toMatch(/already been acquired/);
+        expect(d.plugins.find((p) => p.name === "mounter")?.status).toBe("loaded");
+
+        const before = d.outboundCount;
+        await booted.page.evaluate(() => window.dispatchEvent(new Event("focus")));
+        await booted.page.waitForFunction(
+          (n) =>
+            (window as unknown as { __rigline: { diagnostics: { outboundCount: number } } })
+              .__rigline.diagnostics.outboundCount > n,
+          before,
+        );
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
     it("refuses a plugin naming an identifier gone from this version, and never imports it", async () => {
       const stalePlugin: FixturePlugin = {
         name: "stale",
