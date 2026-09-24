@@ -70,6 +70,9 @@ anything may change between releases.
 - `rigline install` and `rigline check` now name a plugin that imports a package it did not bundle
   as refused, since the panel cannot load it, rather than leaving you to find the error in the panel.
 - `rigline check` now names a switched-off plugin that is not installed, as `install` already did.
+- `rigline install` makes `~/.rigline/token` once: a random value the panel will carry when it saves
+  your layout, so a save can show it came from your own panel. Leave it be; see
+  [docs/config.md](docs/config.md).
 - A plugin that calls `acquireVsCodeApi()` now gets the error VS Code itself gives a second call,
   since the app has already made the first. A plugin reaches the panel's messages through `ctx`.
 

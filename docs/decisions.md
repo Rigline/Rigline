@@ -1488,6 +1488,11 @@ twice — all correct for a Node process and all wrong inside Electron. `EngineO
 defaults to `process.execPath` and changes nothing for the CLI. Finding what to pass it is the
 companion's own module, because the wrapper never needs to search: it is already running the answer.
 
+**Amended 2026-09-24 — the companion saves the panel's layout, and that saves a paste, no more.**
+Saving from the panel needs something in Node listening, and the companion is the only such process
+(D93). Without it, Save copies the `rigline layout` commands that make the same change, and editing
+and the live preview are the same either way, so nothing is reachable only through the companion.
+
 **D81. Nothing reacts to an extension directory that is still being written (2026-09-21).**
 `settleWebviewBackup` makes the live bytes the pristine backup in two of its branches: when there is
 no backup yet, and when live and backup share no relation. Both are right about a real new version
@@ -1997,3 +2002,58 @@ bake keeps unresolved entries: a copy holding only what resolved would delete th
 `default` as the place; `reset` empties the whole layout. `default` is a word for the command only:
 in the file an element is at its default by being in no list. A command that empties a place takes
 the place out, and `layout` with it when it was the last.
+
+**D93. A layout saved in the panel reaches Node as a link to the companion, checked by one token per
+Rigline home (2026-09-24, Leo).** The webview has no channel to Node, so the three candidates the
+plan carried and three more were read live in an isolated VS Code driven over CDP. A person's click
+on a `vscode://` link in any extension's webview is routed by VS Code itself to the named extension's
+`registerUriHandler`, with nothing of Anthropic's on the path. So the panel's Save is a link to the
+companion, which runs `rigline layout save` with the link's payload; the engine writes it through the
+in-place edit `rigline layout order` uses and re-injects.
+
+Rejected, each read live:
+
+- The editor as a VS Code view in the companion. The panel can pick a change up by re-importing a
+  module under a fresh query, but this puts the editor where D84 declined a settings UI, makes the
+  whole editor companion-only, and gives up the in-panel working copy D92 was shaped for.
+- A host patch forwarding one message type to a companion command. It works, two-way and without a
+  prompt, but it inserts code, which the patch system refuses by construction (D25) and D79 tells
+  readers a patch never is. Its patch-free relative, Claude Code's own `open_url` request carrying the
+  same link, prompts identically and puts the payload in Claude Code's log, which records every
+  inbound message verbatim.
+- `localStorage`, which VS Code keys by view type: editor tabs share one and the sidebar has its own,
+  so a layout saved in a tab would not show in the sidebar. The CLI cannot see it either.
+- A worker posting to a listener on localhost: the browser refuses a worker script from
+  `*.vscode-cdn.net`, which is not the webview's origin. And `command:` links, which Claude Code does
+  not enable.
+
+Two findings bind the implementation. A click on a `vscode:` link that does not reach VS Code's
+listener on `window` — a scripted click, or one whose propagation a handler stopped — follows the
+href and turns the panel into `chrome-error://`, which *Reload Webviews* does not recover; so a
+capture-phase guard cancels the default action of every such click, which VS Code's listener
+ignores. And a link naming an extension that is not installed makes VS Code install that id from the
+Marketplace, where `rigline.rigline` is unclaimed; so `install` bakes whether an installed companion
+lists `onUri`, and the panel shows the link only then.
+
+**The token keeps web pages out without fixing what the handler may do.** Once a person ticks "Do
+not ask me again", a `vscode://rigline.rigline/…` link on any web page reaches the handler with no
+prompt. Limiting the handler forever to what a page may do was the alternative, and declined: nobody
+knows yet what the handler will be wanted for (Leo). `~/.rigline/token` holds 128 random bits,
+made by the first `install` that finds none by linking a file written aside into place, which fails
+when the file exists, so tools racing to make it all end with the first one's. Nothing rewrites it:
+a file that does not hold a token is reported and left for a person to delete. `install` bakes it
+into `registry.js`; the companion hands the payload over unread, and the engine compares the token
+with the file, so every tool that saves checks against the one file. Two tokens take deleting the
+file or the home, or two tools disagreeing about `RIGLINE_HOME`, which splits the config and plugins
+too; a panel open across either is refused with a reason that says to reload it. A plugin can read
+the token, as it can read anything the panel holds, and nothing needs it not to: it guards against
+pages, not the panel. It never enters diagnostics, the copied report or `doctor`.
+
+**The payload is the one format the save defines**: base64url JSON of `{ v, token, from, to }`,
+encoded and decoded by the same functions in `plugin-api`, with `v` so a newer engine can read or
+refuse by name a link from a panel an older one baked. `from` is the layout the panel's copy started
+from, which tells the engine whether it is writing over a change made since (D92). The engine
+refuses a payload over a size cap or of the wrong shape before reading it.
+
+Without the companion, Save copies `rigline layout reset` and one `rigline layout order` per place,
+which reproduce the copy exactly. D80 holds on that reading.

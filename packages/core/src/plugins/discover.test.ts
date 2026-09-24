@@ -241,10 +241,20 @@ describe("bakeRegistry", () => {
       plugins: unknown[];
       patches: unknown[];
       layout: unknown;
+      save: unknown;
     };
     expect(mod.plugins).toEqual([]);
     expect(mod.patches).toEqual([]);
     expect(mod.layout).toEqual({});
+    expect(mod.save).toBeNull();
+  });
+
+  it("carries what the panel's Save needs (D93)", async () => {
+    const save = { token: "ABCDEFGHIJKLMNOPQRSTUV", companion: true, scheme: "vscode" };
+    const path = join(tempDir(), "registry.mjs");
+    writeFileSync(path, bakeRegistry([], [], {}, save));
+    const mod = (await import(pathToFileURL(path).href)) as { save: object };
+    expect(mod.save).toEqual(save);
   });
 
   it("carries the layout in the order the file wrote its places (D92)", async () => {

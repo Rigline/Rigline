@@ -49,6 +49,7 @@ import {
   isPluginOutput,
   layoutNotes,
 } from "../plugins/discover.ts";
+import { saveRecord } from "../plugins/save.ts";
 import { applyPatches, type PatchOutcome } from "./hostpatch.ts";
 import { importProblem, resolveRuntimeImports } from "./imports.ts";
 
@@ -268,6 +269,8 @@ export interface InstallOptions {
     /** Which of `roots` is core's bundled set, so overriding one is not reported as a collision. */
     readonly bundledRoot?: string;
     readonly configPath: string;
+    /** `~/.rigline/token`, made if absent and baked for the panel's Save (D93). Absent bakes none. */
+    readonly tokenPath?: string;
   };
   /**
    * `~/.rigline/anchors.json`, already read (D44). Absent means the shipped table, which is what a
@@ -398,7 +401,7 @@ export function install(ext: string, options: InstallOptions): InstallReport {
   let verdicts: readonly PluginVerdict[] = [];
 
   if (options.plugins) {
-    const { roots, last, bundledRoot, configPath } = options.plugins;
+    const { roots, last, bundledRoot, configPath, tokenPath } = options.plugins;
     const discovered = discoverPlugins(roots, { last, bundledRoot, log });
     const config = readConfig(configPath);
     const enabled = enabledPlugins(discovered, config, log);
@@ -456,7 +459,8 @@ export function install(ext: string, options: InstallOptions): InstallReport {
       rmSync(join(pluginsOut, entry.name), { recursive: true, force: true });
       wrotePayload = true;
     }
-    const baked = Buffer.from(bakeRegistry(enabled, outcomes, config.layout));
+    const save = tokenPath === undefined ? null : saveRecord(ext, tokenPath, log);
+    const baked = Buffer.from(bakeRegistry(enabled, outcomes, config.layout, save));
     if (writeIfChanged(join(state.payloadDir, "registry.js"), baked)) wrotePayload = true;
 
     // Before the notes, because this is the one report that says whether a plugin will work here.

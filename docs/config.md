@@ -94,6 +94,11 @@ Rigline's record, not a setting, so it is not meant for editing. A plugin you co
 `~/.rigline/anchors.json` repairs an anchor without waiting for a release; [anchors.md](anchors.md)
 says when you need one.
 
-Before these two files there was `~/.rigline/config.json`. The first command that needs it splits it
+`~/.rigline/token` is a random value `rigline install` makes once and never changes. It goes into
+the panel, so a save made from the panel can show it came from one of your own. Leave it alone. If
+it is deleted, the next `install` makes a new one, and a panel still open from before needs
+reloading before it can save.
+
+Before `sources.json` and `config.yaml` there was `~/.rigline/config.json`. The first command that needs it splits it
 into them and removes it. If one turns up again beside them, an older Rigline wrote it: it is not
 read, the commands say so, and it can be deleted.

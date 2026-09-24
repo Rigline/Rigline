@@ -77,6 +77,19 @@ export function placeElement(layout: Layout, name: string, spec: ElementSpec): E
   return { placement: spec.default, listed: null };
 }
 
+/** Whether two layouts say the same: a place listing nothing is no place, and order within one counts. */
+export function sameLayout(a: Layout, b: Layout): boolean {
+  const places = (layout: Layout): string[] =>
+    Object.keys(layout).filter((place) => (layout[place]?.length ?? 0) > 0);
+  const inA = places(a);
+  if (inA.length !== places(b).length) return false;
+  return inA.every((place) => {
+    const x = a[place] ?? [];
+    const y = b[place] ?? [];
+    return x.length === y.length && x.every((name, i) => name === y[i]);
+  });
+}
+
 /**
  * Where an element sorts among everything at its place: listed elements first, in list order, ahead
  * of every registry rank, which starts at 0; then the rest by plugin, then manifest order.

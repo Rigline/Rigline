@@ -76,6 +76,7 @@ export {
   parsePlace,
   placeElement,
   placeName,
+  sameLayout,
 } from "./layout.ts";
 export type { DeclaredUses, HostPatch, Manifest, ValidManifest } from "./manifest.ts";
 export {
@@ -89,6 +90,13 @@ export {
 } from "./manifest.ts";
 export type { RuntimeSpecifier } from "./runtime.ts";
 export { isRuntimeSpecifier, RUNTIME_MODULES } from "./runtime.ts";
+export type { SavePayload, SaveRecord } from "./save.ts";
+export {
+  decodeSavePayload,
+  encodeSavePayload,
+  MAX_SAVE_PAYLOAD,
+  SAVE_PAYLOAD_VERSION,
+} from "./save.ts";
 export { manifestSchema, manifestSchemaJson } from "./schema.ts";
 export { nextSessionId } from "./session.ts";
 export type { Store } from "./store.ts";

@@ -30,6 +30,8 @@ export interface RiglinePaths {
   readonly anchors: string;
   /** The last harvest, as a scan, for "what changed" after an extension update. */
   readonly baseline: string;
+  /** What a panel's Save link carries so the companion knows it came from a panel (D93). */
+  readonly token: string;
 }
 
 export function riglinePaths(home = riglineHome()): RiglinePaths {
@@ -41,5 +43,6 @@ export function riglinePaths(home = riglineHome()): RiglinePaths {
     plugins: join(home, "plugins"),
     anchors: join(home, "anchors.json"),
     baseline: join(home, "baseline.json"),
+    token: join(home, "token"),
   };
 }

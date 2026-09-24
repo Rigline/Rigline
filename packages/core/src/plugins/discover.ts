@@ -15,6 +15,7 @@ import {
   capabilityUse,
   type Layout,
   layoutProblems,
+  type SaveRecord,
   type Uses,
   type ValidManifest,
   validateManifest,
@@ -222,12 +223,13 @@ function normalizeEntry(entry: string): string {
  * anchor appear in and the order rewriters compose in — so it is baked as an array, never a map.
  *
  * The layout goes in whole, entries that do not resolve included, because it is also what the panel
- * would save back (D92).
+ * would save back (D92). `save` is null where there is nothing to save through (D93).
  */
 export function bakeRegistry(
   enabled: readonly DiscoveredPlugin[],
   outcomes: readonly PatchOutcome[],
   layout: Layout = {},
+  save: SaveRecord | null = null,
 ): string {
   const entries = enabled.map((p) =>
     JSON.stringify({
@@ -247,6 +249,7 @@ ${body}
 ];
 export const patches = ${JSON.stringify(outcomes)};
 export const layout = ${JSON.stringify(layout)};
+export const save = ${JSON.stringify(save)};
 `;
 }
 

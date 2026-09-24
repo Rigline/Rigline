@@ -10,6 +10,8 @@ import { join } from "node:path";
 import { UserError } from "../errors.ts";
 
 export const EXTENSIONS_DIR = join(homedir(), ".vscode", "extensions");
+/** The URL scheme of the product whose extensions `EXTENSIONS_DIR` holds. */
+export const URL_SCHEME = "vscode";
 export const EXTENSION_NAME_PREFIX = "anthropic.claude-code-";
 
 /** The first three numeric groups in a directory name, which are always the version. */

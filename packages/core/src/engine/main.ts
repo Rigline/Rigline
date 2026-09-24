@@ -62,6 +62,7 @@ import {
   resetLayout,
   restoreAll,
   riglinePaths,
+  saveFromPanel,
   scanOf,
   setPluginEnabled,
   setupCompanion,
@@ -196,6 +197,7 @@ function pluginOptions(): NonNullable<InstallOptions["plugins"]> {
     last: ["probe"],
     bundledRoot: bundledPluginsDir(),
     configPath: paths.config,
+    tokenPath: paths.token,
   };
 }
 
@@ -450,6 +452,19 @@ function layoutCommand(args: string[]): number {
       resetLayout(paths.config)
         ? `emptied the layout in ${paths.config}`
         : `${paths.config} has no layout`,
+    );
+  } else if (verb === "save") {
+    // The companion's, with a panel's Save link (D93), so the help leaves it out. The first line is
+    // the outcome the companion shows.
+    if (rest.length !== 1)
+      throw new UserError("layout save takes the payload of a panel's Save link");
+    const saved = saveFromPanel(paths.config, paths.token, rest[0] as string);
+    console.log(
+      !saved.changed
+        ? `${paths.config} already held the panel's layout`
+        : saved.overChange
+          ? `saved the panel's layout to ${paths.config}, over a change made since the panel loaded`
+          : `saved the panel's layout to ${paths.config}`,
     );
   } else {
     throw new UserError(`unknown layout command "${verb}": place, order or reset`);

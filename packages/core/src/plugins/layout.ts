@@ -7,6 +7,7 @@
 import {
   type ElementSpec,
   elementRank,
+  type Layout,
   OFF,
   type Placement,
   parsePlace,
@@ -201,6 +202,32 @@ export function orderInLayout(
     let changed = false;
     for (const name of names) changed = unlist(doc, name, key) || changed;
     return setList(doc, ["layout", key], names) || changed;
+  });
+}
+
+/**
+ * Writes `layout` over the file's, place by place, so a name already listed keeps its node and any
+ * comment on it, and a place `layout` does not have is emptied (D93).
+ */
+export function writeLayout(configPath: string, layout: Layout): boolean {
+  const wanted = Object.entries(layout).filter(([, names]) => names.length > 0);
+  return editConfig(configPath, (doc) => {
+    let changed = false;
+    if (doc.has("layout") && !isMap(doc.get("layout", true))) {
+      doc.delete("layout");
+      changed = true;
+    }
+    const keep = new Set(wanted.map(([place]) => place));
+    for (const place of placesIn(doc)) {
+      if (keep.has(place)) continue;
+      doc.deleteIn(["layout", place]);
+      changed = true;
+    }
+    for (const [place, names] of wanted)
+      changed = setList(doc, ["layout", place], names) || changed;
+    const node = doc.get("layout", true);
+    if (isMap(node) && node.items.length === 0) doc.delete("layout");
+    return changed;
   });
 }
 

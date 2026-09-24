@@ -334,6 +334,29 @@ describe("a second run writes nothing", () => {
     );
     expect(lines).toContain(`${configPath}: gone/away: no plugin "gone" is installed`);
   });
+
+  it("makes the token once and bakes it into every version, with no companion beside them (D93)", () => {
+    const first = fixture({ version: "2.1.268" });
+    const second = fixture({ version: "2.1.270" });
+    const tokenPath = join(tempDir("rigline-home-"), "token");
+    for (const ext of [first, second]) {
+      install(ext, { payloadDir: payload(), plugins: withPlugins([], { tokenPath }) });
+    }
+    const token = readFileSync(tokenPath, "utf8").trim();
+    for (const ext of [first, second]) {
+      expect(readFileSync(join(payloadOutDir(ext), "registry.js"), "utf8")).toContain(
+        `export const save = {"token":"${token}","companion":false,"scheme":"vscode"};`,
+      );
+    }
+  });
+
+  it("bakes no Save without a token path", () => {
+    const ext = fixture();
+    install(ext, { payloadDir: payload(), plugins: withPlugins([]) });
+    expect(readFileSync(join(payloadOutDir(ext), "registry.js"), "utf8")).toContain(
+      "export const save = null;",
+    );
+  });
 });
 
 describe("a directory still being written", () => {

@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { ElementSpec } from "./elements.ts";
-import { describeElements, layoutProblems, parsePlace, placeElement, placeName } from "./layout.ts";
+import {
+  describeElements,
+  layoutProblems,
+  parsePlace,
+  placeElement,
+  placeName,
+  sameLayout,
+} from "./layout.ts";
 
 const spacer = { anchor: "footerSpacer", at: "before" } as const;
 const shortId: ElementSpec = {
@@ -122,5 +129,20 @@ describe("layoutProblems", () => {
 
   it("says nothing about a switched-off plugin's entries, which are kept for when it is back", () => {
     expect(layoutProblems({ rigRow: ["clock/face"] }, plugins, ["clock"])).toEqual([]);
+  });
+});
+
+describe("sameLayout", () => {
+  it("ignores the order of places and a place that lists nothing", () => {
+    expect(
+      sameLayout({ rigRow: ["a/b"], off: ["c/d"] }, { off: ["c/d"], rigRow: ["a/b"], x: [] }),
+    ).toBe(true);
+    expect(sameLayout({}, { rigRow: [] })).toBe(true);
+  });
+
+  it("counts the order within a place, and every name", () => {
+    expect(sameLayout({ rigRow: ["a/b", "c/d"] }, { rigRow: ["c/d", "a/b"] })).toBe(false);
+    expect(sameLayout({ rigRow: ["a/b"] }, { rigRow: ["a/b", "c/d"] })).toBe(false);
+    expect(sameLayout({ rigRow: ["a/b"] }, { off: ["a/b"] })).toBe(false);
   });
 });

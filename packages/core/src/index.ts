@@ -61,6 +61,7 @@ export {
   findExtension,
   installedExtensions,
   supersededExtensions,
+  URL_SCHEME,
 } from "./extension/locate.ts";
 export type {
   DeclaredPatch,
@@ -128,6 +129,7 @@ export {
   placeInLayout,
   resetLayout,
   viewLayout,
+  writeLayout,
 } from "./plugins/layout.ts";
 export type {
   LabelledRoot,
@@ -145,6 +147,14 @@ export type {
   SwitchResult,
 } from "./plugins/manage.ts";
 export { addPlugin, parseSource, removePlugin, setPluginEnabled } from "./plugins/manage.ts";
+export type { PanelSave } from "./plugins/save.ts";
+export {
+  companionHandlesSave,
+  ensureToken,
+  readToken,
+  saveFromPanel,
+  saveRecord,
+} from "./plugins/save.ts";
 export type { BaselineSource } from "./update/baseline.ts";
 export {
   GENERATED_FILE,
