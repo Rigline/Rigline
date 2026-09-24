@@ -9,7 +9,7 @@ import { spawn } from "node:child_process";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import * as vscode from "vscode";
-import { acquireAndInject, showPlugins } from "./acquire.ts";
+import { acquireAndInject, saveLayout, showPlugins } from "./acquire.ts";
 import { CLAUDE_CODE, type Editor, type Health } from "./editor.ts";
 import { type ReloadOffer, reloadOffer } from "./reload.ts";
 import { type Stamps, startingReason, type WatchReason, watchExtension } from "./watch.ts";
@@ -99,6 +99,35 @@ export function activate(context: vscode.ExtensionContext): void {
         version,
         runEngine,
       });
+    }),
+  );
+
+  // A Save link from the panel (D93). Only the path is logged: the query carries the token.
+  let saving: Promise<void> = Promise.resolve();
+  context.subscriptions.push(
+    vscode.window.registerUriHandler({
+      handleUri: (uri) => {
+        const payload = uri.path === "/layout" ? new URLSearchParams(uri.query).get("p") : null;
+        if (payload === null) {
+          editor.log(`ignored a link Rigline does not answer: ${uri.path}`);
+          return;
+        }
+        // One at a time: two saves at once would both edit config.yaml and both re-inject. Caught,
+        // or one failure would leave the chain rejected and skip every save after it.
+        saving = saving
+          .then(async () => {
+            const wrapper = await import("rigline/engine");
+            await saveLayout({
+              editor,
+              ensureEngine: (opts) => wrapper.ensureEngine(opts),
+              exists: existsSync,
+              version,
+              runEngine,
+              payload,
+            });
+          })
+          .catch((error: unknown) => editor.log(`a save failed: ${String(error)}`));
+      },
     }),
   );
 

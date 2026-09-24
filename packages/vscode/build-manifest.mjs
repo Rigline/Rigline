@@ -42,8 +42,10 @@ const manifest = {
     },
   },
   // Not an activation on the Claude Code extension itself: the companion must run when that
-  // extension is *replaced*, which is exactly when nothing of it is activating (D80).
-  activationEvents: ["onStartupFinished"],
+  // extension is *replaced*, which is exactly when nothing of it is activating (D80). `onUri`, so a
+  // Save link clicked before startup finishes still reaches the handler, and so `install` can tell
+  // this companion answers one (D93).
+  activationEvents: ["onStartupFinished", "onUri"],
   main: "./extension.cjs",
   // One file plus what vsce always takes. Said explicitly so the packager stops guessing, and so a
   // stray file in dist/ cannot find its way into a VSIX by being there.

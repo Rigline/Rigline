@@ -68,7 +68,7 @@ describe("a Save link's payload", () => {
     expect(decodeSavePayload(encodeJson({ ...payload, to: { rigRow: [control] } }))).toHaveProperty(
       "problem",
     );
-    const many = { rigRow: Array.from({ length: 1100 }, (_, i) => `p/e${i}`) };
+    const many = { rigRow: Array.from({ length: 1030 }, (_, i) => `a/${i}`) };
     expect(decodeSavePayload(encodeJson({ ...payload, to: many }))).toMatchObject({
       problem: expect.stringContaining("more than"),
     });

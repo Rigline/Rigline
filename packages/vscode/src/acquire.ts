@@ -188,16 +188,54 @@ export interface ShowPluginsOptions {
 }
 
 /**
- * The palette command's whole sequence: find a Node, resolve whatever engine is already on disk,
- * and pipe its own `list` into the output channel.
- *
- * No `updateEngine` call. A viewing command has no business reaching npm for a newer engine, and
- * `ensureEngine` alone is a pure local read when one is already on disk (8c).
+ * The palette command: the engine's own `list`, piped into the output channel.
  *
  * Never touches the status item: that line reports the watcher's own health, and a one-off command
  * failing here is a different kind of thing than the background flow needing a person.
  */
 export async function showPlugins(options: ShowPluginsOptions): Promise<void> {
+  await onDisk(options, ["list"]);
+}
+
+export interface SaveLayoutOptions extends ShowPluginsOptions {
+  /** A Save link's payload, which the engine checks and the companion never reads (D93). */
+  readonly payload: string;
+}
+
+/** How the engine prints a problem a person has to fix, which is how a refusal reaches here. */
+const ENGINE_PROBLEM = "rigline: ";
+
+/**
+ * A Save link from the panel: run `layout save` with its payload, and say how it went in a
+ * notification. The engine prints the outcome first; a refusal and a save over a change are
+ * warnings, since a person needs to know either (D92).
+ */
+export async function saveLayout(options: SaveLayoutOptions): Promise<void> {
+  const lines = await onDisk(options, ["layout", "save", options.payload]);
+  if (lines === null) return;
+  const outcome = lines.find((line) => line.trim() !== "") ?? "";
+  if (outcome === "" || outcome.startsWith(ENGINE_PROBLEM)) {
+    const reason = outcome.slice(ENGINE_PROBLEM.length).replace(/^not saved: /, "");
+    await options.editor.ask(
+      "warn",
+      `The layout was not saved: ${reason || "the engine said nothing; the Rigline output has the rest"}`,
+    );
+    return;
+  }
+  const sentence = outcome.charAt(0).toUpperCase() + outcome.slice(1);
+  await options.editor.ask(outcome.includes("over a change") ? "warn" : "info", sentence);
+}
+
+/**
+ * Finds a Node and the engine already on disk and runs `argv` with it, for a one-off command. No
+ * `updateEngine`: a command a person gave has no business reaching npm for a newer engine, and
+ * `ensureEngine` alone is a local read when one is on disk (8c). Every failure is said in a
+ * notification rather than thrown. The lines the engine wrote, or null where it never ran.
+ */
+async function onDisk(
+  options: ShowPluginsOptions,
+  argv: readonly string[],
+): Promise<readonly string[] | null> {
   const { editor, ensureEngine, exists, version, runEngine, env, platform } = options;
 
   let nodePath: string;
@@ -213,15 +251,21 @@ export async function showPlugins(options: ShowPluginsOptions): Promise<void> {
     const message = error instanceof NoNodeError ? error.message : String(error);
     editor.log(message);
     await editor.ask("warn", message);
-    return;
+    return null;
   }
 
   try {
     const engine = await ensureEngine({ nodePath, label: LABEL, version });
-    await runEngine(nodePath, engine.entry, ["list"], (line) => editor.log(line));
+    const lines: string[] = [];
+    await runEngine(nodePath, engine.entry, argv, (line) => {
+      lines.push(line);
+      editor.log(line);
+    });
+    return lines;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     editor.log(message);
     await editor.ask("warn", message);
+    return null;
   }
 }

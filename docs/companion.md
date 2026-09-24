@@ -111,6 +111,19 @@ already on disk with `ensureEngine` alone, never `updateEngine`, and pipes the e
 into the output channel. It never touches the status item. Plugin state stays in `config.yaml`, and
 enable and disable stay in the CLI (D84).
 
+## Saving the panel's layout
+
+The panel's Save is a link, `vscode://rigline.rigline/layout?p=…`, and VS Code hands a person's
+click on it to the companion's URI handler (D93). The handler answers one path, `/layout`, and hands
+the payload to the engine's `layout save` unread, through the engine already on disk and never an
+update, as Show Plugins does. Saves run one at a time. The engine prints the outcome first, and that
+line is the notification: a warning when it saved over a change or refused, since a person needs to
+know either. Everything after it goes to the output channel. Only the link's path is logged, because
+its query carries the token.
+
+`onUri` is among the activation events, so a click before startup finishes still reaches the
+handler, and `install` reads it from the manifest to decide that an installed companion answers.
+
 ## `rigline vscode-setup`
 
 An engine verb, forwarded by the wrapper. It installs the bundled VSIX into every editor whose CLI
@@ -159,8 +172,8 @@ and these reproduce the cases on demand:
 ## Not available, so not to be re-proposed
 
 - **The webview telling the companion it is patched.** The payload's `postMessage` reaches Claude
-  Code's host code, not ours, and VS Code has no cross-extension channel unless the other extension
-  exports one.
+  Code's host code, not ours. A link reaches the companion only when a person clicks it (D93), so
+  nothing can tell the companion anything unprompted.
 - **Asking which directory is running.** `extensions.all` describes what is installed; the
   `start`/`moved` split is what answers the question instead.
 - **Embedding the engine in the VSIX** (D80), and **`ELECTRON_RUN_AS_NODE`** (above).

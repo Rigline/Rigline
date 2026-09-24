@@ -24,8 +24,11 @@ export interface SavePayload {
   readonly to: Layout;
 }
 
-/** The longest encoded payload the engine reads. A real layout is a few hundred characters. */
-export const MAX_SAVE_PAYLOAD = 64 * 1024;
+/**
+ * The longest encoded payload the engine reads, well inside the Windows command line it reaches
+ * the engine on. A real layout is a few hundred characters.
+ */
+export const MAX_SAVE_PAYLOAD = 16 * 1024;
 const MAX_ENTRIES = 1024;
 const MAX_TEXT = 256;
 

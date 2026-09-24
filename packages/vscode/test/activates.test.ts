@@ -53,6 +53,8 @@ function stubbedHost(): string {
          createStatusBarItem: () => ({ show() {}, dispose() {}, text: "", tooltip: "" }),
          showWarningMessage: async () => undefined,
          showInformationMessage: async () => undefined,
+         uriHandlers: [],
+         registerUriHandler(h) { module.exports.window.uriHandlers.push(h); return disposable; },
        },
        workspace: { getConfiguration: () => ({ get: () => undefined }) },
        // Undefined: no Claude Code, so the acquisition stops before it reaches a registry.
@@ -105,10 +107,31 @@ describe("the packed extension", () => {
       ],
       { cwd: dir, encoding: "utf8" },
     );
-    // The output channel, the status item, the watcher, the reload command and the show-plugins
-    // command: everything that outlives activation and would otherwise leak a timer or a stale
-    // binding into the host.
-    expect(Number(out)).toBe(5);
+    // The output channel, the status item, the watcher, the reload command, the show-plugins
+    // command and the URI handler: everything that outlives activation and would otherwise leak a
+    // timer or a stale binding into the host.
+    expect(Number(out)).toBe(6);
+  });
+
+  // A handler that is registered but ignores what it should not answer, without reaching for an
+  // engine: a Save link is the one path it takes (D93).
+  it.skipIf(built)("registers a URI handler that ignores a path it does not answer", () => {
+    const dir = stubbedHost();
+    const out = execFileSync(
+      process.execPath,
+      [
+        "-e",
+        `const vscode = require("vscode");
+         const m = require(${JSON.stringify(copied(dir))});
+         m.activate({ subscriptions: [], extension: { packageJSON: { version: "0.0.0-test" }, extensionUri: { fsPath: ${JSON.stringify(dir)} } } });
+         const [handler] = vscode.window.uriHandlers;
+         handler.handleUri({ path: "/elsewhere", query: "p=x" });
+         process.stdout.write(String(vscode.window.uriHandlers.length));
+         process.exit(0);`,
+      ],
+      { cwd: dir, encoding: "utf8" },
+    );
+    expect(out).toBe("1");
   });
 
   // A status item whose command does not exist is a click that does nothing and says nothing,
@@ -138,6 +161,8 @@ describe("the packed extension", () => {
     );
     expect(manifest.main).toBe("./extension.cjs");
     expect(manifest.activationEvents).toContain("onStartupFinished");
+    // What `install` reads to decide that this companion answers a Save link (D93).
+    expect(manifest.activationEvents).toContain("onUri");
     // Undeclared means disabled in an untrusted workspace, listed and silent, which is the least
     // debuggable failure this extension can have.
     expect(manifest.capabilities?.untrustedWorkspaces?.supported).toBe(false);

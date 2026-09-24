@@ -8,7 +8,13 @@
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { stubEditor } from "../test/editor.ts";
-import { type AcquireOptions, acquireAndInject, LABEL, showPlugins } from "./acquire.ts";
+import {
+  type AcquireOptions,
+  acquireAndInject,
+  LABEL,
+  saveLayout,
+  showPlugins,
+} from "./acquire.ts";
 import type { Stamps } from "./watch.ts";
 
 // Absolute on whichever platform runs this. A Windows path is merely relative on Linux, and
@@ -484,5 +490,90 @@ describe("showPlugins", () => {
     });
 
     expect(updateCalled).toBe(false);
+  });
+});
+
+describe("saveLayout", () => {
+  const PAYLOAD = "eyJ2IjoxfQ";
+
+  async function save(lines: readonly string[], code = 0) {
+    const e = editor();
+    const a = acquisition({}, { lines, code });
+    await saveLayout({
+      editor: e.editor,
+      ensureEngine: a.acquisition.ensureEngine,
+      runEngine: a.runEngine,
+      version: "1.0.0-alpha.11",
+      exists: (p) => p === NODE,
+      env: { PATH: NODE_DIR },
+      payload: PAYLOAD,
+    });
+    return { e, a };
+  }
+
+  it("hands the engine the payload unread and says the outcome it printed first", async () => {
+    const { e, a } = await save([
+      "saved the panel's layout to /home/.rigline/config.yaml",
+      "",
+      "2.1.280: refreshed",
+    ]);
+    expect(a.calls).toEqual([["layout", "save", PAYLOAD]]);
+    expect(e.asked).toEqual([
+      {
+        level: "info",
+        message: "Saved the panel's layout to /home/.rigline/config.yaml",
+        actions: [],
+      },
+    ]);
+    expect(e.lines).toContain("2.1.280: refreshed");
+  });
+
+  it("warns when the save overwrote a change, even though the install after it wants a person", async () => {
+    const { e } = await save(
+      ["saved the panel's layout to /c.yaml, over a change made since the panel loaded"],
+      1,
+    );
+    expect(e.asked[0]).toMatchObject({
+      level: "warn",
+      message: expect.stringContaining("over a change"),
+    });
+  });
+
+  it("warns with the engine's reason when it refuses", async () => {
+    const { e } = await save(
+      ["rigline: not saved: the Save link's token is not this machine's; reload the panel"],
+      1,
+    );
+    expect(e.asked).toEqual([
+      {
+        level: "warn",
+        message:
+          "The layout was not saved: the Save link's token is not this machine's; reload the panel",
+        actions: [],
+      },
+    ]);
+  });
+
+  it("never spawns anything without a Node, and never updates the engine", async () => {
+    const e = editor();
+    let updateCalled = false;
+    const a = acquisition({
+      updateEngine: async () => {
+        updateCalled = true;
+        return { outcome: "current" };
+      },
+    });
+    await saveLayout({
+      editor: e.editor,
+      ensureEngine: a.acquisition.ensureEngine,
+      runEngine: a.runEngine,
+      version: "1.0.0-alpha.11",
+      exists: () => false,
+      env: { PATH: abs("nothing") },
+      payload: PAYLOAD,
+    });
+    expect(a.calls).toEqual([]);
+    expect(updateCalled).toBe(false);
+    expect(e.asked[0]).toMatchObject({ level: "warn" });
   });
 });
