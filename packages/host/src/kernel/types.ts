@@ -8,6 +8,7 @@
  */
 import type {
   CapabilityContract,
+  Elements,
   IdentifierTables,
   OptionalContext,
   PluginContext,
@@ -30,6 +31,7 @@ export interface PluginRecord {
   readonly entry: string;
   readonly surfaces: readonly Surface[];
   readonly uses: Uses;
+  readonly elements: Elements;
   /** Why a declared host patch stops this plugin loading, or null. Settled by the injector. */
   readonly patchRefusal: string | null;
   /** Position in the registry: the order mounts sharing an anchor appear in and rewriters compose in. */

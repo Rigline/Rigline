@@ -392,6 +392,7 @@ describe("capabilityUseNotes", () => {
         entry: "index.js",
         surfaces: ["editor", "sidebar", "sessionList"],
         uses: { ...EMPTY_USES, ...uses } as never,
+        elements: {},
         patches: [],
       },
     };

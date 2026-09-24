@@ -10,7 +10,7 @@
  * rest on. Whether a plugin's declarations hold against an installed version is a different
  * question, and `check` owns it; nothing here reads an extension directory.
  */
-import { describeUses, type Uses } from "@rigline/plugin-api";
+import { describeElements, describeUses, type Uses } from "@rigline/plugin-api";
 import { CORE_VERSION } from "../version.ts";
 import {
   type DiscoveredPlugin,
@@ -105,7 +105,10 @@ export function listPlugins(options: ListOptions): PluginListing[] {
       version: plugin.root === bundledRoot ? CORE_VERSION : versionOf(source),
       overridesBundled: plugin.overridesBundled,
       description: plugin.manifest.description,
-      can: describeUses(plugin.manifest.uses as Uses),
+      can: [
+        ...describeUses(plugin.manifest.uses as Uses),
+        ...describeElements(plugin.manifest.elements),
+      ],
       patches: plugin.manifest.patches.map((patch) => ({
         why: patch.why,
         required: patch.required === true,

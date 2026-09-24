@@ -39,6 +39,28 @@ export type {
 } from "./context.ts";
 export { definePlugin } from "./context.ts";
 export type {
+  AnchorSlot,
+  DeclaredElement,
+  DeclaredPlacement,
+  ElementSpec,
+  Elements,
+  Placement,
+  SlotPosition,
+  ZoneName,
+  ZoneSpec,
+} from "./elements.ts";
+export {
+  describeElements,
+  ELEMENT_ID_PATTERN,
+  elementGaps,
+  placementGap,
+  placementLabel,
+  SLOT_POSITIONS,
+  samePlacement,
+  ZONE_NAMES,
+  ZONES,
+} from "./elements.ts";
+export type {
   MessageType,
   ModuleClasses,
   ModuleId,

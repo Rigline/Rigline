@@ -12,6 +12,7 @@
 import {
   type CheckVerdict,
   capabilityViolation,
+  elementGaps,
   type IdentifierTables,
   type OptionalContext,
   optionalGaps,
@@ -54,7 +55,10 @@ async function loadPlugin(plugin: PluginRecord, kernel: Kernel): Promise<PluginS
   if (violation) return refuse(violation);
   // Read before the surface check, because a plugin inactive here is active in another webview and
   // the gap is a property of the extension, not of the surface.
-  const missingOptional = optionalGaps(plugin.uses, kernel.tables);
+  const missingOptional = [
+    ...optionalGaps(plugin.uses, kernel.tables),
+    ...elementGaps(plugin.elements, kernel.tables),
+  ];
   if (missingOptional.length > 0) {
     status.missingOptional = missingOptional;
     console.warn(

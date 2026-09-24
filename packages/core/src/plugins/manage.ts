@@ -14,7 +14,7 @@
  */
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { basename, join, relative, resolve } from "node:path";
-import { describeUses, type Uses, type ValidManifest } from "@rigline/plugin-api";
+import { describeElements, describeUses, type Uses, type ValidManifest } from "@rigline/plugin-api";
 import { UserError } from "../errors.ts";
 import {
   isPluginOutput,
@@ -192,7 +192,7 @@ function place(placement: Placement): AddResult {
     replaced,
     overridesBundled,
     disabled,
-    can: describeUses(manifest.uses as Uses),
+    can: [...describeUses(manifest.uses as Uses), ...describeElements(manifest.elements)],
     manifest,
   };
 }

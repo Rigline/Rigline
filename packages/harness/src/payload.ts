@@ -14,6 +14,7 @@ import {
 } from "@rigline/core";
 import {
   type AnchorName,
+  type Elements,
   EMPTY_USES,
   SURFACES,
   type Surface,
@@ -32,6 +33,7 @@ export interface FixturePlugin {
   readonly manifest: {
     readonly surfaces?: readonly Surface[];
     readonly uses?: Partial<Uses>;
+    readonly elements?: Elements;
   };
 }
 
@@ -75,6 +77,7 @@ export function preparePayload(dir: string, options: PreparePayloadOptions): voi
     entry: `./plugins/${plugin.name}/index.js`,
     surfaces: plugin.manifest.surfaces ?? SURFACES,
     uses: { ...EMPTY_USES, ...plugin.manifest.uses },
+    elements: plugin.manifest.elements ?? {},
     patchRefusal: null,
   }));
   const registrySource = `// Written by @rigline/harness's preparePayload for one test run. Do not edit.

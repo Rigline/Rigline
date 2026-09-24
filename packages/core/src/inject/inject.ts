@@ -12,6 +12,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { dirname, join, posix, relative, sep } from "node:path";
 import {
   capabilityViolation,
+  elementGaps,
   type IdentifierTables,
   optionalGaps,
   RUNTIME_MODULES,
@@ -286,7 +287,7 @@ export interface PluginVerdict {
    * panel does not provide.
    */
   readonly refusal: string | null;
-  /** Optional declarations this version cannot honour: what it will load without. */
+  /** Optional declarations and element placements this version cannot honour: what it will load without. */
   readonly missingOptional: readonly string[];
   /** Raw `cls()` pairs declared: the dependencies no anchor-table fix can reach (D44). */
   readonly rawClasses: number;
@@ -326,7 +327,10 @@ export function pluginVerdicts(
   return enabled.map((p) => ({
     plugin: p.name,
     refusal: capabilityViolation(p.manifest.uses, tables) ?? entryImportProblem(p),
-    missingOptional: optionalGaps(p.manifest.uses, tables),
+    missingOptional: [
+      ...optionalGaps(p.manifest.uses, tables),
+      ...elementGaps(p.manifest.elements, tables),
+    ],
     rawClasses: Object.values(p.manifest.uses.classes).reduce((n, l) => n + l.length, 0),
   }));
 }

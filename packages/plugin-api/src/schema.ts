@@ -13,8 +13,9 @@
  * `uses.optional` are emitted from the same fragments, which is what makes the two halves mirror
  * each other by construction rather than by care (D41).
  */
-import { ANCHOR_NAMES } from "./anchors.ts";
+import { ANCHOR_NAMES, ANCHORS } from "./anchors.ts";
 import { CONTRACTS } from "./capabilities/index.ts";
+import { ELEMENT_ID_PATTERN, SLOT_POSITIONS, ZONE_NAMES } from "./elements.ts";
 import { NAME_PATTERN, SURFACES } from "./manifest.ts";
 
 type JsonObject = Record<string, unknown>;
@@ -71,6 +72,35 @@ export function manifestSchema(): JsonObject {
         description: "The webview surfaces this plugin is for. Absent means all of them.",
       },
       uses,
+      elements: {
+        type: "object",
+        description:
+          "Components this plugin contributes, by id, each placed by its author until the user says otherwise. Bind each in code with ctx.element(id, Component).",
+        propertyNames: { pattern: ELEMENT_ID_PATTERN },
+        additionalProperties: {
+          type: "object",
+          required: ["title", "placements", "default"],
+          additionalProperties: false,
+          properties: {
+            title: {
+              type: "string",
+              minLength: 1,
+              description: "What the element is, for the person placing it.",
+            },
+            placements: {
+              type: "array",
+              minItems: 1,
+              items: { $ref: "#/$defs/placement" },
+              description: "Every place it may go.",
+            },
+            default: {
+              oneOf: [{ $ref: "#/$defs/placement" }, { type: "null" }],
+              description:
+                "Where it goes until the user says otherwise: one of placements, or null for off.",
+            },
+          },
+        },
+      },
       patches: {
         type: "array",
         description:
@@ -109,6 +139,23 @@ export function manifestSchema(): JsonObject {
       // Named so an editor's hover says which anchors exist, and so the list appears once in the
       // document rather than twice over.
       anchorName: { enum: [...ANCHOR_NAMES] },
+      placement: {
+        oneOf: [
+          { enum: [...ZONE_NAMES], description: "A zone: a row Rigline places." },
+          {
+            type: "object",
+            required: ["anchor", "at"],
+            additionalProperties: false,
+            properties: {
+              anchor: {
+                enum: ANCHOR_NAMES.filter((name) => ANCHORS[name].kind === "singleton"),
+                description: "An anchor naming one element.",
+              },
+              at: { enum: [...SLOT_POSITIONS] },
+            },
+          },
+        ],
+      },
     },
   };
 }

@@ -1875,3 +1875,35 @@ could be, and drill-down needs none of a flyout's hover-intent machinery.
 
 `MenuItem` guards the `onSelect` it is handed, so a throw there disables the plugin as a render
 throw does, where a handler on a plugin's own element still escapes (D88).
+
+**D90. Elements are declared beside `uses` and placed by their author; `rigRow` is the composer
+box's last row, behind a submit guard (2026-09-24).** An element is a component a plugin contributes
+and its author places until the user says otherwise. `elements` is top-level, beside `patches`,
+because it declares contributions rather than dependencies. Each element gives a title, the
+placements it may take, and a default that is one of them or `null` — so off is a choice, not an
+omission. A placement's anchor is a dependency the element can go without: one this extension or
+engine cannot provide is reported with the optional gaps and refuses nothing (D41), so it is not
+repeated under `uses`.
+
+An anchor slot is a node the host builds once per element and re-places at its anchor, so a portal's
+target never changes and the component keeps its state when the app replaces the anchor. A zone is a
+row the host places only while an element is in it.
+
+`rigRow` is kept last in the composer box (`composerBox`), under the controls and the model pill's
+own row, with the footer's border above it. It was chosen by eye in a real panel over a row below
+the box, which needs none of what follows. The harness read behind it:
+
+- The fit ladder watches only the footer, so a sibling row does not move it.
+- The session view observes the composer's height and re-pins the transcript, so a zone whose height
+  keeps changing re-renders the panel.
+- The box's background is absolutely positioned over the whole box, so the row takes
+  `position: relative`.
+- React appends the model pill's row after whatever is last, so the zone is moved back once each
+  time stage 2 is entered.
+
+The box is a fieldset in the composer's form, and so is the footer. A button with no type submits
+the prompt, and Enter in a text field sends it; `document.createElement("button")` and React's
+`<button>` both default to submit. So the host cancels a submission of the app's form whose submitter
+or focused field is inside a node it placed, in capture on `document`, before React's root listener
+sees it. A plugin's own form inside its element submits as usual. Rejected: telling authors to type
+their buttons, which needs every author to comply, where the guard needs nobody to.

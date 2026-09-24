@@ -20,6 +20,7 @@ describe("validateManifest", () => {
       entry: "dist/index.js",
       surfaces: SURFACES,
       uses: EMPTY_USES,
+      elements: {},
       patches: [],
     });
   });

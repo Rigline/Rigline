@@ -17,6 +17,7 @@
 import type { AnchorName, Surface } from "./anchors.ts";
 import { CONTRACTS } from "./capabilities/index.ts";
 import type { Declarations, Uses } from "./capabilities/types.ts";
+import { type DeclaredElement, type Elements, elementsOf } from "./elements.ts";
 import type { MessageType, ModuleClasses, ModuleId, OutboundFields } from "./identifiers.ts";
 
 export type { Declarations, Uses, UsesKey } from "./capabilities/types.ts";
@@ -57,6 +58,8 @@ export interface Manifest {
      */
     readonly optional?: DeclaredUses;
   };
+  /** Components this plugin contributes, by id, each bound in code with `ctx.element` (D90). */
+  readonly elements?: { readonly [id: string]: DeclaredElement };
   readonly patches?: readonly HostPatch[];
 }
 
@@ -88,6 +91,7 @@ export interface ValidManifest {
   readonly entry: string;
   readonly surfaces: readonly Surface[];
   readonly uses: Uses;
+  readonly elements: Elements;
   readonly patches: readonly HostPatch[];
 }
 
@@ -269,6 +273,8 @@ export function validateManifest(
   }
   const uses: Record<string, unknown> = { ...required, optional };
 
+  const elements = elementsOf(value.elements, problems);
+
   const patches = value.patches;
   const validPatches: HostPatch[] = [];
   if (patches !== undefined) {
@@ -292,6 +298,7 @@ export function validateManifest(
       entry: entry as string,
       surfaces: (surfaces as Surface[] | undefined) ?? [...SURFACES],
       uses: uses as unknown as Uses,
+      elements,
       patches: validPatches,
     },
     problems: [],

@@ -360,6 +360,7 @@ export function bakeRegistry(
       entry: `./plugins/${p.name}/${normalizeEntry(p.manifest.entry)}`,
       surfaces: p.manifest.surfaces,
       uses: p.manifest.uses,
+      elements: p.manifest.elements,
       patchRefusal: patchRefusal(p.name, outcomes),
     }),
   );

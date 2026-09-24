@@ -137,6 +137,14 @@ export const ANCHORS = {
     description: "The container of the prompt input at the foot of the transcript.",
     surfaces: ["editor", "sidebar"],
   },
+  composerBox: {
+    module: "cKsPxg",
+    local: "inputContainer",
+    kind: "singleton",
+    description:
+      "The bordered box of the composer: the prompt input, the controls row and, at fit stage 2, the model pill's own row. A fieldset inside the composer's form, so a button with no type placed in it submits the prompt unless Rigline placed it. Its background is absolutely positioned over the whole box, so a child needs position: relative to be seen and clicked. Rigline's rigRow zone is kept last in it.",
+    surfaces: ["editor", "sidebar"],
+  },
   transcriptRow: {
     module: "07S1Yg",
     local: "message",
