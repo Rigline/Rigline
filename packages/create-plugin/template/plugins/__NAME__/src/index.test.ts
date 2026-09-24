@@ -7,7 +7,7 @@
  * and only the app can answer it: `pnpm build`, `pnpm rigline add`, reload the webview, look.
  */
 import { describe, expect, it } from "vitest";
-import { badgeText } from "./index.ts";
+import { badgeText } from "./index.tsx";
 
 describe("badgeText", () => {
   it("says something before anything has happened", () => {

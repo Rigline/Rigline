@@ -49,6 +49,9 @@ anything may change between releases.
   React should rebuild. `rigline build` also compiles JSX, and builds `src/index.tsx` when there is
   no `src/index.ts`. `@rigline/plugin-api` lists React and React DOM as optional peer dependencies,
   needed only by a plugin that uses `/ui`.
+- `create-rigline-plugin` scaffolds a plugin in TSX: its badge is an element declared in
+  `rigline.json` and drawn with `Pill`, and the plugin depends on React and React DOM for its types
+  and tests.
 - `rigline install` and `rigline check` now name a plugin that imports a package it did not bundle
   as refused, since the panel cannot load it, rather than leaving you to find the error in the panel.
 

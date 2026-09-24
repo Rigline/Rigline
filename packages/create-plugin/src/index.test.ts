@@ -39,7 +39,7 @@ describe("scaffold", () => {
     const result = into("clock");
     expect(result.name).toBe("clock");
     expect(result.files).toContain("plugins/clock/rigline.json");
-    expect(result.files).toContain("plugins/clock/src/index.ts");
+    expect(result.files).toContain("plugins/clock/src/index.tsx");
     expect(result.files).not.toContain("plugins/__NAME__/rigline.json");
   });
 
@@ -52,7 +52,7 @@ describe("scaffold", () => {
     expect(problems).toEqual([]);
     expect(manifest?.name).toBe("clock");
     expect(manifest?.entry).toBe("dist/index.js");
-    expect(manifest?.uses.anchors).toEqual(["footerSpacer"]);
+    expect(manifest?.elements.badge?.default).toEqual({ anchor: "footerSpacer", at: "before" });
   });
 
   it("writes JSON that parses, in every file that claims to be JSON", () => {

@@ -170,8 +170,9 @@ split is the whole of D2, and it is why a plugin can be arbitrarily broken witho
 
 `post.js` imports `generated.js` and `registry.js`, builds the kernel services, and walks the
 registry in order: patch verdict, declaration check, surface check, dynamic import, `ctx` from the
-capability modules, `setup()`. Then it seals the replay buffer in a `finally`. [host.md](host.md)
-has the step list and the diagnostics the probe reads.
+capability modules, `setup()`. Then it seals the replay buffer in a `finally`, and starts the shell:
+Rigline's one React root, which draws the RIG pill, the menu, and every element where it is placed
+(D88, D90). [host.md](host.md) has the step list and the diagnostics the probe reads.
 
 ## Failure isolation, by layer
 
@@ -181,6 +182,8 @@ promise:
 - A **plugin** that throws in `setup`, in a handler, or on import is disabled by name, its teardowns
   run, and every other plugin loads (P3).
 - A **capability** a plugin did not declare throws when called, which disables that plugin.
+- A plugin's **component** — a menu entry or an element — that throws while rendering is caught by
+  a boundary of its own, which disables that plugin and leaves the shell to everyone else.
 - The **post hook** as a whole is behind the injected `.catch()`, so the app boots without plugins.
 - The **pre hook** cannot fail, by construction.
 - The **injection** is reversible from the backups, without VS Code.

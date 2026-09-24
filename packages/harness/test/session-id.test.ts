@@ -1,13 +1,8 @@
 /**
- * The session-id plugin against the real webview bundle: the DOM tier `docs/plan.md`'s "next
- * session" notes ask for beside every first-party plugin, now that `packages/harness` can drive the
- * real bundle. Structure copied from `test/kernel.test.ts`, which was refactored onto `src/suite.ts`
- * for exactly this: one file per plugin so a deliberately-failing case never leaks a `console.error`
- * expectation into an unrelated test.
+ * The session-id plugin against the real webview bundle.
  *
- * Drives the plugin's own build output rather than an inline fixture source, so this test exercises
- * what `rigline build` actually produces (bundled, `@rigline/plugin-api` inlined) and not a
- * hand-written stand-in for it: `pnpm --filter rigline-session-id build` must have run first.
+ * Drives the plugin's own build output and its own manifest rather than an inline fixture, so this
+ * tests what `rigline build` produces and what `install` would bake: `pnpm build` must have run.
  */
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -16,9 +11,10 @@ import { describe, expect, it } from "vitest";
 import type { FixturePlugin } from "../src/payload.ts";
 import { harnessSkipReason, register, HARNESS_VERSION as VERSION } from "../src/suite.ts";
 
-const DIST_PATH = fileURLToPath(
-  new URL("../../../plugins/session-id/dist/index.js", import.meta.url),
-);
+const PLUGIN_DIR = new URL("../../../plugins/session-id/", import.meta.url);
+
+/** Where the short id renders: the slot the host places before the footer spacer. */
+const SHORT_ID = '[data-rigline-slot="session-id/short-id"] .rigline-ui-pill';
 
 /** A ListAgents result carrying this session's own address, in the CLI's exact wording. */
 async function pushAddress(page: Page): Promise<void> {
@@ -53,22 +49,12 @@ async function pushAddress(page: Page): Promise<void> {
  * test in the file with the same stack trace. */
 function loadSessionIdPlugin(): { plugin: FixturePlugin | null; reason: string | null } {
   try {
+    const manifest = JSON.parse(readFileSync(new URL("rigline.json", PLUGIN_DIR), "utf8"));
     return {
       plugin: {
         name: "session-id",
-        // Mirrors plugins/session-id/rigline.json's `uses` block exactly: the harness bakes a
-        // registry from data, the same shape `rigline install` would read from the manifest, but
-        // does not parse the manifest file itself (packages/harness/src/payload.ts).
-        manifest: {
-          uses: {
-            anchors: ["footerSpacer"],
-            messages: ["io_message"],
-            mount: true,
-            session: true,
-            menu: true,
-          },
-        },
-        source: readFileSync(DIST_PATH, "utf8"),
+        manifest: { uses: manifest.uses, elements: manifest.elements },
+        source: readFileSync(fileURLToPath(new URL("dist/index.js", PLUGIN_DIR)), "utf8"),
       },
       reason: null,
     };
@@ -76,7 +62,7 @@ function loadSessionIdPlugin(): { plugin: FixturePlugin | null; reason: string |
     const message = e instanceof Error ? e.message : String(e);
     return {
       plugin: null,
-      reason: `plugins/session-id/dist/index.js is missing - run "pnpm --filter rigline-session-id build" first (${message})`,
+      reason: `plugins/session-id/dist/index.js is missing - run "pnpm build" first (${message})`,
     };
   }
 }
@@ -92,43 +78,36 @@ describe.skipIf(skip !== null)(
   () => {
     const boot = register(VERSION);
 
-    it("mounts the badge before the real footer spacer, stamped and loaded without error", async () => {
+    it("places the short id before the real footer spacer and Rigline's pill, with the rest off", async () => {
       const booted = await boot({ plugins: [sessionIdPlugin as FixturePlugin] });
       try {
-        // A freshly-mounted badge holds only its label span, painted synchronously to the dimmed
-        // placeholder - so it exists before it has any text. Waiting on the id alone risks
-        // Playwright's default waitForSelector treating a still-empty element as hidden; wait
-        // instead for the placeholder (or whatever supersedes it) to actually be there.
-        await booted.page.waitForSelector("#rigline-session-id", { state: "attached" });
-        await booted.page.waitForFunction(() => {
-          const el = document.getElementById("rigline-session-id");
-          return el !== null && (el.textContent?.length ?? 0) > 0;
-        });
+        await booted.page.waitForSelector(SHORT_ID);
 
-        // The spacer, and the badge immediately before it. Anchoring to the model pill is what this
-        // replaced, and the reason is a property of the real bundle rather than of this plugin: the
-        // footer measures its element children to pick a fit stage and moves the pill out of itself
-        // at the widest one, so a badge anchored to the pill leaves and re-enters the container
-        // being measured and oscillates against the measurement (D54). Asserting the spacer here is
-        // what would notice the anchor being quietly moved back. Rigline's own pill sits between the
-        // two, because the host places it after every plugin.
-        const info = await booted.page.evaluate(() => {
-          const badge = document.getElementById("rigline-session-id");
-          const spacer = document.getElementsByClassName("spacer_gGYT1w")[0] ?? null;
-          const pill = spacer?.previousElementSibling ?? null;
+        // The spacer rather than the model pill, because the footer measures its children and moves
+        // the pill out of itself at its widest stage (D54); Rigline's pill sits between, last by order.
+        const info = await booted.page.evaluate((selector) => {
+          const pill = document.querySelector(selector) as HTMLElement | null;
+          const slot = pill?.closest("[data-rigline-slot]") ?? null;
+          const next = slot?.nextElementSibling ?? null;
           return {
-            mountAttr: badge?.getAttribute("data-rigline-mount") ?? null,
-            isPreviousSibling:
-              pill?.getAttribute("data-rigline-mount") === "rigline" &&
-              pill.previousElementSibling === badge,
-            inFooter: badge?.parentElement?.classList.contains("inputFooter_gGYT1w") ?? false,
-            text: badge?.textContent ?? null,
-            title: badge?.title ?? null,
+            owner: slot?.getAttribute("data-rigline-mount") ?? null,
+            inFooter: slot?.parentElement?.classList.contains("inputFooter_gGYT1w") ?? false,
+            beforeRig: next?.getAttribute("data-rigline-mount") === "rigline",
+            thenSpacer: next?.nextElementSibling?.classList.contains("spacer_gGYT1w") ?? false,
+            text: pill?.textContent ?? null,
+            title: pill?.title ?? null,
+            others: document.querySelectorAll(
+              '[data-rigline-element="session-id/full-id"], [data-rigline-element="session-id/address"]',
+            ).length,
           };
+        }, SHORT_ID);
+        expect(info).toMatchObject({
+          owner: "session-id",
+          inFooter: true,
+          beforeRig: true,
+          thenSpacer: true,
+          others: 0,
         });
-        expect(info.mountAttr).toBe("session-id");
-        expect(info.isPreviousSibling).toBe(true);
-        expect(info.inFooter).toBe(true);
         expect(info.text).not.toBe("");
         expect(info.title).not.toBe("");
 
@@ -141,34 +120,29 @@ describe.skipIf(skip !== null)(
       }
     }, 20000);
 
-    it("keeps the session id in the pill and the address in the menu, once one is observed", async () => {
-      // The behaviour this plugin was changed to have, pinned against the real bundle. A messaging
-      // address is as wide as somebody's worktree directory or Remote Control session title, and
-      // the pill has room for a token, so an observed address must reach the menu and leave the
-      // pill alone. It used to take the pill, which is how a 24-character name ended up in the
-      // composer footer.
+    it("keeps the session id in the pill and the address in its tooltip, once one is observed", async () => {
+      // A messaging address is as wide as somebody's worktree directory or Remote Control session
+      // title, and the pill has room for a token, so an observed address must leave the pill alone.
       const booted = await boot({ plugins: [sessionIdPlugin as FixturePlugin] });
       try {
-        await booted.page.waitForSelector("#rigline-session-id", { state: "attached" });
-        await booted.page.waitForFunction(() => {
-          const el = document.getElementById("rigline-session-id");
-          return el !== null && (el.textContent?.length ?? 0) > 0;
-        });
-        const before = await booted.page.evaluate(
-          () => document.getElementById("rigline-session-id")?.textContent ?? null,
-        );
+        await booted.page.waitForSelector(SHORT_ID);
+        const read = () =>
+          booted.page.evaluate((selector) => {
+            const pill = document.querySelector(selector) as HTMLElement | null;
+            return { text: pill?.textContent ?? null, title: pill?.title ?? null };
+          }, SHORT_ID);
+        const before = await read();
 
         await pushAddress(booted.page);
+        await booted.page.waitForFunction(
+          (selector) =>
+            (document.querySelector(selector) as HTMLElement | null)?.title.includes("fa26a5"),
+          SHORT_ID,
+        );
 
-        const after = await booted.page.evaluate(() => {
-          const badge = document.getElementById("rigline-session-id");
-          return { text: badge?.textContent ?? null, title: badge?.title ?? null };
-        });
-        // Unchanged, and specifically not the address that just crossed the bus.
-        expect(after.text).toBe(before);
+        const after = await read();
+        expect(after.text).toBe(before.text);
         expect(after.text).not.toContain("abcd-1234-ticket-work-46");
-        expect(after.text).not.toContain("fa26a5");
-        // The address did land, though — the tooltip and the menu are where it belongs.
         expect(after.title).toContain("abcd-1234-ticket-work-46 [fa26a5]");
 
         const d = await booted.diagnostics();
@@ -183,7 +157,7 @@ describe.skipIf(skip !== null)(
       const booted = await boot({ plugins: [sessionIdPlugin as FixturePlugin] });
       const { page } = booted;
       try {
-        await page.waitForSelector("#rigline-session-id", { state: "attached" });
+        await page.waitForSelector(SHORT_ID);
         await pushAddress(page);
         await page.click(".rigline-pill");
         await page.click("text=Session identifiers");

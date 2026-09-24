@@ -13,6 +13,9 @@
   },
   "devDependencies": {
     "@rigline/core": "__RIGLINE_RANGE__",
-    "@rigline/plugin-api": "__RIGLINE_RANGE__"
+    "@rigline/plugin-api": "__RIGLINE_RANGE__",
+    "@types/react": "^19.3.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
   }
 }

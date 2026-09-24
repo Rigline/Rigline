@@ -5,7 +5,8 @@
     "lib": ["esnext", "dom"],
     "types": [],
     "noEmit": true,
-    "allowImportingTsExtensions": true
+    "allowImportingTsExtensions": true,
+    "jsx": "react-jsx"
   },
   "files": ["generated.ts"]
 }

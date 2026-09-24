@@ -90,15 +90,15 @@ Dynamically imported after boot. In order:
 4. Seal the replay buffer, in a `finally`.
 5. Start the shell (D88): place the RIG pill beside the footer spacer, or in a corner where there is
    none; start the once-a-second check run that sets its failing count; and import
-   `runtime/shell.js`, the React root that draws the pill and the menu. Failing to load it is an
-   error in `diagnostics.errors` and costs the menu, never a plugin.
+   `runtime/shell.js`, the React root that draws the pill, the menu and every element. Failing to
+   load it is an error in `diagnostics.errors` and costs the menu and the elements, never a plugin.
 
 ## The shell
 
 Rigline's one React root, built with the runtime so it shares React and `@rigline/plugin-api/ui`
-with every plugin it renders (D87, D88). It renders into a container on `body` and portals only the
-pill into the host-placed node beside the spacer. The menu stays out of the footer, which
-re-measures on any mutation inside it (D54).
+with every plugin it renders (D87, D88). It renders into a container on `body` and portals the pill
+and the elements into host-placed nodes. The menu stays out of the footer, which re-measures on any
+mutation inside it (D54).
 
 The menu itself is `@rigline/plugin-api/ui`'s, not the shell's: the panel, its levels and its keys
 live beside the components plugins build entries from, because those components read a context the
@@ -115,6 +115,32 @@ mount when the menu opens and unmount when it closes. A submenu portals its leve
 only the top level shows, so the levels beneath keep their state. The panel listens for keys on
 `window`, in capture, and stops the ones it takes, so the app's own `document` listeners never see
 an Escape that closed the menu.
+
+### Elements and zones
+
+`ctx.element(id, Component)` is on `ctx` beside `check`, declared by the manifest's `elements`
+rather than by a key of `uses`, so no capability module owns it (D90). The kernel resolves the
+element's default placement once, when it is bound:
+
+- An anchor slot is a `span.rigline-slot` the kernel builds once per element and places with the
+  mount service, under the plugin's name, behind a watch on the anchor. A replaced anchor gets the
+  same node back, so the portal into it never changes target and the component keeps its state. A
+  plugin's own elements are ordered by manifest position within its registry slot, so two at one
+  anchor never claim the same position.
+- A zone is a `div.rigline-zone` the kernel places, as `rigline`, while at least one element is in
+  it, and removes when the last leaves. `rigRow` is kept last in `composerBox` through the mount
+  service's `last` placement, which moves it back once each time React appends the model pill's own
+  row after it. It takes `position: relative`, or the box's absolutely positioned background covers
+  it, and hides itself when every element in it renders nothing.
+- A placement the tables or the engine cannot provide leaves the element unplaced; one the surface
+  has not got likewise, without being a fault. Core's `elements are placed` check names both kinds,
+  along with any declared element that `setup` never bound.
+
+The root renders one portal per target: an anchor slot's element, or a zone's elements in order.
+Each element renders in its own boundary and its own `form.rigline-element`, so its controls never
+belong to the composer's form. The mount service cancels every submission of such a form, and a
+submission of the app's form whose submitter or focused field is inside any host-placed node, in
+capture on `document`.
 
 Per-plugin status is `loaded`, `refused`, `error` or `inactive`, each with a reason, on
 `diagnostics.plugins` in registry order. Disabling a plugin at runtime runs every teardown it

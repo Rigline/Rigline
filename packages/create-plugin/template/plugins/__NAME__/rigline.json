@@ -6,9 +6,13 @@
   "entry": "dist/index.js",
   "surfaces": ["editor", "sidebar"],
   "uses": {
-    "anchors": ["footerSpacer"],
-    "mount": true,
-    "style": true,
     "tools": true
+  },
+  "elements": {
+    "badge": {
+      "title": "Tool calls",
+      "placements": [{ "anchor": "footerSpacer", "at": "before" }, "rigRow"],
+      "default": { "anchor": "footerSpacer", "at": "before" }
+    }
   }
 }

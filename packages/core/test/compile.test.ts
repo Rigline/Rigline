@@ -29,6 +29,9 @@ import { harvestableHostReplies, harvestableWebview } from "./fixtures.ts";
 const REPO = fileURLToPath(new URL("../../..", import.meta.url));
 const TSC = join(REPO, "node_modules", "typescript", "bin", "tsc");
 const PLUGIN_API = join(REPO, "packages", "plugin-api", "src", "index.ts");
+const PLUGIN_API_UI = join(REPO, "packages", "plugin-api", "src", "ui", "index.ts");
+/** plugin-api's own copy, so a TSX fixture and the `/ui` source it imports share one React's types. */
+const REACT_TYPES = join(REPO, "packages", "plugin-api", "node_modules", "@types", "react");
 
 const dirs: string[] = [];
 
@@ -48,7 +51,10 @@ function augmentation(): string {
  * A throwaway plugin workspace: the harvest at the root, the plugin in a subdirectory, and a
  * tsconfig that reaches the first from the second. Returns `tsc`'s output, empty when it succeeded.
  */
-function compile(source: string, options: { readonly harvest: boolean }): string {
+function compile(
+  source: string,
+  options: { readonly harvest: boolean; readonly tsx?: boolean },
+): string {
   const root = mkdtempSync(join(tmpdir(), "rigline-compile-"));
   dirs.push(root);
   writeFileSync(join(root, "package.json"), JSON.stringify({ name: "w", type: "module" }));
@@ -57,7 +63,7 @@ function compile(source: string, options: { readonly harvest: boolean }): string
   const plugin = join(root, "plugins", "fixture");
   mkdirSync(join(plugin, "src"), { recursive: true });
   writeFileSync(join(plugin, "package.json"), JSON.stringify({ name: "p", type: "module" }));
-  writeFileSync(join(plugin, "src", "index.ts"), source);
+  writeFileSync(join(plugin, "src", options.tsx ? "index.tsx" : "index.ts"), source);
   writeFileSync(
     join(plugin, "tsconfig.json"),
     JSON.stringify({
@@ -71,12 +77,18 @@ function compile(source: string, options: { readonly harvest: boolean }): string
         allowImportingTsExtensions: true,
         lib: ["esnext", "dom"],
         types: [],
-        paths: { "@rigline/plugin-api": [PLUGIN_API] },
+        jsx: "react-jsx",
+        paths: {
+          "@rigline/plugin-api": [PLUGIN_API],
+          "@rigline/plugin-api/ui": [PLUGIN_API_UI],
+          react: [join(REACT_TYPES, "index.d.ts")],
+          "react/jsx-runtime": [join(REACT_TYPES, "jsx-runtime.d.ts")],
+        },
       },
       // The harvest by absolute path from two directories away: a plugin never imports it, and the
       // augmentation reaches this program only because the config pulls the file in.
       ...(options.harvest ? { files: [join(root, "generated.ts")] } : {}),
-      include: ["src/**/*.ts"],
+      include: ["src/**/*.ts", "src/**/*.tsx"],
     }),
   );
 
@@ -145,13 +157,13 @@ describe("a plugin compiled against a committed harvest", () => {
  */
 describe("the template create-rigline-plugin ships", () => {
   const source = readFileSync(
-    join(REPO, "packages/create-plugin/template/plugins/__NAME__/src/index.ts"),
+    join(REPO, "packages/create-plugin/template/plugins/__NAME__/src/index.tsx"),
     "utf8",
   );
 
   it("compiles before codegen has ever run, and again once it has", () => {
-    expect(compile(source, { harvest: false })).toBe("");
-    expect(compile(source, { harvest: true })).toBe("");
+    expect(compile(source, { harvest: false, tsx: true })).toBe("");
+    expect(compile(source, { harvest: true, tsx: true })).toBe("");
   }, 120000);
 });
 

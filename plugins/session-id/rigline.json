@@ -2,14 +2,29 @@
   "$schema": "node_modules/@rigline/plugin-api/schema/manifest.json",
   "api": 1,
   "name": "session-id",
-  "description": "The session's short id in the composer footer; click it to copy the session id in full. Every identifier it has, the inter-agent messaging address included, is under Session identifiers in Rigline's menu, where choosing one copies it.",
+  "description": "The session's short id in the composer footer; click it to copy the session id in full. The full id and the inter-agent messaging address can go in Rigline's row under the composer, and start off. Every identifier is under Session identifiers in Rigline's menu, where choosing one copies it.",
   "entry": "dist/index.js",
   "surfaces": ["editor", "sidebar"],
   "uses": {
-    "anchors": ["footerSpacer"],
     "messages": ["io_message"],
-    "mount": true,
     "session": true,
     "menu": true
+  },
+  "elements": {
+    "short-id": {
+      "title": "Session id",
+      "placements": [{ "anchor": "footerSpacer", "at": "before" }, "rigRow"],
+      "default": { "anchor": "footerSpacer", "at": "before" }
+    },
+    "full-id": {
+      "title": "Full session id",
+      "placements": ["rigRow"],
+      "default": null
+    },
+    "address": {
+      "title": "Messaging address",
+      "placements": ["rigRow"],
+      "default": null
+    }
   }
 }

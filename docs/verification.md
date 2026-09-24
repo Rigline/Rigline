@@ -239,7 +239,10 @@ from the registry. To run one against this tree rather than against what is publ
 a temporary directory, `pnpm pack` core and plugin-api into it, rewrite the two Rigline ranges in the
 generated root and member manifests to `file:` those tarballs, and set `minimumReleaseAge: 0` in the
 generated `pnpm-workspace.yaml` — the gate refuses a registry-resolved transitive dependency
-published inside its window, and `--config.minimumReleaseAge=0` does not override it. Then
+published inside its window, and `--config.minimumReleaseAge=0` does not override it. Add
+`overrides: { "@rigline/plugin-api": "file:./<its tarball>" }` there too: core's own dependency on
+plugin-api is an exact version, which otherwise resolves to the published one and fails at
+`codegen` on anything plugin-api has gained since. Then
 `pnpm install`, `codegen`, `build`, `typecheck`, `test`. Stop before `rigline add`: it re-injects
 whatever extension is installed on the machine, which is not something a check should do to somebody's
 editor. What this catches and nothing else does is the resolution question — whether

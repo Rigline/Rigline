@@ -37,6 +37,10 @@ which is the whole reason to declare rather than to reach.
 Put a dependency you can do without under `uses.optional`: it is checked the same way and costs the
 plugin that one decoration rather than the whole plugin.
 
+`elements` is the other half: what the plugin contributes, each with the places it may go and where
+it goes by default — or `null` for off. A place this extension version cannot provide costs that
+element and nothing else, and `check` says so.
+
 ## The plugin policy
 
 **This applies whether or not you ever publish.** A plugin you wrote for yourself and will never
@@ -115,6 +119,8 @@ what you bumped.
   you placed.
 - **Ask what a container does about its children before decorating it.** The composer footer
   measures its own element children and re-measures on any foreign change inside it; footer
-  decorations go beside `footerSpacer`, with `ctx.mountBefore`.
+  elements go before `footerSpacer`.
+- **Keep what you place steady.** An element in the footer whose text keeps changing makes the
+  footer re-measure each time, and one in `rigRow` whose height keeps changing re-renders the panel.
 - **Do not poll for an element.** `ctx.watch(name, …)` hands it over when it appears and again when
   the app replaces it.

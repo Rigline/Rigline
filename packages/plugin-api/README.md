@@ -4,8 +4,9 @@ What a [Rigline](https://github.com/Rigline/Rigline) plugin is written against: 
 the manifest type and its JSON schema, `definePlugin`, and the anchor names.
 
 A plugin is one browser ES module and a `rigline.json`. This package is a **devDependency** — the
-build bundles everything the entry imports, so a published plugin has no runtime dependency to
-resolve, which is what lets `rigline add` install one without running a package manager.
+build bundles everything the entry imports but React and `@rigline/plugin-api/ui`, which the panel
+serves, one copy for every plugin. So a published plugin has no runtime dependency to resolve, which
+is what lets `rigline add` install one without running a package manager.
 
     npm install -D @rigline/plugin-api
 
@@ -16,19 +17,13 @@ and no route into the extension host — and the page is explicit about which ha
 
 ## A plugin
 
-```ts
-import { definePlugin, type PluginContext, type Teardown } from "@rigline/plugin-api";
+```tsx
+import { definePlugin, type PluginContext } from "@rigline/plugin-api";
+import { Pill } from "@rigline/plugin-api/ui";
 
 export default definePlugin({
-  setup(ctx: PluginContext): Teardown {
-    const stop = ctx.watch("footerSpacer", (spacer) =>
-      ctx.mountBefore(spacer, () => {
-        const badge = document.createElement("span");
-        badge.textContent = "hello";
-        return badge;
-      }),
-    );
-    return stop;
+  setup(ctx: PluginContext) {
+    return ctx.element("hello", () => <Pill>hello</Pill>);
   },
 });
 ```
@@ -41,7 +36,13 @@ export default definePlugin({
   "description": "A badge in the composer footer.",
   "entry": "dist/index.js",
   "surfaces": ["editor", "sidebar"],
-  "uses": { "anchors": ["footerSpacer"], "mount": true }
+  "elements": {
+    "hello": {
+      "title": "Hello",
+      "placements": [{ "anchor": "footerSpacer", "at": "before" }, "rigRow"],
+      "default": { "anchor": "footerSpacer", "at": "before" }
+    }
+  }
 }
 ```
 
@@ -51,9 +52,12 @@ Every capability is declared in the manifest and granted from the declaration, s
 for something it did not declare finds nothing there, and a plugin whose declaration no longer holds
 against the installed extension is refused by name rather than failing at runtime.
 
+`element` for the components declared under `elements`, and `menu` for Rigline's menu, both React;
 `cls` and `anchor` for class names; `onMessage` for the bus; `mount`, `mountAfter`, `mountBefore`
-and `watch` for the DOM; `style`; `rewrite` and `resend` for outbound messages; `onToolUse` and
-`onToolResult`; `onSessionId`; `decorateTranscript`; and `surface`. Anything declared under
+and `watch` for plain DOM; `style`; `rewrite` and `resend` for outbound messages; `onToolUse` and
+`onToolResult`; `onSessionId`; `decorateTranscript`; `check`; and `surface`. The components to
+build with — `Pill`, `MenuItem`, `Submenu`, `MenuNote` — and `useStore` are in
+`@rigline/plugin-api/ui`. Anything declared under
 `uses.optional` arrives on `ctx.optional` instead, returning null where this extension version does
 not have it — so losing a borrowed class to an upstream change costs a plugin some polish rather
 than its load.

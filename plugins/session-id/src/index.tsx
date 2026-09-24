@@ -1,5 +1,7 @@
 /**
- * The session's short id in the composer footer, and every identifier it has in Rigline's menu.
+ * The session's identifiers, as elements and in Rigline's menu. The short id is in the composer
+ * footer by default; the full id and the messaging address are there to place in `rigRow`, and start
+ * off (D90).
  *
  * Where the messaging address comes from, and why it has to be scraped from text rather than read
  * from a declared field, is set out below rather than anywhere else: this file is the authority.
@@ -9,8 +11,7 @@
  * address that wide, and a Remote Control session takes its title, which can be a whole sentence.
  * A badge in the composer footer has room for a token. Eight characters of a session id identify a
  * session as well as anything does and are always eight characters, so the pill shows the thing it
- * can rely on; the address lives in the menu, which is where you go when you actually want to copy
- * it.
+ * can rely on; the address lives in the menu, and in `rigRow` for whoever places it there.
  *
  * The address (`atlas-ae [61b4a3]`-shaped: a name plus a hex ref) is what `ListAgents` prints and
  * what `SendMessage`'s `to` takes. It never reaches the webview as a declared field: the CLI writes
@@ -32,7 +33,7 @@ import {
   storeFrom,
   type Teardown,
 } from "@rigline/plugin-api";
-import { MenuItem, MenuNote, Submenu, useStore } from "@rigline/plugin-api/ui";
+import { MenuItem, MenuNote, Pill, Submenu, useStore } from "@rigline/plugin-api/ui";
 import { type ReactNode, useEffect, useState } from "react";
 
 /** How much of the raw session id the pill shows, and the menu offers as a short form. */
@@ -43,12 +44,11 @@ const SHORT_LENGTH = 8;
  * live check of this plugin can ask for, so the dimmed placeholder is deliberate, not a stopgap. */
 const PLACEHOLDER = "...";
 
-/** The DOM id of the badge's root element. Rigline's mount ids are prefixed `rigline-`, never a
- * plugin's own name alone, so two plugins mounting at the same anchor cannot collide on id. */
-const BADGE_ID = "rigline-session-id";
-
 /** How long a "copied"/"copy failed" flash sits in place of the normal content before reverting. */
 const FLASH_MS = 1200;
+
+const NO_ADDRESS = "No messaging address yet - it appears once this session runs ListAgents";
+const NO_SESSION = "No session id yet - Claude assigns one when the session starts";
 
 /** One session's messaging address. */
 export interface Identity {
@@ -190,10 +190,7 @@ export function buildEntries(address: Identity | null, sessionId: string | null)
   const entries: Entry[] = [
     address !== null
       ? { kind: "copyable", label: "Messaging address", value: formatAddress(address) }
-      : {
-          kind: "missing",
-          message: "No messaging address yet - it appears once this session runs ListAgents",
-        },
+      : { kind: "missing", message: NO_ADDRESS },
   ];
   if (sessionId !== null) {
     entries.push({ kind: "copyable", label: "Session id", value: sessionId });
@@ -203,10 +200,7 @@ export function buildEntries(address: Identity | null, sessionId: string | null)
       value: sessionId.slice(0, SHORT_LENGTH),
     });
   } else {
-    entries.push({
-      kind: "missing",
-      message: "No session id yet - Claude assigns one when the session starts",
-    });
+    entries.push({ kind: "missing", message: NO_SESSION });
   }
   return entries;
 }
@@ -269,17 +263,30 @@ function copyToClipboard(text: string): boolean {
   return ok;
 }
 
-/** One identifier in the menu: choosing it copies the value and flashes the outcome in its place. */
-function CopyRow(props: { readonly label: string; readonly value: string }): ReactNode {
-  const { label, value } = props;
+/** A "copied" or "copy failed" flash, shown in place of a value for a moment. */
+function useFlash(): readonly [string | null, (text: string) => void] {
   const [flash, setFlash] = useState<string | null>(null);
-
   useEffect(() => {
     if (flash === null) return;
     const timer = setTimeout(() => setFlash(null), FLASH_MS);
     return () => clearTimeout(timer);
   }, [flash]);
+  return [flash, setFlash];
+}
 
+function copy(value: string, flash: (text: string) => void): void {
+  flash(copyToClipboard(value) ? "copied" : "copy failed");
+}
+
+interface Stores {
+  readonly session: Store<string | null>;
+  readonly observed: Store<Observed | null>;
+}
+
+/** One identifier in the menu: choosing it copies the value and flashes the outcome in its place. */
+function CopyRow(props: { readonly label: string; readonly value: string }): ReactNode {
+  const { label, value } = props;
+  const [flash, setFlash] = useFlash();
   return (
     <MenuItem
       label={label}
@@ -292,16 +299,13 @@ function CopyRow(props: { readonly label: string; readonly value: string }): Rea
       title="Click to copy"
       onSelect={(event) => {
         event.preventDefault();
-        setFlash(copyToClipboard(value) ? "copied" : "copy failed");
+        copy(value, setFlash);
       }}
     />
   );
 }
 
-function Identifiers(props: {
-  readonly session: Store<string | null>;
-  readonly observed: Store<Observed | null>;
-}): ReactNode {
+function Identifiers(props: Stores): ReactNode {
   const sessionId = useStore(props.session);
   const address = currentAddress(useStore(props.observed), sessionId);
   return (
@@ -317,97 +321,83 @@ function Identifiers(props: {
   );
 }
 
+/**
+ * The short id, in the composer footer by default. A click copies the id in full, not the eight
+ * characters on screen: anything that asks for an id wants all of it.
+ */
+function ShortId(props: Stores): ReactNode {
+  const sessionId = useStore(props.session);
+  const address = currentAddress(useStore(props.observed), sessionId);
+  const [flash, setFlash] = useFlash();
+  return (
+    <Pill
+      muted={!known(sessionId)}
+      title={buildTooltip(buildEntries(address, sessionId), sessionId)}
+      onClick={sessionId === null ? undefined : () => copy(sessionId, setFlash)}
+    >
+      {flash ?? headlineText(sessionId)}
+    </Pill>
+  );
+}
+
+/** One identifier in full, for `rigRow`: a click copies it. */
+function Identifier(props: {
+  readonly label: string;
+  readonly value: string | null;
+  readonly missing: string;
+}): ReactNode {
+  const { label, value, missing } = props;
+  const [flash, setFlash] = useFlash();
+  if (value === null) {
+    return (
+      <Pill muted title={missing}>
+        {PLACEHOLDER}
+      </Pill>
+    );
+  }
+  return (
+    <Pill title={`${label}: ${value}\nClick to copy`} onClick={() => copy(value, setFlash)}>
+      {flash ?? value}
+    </Pill>
+  );
+}
+
+function FullId(props: Stores): ReactNode {
+  return <Identifier label="Session id" value={useStore(props.session)} missing={NO_SESSION} />;
+}
+
+function Address(props: Stores): ReactNode {
+  const address = currentAddress(useStore(props.observed), useStore(props.session));
+  return (
+    <Identifier
+      label="Messaging address"
+      value={address === null ? null : formatAddress(address)}
+      missing={NO_ADDRESS}
+    />
+  );
+}
+
 export default definePlugin({
   setup(ctx: PluginContext): Teardown {
     // Which message actually carries the session id, and why the three tempting alternatives are
     // each wrong, is answered once for the whole host in packages/plugin-api/src/session.ts; this
     // plugin only consumes the answer. Made here, in setup, so the store catches the replay.
-    const session = storeFrom(ctx.onSessionId, null);
-    const observed = store<Observed | null>(null);
-
-    let badge: HTMLElement | null = null;
-    let badgeFlashTimer: ReturnType<typeof setTimeout> | null = null;
-
-    function currentIdentity(): Identity | null {
-      return currentAddress(observed.get(), session.get());
-    }
-
-    function paint(): void {
-      if (!badge || badgeFlashTimer !== null) return;
-      const sessionId = session.get();
-      badge.textContent = headlineText(sessionId);
-      badge.style.opacity = known(sessionId) ? "0.65" : "0.35";
-      badge.title = buildTooltip(buildEntries(currentIdentity(), sessionId), sessionId);
-    }
-
-    function flashBadge(text: string): void {
-      if (!badge) return;
-      if (badgeFlashTimer !== null) clearTimeout(badgeFlashTimer);
-      badge.textContent = text;
-      badgeFlashTimer = setTimeout(() => {
-        badgeFlashTimer = null;
-        paint();
-      }, FLASH_MS);
-    }
-
-    function onBadgeClick(): void {
-      // The full session id, not the eight characters on screen: anything that asks for an id
-      // wants all of it, and a truncated one fails somewhere later.
-      const sessionId = session.get();
-      if (sessionId === null) return;
-      flashBadge(copyToClipboard(sessionId) ? "copied" : "copy failed");
-    }
-
-    function buildBadge(): HTMLElement {
-      const span = document.createElement("span");
-      span.id = BADGE_ID;
-      // No colour of its own: inherits currentColor so the badge reads correctly in every theme.
-      span.style.cssText =
-        "margin-left:6px;font-size:10px;" +
-        "font-family:var(--vscode-editor-font-family, monospace);letter-spacing:.02em;" +
-        "user-select:text;cursor:pointer;";
-      span.addEventListener("click", onBadgeClick);
-      badge = span;
-      paint();
-      return span;
-    }
-
-    // The anchor is the footer's spacer, never the model pill beside it: the footer measures its own
-    // children to pick a fit stage and moves the pill out of itself at the widest one, so a badge
-    // anchored to the pill oscillates against that measurement (D54). mountBefore, because the
-    // spacer is `flex-grow:1` and before it is the end of the footer's left cluster.
-    const stopWatch = ctx.watch("footerSpacer", (spacer) => {
-      const stopMount = ctx.mountBefore(spacer, buildBadge);
-      return () => {
-        stopMount();
-        badge = null;
-      };
-    });
-
-    const stopSession = session.subscribe(paint);
-    const stopObserved = observed.subscribe(paint);
+    const stores: Stores = {
+      session: storeFrom(ctx.onSessionId, null),
+      observed: store<Observed | null>(null),
+    };
 
     const stopMessages = ctx.onMessage("io_message", (payload) => {
       const identity = messagingIdentity(payload);
-      if (identity !== null) observed.set({ sessionId: session.get(), identity });
+      if (identity !== null) {
+        stores.observed.set({ sessionId: stores.session.get(), identity });
+      }
     });
 
-    ctx.menu(() => <Identifiers session={session} observed={observed} />);
-
-    /**
-     * Whether the badge this plugin placed is still on screen.
-     *
-     * `n/a`, not a failure, until the host has handed over a footer to mount on. Whether an anchor
-     * ever appears is core's `mount: watches have found their element`, which owns the watch and has
-     * a clock; this one can only see that it has not been given anything yet, and answering the
-     * other question from here would be answering it worse — and, at boot, wrongly.
-     */
-    ctx.check("badge is mounted", () => {
-      if (badge === null) return { verdict: "n/a", detail: "no composer footer yet" };
-      return badge.isConnected
-        ? { verdict: "pass", detail: headlineText(session.get()) }
-        : { verdict: "fail", detail: "the badge is not in the document" };
-    });
+    ctx.element("short-id", () => <ShortId {...stores} />);
+    ctx.element("full-id", () => <FullId {...stores} />);
+    ctx.element("address", () => <Address {...stores} />);
+    ctx.menu(() => <Identifiers {...stores} />);
 
     /**
      * Whether the address scrape has ever found anything.
@@ -424,20 +414,14 @@ export default definePlugin({
      * check: it says the scrape has had no opportunity, not that it works.
      */
     ctx.check("messaging address observed", () => {
-      const identity = currentIdentity();
+      const identity = currentAddress(stores.observed.get(), stores.session.get());
       if (identity !== null) return { verdict: "pass", detail: formatAddress(identity) };
-      if (observed.get() !== null) {
+      if (stores.observed.get() !== null) {
         return { verdict: "n/a", detail: "one was seen, for a session this panel has left" };
       }
       return { verdict: "n/a", detail: "none yet — it appears once this session runs ListAgents" };
     });
 
-    return () => {
-      stopWatch();
-      stopSession();
-      stopObserved();
-      stopMessages();
-      if (badgeFlashTimer !== null) clearTimeout(badgeFlashTimer);
-    };
+    return stopMessages;
   },
 });

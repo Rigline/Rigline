@@ -34,25 +34,25 @@ change still needs a webview reload — nothing can avoid that.
   "description": "What it does, in a sentence somebody will read in a list.",
   "entry": "dist/index.js",
   "surfaces": ["editor", "sidebar"],
-  "uses": { "anchors": ["footerSpacer"], "mount": true, "style": true }
+  "elements": {
+    "hello": {
+      "title": "Hello",
+      "placements": [{ "anchor": "footerSpacer", "at": "before" }, "rigRow"],
+      "default": { "anchor": "footerSpacer", "at": "before" }
+    }
+  }
 }
 ```
 
-`src/index.ts` is the module:
+`src/index.tsx` is the module:
 
-```ts
+```tsx
 import { definePlugin, type PluginContext } from "@rigline/plugin-api";
+import { Pill } from "@rigline/plugin-api/ui";
 
 export default definePlugin({
   setup(ctx: PluginContext) {
-    const stop = ctx.watch("footerSpacer", (spacer) =>
-      ctx.mountBefore(spacer, () => {
-        const badge = document.createElement("span");
-        badge.textContent = "hello";
-        return badge;
-      }),
-    );
-    return stop;
+    return ctx.element("hello", () => <Pill>hello</Pill>);
   },
 });
 ```
@@ -128,7 +128,8 @@ you can forget is a declaration the install cannot check. `rigline install` scan
 and says so when the two disagree, in either direction.
 
 Two members of `ctx` are on it without a declaration, because neither widens what you can reach:
-`ctx.surface`, which is a string, and `ctx.check`, below.
+`ctx.surface`, which is a string, and `ctx.check`, below. `ctx.element` is declared by `elements`
+rather than by `uses`, also below.
 
 ### React, and state that outlives a component
 
@@ -198,6 +199,37 @@ export default definePlugin({
   },
 });
 ```
+
+## Elements
+
+Something you add to the panel itself — a badge in the footer, a line under the composer — is an
+element. Declare each under `elements` in `rigline.json`, as in the example above, and render it with
+`ctx.element(id, Component)`:
+
+- `title` is what the element is, for a person deciding where it goes.
+- `placements` is every place it may go: a zone, or a slot `before`, `after` or `inside` one element
+  the anchor table names. The one zone so far is `rigRow`, a row at the foot of the composer box,
+  under its controls, which appears only while something is in it.
+- `default` is where it goes until the person using it says otherwise: one of `placements`, or
+  `null` for off. Every element states one, so off is a choice rather than something forgotten. A
+  fresh install should show something; that is yours to see to.
+
+Rigline places the element, keeps it placed across re-renders, and renders your component there in
+a boundary of its own, so a throw while rendering disables your plugin and nothing else. A place
+this extension version cannot provide costs that element and nothing else, and the install and the
+diagnostics panel say which; its anchor is not repeated under `uses`. An element you declare and
+never bind is a failing line on the diagnostics panel.
+
+Each element renders in a form of its own. The composer box and its footer are inside the
+composer's form, where a button with no type would send the prompt; yours cannot. `Pill` from
+`@rigline/plugin-api/ui` is the small label the composer's rows are made of, and a button when
+given `onClick`.
+
+Keep what you place steady. An element in the footer whose text keeps changing makes the footer
+re-measure each time, and one in `rigRow` whose height keeps changing re-renders the whole panel.
+
+`ctx.mount*` still places plain DOM, and is the tool for decorating every row of something, where
+there is no single place for an element to be.
 
 ## Say when you are working: `ctx.check`
 
@@ -292,7 +324,8 @@ on an element you placed.
 **Ask what a container does about its children before decorating it.** The composer footer sums the
 widths of its own element children to pick one of three fit stages, and resets that measurement on
 any foreign change inside it — so a decoration there is part of the layout decision *and* a trigger
-for it. Footer decorations go beside `footerSpacer`, with `ctx.mountBefore`. A decoration anchored
+for it. Footer elements go before `footerSpacer`, and so do plain decorations, with
+`ctx.mountBefore`. A decoration anchored
 instead to the model pill, which the widest stage moves out of the footer, oscillates at one cycle
 per frame and makes the composer unclickable.
 
