@@ -23,6 +23,8 @@ import {
   acquireVerdict,
   bufferSealedVerdict,
   busTrafficVerdict,
+  type ElementLike,
+  elementsVerdict,
   hostErrorsVerdict,
   pluginStatusVerdict,
   preHookOrderVerdict,
@@ -192,5 +194,24 @@ export function kernelChecks(kernel: Kernel): readonly Check[] {
     { name: "every plugin loaded", run: () => pluginStatusVerdict(d.plugins) },
     { name: "no host errors", run: () => hostErrorsVerdict(d.errors) },
     { name: "React renderer injected", run: () => reactVerdict(d.react) },
+    { name: "elements are placed", run: () => elementsVerdict(d.bufferSealed, elements(kernel)) },
   ];
+}
+
+/** Every element a loaded plugin declares, and what the shell made of it. */
+function elements(kernel: Kernel): ElementLike[] {
+  const loaded = new Set(
+    kernel.diagnostics.plugins.filter((p) => p.status === "loaded").map((p) => p.name),
+  );
+  return kernel.plugins
+    .filter((p) => loaded.has(p.name))
+    .flatMap((p) =>
+      Object.keys(p.elements).map((id): ElementLike => {
+        const name = `${p.name}/${id}`;
+        const reading = kernel.shell.bound.get(name);
+        return reading
+          ? { name, ...reading }
+          : { name, state: "unbound", detail: "declared, and setup never bound it" };
+      }),
+    );
 }

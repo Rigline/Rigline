@@ -36,7 +36,12 @@
 import type { Teardown } from "@rigline/plugin-api";
 import type { Diagnostics, ReactBridge } from "./bridge.ts";
 
-export type Placement = "inside" | "after" | "before";
+/**
+ * `last` is `inside` held to the end of the anchor's element children, for a zone kept after rows
+ * the app appends (D90). Too strict for `inside` in general, which one mount per transcript row
+ * shares: see `positioned`.
+ */
+export type Placement = "inside" | "after" | "before" | "last";
 
 /**
  * Consecutive passes of the same corrective action before the host concludes it is losing and
@@ -182,6 +187,11 @@ export function createMountService(
       return mount.node.nextElementSibling === successor;
     }
     if (mount.node.parentNode !== mount.anchor) return false;
+    if (mount.placement === "last") {
+      return (
+        mount.node.nextElementSibling === (peers.find((m) => m.order > mount.order)?.node ?? null)
+      );
+    }
     const later = peers.find((m) => m.order > mount.order);
     if (!later) return true;
     return (
@@ -212,6 +222,35 @@ export function createMountService(
     if (later) mount.anchor.insertBefore(node, later.node);
     else mount.anchor.appendChild(node);
   }
+
+  /** Whether `node` is, or is inside, something the host placed. */
+  function placed(node: unknown): boolean {
+    return node instanceof Element && node.closest("[data-rigline-mount]") !== null;
+  }
+
+  /**
+   * Nothing the host placed submits the app's own form, which holds the composer box and its footer
+   * (D90). An element renders in a form of its own, whose submissions are cancelled outright. A DOM
+   * mount has no such form, so a submission of the app's is cancelled when its submitter, or the
+   * field Enter was pressed in, is inside one. A plugin's own form submits as usual. In capture on
+   * `document`, so neither React root sees a cancelled one.
+   */
+  document.addEventListener(
+    "submit",
+    (e) => {
+      const target = e.target;
+      if (!(target instanceof Element && target.matches("form[data-rigline-element]"))) {
+        if (placed(target)) return;
+        const focused = document.activeElement;
+        if (!placed(e.submitter) && !(focused instanceof HTMLInputElement && placed(focused))) {
+          return;
+        }
+      }
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    },
+    true,
+  );
 
   /**
    * Stop taking a corrective action that is not working, and say so once (D54).

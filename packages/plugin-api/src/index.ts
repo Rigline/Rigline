@@ -28,6 +28,7 @@ export {
 } from "./capabilities/index.ts";
 export type { CheckVerdict, Verdict } from "./checks.ts";
 export type {
+  ElementComponent,
   MenuComponent,
   OptionalContext,
   Payload,

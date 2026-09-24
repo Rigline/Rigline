@@ -25,6 +25,9 @@ export type Teardown = () => void;
  */
 export type MenuComponent = () => unknown;
 
+/** As `MenuComponent`, for an element. */
+export type ElementComponent = () => unknown;
+
 /** An outbound message type whose payload fields are known, and so may be rewritten. */
 export type RewritableType = keyof OutboundFields;
 
@@ -232,6 +235,14 @@ export interface PluginContext {
    * anything outside the menu belongs in a store made in `setup`. Requires `uses.menu`.
    */
   menu(component: MenuComponent): Teardown;
+
+  /**
+   * Render `component` wherever the element `id` is placed, which is its manifest's `default` until
+   * the user says otherwise (D90); an element whose default is `null` renders nowhere. Each renders
+   * inside an error boundary of its own, as a menu contribution does. Requires `id` under `elements`
+   * in this plugin's rigline.json, and binding one id twice throws.
+   */
+  element(id: string, component: ElementComponent): Teardown;
 }
 
 /** The default export of a plugin's entry module. */

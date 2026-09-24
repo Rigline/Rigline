@@ -12,6 +12,7 @@ import {
   anchorUniqueVerdict,
   bufferSealedVerdict,
   busTrafficVerdict,
+  elementsVerdict,
   hostErrorsVerdict,
   mountReplacementVerdict,
   mountsInPlaceVerdict,
@@ -401,5 +402,43 @@ describe("anchorUniqueVerdict", () => {
     expect(anchorUniqueVerdict({ zed: 3, modelPill: 2 }).detail).toBe(
       "modelPill matched 2, zed matched 3",
     );
+  });
+});
+
+describe("elementsVerdict", () => {
+  const placed = { name: "p/a", state: "placed", detail: "before footerSpacer" } as const;
+
+  it("has nothing to say where no plugin declares an element, or before plugins have loaded", () => {
+    expect(elementsVerdict(true, []).verdict).toBe("n/a");
+    expect(
+      elementsVerdict(false, [{ name: "p/a", state: "unbound", detail: "never bound" }]).verdict,
+    ).toBe("n/a");
+  });
+
+  it("fails on an element never bound or with nowhere to go, naming each", () => {
+    expect(
+      elementsVerdict(true, [
+        placed,
+        { name: "p/b", state: "unbound", detail: "declared, and setup never bound it" },
+        { name: "q/c", state: "unavailable", detail: 'anchor "x" is not in this extension' },
+      ]),
+    ).toEqual({
+      verdict: "fail",
+      detail: 'p/b: declared, and setup never bound it; q/c: anchor "x" is not in this extension',
+    });
+  });
+
+  it("passes with a count, where a surface lacking a placement is not a fault", () => {
+    expect(
+      elementsVerdict(true, [
+        placed,
+        { name: "p/b", state: "off", detail: "off by default" },
+        {
+          name: "p/c",
+          state: "elsewhere",
+          detail: "composerBox is not on the sessionList surface",
+        },
+      ]),
+    ).toEqual({ verdict: "pass", detail: "1 placed, 1 off, 1 not on this surface" });
   });
 });

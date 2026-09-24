@@ -22,6 +22,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import type { MenuComponent } from "../context.ts";
+import { FaultContext, message } from "./fault.ts";
 
 /** Colours are the app's own tokens, each falling back to the theme variable the app aliases it to. */
 export const MENU_CSS = `
@@ -183,17 +184,8 @@ const MenuContext = createContext<MenuState | null>(null);
 /** The depth of the level an item renders in: 0 for the menu itself. */
 const DepthContext = createContext(0);
 
-/** The contribution's error path, for a handler that throws, which no boundary catches (D88). */
-const FaultContext = createContext<(reason: string) => void>((reason) =>
-  console.error(`[rigline] ${reason}`),
-);
-
 const ITEM = '[role^="menuitem"]';
 const LEVEL = '[role="menu"]';
-
-function message(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
-}
 
 function useMenu(component: string): MenuState {
   const menu = useContext(MenuContext);

@@ -119,6 +119,36 @@ export function shellVerdict(
     : { verdict: "n/a", detail: "nowhere to place it yet" };
 }
 
+/** One declared element of a loaded plugin, and what became of it. */
+export interface ElementLike {
+  /** `plugin/id`. */
+  readonly name: string;
+  readonly state: "placed" | "off" | "elsewhere" | "unavailable" | "unbound";
+  readonly detail: string;
+}
+
+/**
+ * Every declared element is bound, and every one with a default has somewhere to go (D90). Until the
+ * plugins have loaded, an unbound element is only one whose `setup` has not run yet.
+ */
+export function elementsVerdict(sealed: boolean, elements: readonly ElementLike[]): CheckVerdict {
+  if (elements.length === 0) {
+    return { verdict: "n/a", detail: "no plugin here declares an element" };
+  }
+  if (!sealed) return { verdict: "n/a", detail: "plugins are still loading" };
+  const bad = elements.filter((e) => e.state === "unbound" || e.state === "unavailable");
+  if (bad.length > 0) {
+    return { verdict: "fail", detail: bad.map((e) => `${e.name}: ${e.detail}`).join("; ") };
+  }
+  const count = (state: ElementLike["state"]): number =>
+    elements.filter((e) => e.state === state).length;
+  const elsewhere = count("elsewhere");
+  return {
+    verdict: "pass",
+    detail: `${count("placed")} placed, ${count("off")} off${elsewhere > 0 ? `, ${elsewhere} not on this surface` : ""}`,
+  };
+}
+
 /** The React devtools hook is installed and the app's renderer is known. */
 export function reactVerdict(react: {
   readonly hook: "installed" | "chained";

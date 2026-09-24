@@ -1903,7 +1903,11 @@ the box, which needs none of what follows. The harness read behind it:
 
 The box is a fieldset in the composer's form, and so is the footer. A button with no type submits
 the prompt, and Enter in a text field sends it; `document.createElement("button")` and React's
-`<button>` both default to submit. So the host cancels a submission of the app's form whose submitter
-or focused field is inside a node it placed, in capture on `document`, before React's root listener
-sees it. A plugin's own form inside its element submits as usual. Rejected: telling authors to type
-their buttons, which needs every author to comply, where the guard needs nobody to.
+`<button>` both default to submit. Worse, the first such button in the footer becomes the form's
+default button, so Enter in any field of the form clicks it — another element's field included,
+which the harness showed. So every element renders inside a form of its own, whose controls never
+belong to the composer's, and the host cancels every submission of those forms. A plain DOM mount has
+no such form, so the host also cancels a submission of the app's form whose submitter, or whose
+focused field, is inside a node it placed. Both in capture on `document`, before either React root
+sees it; a plugin's own form submits as usual. Rejected: telling authors to type their buttons, which
+needs every author to comply, where this needs nobody to.

@@ -12,6 +12,7 @@
 import {
   type CheckVerdict,
   capabilityViolation,
+  type ElementComponent,
   elementGaps,
   type IdentifierTables,
   type OptionalContext,
@@ -131,6 +132,30 @@ async function loadPlugin(plugin: PluginRecord, kernel: Kernel): Promise<PluginS
     // plugin the host has torn down should not keep reporting on itself.
     check: (name: string, run: () => CheckVerdict) =>
       grant.own(kernel.checks.add(plugin.name, name, run)),
+    // Declared by `elements` rather than by a key of `uses`, so no capability module owns it (D90).
+    element: (id: string, component: ElementComponent) => {
+      const ids = Object.keys(plugin.elements);
+      const spec = Object.hasOwn(plugin.elements, id) ? plugin.elements[id] : undefined;
+      if (!spec) {
+        throw new Error(
+          `element("${id}") needs "${id}" under elements in this plugin's rigline.json`,
+        );
+      }
+      if (typeof component !== "function") {
+        throw new Error("element() takes a component: a function returning what to render");
+      }
+      return grant.own(
+        kernel.shell.element(
+          plugin.name,
+          plugin.order,
+          ids.indexOf(id),
+          id,
+          spec,
+          component,
+          disable,
+        ),
+      );
+    },
   } as PluginContext;
   for (const module of MODULES) Object.assign(ctx, module.grant(grant));
   Object.freeze(ctx);

@@ -22,6 +22,15 @@ anything may change between releases.
   plugin's entries: the arrows move, Enter or Right opens a submenu, Left or Escape goes back, and
   Escape closes the menu without reaching the app. Each plugin's entries sit together, with a
   divider between plugins.
+- **Elements.** A plugin declares components under `elements` in `rigline.json` — a title, the
+  places each may go and where it goes by default, or `null` for off — and renders each with
+  `ctx.element(id, Component)`. A place is beside or inside an element the anchor table names, or
+  `rigRow`, a new row at the foot of the composer box, under its controls, which appears only while
+  something is in it. A place this version of the extension cannot provide is reported at install
+  and on the diagnostics panel, and costs the plugin that element and nothing else.
+- `Pill` in `@rigline/plugin-api/ui`: the small label the composer's rows are made of, as a button
+  when given `onClick`.
+- The `composerBox` anchor: the composer's bordered box.
 - Stores, for state a plugin keeps outside its components: `store(initial)` and
   `storeFrom(ctx.onSessionId, null)` in `@rigline/plugin-api`, and `useStore` to read one from React
   in `@rigline/plugin-api/ui`. A store made in `setup` catches what the panel replays from boot,
@@ -48,6 +57,9 @@ anything may change between releases.
 - A plugin that bundles its own copy of React no longer breaks transcript decorations for every
   plugin in the panel. Rigline now keeps to the app's own renderer, and the diagnostics report says
   when another has loaded.
+- A button a plugin places in the composer footer no longer sends the prompt when clicked, and
+  Enter in a text field a plugin places there no longer sends it either. The footer is inside the
+  composer's form, where a button with no `type` submits.
 
 ## 1.0.0-alpha.10 — 2026-09-23
 

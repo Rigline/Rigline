@@ -17,6 +17,7 @@ export {
   Submenu,
   type SubmenuProps,
 } from "./menu.tsx";
+export { Pill, type PillProps } from "./pill.tsx";
 
 /** A store's current value, re-rendering whenever it changes. */
 export function useStore<T>(source: Store<T>): T {
