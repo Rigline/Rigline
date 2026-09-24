@@ -132,8 +132,8 @@ function addPlugin(root: string, name: string, uses: Record<string, unknown>): v
 }
 
 function configWith(disabled: readonly string[]): string {
-  const path = join(tempDir("rigline-config-"), "config.json");
-  writeFileSync(path, JSON.stringify({ disabled }));
+  const path = join(tempDir("rigline-config-"), "config.yaml");
+  writeFileSync(path, `disabled: [${disabled.join(", ")}]\n`);
   return path;
 }
 

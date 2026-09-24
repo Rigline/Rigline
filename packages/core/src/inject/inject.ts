@@ -38,6 +38,7 @@ import {
   wholenessProblem,
 } from "../extension/bundles.ts";
 import { harvestAll } from "../layers/index.ts";
+import { readConfig } from "../plugins/config.ts";
 import {
   bakeRegistry,
   capabilityUseNotes,
@@ -46,7 +47,6 @@ import {
   discoverPlugins,
   enabledPlugins,
   isPluginOutput,
-  readConfig,
 } from "../plugins/discover.ts";
 import { applyPatches, type PatchOutcome } from "./hostpatch.ts";
 import { importProblem, resolveRuntimeImports } from "./imports.ts";

@@ -108,7 +108,7 @@ working loader is never an offer.
 
 `rigline.showPlugins`, *Rigline: Show Plugins*, is the one palette command. It resolves the engine
 already on disk with `ensureEngine` alone, never `updateEngine`, and pipes the engine's own `list`
-into the output channel. It never touches the status item. Plugin state stays in `config.json`, and
+into the output channel. It never touches the status item. Plugin state stays in `config.yaml`, and
 enable and disable stay in the CLI (D84).
 
 ## `rigline vscode-setup`

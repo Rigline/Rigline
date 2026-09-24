@@ -7,7 +7,7 @@
  * is never imported — module evaluation is exactly where a broken plugin throws, and this code's
  * job is to say what broke, by name, before anything runs.
  */
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 
 import {
@@ -20,6 +20,7 @@ import {
 import { UserError } from "../errors.ts";
 import { type DeclaredPatch, type PatchOutcome, patchRefusal } from "../inject/hostpatch.ts";
 import { CORE_VERSION } from "../version.ts";
+import type { PluginsConfig } from "./config.ts";
 
 /** One plugin found on disk, its manifest already validated. */
 export interface DiscoveredPlugin {
@@ -42,46 +43,6 @@ export interface DiscoveredPlugin {
    * from here: `list`, and `add` at the moment a bundled name is taken.
    */
   readonly overridesBundled: boolean;
-}
-
-/**
- * Where a plugin came from, recorded by `add` (D49).
- *
- * A discriminated union from its first member, so that the npm source and the git source deferred
- * in D33 arrive as adapters rather than as a migration of everything already written. A plugin
- * somebody put in `~/.rigline/plugins/` by hand has no record at all, and that is the honest cost
- * of dropping a directory in: nothing knows where it came from, so nothing can fetch a newer one.
- */
-export type PluginSource = PathSource | NpmSource;
-
-export interface PathSource {
-  readonly kind: "path";
-  /** The directory it was copied from, absolute. `update` does not follow it; `add` again does. */
-  readonly from: string;
-  /** When, as an ISO instant. The record is for a person reading it as much as for a command. */
-  readonly addedAt: string;
-}
-
-export interface NpmSource {
-  readonly kind: "npm";
-  /** The package name, which need not be the plugin's: the manifest owns that. */
-  readonly name: string;
-  /** Exact, always. There are no ranges (D58). */
-  readonly version: string;
-  /** The dist-tag `update` follows, or null when a person named a version and so pinned it. */
-  readonly tag: string | null;
-  /** What the bytes hashed to, as SRI, checked again on every fetch (D49). */
-  readonly integrity: string;
-  readonly addedAt: string;
-}
-
-/** `~/.rigline/config.json`: the one thing a person, not a plugin author, controls at install time. */
-export interface PluginsConfig {
-  /** Where it was read from, so a report about it can name the file somebody has to edit. */
-  readonly path: string;
-  readonly disabled: readonly string[];
-  /** What `add` brought in, by plugin name. A plugin placed by hand is absent rather than null. */
-  readonly sources: Readonly<Record<string, PluginSource>>;
 }
 
 /**
@@ -214,106 +175,6 @@ export function discoverPlugins(
     if (plugin) ordered.push(plugin);
   }
   return ordered;
-}
-
-/**
- * `~/.rigline/config.json`. Absent means nothing is disabled; malformed is a person's mistake, loud.
- *
- * A source whose `kind` this engine does not know is skipped with a line rather than thrown over
- * (D74): the wrapper is routinely newer, and one unreadable entry must not cost every command.
- */
-export function readConfig(path: string, log: (line: string) => void = () => {}): PluginsConfig {
-  const value = readConfigJson(path);
-  if (value === null) return { path, disabled: [], sources: {} };
-
-  const disabled = value.disabled ?? [];
-  if (!Array.isArray(disabled) || !disabled.every((d) => typeof d === "string")) {
-    throw new UserError(`${path}: "disabled" must be an array of strings`);
-  }
-  const rawSources = value.sources ?? {};
-  if (typeof rawSources !== "object" || rawSources === null || Array.isArray(rawSources)) {
-    throw new UserError(`${path}: "sources" must be an object of plugin name to source`);
-  }
-  const sources: Record<string, PluginSource> = {};
-  for (const [name, source] of Object.entries(rawSources)) {
-    // Named, not dropped in silence: a plugin whose record cannot be read looks hand-placed, and
-    // `update` cannot move one of those (D49).
-    if (!isPluginSource(source)) {
-      log(
-        `${path}: the source recorded for "${name}" is ${describeKind(source)}, so it is ignored`,
-      );
-      continue;
-    }
-    sources[name] = source;
-  }
-  return { path, disabled, sources };
-}
-
-/**
- * `config.json` with `mutate` applied, written back with every key this does not know about left
- * exactly as it was.
- *
- * A read-modify-write over the raw JSON rather than a render of `PluginsConfig`, because this file
- * belongs to the user: per-plugin settings are a thing it will hold one day, a person may have put
- * something of their own in it, and a command that rewrites it from a narrowed view would delete
- * both the first time it ran.
- */
-export function updateConfig(
-  path: string,
-  mutate: (config: Record<string, unknown>) => void,
-): void {
-  const value = readConfigJson(path) ?? {};
-  mutate(value);
-  writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
-}
-
-/** The file as raw JSON, or null when it is not there. Throws for anything that is not an object. */
-function readConfigJson(path: string): Record<string, unknown> | null {
-  if (!existsSync(path)) return null;
-  let value: unknown;
-  try {
-    value = JSON.parse(readFileSync(path, "utf8"));
-  } catch (error) {
-    throw new UserError(`${path} is not valid JSON: ${(error as Error).message}`);
-  }
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new UserError(`${path} must be a JSON object`);
-  }
-  return value as Record<string, unknown>;
-}
-
-/** What to call a source this cannot read: a kind it has not heard of, or an edited file. */
-function describeKind(source: unknown): string {
-  const kind = (source as { kind?: unknown } | null)?.kind;
-  return typeof kind === "string"
-    ? `of kind "${kind}", which this engine does not know — a newer rigline may`
-    : "not a source this can read";
-}
-
-export function isPluginSource(value: unknown): value is PluginSource {
-  // Read as a bag of unknowns rather than as a partial of the union: the two members disagree about
-  // `kind`, so their intersection has no value for it and every field reads as never.
-  if (typeof value !== "object" || value === null) return false;
-  const source = value as Record<string, unknown>;
-  if (typeof source.addedAt !== "string") return false;
-  if (source.kind === "path") return typeof source.from === "string";
-  if (source.kind === "npm") {
-    return (
-      typeof source.name === "string" &&
-      typeof source.version === "string" &&
-      typeof source.integrity === "string" &&
-      (source.tag === null || typeof source.tag === "string")
-    );
-  }
-  return false;
-}
-
-/** Where a plugin came from, as one phrase a report can put after "added from". */
-export function describeSource(source: PluginSource): string {
-  return source.kind === "path"
-    ? source.from
-    : `${source.name}@${source.version} on npm` +
-        (source.tag === null ? ", pinned" : `, following ${source.tag}`);
 }
 
 /**

@@ -38,6 +38,11 @@ anything may change between releases.
 
 ### Changed
 
+- **Your settings are now `~/.rigline/config.yaml`**, a YAML file meant to be edited by hand as well
+  as by `rigline disable` and `rigline enable`, which keep your comments. Where each plugin came from
+  is recorded separately, in `~/.rigline/sources.json`, which is not for editing. The first command
+  that needs them splits an existing `~/.rigline/config.json` into the two and removes it. What the
+  file holds is in [docs/config.md](docs/config.md).
 - **session-id**: the pop-up of identifiers has moved into Rigline's menu, under Session
   identifiers, where choosing one copies it. A plain click on the badge now copies the full session
   id, which used to take alt-click or shift-click.

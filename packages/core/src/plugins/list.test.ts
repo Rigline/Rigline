@@ -28,8 +28,15 @@ function writePlugin(root: string, name: string, manifest: Record<string, unknow
 }
 
 function configWith(disabled: readonly string[]): string {
-  const path = join(tempDir(), "config.json");
-  writeFileSync(path, JSON.stringify({ disabled }));
+  const path = join(tempDir(), "config.yaml");
+  writeFileSync(path, `disabled: [${disabled.join(", ")}]\n`);
+  return path;
+}
+
+/** `sources.json` holding `sources`, or a path to none. */
+function sourcesWith(sources: Record<string, unknown> = {}): string {
+  const path = join(tempDir(), "sources.json");
+  if (Object.keys(sources).length > 0) writeFileSync(path, JSON.stringify(sources));
   return path;
 }
 
@@ -46,6 +53,7 @@ describe("listPlugins", () => {
         { label: "~/.rigline/plugins", path: theirs },
       ],
       configPath: configWith([]),
+      sourcesPath: sourcesWith(),
     });
     expect(listed.map((p) => [p.name, p.origin])).toEqual([
       ["ours", "this checkout"],
@@ -59,22 +67,16 @@ describe("listPlugins", () => {
     writePlugin(managed, "added");
     writePlugin(managed, "by-hand");
     writePlugin(checkout, "first-party");
-    const configPath = join(tempDir(), "config.json");
-    writeFileSync(
-      configPath,
-      JSON.stringify({
-        sources: {
-          added: { kind: "path", from: "/src/added", addedAt: "2026-09-18T11:00:00.000Z" },
-        },
-      }),
-    );
 
     const listed = listPlugins({
       roots: [
         { label: "this checkout", path: checkout },
         { label: "~/.rigline/plugins", path: managed, managed: true },
       ],
-      configPath,
+      configPath: configWith([]),
+      sourcesPath: sourcesWith({
+        added: { kind: "path", from: "/src/added", addedAt: "2026-09-18T11:00:00.000Z" },
+      }),
     });
     const text = formatPlugins(listed);
 
@@ -99,6 +101,7 @@ describe("listPlugins", () => {
       roots: [{ label: "root", path: root }],
       last: ["probe"],
       configPath: configWith([]),
+      sourcesPath: sourcesWith(),
     });
     expect(listed.map((p) => p.name)).toEqual(["alpha", "zulu", "probe"]);
   });
@@ -111,6 +114,7 @@ describe("listPlugins", () => {
     const listed = listPlugins({
       roots: [{ label: "root", path: root }],
       configPath: configWith(["off"]),
+      sourcesPath: sourcesWith(),
     });
     expect(listed.map((p) => [p.name, p.enabled])).toEqual([
       ["off", false],
@@ -128,6 +132,7 @@ describe("listPlugins", () => {
     const listed = listPlugins({
       roots: [{ label: "root", path: root }],
       configPath: configWith([]),
+      sourcesPath: sourcesWith(),
     });
     expect(listed[0]?.description).toBe("Does a thing.");
     expect(listed[0]?.can).toContain("reads messages: io_message");
@@ -143,6 +148,7 @@ describe("listPlugins", () => {
     const listed = listPlugins({
       roots: [{ label: "root", path: root }],
       configPath: configWith([]),
+      sourcesPath: sourcesWith(),
     });
     expect(listed[0]?.patches).toEqual([{ why: "Turns the thing on.", required: true }]);
   });
@@ -162,6 +168,7 @@ describe("formatPlugins", () => {
       listPlugins({
         roots: [{ label: "this checkout", path: root }],
         configPath: configWith(["quiet"]),
+        sourcesPath: sourcesWith(),
       }),
     );
     expect(text).toContain("quiet — this checkout, switched off in config");
@@ -186,6 +193,7 @@ describe("the bundled set", () => {
     const [listing] = listPlugins({
       roots: [{ label: "bundled", path: bundled, bundled: true }],
       configPath: configWith([]),
+      sourcesPath: sourcesWith(),
     });
     expect(listing?.origin).toBe("bundled");
     expect(listing?.version).toBe(CORE_VERSION);
@@ -206,6 +214,7 @@ describe("the bundled set", () => {
         { label: "bundled", path: bundled, bundled: true },
       ],
       configPath: configWith([]),
+      sourcesPath: sourcesWith(),
     });
     expect(listings).toHaveLength(1);
     expect(listings[0]?.origin).toBe("this checkout");
@@ -217,29 +226,22 @@ describe("the bundled set", () => {
   });
 
   it("takes an installed plugin's version from the source add recorded", () => {
-    const home = tempDir();
-    const plugins = join(home, "plugins");
+    const plugins = join(tempDir(), "plugins");
     writePlugin(plugins, "clock");
-    const configPath = join(home, "config.json");
-    writeFileSync(
-      configPath,
-      JSON.stringify({
-        sources: {
-          clock: {
-            kind: "npm",
-            name: "clock",
-            version: "2.1.0",
-            tag: "latest",
-            integrity: "sha512-x",
-            addedAt: "2026-09-21T00:00:00.000Z",
-          },
-        },
-      }),
-    );
 
     const [listing] = listPlugins({
       roots: [{ label: plugins, path: plugins, managed: true }],
-      configPath,
+      configPath: configWith([]),
+      sourcesPath: sourcesWith({
+        clock: {
+          kind: "npm",
+          name: "clock",
+          version: "2.1.0",
+          tag: "latest",
+          integrity: "sha512-x",
+          addedAt: "2026-09-21T00:00:00.000Z",
+        },
+      }),
     });
     expect(listing?.version).toBe("2.1.0");
     expect(formatPlugins([listing as PluginListing])).toContain("clock 2.1.0 —");
@@ -248,10 +250,9 @@ describe("the bundled set", () => {
 
 describe("the shape `rigline list --json` emits", () => {
   it("carries the fields the wrapper's `update` reads (D74)", () => {
-    // The wrapper cannot read `config.json`, so this listing is how it learns what it can move.
+    // The wrapper cannot read `sources.json`, so this listing is how it learns what it can move.
     const plugins = tempDir();
     writePlugin(plugins, "clock");
-    const configPath = join(tempDir(), "config.json");
     const source = {
       kind: "npm",
       name: "clock",
@@ -260,13 +261,13 @@ describe("the shape `rigline list --json` emits", () => {
       integrity: "sha512-x",
       addedAt: "2026-09-21T00:00:00.000Z",
     };
-    writeFileSync(configPath, JSON.stringify({ sources: { clock: source } }));
 
     const [listing] = JSON.parse(
       JSON.stringify(
         listPlugins({
           roots: [{ label: plugins, path: plugins, managed: true }],
-          configPath,
+          configPath: configWith([]),
+          sourcesPath: sourcesWith({ clock: source }),
         }),
       ),
     ) as { name: string; managed: boolean; source: Record<string, unknown> | null }[];
@@ -282,6 +283,7 @@ describe("the shape `rigline list --json` emits", () => {
     const [listing] = listPlugins({
       roots: [{ label: plugins, path: plugins, managed: true }],
       configPath: configWith([]),
+      sourcesPath: sourcesWith(),
     });
     expect(listing?.managed).toBe(true);
     expect(listing?.source).toBeNull();

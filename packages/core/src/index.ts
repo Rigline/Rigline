@@ -93,26 +93,31 @@ export { harvestAll, LAYERS, scanOf } from "./layers/index.ts";
 export type { RiglinePaths } from "./paths.ts";
 export { RIGLINE_HOME_VARIABLE, riglineHome, riglinePaths } from "./paths.ts";
 export type {
-  DiscoveredPlugin,
-  ManifestCheck,
+  ConfigFiles,
   NpmSource,
   PathSource,
   PluginSource,
   PluginsConfig,
-} from "./plugins/discover.ts";
+} from "./plugins/config.ts";
+export {
+  describeSource,
+  editConfig,
+  readConfig,
+  readSources,
+  splitLegacyConfig,
+  updateSources,
+} from "./plugins/config.ts";
+export type { DiscoveredPlugin, ManifestCheck } from "./plugins/discover.ts";
 export {
   bakeRegistry,
   capabilityUseNotes,
   checkManifest,
   declaredPatches,
-  describeSource,
   discoverPlugins,
   enabledPlugins,
   isPluginOutput,
-  readConfig,
   readManifest,
   registryEngine,
-  updateConfig,
 } from "./plugins/discover.ts";
 export type {
   LabelledRoot,

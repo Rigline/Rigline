@@ -1,7 +1,7 @@
 /**
  * Where Rigline keeps a user's state (decisions.md, D30, D32).
  *
- * A clone of this repo is for developing Rigline; using it leaves nothing in the clone. Config,
+ * A clone of this repo is for developing Rigline; using it leaves nothing in the clone. Settings,
  * installed plugins, the anchor-table override and the harvest baseline live under one directory in
  * the user's home, overridable for tests and for anyone who keeps dotfiles elsewhere.
  */
@@ -18,8 +18,12 @@ export function riglineHome(env: NodeJS.ProcessEnv = process.env): string {
 
 export interface RiglinePaths {
   readonly home: string;
-  /** Enabled and disabled plugins, per-plugin settings. */
+  /** What a person decides: plugins switched off, the layout (D91). */
   readonly config: string;
+  /** Where `add` brought each plugin from (D49, D91). */
+  readonly sources: string;
+  /** `config.json`, which held both before D91, and is split into them once. */
+  readonly legacyConfig: string;
   /** Plugins installed for this user, one directory each, discovered like any other plugin root. */
   readonly plugins: string;
   /** Local overrides and additions to the curated anchor table (D44). */
@@ -31,7 +35,9 @@ export interface RiglinePaths {
 export function riglinePaths(home = riglineHome()): RiglinePaths {
   return {
     home,
-    config: join(home, "config.json"),
+    config: join(home, "config.yaml"),
+    sources: join(home, "sources.json"),
+    legacyConfig: join(home, "config.json"),
     plugins: join(home, "plugins"),
     anchors: join(home, "anchors.json"),
     baseline: join(home, "baseline.json"),

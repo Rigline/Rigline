@@ -2,7 +2,7 @@
  * The wrapper's remote half, with a fake registry and a fake engine.
  *
  * What it asserts is the boundary D70 draws: the wrapper stages vetted bytes and hands over a
- * directory and a source record, and never opens a manifest or writes `config.json`.
+ * directory and a source record, and never opens a manifest or writes `sources.json`.
  */
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";

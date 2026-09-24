@@ -37,12 +37,8 @@ import {
 import { diffScans, formatDiff, type Scan, scansDiffer, type ViewDiff } from "../layers/diff.ts";
 import { type Harvest, harvestAll } from "../layers/index.ts";
 import { riglinePaths } from "../paths.ts";
-import {
-  discoverPlugins,
-  enabledPlugins,
-  readConfig,
-  registryEngine,
-} from "../plugins/discover.ts";
+import { readConfig } from "../plugins/config.ts";
+import { discoverPlugins, enabledPlugins, registryEngine } from "../plugins/discover.ts";
 import { CORE_VERSION } from "../version.ts";
 import { type BaselineSource, GENERATED_FILE, readBaseline, writeBaseline } from "./baseline.ts";
 
@@ -73,7 +69,7 @@ export interface VersionReport {
   /** Whether `extension.js` changed, which needs a window reload rather than a webview reload. */
   readonly hostChanged: boolean;
   /**
-   * Plugins not switched off in `config.json`, and those that are. Both, because "enabled" alone
+   * Plugins not switched off in `config.yaml`, and those that are. Both, because "enabled" alone
    * cannot say why a plugin a person expected is absent from the panel, and that is the one
    * question this output exists to answer.
    */

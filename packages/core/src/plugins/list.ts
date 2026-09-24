@@ -12,13 +12,8 @@
  */
 import { describeElements, describeUses, type Uses } from "@rigline/plugin-api";
 import { CORE_VERSION } from "../version.ts";
-import {
-  type DiscoveredPlugin,
-  describeSource,
-  discoverPlugins,
-  type PluginSource,
-  readConfig,
-} from "./discover.ts";
+import { describeSource, type PluginSource, readConfig, readSources } from "./config.ts";
+import { type DiscoveredPlugin, discoverPlugins } from "./discover.ts";
 
 /** A discovery root and what to call it in the report. */
 export interface LabelledRoot {
@@ -48,7 +43,7 @@ export interface PluginListing {
   readonly dir: string;
   /** The label of the root it was discovered under. */
   readonly origin: string;
-  /** False when `config.json` switched it off, which is the one state a person chose. */
+  /** False when `config.yaml` switched it off, which is the one state a person chose. */
   readonly enabled: boolean;
   /**
    * Where `add` brought it from, or null for one placed by hand. Null is a fact worth printing
@@ -78,6 +73,7 @@ export interface PluginListing {
 export interface ListOptions {
   readonly roots: readonly LabelledRoot[];
   readonly configPath: string;
+  readonly sourcesPath: string;
   /** Plugins pinned to the end of registry order, as `install` pins them. */
   readonly last?: readonly string[];
 }
@@ -88,13 +84,13 @@ export function listPlugins(options: ListOptions): PluginListing[] {
     options.roots.map((r) => r.path),
     { last: options.last, bundledRoot },
   );
-  const config = readConfig(options.configPath);
-  const disabled = new Set(config.disabled);
+  const disabled = new Set(readConfig(options.configPath).disabled);
+  const sources = readSources(options.sourcesPath);
   const label = new Map(options.roots.map((r) => [r.path, r.label]));
   const managed = new Set(options.roots.filter((r) => r.managed).map((r) => r.path));
 
   return discovered.map((plugin: DiscoveredPlugin) => {
-    const source = config.sources[plugin.name] ?? null;
+    const source = sources[plugin.name] ?? null;
     return {
       name: plugin.name,
       dir: plugin.dir,

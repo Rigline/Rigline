@@ -56,6 +56,7 @@ import {
   scanOf,
   setPluginEnabled,
   setupCompanion,
+  splitLegacyConfig,
   UserError,
   update,
   verdict,
@@ -119,7 +120,7 @@ const USAGE = `rigline ${CORE_VERSION}
 
   rigline disable NAME
   rigline enable NAME
-      Switch a plugin off in ~/.rigline/config.json, or back on, and re-inject. This is how
+      Switch a plugin off in ~/.rigline/config.yaml, or back on, and re-inject. This is how
       you decline one of the plugins bundled in the engine: there is nothing to delete, and
       an engine update would put it back.
 
@@ -281,6 +282,7 @@ function addCommand(args: string[]): number {
     from,
     pluginsDir: paths.plugins,
     configPath: paths.config,
+    sourcesPath: paths.sources,
     ...foreignRoots(),
     // Where the bytes came from, when somebody other than this command established it (D74). The
     // wrapper passes what it resolved; a person pointing at a directory passes nothing and gets a
@@ -381,6 +383,7 @@ function removeCommand(args: string[]): number {
     name: positionals[0] as string,
     pluginsDir: paths.plugins,
     configPath: paths.config,
+    sourcesPath: paths.sources,
     ...foreignRoots(),
   });
   console.log(`removed ${result.name} — ${result.dir}`);
@@ -420,8 +423,9 @@ function listCommand(args: string[]): number {
     ],
     last: ["probe"],
     configPath: paths.config,
+    sourcesPath: paths.sources,
   });
-  // `--json` is how the wrapper learns what `update` can move: `config.json` is the engine's, so
+  // `--json` is how the wrapper learns what `update` can move: `sources.json` is the engine's, so
   // the wrapper asks rather than reads (D74).
   console.log(values.json ? JSON.stringify(listings) : formatPlugins(listings));
   return 0;
@@ -813,8 +817,32 @@ async function dev(args: string[]): Promise<number> {
   });
 }
 
+/** The verbs that read `config.yaml` or `sources.json`, each of which splits a `config.json` first. */
+const SETTINGS_VERBS = new Set([
+  "install",
+  "check",
+  "watch",
+  "dev",
+  "add",
+  "remove",
+  "disable",
+  "enable",
+  "list",
+  "vscode-setup",
+]);
+
 async function main(argv: string[]): Promise<number> {
   const [command, ...rest] = argv;
+  if (command !== undefined && SETTINGS_VERBS.has(command)) {
+    const paths = riglinePaths();
+    // On stderr, so `list --json` and `doctor` still print only what they are for.
+    const split = splitLegacyConfig({
+      config: paths.config,
+      sources: paths.sources,
+      legacy: paths.legacyConfig,
+    });
+    if (split !== null) console.error(`rigline: ${split}`);
+  }
   switch (command) {
     case "codegen":
       return codegen(rest);

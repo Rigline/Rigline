@@ -25,7 +25,7 @@ no new plans. Update the plan before writing code; log status there, not here.
   `Atomics.wait` rather than making `install` async. Carries a negative result worth not
   re-proposing: a content check on the bundle's tail was evidenced against the corpus and rejected,
   because a rule that fits today's bundler refuses every install the day it changes.
-- [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D90.
+- [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D91.
 
 The internals, for a contributor to Rigline itself. The shape, not the argument — the argument is in
 decisions.md, and each doc cites the decisions it rests on.
@@ -64,6 +64,8 @@ Written for somebody else, so don't rewrite them for us:
   is asked of an author, and what we explicitly do not police. Written for a plugin author. Keep the
   two halves apart — a guarantee the architecture backs, and an obligation nobody is checking. We do
   not claim to review plugin source, and the licence stays MIT (D79).
+- [docs/config.md](docs/config.md): `~/.rigline/config.yaml`, what it holds and how commands edit it,
+  and the files beside it. Written for a user. The header every new `config.yaml` carries links it.
 - [docs/anchors.md](docs/anchors.md): what an anchor is, and repairing one through
   `~/.rigline/anchors.json` without waiting for a release. Written for a user.
 - [docs/authoring.md](docs/authoring.md): writing, testing and shipping a plugin. Written for a
@@ -137,7 +139,7 @@ Written for somebody else, so don't rewrite them for us:
     pnpm rigline check      # the same report, writing nothing
     pnpm rigline add SPEC   # install a plugin from a directory or npm, name it, re-inject
     pnpm rigline remove N   # delete a plugin rigline installed, and re-inject
-    pnpm rigline disable N  # switch a plugin off in config.json, and re-inject
+    pnpm rigline disable N  # switch a plugin off in config.yaml, and re-inject
     pnpm rigline enable N   # switch it back on, and re-inject
     pnpm rigline list       # every plugin, in load order: version, origin, source, switch, uses
     pnpm rigline status     # per version: vanilla or patched, by backup

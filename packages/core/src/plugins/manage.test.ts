@@ -2,15 +2,15 @@
  * `add` and `remove`, against disposable directories.
  *
  * The interesting cases are the ones where a copy alone would be wrong: a source directory whose
- * name is not the plugin's, a name already taken somewhere `add` does not own, a `config.json`
- * carrying something this code has never heard of, and a `remove` pointed at a checkout.
+ * name is not the plugin's, a name already taken somewhere `add` does not own, a `config.yaml`
+ * carrying a person's own comments, and a `remove` pointed at a checkout.
  */
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { UserError } from "../errors.ts";
-import { readConfig } from "./discover.ts";
+import { readConfig, readSources } from "./config.ts";
 import { addPlugin, parseSource, removePlugin, setPluginEnabled } from "./manage.ts";
 
 const dirs: string[] = [];
@@ -54,12 +54,16 @@ function source(options: {
   return dir;
 }
 
-/** A user home with a plugins directory and a config path, as the CLI hands them over. */
-function home(): { pluginsDir: string; configPath: string } {
+/** A user home with a plugins directory and the two files beside it, as the CLI hands them over. */
+function home(): { pluginsDir: string; configPath: string; sourcesPath: string } {
   const dir = tempDir();
   const pluginsDir = join(dir, "plugins");
   mkdirSync(pluginsDir, { recursive: true });
-  return { pluginsDir, configPath: join(dir, "config.json") };
+  return {
+    pluginsDir,
+    configPath: join(dir, "config.yaml"),
+    sourcesPath: join(dir, "sources.json"),
+  };
 }
 
 const AT = new Date("2026-09-18T11:00:00.000Z");
@@ -80,7 +84,7 @@ describe("addPlugin", () => {
     expect(result.disabled).toBe(false);
     expect(result.can).toContain("attaches to footerSpacer");
     expect(existsSync(join(paths.pluginsDir, "clock", "dist", "index.js"))).toBe(true);
-    expect(readConfig(paths.configPath).sources.clock).toEqual({
+    expect(readSources(paths.sourcesPath).clock).toEqual({
       kind: "path",
       from,
       addedAt: "2026-09-18T11:00:00.000Z",
@@ -146,7 +150,7 @@ describe("addPlugin", () => {
     // `disabled` is the one thing in config a person chose rather than a command wrote, and `add`
     // over a plugin already here is also how you update one.
     const paths = home();
-    writeFileSync(paths.configPath, JSON.stringify({ disabled: ["clock"] }));
+    writeFileSync(paths.configPath, "disabled: [clock]\n");
 
     const result = addPlugin({ from: source({ name: "clock" }), ...paths });
 
@@ -154,18 +158,15 @@ describe("addPlugin", () => {
     expect(readConfig(paths.configPath).disabled).toEqual(["clock"]);
   });
 
-  it("keeps keys in config.json that nothing here knows about", () => {
+  it("records the source without touching config.yaml, which is a person's", () => {
     const paths = home();
-    writeFileSync(
-      paths.configPath,
-      JSON.stringify({ disabled: [], settings: { clock: { format: "24h" } } }),
-    );
+    const text = "# mine\ndisabled: []\nsettings:\n  clock: { format: 24h }\n";
+    writeFileSync(paths.configPath, text);
 
     addPlugin({ from: source({ name: "clock" }), ...paths });
 
-    expect(JSON.parse(readFileSync(paths.configPath, "utf8")).settings).toEqual({
-      clock: { format: "24h" },
-    });
+    expect(readFileSync(paths.configPath, "utf8")).toBe(text);
+    expect(readSources(paths.sourcesPath).clock?.kind).toBe("path");
   });
 
   it("writes nothing when the manifest does not hold up", () => {
@@ -176,6 +177,18 @@ describe("addPlugin", () => {
     expect(() => addPlugin({ from, ...paths })).toThrow(UserError);
     expect(existsSync(join(paths.pluginsDir, "clock"))).toBe(false);
     expect(existsSync(paths.configPath)).toBe(false);
+    expect(existsSync(paths.sourcesPath)).toBe(false);
+  });
+
+  it("changes nothing when config.yaml does not parse", () => {
+    const paths = home();
+    writeFileSync(paths.configPath, "disabled: [clock\n");
+
+    expect(() => addPlugin({ from: source({ name: "clock" }), ...paths })).toThrow(
+      /not valid YAML/,
+    );
+    expect(existsSync(join(paths.pluginsDir, "clock"))).toBe(false);
+    expect(existsSync(paths.sourcesPath)).toBe(false);
   });
 
   it("refuses a path that is not a directory", () => {
@@ -192,25 +205,21 @@ describe("removePlugin", () => {
     const result = removePlugin({ name: "clock", ...paths });
 
     expect(result.hadSource).toBe(true);
+    expect(result.wasDisabled).toBe(false);
     expect(existsSync(join(paths.pluginsDir, "clock"))).toBe(false);
-    expect(readConfig(paths.configPath).sources).toEqual({});
+    expect(readSources(paths.sourcesPath)).toEqual({});
+    expect(existsSync(paths.configPath)).toBe(false);
   });
 
   it("drops a name from disabled too, since the rule is now about nothing", () => {
     const paths = home();
     addPlugin({ from: source({ name: "clock" }), ...paths });
-    writeFileSync(
-      paths.configPath,
-      JSON.stringify({
-        ...JSON.parse(readFileSync(paths.configPath, "utf8")),
-        disabled: ["clock"],
-      }),
-    );
+    writeFileSync(paths.configPath, "disabled:\n  - clock\n  - probe\n");
 
     const result = removePlugin({ name: "clock", ...paths });
 
     expect(result.wasDisabled).toBe(true);
-    expect(readConfig(paths.configPath).disabled).toEqual([]);
+    expect(readConfig(paths.configPath).disabled).toEqual(["probe"]);
   });
 
   it("says a plugin was placed by hand rather than added", () => {
@@ -324,18 +333,30 @@ describe("setPluginEnabled", () => {
     expect(readConfig(paths.configPath).disabled).toEqual([]);
   });
 
-  it("keeps everything else in config, because that file is the user's", () => {
+  it("keeps everything else in config, comments included, because that file is the user's", () => {
     const paths = home();
-    writeFileSync(paths.configPath, JSON.stringify({ somethingOfTheirs: 1, disabled: ["probe"] }));
+    writeFileSync(
+      paths.configPath,
+      "somethingOfTheirs: 1 # theirs\n\n# too slow on this machine\ndisabled:\n  - probe\n",
+    );
 
     setPluginEnabled(
       { name: "time-marks", configPath: paths.configPath, roots: [rootWith("time-marks")] },
       false,
     );
 
-    const raw = JSON.parse(readFileSync(paths.configPath, "utf8")) as Record<string, unknown>;
-    expect(raw.somethingOfTheirs).toBe(1);
-    expect(raw.disabled).toEqual(["probe", "time-marks"]);
+    expect(readFileSync(paths.configPath, "utf8")).toBe(
+      "somethingOfTheirs: 1 # theirs\n\n# too slow on this machine\ndisabled:\n  - probe\n  - time-marks\n",
+    );
+  });
+
+  it("writes nothing when nothing changes", () => {
+    const paths = home();
+    setPluginEnabled(
+      { name: "time-marks", configPath: paths.configPath, roots: [rootWith("time-marks")] },
+      true,
+    );
+    expect(existsSync(paths.configPath)).toBe(false);
   });
 
   it("refuses a name no root has, rather than writing a rule about a typo", () => {
@@ -364,7 +385,7 @@ describe("parseSource", () => {
   });
 
   it("refuses a kind it does not know, naming it and the way out (D74)", () => {
-    // Refuses where `readConfig` skips: recording this would leave the plugin looking hand-placed
+    // Refuses where `readSources` skips: recording this would leave the plugin looking hand-placed
     // to the very install that just added it.
     expect(() => parseSource(JSON.stringify({ kind: "git", url: "x" }))).toThrow(/"git"/);
     expect(() => parseSource(JSON.stringify({ kind: "git", url: "x" }))).toThrow(/rigline update/);

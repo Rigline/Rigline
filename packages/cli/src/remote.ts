@@ -4,7 +4,7 @@
  *
  * The wrapper vets the container and the engine vets the content. Everything here is about bytes —
  * resolving a version, the release-age gate, the integrity hash, the tar reader's refusals — and
- * nothing here opens a manifest, places a plugin or writes `config.json`. What it produces is a
+ * nothing here opens a manifest, places a plugin or writes `sources.json`. What it produces is a
  * staging directory and a source record, both handed to `rigline add <dir> --source <json>`.
  */
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -109,7 +109,7 @@ export interface PluginUpdate {
 }
 
 /**
- * One plugin as `rigline-engine list --json` reports it: the engine owns `config.json` (D74).
+ * One plugin as `rigline-engine list --json` reports it: the engine owns `sources.json` (D74).
  *
  * Only the fields `update` reads, structurally typed rather than imported, because the wrapper
  * depends on no Rigline package (D69) and this arrives as parsed JSON from another process.

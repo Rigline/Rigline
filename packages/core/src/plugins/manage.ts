@@ -17,12 +17,15 @@ import { basename, join, relative, resolve } from "node:path";
 import { describeElements, describeUses, type Uses, type ValidManifest } from "@rigline/plugin-api";
 import { UserError } from "../errors.ts";
 import {
-  isPluginOutput,
+  addToList,
+  editConfig,
   isPluginSource,
   type PluginSource,
-  readManifest,
-  updateConfig,
-} from "./discover.ts";
+  readConfig,
+  removeFromList,
+  updateSources,
+} from "./config.ts";
+import { isPluginOutput, readManifest } from "./discover.ts";
 
 export interface AddOptions {
   /** The plugin directory to copy from. */
@@ -30,6 +33,7 @@ export interface AddOptions {
   /** Where plugins are installed: `~/.rigline/plugins`. */
   readonly pluginsDir: string;
   readonly configPath: string;
+  readonly sourcesPath: string;
   /**
    * The other roots this install discovers from, so a name already taken in one of them is refused
    * rather than shadowed (D56). `pluginsDir` itself does not belong here: a name already there is
@@ -66,7 +70,7 @@ export interface AddResult {
   readonly replaced: boolean;
   /** Whether it takes its name from a bundled plugin, which now loads only if this one goes (D71). */
   readonly overridesBundled: boolean;
-  /** True when `config.json` has this name switched off, so it will not load until that changes. */
+  /** True when `config.yaml` has this name switched off, so it will not load until that changes. */
   readonly disabled: boolean;
   /**
    * One sentence per thing the manifest declares, as `list` prints them. Carried here rather than
@@ -111,6 +115,7 @@ export function addPlugin(options: AddOptions): AddResult {
     from,
     pluginsDir: options.pluginsDir,
     configPath: options.configPath,
+    sourcesPath: options.sourcesPath,
     otherRoots: options.otherRoots,
     bundledRoot: options.bundledRoot,
     source: options.source ?? { kind: "path", from, addedAt: stamp(options.now) },
@@ -129,6 +134,7 @@ interface Placement {
   readonly from: string;
   readonly pluginsDir: string;
   readonly configPath: string;
+  readonly sourcesPath: string;
   readonly otherRoots?: readonly string[];
   readonly bundledRoot?: string;
   readonly source: PluginSource;
@@ -169,20 +175,18 @@ function place(placement: Placement): AddResult {
     );
   }
 
+  // Reported, never changed: `add` over a plugin already here is also how you update one, and
+  // quietly switching it back on would overrule a decision nobody revisited. Read before anything
+  // is written, so a config that does not parse costs nothing.
+  const disabled = readConfig(placement.configPath).disabled.includes(name);
+
   const replaced = existsSync(dir);
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
   placement.write(dir);
 
-  let disabled = false;
-  updateConfig(placement.configPath, (config) => {
-    // `disabled` is left exactly as it is, and reported instead. It is the one thing in this file a
-    // person chose rather than a command wrote, and `add` over a plugin already here is also how
-    // you update one — quietly switching it back on would overrule a decision nobody revisited.
-    disabled = Array.isArray(config.disabled) && config.disabled.includes(name);
-    const sources = asObject(config.sources);
-    sources[name] = placement.source as unknown as Record<string, unknown>;
-    config.sources = sources;
+  updateSources(placement.sourcesPath, (sources) => {
+    sources[name] = placement.source;
   });
 
   return {
@@ -206,7 +210,7 @@ const KNOWN_SOURCE_KINDS = ["path", "npm"] as const;
 /**
  * A source record handed in from outside, checked before it is written (D74).
  *
- * Refuses where `readConfig` skips: recording a kind this engine cannot read back would leave the
+ * Refuses where `readSources` skips: recording a kind this engine cannot read back would leave the
  * plugin looking hand-placed to the install that just added it.
  */
 export function parseSource(json: string): PluginSource {
@@ -246,14 +250,14 @@ export interface SwitchResult {
 }
 
 /**
- * Switches one plugin off in `config.json`, or back on.
+ * Switches one plugin off in `config.yaml`, or back on.
  *
  * The only way to decline a bundled plugin (D71, D72). It is not deletable — it lives inside the
  * engine, and an engine update would put it back — so `disabled` is what says no, and `doctor` says
  * so rather than leaving a missing badge to be interpreted.
  *
  * It refuses a name no root has, because the alternative is a command that silently does nothing
- * useful: `config.json` would grow an entry for a typo, `enabledPlugins` would report it as
+ * useful: `config.yaml` would grow an entry for a typo, `enabledPlugins` would report it as
  * disabling something it cannot find, and the plugin the person meant would still be loading.
  */
 export function setPluginEnabled(options: SwitchOptions, enabled: boolean): SwitchResult {
@@ -265,20 +269,9 @@ export function setPluginEnabled(options: SwitchOptions, enabled: boolean): Swit
     );
   }
 
-  let changed = false;
-  updateConfig(configPath, (config) => {
-    const disabled = Array.isArray(config.disabled)
-      ? config.disabled.filter((d: unknown) => typeof d === "string")
-      : [];
-    const has = disabled.includes(name);
-    if (enabled && has) {
-      config.disabled = disabled.filter((d: string) => d !== name);
-      changed = true;
-    } else if (!enabled && !has) {
-      config.disabled = [...disabled, name].sort();
-      changed = true;
-    }
-  });
+  const changed = editConfig(configPath, (doc) =>
+    enabled ? removeFromList(doc, ["disabled"], name) : addToList(doc, ["disabled"], name),
+  );
   return { name, changed, configPath };
 }
 
@@ -286,6 +279,7 @@ export interface RemoveOptions {
   readonly name: string;
   readonly pluginsDir: string;
   readonly configPath: string;
+  readonly sourcesPath: string;
   /** The other roots this install discovers from, so a refusal can say where the plugin actually is. */
   readonly otherRoots?: readonly string[];
   /** Which of `otherRoots` is the bundled set, so its refusal can say what refreshes it (D71). */
@@ -296,7 +290,7 @@ export interface RemoveOptions {
  * Deletes one plugin from `~/.rigline/plugins` and forgets it.
  *
  * It refuses anything outside that directory, and says where the plugin really is rather than just
- * that it is not here: a first-party plugin in a checkout is switched off in `config.json`, not
+ * that it is not here: a first-party plugin in a checkout is switched off in `config.yaml`, not
  * deleted, and deleting somebody's working tree because they typed its name is not a thing a
  * package manager gets to do.
  */
@@ -327,19 +321,15 @@ export function removePlugin(options: RemoveOptions): RemoveResult {
   rmSync(dir, { recursive: true, force: true });
 
   let hadSource = false;
-  let wasDisabled = false;
-  updateConfig(options.configPath, (config) => {
-    const sources = asObject(config.sources);
+  updateSources(options.sourcesPath, (sources) => {
     hadSource = name in sources;
     delete sources[name];
-    config.sources = sources;
-    if (Array.isArray(config.disabled) && config.disabled.includes(name)) {
-      // Dropped, unlike in `add`: a rule about a plugin that is gone is a line the install would go
-      // on reporting as disabling something it cannot find.
-      wasDisabled = true;
-      config.disabled = config.disabled.filter((d: unknown) => d !== name);
-    }
   });
+  // Dropped, unlike in `add`: a rule about a plugin that is gone is a line the install would go on
+  // reporting as disabling something it cannot find.
+  const wasDisabled = editConfig(options.configPath, (doc) =>
+    removeFromList(doc, ["disabled"], name),
+  );
 
   return { name, dir, hadSource, wasDisabled };
 }
@@ -366,10 +356,4 @@ function nameInJson(json: string): string | null {
   } catch {
     return null;
   }
-}
-
-function asObject(value: unknown): Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
 }

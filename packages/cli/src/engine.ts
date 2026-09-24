@@ -4,7 +4,7 @@
  * `@rigline/core` is installed with npm into `<RIGLINE_HOME>/engine` and spawned from there. That is
  * the only engine: no bundled copy, no precedence rule, no way for the engine you ran to differ from
  * the one you installed. Everything below is either about locating it or about starting a process,
- * and none of it opens a plugin manifest or reads `config.json` (D70).
+ * and none of it opens a plugin manifest or reads the engine's files under `~/.rigline` (D70).
  */
 import { type ChildProcess, spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
@@ -193,7 +193,7 @@ export interface Engine {
   readonly entry: string;
   /** Run a verb with our stdio, and answer with the child's exit code. */
   run(argv: readonly string[]): Promise<number>;
-  /** Run a verb and parse its stdout, which is how `config.json` is read without reading it (D74). */
+  /** Run a verb and parse its stdout, which is how `sources.json` is read without reading it (D74). */
   json(argv: readonly string[]): Promise<unknown>;
 }
 

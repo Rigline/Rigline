@@ -65,7 +65,7 @@ export interface ResolvedVersion {
   /** The tag followed, or null when the version was named outright and is therefore pinned. */
   readonly tag: string | null;
   readonly tarball: string;
-  /** Subresource-integrity string, as recorded in `config.json` and as re-checked on every fetch. */
+  /** Subresource-integrity string, as recorded in `sources.json` and as re-checked on every fetch. */
   readonly integrity: string;
   /** How long ago it was published, in minutes, or null when the registry does not say. */
   readonly ageMinutes: number | null;

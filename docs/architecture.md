@@ -118,7 +118,7 @@ load-bearing at three points:
    running a whole second loader generation until the window reloads.
 3. Harvest the bundles, generate, and write `generated.js` — the merged anchor table, so a local
    override reaches the loader and not just the report about it (D44).
-4. Discover plugins, read `config.json`, and take the enabled set.
+4. Discover plugins, read `config.yaml`, and take the enabled set.
 5. Rebuild `extension.js` from `extension.js.orig` plus every enabled plugin's declared patches, and
    write it only if the bytes changed. See [patches.md](patches.md).
 6. Copy each enabled plugin's directory through the output filter, and bake `registry.js`.
@@ -198,9 +198,10 @@ D40). At the root rather than inside a package, so that keeping a harvest out of
 package is a property of the layout, and so one file serves every plugin in the workspace the way
 the template needs (D50). It imports nothing.
 
-**On a user's machine**, under `~/.rigline/`: `config.json` (enabled plugins, per-plugin settings,
-and the `sources` record `update` reads — all of it the engine's to write, never the wrapper's,
-D74), `plugins/` (installed third-party plugins), `anchors.json` (local overrides and additions to
+**On a user's machine**, under `~/.rigline/`: `config.yaml` (what a person decides — plugins switched
+off, the layout — edited by hand as well as by commands, which edit it in place, D91),
+`sources.json` (where `add` brought each plugin from, which `update` reads — both files the engine's
+to write, never the wrapper's, D74), `plugins/` (installed third-party plugins), `anchors.json` (local overrides and additions to
 the anchor table), `baseline.json` (the last harvest), and `engine/` (the npm prefix the wrapper
 installs `@rigline/core` into, D73 — the one directory here that `rm -rf` is the documented repair
 for), and `.lock`, held while an engine installs so the CLI and the companion cannot install over

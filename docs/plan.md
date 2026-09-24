@@ -190,8 +190,8 @@ and so that the default `rigline codegen` output is the same rule for us as for 
 imports nothing. It carries the module augmentation D40 describes, `EXTENSION_VERSION`, and `SCAN`,
 the harvest reduced to its layer views, which is the baseline the install flow diffs against (D29).
 
-A user's machine keeps its own state under `~/.rigline/`: `config.json` (enabled plugins,
-per-plugin settings, and the source each installed plugin came from — the engine's to write, D74),
+A user's machine keeps its own state under `~/.rigline/`: `config.yaml` (what a person decides,
+D91), `sources.json` (the source each installed plugin came from — both the engine's to write, D74),
 `plugins/` (installed third-party plugins), `anchors.json` (local overrides and additions to the
 curated anchor table), `baseline.json` (the last harvest), `engine/`, the npm prefix `rigline`
 installs `@rigline/core` into (D73), and `.lock`, held while an engine installs so the CLI and the
@@ -217,7 +217,7 @@ an update to them. Installing your own of the same name shadows one, which is th
 passed, fetches and integrity-checks the tarball, and extracts it — no package manager runs, because
 a plugin is one bundled ES module and a manifest (D47, D48). That half is the wrapper's: it vets the
 container and hands the engine a directory, and the engine vets the content and writes the source
-record into `config.json` by kind, pinned version and integrity, which is what lets `update` fetch a
+record into `sources.json` by kind, pinned version and integrity, which is what lets `update` fetch a
 newer one later (D49, D70, D74).
 
 Our own packages publish from CI: OIDC to npm so no credential sits in the repo, `npm stage publish`

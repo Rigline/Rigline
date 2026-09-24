@@ -14,7 +14,9 @@ describe("riglineHome", () => {
     const paths = riglinePaths("/g");
     expect(paths).toEqual({
       home: "/g",
-      config: join("/g", "config.json"),
+      config: join("/g", "config.yaml"),
+      sources: join("/g", "sources.json"),
+      legacyConfig: join("/g", "config.json"),
       anchors: join("/g", "anchors.json"),
       plugins: join("/g", "plugins"),
       baseline: join("/g", "baseline.json"),

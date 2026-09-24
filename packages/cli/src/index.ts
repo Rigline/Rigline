@@ -53,7 +53,7 @@ async function addCommand(args: string[]): Promise<number> {
   });
 }
 
-/** Every plugin the engine knows about, since `config.json` is the engine's to read (D74). */
+/** Every plugin the engine knows about, since `sources.json` is the engine's to read (D74). */
 async function listed(engine: Engine): Promise<readonly ListedPlugin[]> {
   const answer = await engine.json(["list", "--json"]);
   if (!Array.isArray(answer)) throw new UserError("the engine's plugin list was not a list");

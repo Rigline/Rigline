@@ -1918,3 +1918,25 @@ no such form, so the host also cancels a submission of the app's form whose subm
 focused field, is inside a node it placed. Both in capture on `document`, before either React root
 sees it; a plugin's own form submits as usual. Rejected: telling authors to type their buttons, which
 needs every author to comply, where this needs nobody to.
+
+**D91. A person's settings are YAML, and what `add` recorded is not among them (2026-09-24,
+Leo).** `~/.rigline/config.yaml` holds what a person decides: plugins switched off, and the layout
+and per-plugin settings as they arrive. `~/.rigline/sources.json` holds where each plugin came from
+(D49). Both were one `config.json`. The layout is the first setting people will want to write by
+hand, and YAML is the easiest format to hand-edit: no quotes, no commas, and comments. A source record
+— pinned version, integrity, when — is a lockfile entry that nobody edits and that `update` rewrites,
+so it stays JSON in a file of its own. That is the split package.json and its lockfile make, for the
+same reason. Both files remain the engine's alone (D74).
+
+Commands edit `config.yaml` in place through `yaml`'s document API and never render it afresh, so a
+person's comments, blank lines and key order survive `disable`, `enable` and `rigline layout`. The
+one normalisation is spacing inside a flow collection, which `yaml` sets once for all of them: `[a,
+b]`. A command that changes nothing writes nothing. `yaml` reads YAML 1.2, where `off` and `no` are
+words, not booleans. It is the engine's second runtime dependency, pinned exactly as es-module-lexer
+is (D87). Rejected: JSONC, which keeps comments but also keeps the braces, quotes and commas that make
+hand edits fiddly.
+
+A command that reads the settings first splits a `config.json` it finds alone: `sources` into
+`sources.json`, everything else into `config.yaml`, then removes it. A `config.json` beside the new
+files was written by an older engine; it is not read, and the command names it. `anchors.json` stays
+JSON: it is a repair pasted from a release note, not a file anyone maintains.
