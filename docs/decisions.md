@@ -2055,5 +2055,15 @@ refuse by name a link from a panel an older one baked. `from` is the layout the 
 from, which tells the engine whether it is writing over a change made since (D92). The engine
 refuses a payload over a size cap or of the wrong shape before reading it.
 
-Without the companion, Save copies `rigline layout reset` and one `rigline layout order` per place,
-which reproduce the copy exactly. D80 holds on that reading.
+Without the companion, Save copies the `rigline layout` commands for the places the copy changed: an
+`order` for each place that still lists something, and `place NAME default` for an element that left
+a place now empty. Not `reset` and every place, which was the first design: no command can write
+back an entry that does not resolve, so a reset would delete one the file had kept (D92). D80 holds
+on that reading.
+
+The panel learns that a save landed the only way it learns anything, by reading a file again: the
+re-inject rewrites `registry.js`, and the panel re-imports it under a fresh query until its baked
+layout equals the copy. A receipt file was proposed and dropped, since `registry.js` already carries
+the answer (Leo). Opening the menu and Reload do the same read, so a panel picks up a layout saved
+from another panel or a terminal without a webview reload. The outcome's detail, a save over a
+change or a refusal and why, is the companion's notification, since only the engine knows it.
