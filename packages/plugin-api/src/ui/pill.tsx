@@ -1,6 +1,6 @@
 /**
- * A pill: the small monospace label the composer's rows are made of, drawn on the app's tokens so an
- * element looks at home in the footer or in `rigRow`.
+ * A pill: the app's model pill's look, on its own tokens, in monospace for the identifiers and counts
+ * a pill usually carries, so an element looks at home in the footer or in `rigRow`.
  */
 import { type ReactNode, useContext } from "react";
 import { FaultContext, message } from "./fault.ts";
@@ -9,20 +9,26 @@ export const PILL_CSS = `
 .rigline-ui-pill {
   display: inline-flex;
   align-items: center;
-  padding: 0 4px;
+  box-sizing: border-box;
+  min-height: var(--app-pill-min-height, 18px);
+  padding: 0 8px;
   border: none;
-  background: none;
-  color: inherit;
-  font: 10px/1.6 var(--app-monospace-font-family, var(--vscode-editor-font-family, monospace));
-  letter-spacing: 0.02em;
+  border-radius: 9999px;
+  background: var(--app-pill-background, color-mix(in srgb, currentColor 10%, transparent));
+  color: var(--app-pill-foreground, inherit);
+  font-family: var(--app-monospace-font-family, var(--vscode-editor-font-family, monospace));
+  font-size: 0.85em;
+  line-height: 1;
   white-space: nowrap;
-  opacity: 0.65;
 }
 button.rigline-ui-pill {
   cursor: pointer;
 }
+button.rigline-ui-pill:hover {
+  background: var(--app-pill-hover-background, color-mix(in srgb, currentColor 18%, transparent));
+}
 .rigline-ui-pill-muted {
-  opacity: 0.35;
+  color: color-mix(in srgb, var(--app-pill-foreground, currentColor) 50%, transparent);
 }
 `;
 

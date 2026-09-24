@@ -28,8 +28,8 @@ anything may change between releases.
   `rigRow`, a new row at the foot of the composer box, under its controls, which appears only while
   something is in it. A place this version of the extension cannot provide is reported at install
   and on the diagnostics panel, and costs the plugin that element and nothing else.
-- `Pill` in `@rigline/plugin-api/ui`: the small label the composer's rows are made of, as a button
-  when given `onClick`.
+- `Pill` in `@rigline/plugin-api/ui`: a rounded label in the app's own pill colours, like the model
+  picker's, and a button when given `onClick`.
 - The `composerBox` anchor: the composer's bordered box.
 - Stores, for state a plugin keeps outside its components: `store(initial)` and
   `storeFrom(ctx.onSessionId, null)` in `@rigline/plugin-api`, and `useStore` to read one from React
@@ -60,6 +60,9 @@ anything may change between releases.
 - A plugin that bundles its own copy of React no longer breaks transcript decorations for every
   plugin in the panel. Rigline now keeps to the app's own renderer, and the diagnostics report says
   when another has loaded.
+- The RIG pill no longer flashes a failing check while the panel is resized. Rigline puts its
+  decorations back a frame after the app moves them, and a node being put back no longer counts as
+  out of place; one still out of place a second later does.
 - A button a plugin places in the composer footer no longer sends the prompt when clicked, and
   Enter in a text field a plugin places there no longer sends it either. The footer is inside the
   composer's form, where a button with no `type` submits.

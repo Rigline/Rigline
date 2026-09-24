@@ -64,6 +64,8 @@ interface ActiveMount {
   streak: number;
   /** Set once the streak ran out: the host has stopped re-placing this node. */
   abandoned: boolean;
+  /** When it was first seen out of place and not yet put back; null while it is in place. */
+  adriftSince: number | null;
 }
 
 /** What an anchor resolved to, and what it claims about itself, as `watch` needs them. */
@@ -96,16 +98,19 @@ interface Watch {
  * What the mount capability's checks read: one record per mount and per watch, reduced to plain
  * data so a verdict can be argued about without a DOM.
  *
- * `positioned` rather than merely "connected" is the point of handing this over at all. It is the
- * predicate the per-commit pass already uses to decide whether to act, so it answers presence and
- * registry order together — which is what lets one check replace the two the probe wrote around its
- * own badge and its own anchor.
+ * `adriftMs` rests on `positioned`, the predicate the per-commit pass already uses to decide whether
+ * to act, so it answers presence and registry order together — which is what lets one check replace
+ * the two the probe wrote around its own badge and its own anchor.
  */
 export interface MountSnapshot {
   readonly mounts: readonly {
     readonly owner: string;
     readonly anchorConnected: boolean;
-    readonly positioned: boolean;
+    /**
+     * How long the node has been out of place without the pass putting it back; null when in place.
+     * React moving a node and the next frame's pass moving it back is the mechanism, not a fault.
+     */
+    readonly adriftMs: number | null;
     readonly abandoned: boolean;
   }[];
   readonly watches: readonly {
@@ -333,9 +338,11 @@ export function createMountService(
       if (!m.anchor.isConnected) continue;
       if (positioned(m)) {
         m.streak = 0;
+        m.adriftSince = null;
         continue;
       }
       if (m.abandoned) continue;
+      m.adriftSince ??= performance.now();
       m.streak += 1;
       if (m.streak > THRASH_LIMIT) {
         m.abandoned = true;
@@ -349,6 +356,7 @@ export function createMountService(
       } catch (e) {
         m.onError(`mount() re-placement threw: ${message(e)}`);
       }
+      if (positioned(m)) m.adriftSince = null;
       if (!m.node.isConnected) {
         lost += 1;
       } else if (wasConnected) {
@@ -491,6 +499,7 @@ export function createMountService(
         onError,
         streak: 0,
         abandoned: false,
+        adriftSince: null,
       };
       const peers = byAnchor.get(anchor);
       if (peers) peers.push(entry);
@@ -540,13 +549,18 @@ export function createMountService(
       };
     },
     inspect() {
+      const now = performance.now();
       return {
-        mounts: active.map((m) => ({
-          owner: m.owner,
-          anchorConnected: m.anchor.isConnected,
-          positioned: positioned(m),
-          abandoned: m.abandoned,
-        })),
+        mounts: active.map((m) => {
+          if (positioned(m)) m.adriftSince = null;
+          else m.adriftSince ??= now;
+          return {
+            owner: m.owner,
+            anchorConnected: m.anchor.isConnected,
+            adriftMs: m.adriftSince === null ? null : now - m.adriftSince,
+            abandoned: m.abandoned,
+          };
+        }),
         watches: watches.map((w) => ({
           owner: w.owner,
           anchor: w.target.anchor,

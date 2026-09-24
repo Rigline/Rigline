@@ -199,7 +199,8 @@ export function anchorsResolveVerdict(
 export interface MountLike {
   readonly owner: string;
   readonly anchorConnected: boolean;
-  readonly positioned: boolean;
+  /** How long it has been out of place without being put back; null when in place. */
+  readonly adriftMs: number | null;
   readonly abandoned: boolean;
 }
 
@@ -223,6 +224,9 @@ export interface WatchLike {
  */
 const SETTLING_MS = 5000;
 
+/** Longer than a pass ever takes to put a node back, which is one frame. */
+const ADRIFT_MS = 1000;
+
 /**
  * Every mount whose anchor is still in the document is where the host means it to be.
  *
@@ -234,15 +238,23 @@ const SETTLING_MS = 5000;
  * once a second plugin happened to decorate the same one.
  *
  * A mount whose anchor has left the document is not counted. That is the app's business and
- * `watch`'s question, not a fault (see `replaceLost`).
+ * `watch`'s question, not a fault (see `replaceLost`). Nor is one out of place for less than
+ * `ADRIFT_MS`: React moves a node and the next frame's pass moves it back, and a read between the two
+ * is the mechanism working.
  */
 export function mountsInPlaceVerdict(mounts: readonly MountLike[]): CheckVerdict {
   const live = mounts.filter((m) => m.anchorConnected && !m.abandoned);
   if (live.length === 0) {
     return { verdict: "n/a", detail: `${mounts.length} mount(s), none with a live anchor` };
   }
-  const adrift = live.filter((m) => !m.positioned);
-  if (adrift.length === 0) return { verdict: "pass", detail: `${live.length} in place` };
+  const adrift = live.filter((m) => m.adriftMs !== null && m.adriftMs >= ADRIFT_MS);
+  if (adrift.length === 0) {
+    const moving = live.filter((m) => m.adriftMs !== null).length;
+    return {
+      verdict: "pass",
+      detail: `${live.length - moving} in place${moving > 0 ? `, ${moving} being put back` : ""}`,
+    };
+  }
   const owners = [...new Set(adrift.map((m) => m.owner))].sort().join(", ");
   return { verdict: "fail", detail: `${adrift.length} of ${live.length} out of place: ${owners}` };
 }

@@ -209,7 +209,7 @@ describe("anchorsResolveVerdict", () => {
 });
 
 describe("mountsInPlaceVerdict", () => {
-  const live = { owner: "probe", anchorConnected: true, positioned: true, abandoned: false };
+  const live = { owner: "probe", anchorConnected: true, adriftMs: null, abandoned: false };
 
   it("is n/a when no mount has a live anchor, which is the app's business and not a fault", () => {
     expect(mountsInPlaceVerdict([{ ...live, anchorConnected: false }]).verdict).toBe("n/a");
@@ -223,19 +223,23 @@ describe("mountsInPlaceVerdict", () => {
     });
   });
 
-  it("fails and names the owners of anything out of position", () => {
-    const result = mountsInPlaceVerdict([
-      live,
-      { ...live, owner: "time-marks", positioned: false },
-    ]);
+  it("fails and names the owners of anything out of position for a second", () => {
+    const result = mountsInPlaceVerdict([live, { ...live, owner: "time-marks", adriftMs: 1000 }]);
     expect(result.verdict).toBe("fail");
     expect(result.detail).toContain("1 of 2 out of place: time-marks");
+  });
+
+  it("passes a node the pass is still putting back", () => {
+    expect(mountsInPlaceVerdict([live, { ...live, owner: "rigline", adriftMs: 0 }])).toEqual({
+      verdict: "pass",
+      detail: "1 in place, 1 being put back",
+    });
   });
 
   // An abandoned mount has already been reported by name through mountReplacementVerdict (D54).
   // Counting it here too would render one decision as two red lines.
   it("leaves an abandoned mount to the re-placement check", () => {
-    expect(mountsInPlaceVerdict([{ ...live, positioned: false, abandoned: true }]).verdict).toBe(
+    expect(mountsInPlaceVerdict([{ ...live, adriftMs: 5000, abandoned: true }]).verdict).toBe(
       "n/a",
     );
   });

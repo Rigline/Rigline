@@ -157,6 +157,65 @@ export default { setup(ctx) {
       }
     }, 30000);
 
+    it("keeps the placement check quiet while the host puts nodes back across fit stages", async () => {
+      const rowed: FixturePlugin = {
+        name: "rowed",
+        manifest: {
+          elements: {
+            badge: { title: "Badge", placements: [SPACER], default: SPACER },
+            note: { title: "Note", placements: ["rigRow"], default: "rigRow" },
+          },
+        },
+        source: `import { jsx } from "react/jsx-runtime";
+export default { setup(ctx) {
+  ctx.element("badge", () => jsx("span", { children: "badge" }));
+  ctx.element("note", () => jsx("span", { children: "note" }));
+} };`,
+      };
+      const booted = await boot({ plugins: [rowed] });
+      const { page } = booted;
+      try {
+        await page.setViewportSize({ width: 720, height: 800 });
+        await page.waitForSelector('[data-rigline-zone="rigRow"]');
+        await page.addStyleTag({
+          content: ".inputFooter_gGYT1w .modelPill_gGYT1w{min-width:240px}",
+        });
+        // Every frame, because a once-a-second poll lands between a move and its correction only
+        // sometimes, and the property is that it never reports one as a failure.
+        await page.evaluate(() => {
+          const w = window as unknown as {
+            __lines: string[];
+            __rigline: { checks: { run(): { results: CheckLine[] }[] } };
+          };
+          w.__lines = [];
+          const poll = (): void => {
+            for (const group of w.__rigline.checks.run()) {
+              for (const r of group.results) {
+                if (r.name === "mount: nodes are where the host put them") {
+                  w.__lines.push(`${r.verdict}: ${r.detail}`);
+                }
+              }
+            }
+            requestAnimationFrame(poll);
+          };
+          requestAnimationFrame(poll);
+        });
+        for (let i = 0; i < 5; i++) {
+          for (const width of [520, 460, 440, 520, 560]) {
+            await page.setViewportSize({ width, height: 800 });
+            await page.waitForTimeout(30);
+          }
+        }
+        const lines = await page.evaluate(
+          () => (window as unknown as { __lines: string[] }).__lines,
+        );
+        expect(lines.some((l) => l.includes("being put back"))).toBe(true);
+        expect(lines.filter((l) => l.startsWith("fail"))).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 30000);
+
     /**
      * An element's button with no type in the footer would otherwise be the composer's default button,
      * which Enter in any field of the form clicks, so each element renders in a form of its own.
