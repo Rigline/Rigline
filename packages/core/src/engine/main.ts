@@ -901,7 +901,11 @@ async function dev(args: string[]): Promise<number> {
   });
 }
 
-/** The verbs that read `config.yaml` or `sources.json`, each of which splits a `config.json` first. */
+/**
+ * The verbs that read `config.yaml` or `sources.json`, each of which splits a `config.json` first.
+ * Not every verb: `pnpm build` runs `rigline-engine build` in each first-party plugin at once, against
+ * the developer's own `~/.rigline`.
+ */
 const SETTINGS_VERBS = new Set([
   "install",
   "check",
