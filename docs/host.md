@@ -17,7 +17,8 @@ For every installed extension directory `anthropic.claude-code-<version>-<platfo
     webview/rigline/runtime/     the modules plugins import — react, its JSX runtime, react-dom,
                                  and @rigline/plugin-api/ui (D87) — and shell.js (D88)
     webview/rigline/generated.js the identifier tables harvested from this directory's bundles
-    webview/rigline/registry.js  the enabled plugins, their declarations, patch outcomes, the layout
+    webview/rigline/registry.js  the enabled plugins, their declarations, patch outcomes, the layout,
+                                 and what Save goes through (D93)
     webview/rigline/plugins/<name>/…   each enabled plugin's directory, tests excluded, its entry's
                                        runtime imports pointed at runtime/
 
@@ -74,12 +75,16 @@ harvested identifier and reads no generated table. What it does:
 
 Dynamically imported after boot. In order:
 
-1. Import `./generated.js`. If that fails, load nothing and say why: empty tables would refuse
+1. Guard product-scheme links: a click on a `vscode:` link that misses VS Code's own listener
+   navigates the panel to an error page nothing recovers, so a capture listener cancels its default
+   before any plugin can render one (D93).
+2. Import `./generated.js`. If that fails, load nothing and say why: empty tables would refuse
    every plugin naming an identifier that has not gone.
-2. Import `./registry.js`. Publish the recorded patch outcomes to diagnostics.
-3. If the app has made its one call to `acquireVsCodeApi`, replace the global with one that throws,
+3. Import `./registry.js`. Publish the recorded patch outcomes to diagnostics, and build the layout
+   editor from its `layout` and `save` (below).
+4. If the app has made its one call to `acquireVsCodeApi`, replace the global with one that throws,
    as VS Code's own does on a second call (D79). Never before, or a plugin could get there first.
-4. For each registry entry, in registry order:
+5. For each registry entry, in registry order:
    a. If the injector recorded a required patch as not applied, refuse with that reason.
    b. Check the manifest's `uses` against the tables through the capability contracts (below).
       A violation refuses the plugin by name with the specific identifier and never imports it.
@@ -90,8 +95,8 @@ Dynamically imported after boot. In order:
       what this plugin declared. A method the plugin did not declare for throws when called, and
       the throw disables the plugin.
    f. Call `setup(ctx)` in its own try/catch; keep its teardown.
-5. Seal the replay buffer, in a `finally`.
-6. Start the shell (D88): place the RIG pill beside the footer spacer, or in a corner where there is
+6. Seal the replay buffer, in a `finally`.
+7. Start the shell (D88): place the RIG pill beside the footer spacer, or in a corner where there is
    none; start the once-a-second check run that sets its failing count; and import
    `runtime/shell.js`, the React root that draws the pill, the menu and every element. Failing to
    load it is an error in `diagnostics.errors` and costs the menu and the elements, never a plugin.
@@ -122,8 +127,9 @@ an Escape that closed the menu.
 ### Elements and zones
 
 `ctx.element(id, Component)` is on `ctx` beside `check`, declared by the manifest's `elements`
-rather than by a key of `uses`, so no capability module owns it (D90). The kernel resolves the
-element's default placement once, when it is bound:
+rather than by a key of `uses`, so no capability module owns it (D90). The kernel places each bound
+element where the layout editor's working copy puts it, and places it again whenever a change to
+the copy moves its place or its rank; an element that moves renders afresh where it lands:
 
 - An anchor slot is a `span.rigline-slot` the kernel builds once per element and places with the
   mount service, under the plugin's name, behind a watch on the anchor. A replaced anchor gets the
@@ -148,6 +154,19 @@ capture on `document`.
 Per-plugin status is `loaded`, `refused`, `error` or `inactive`, each with a reason, on
 `diagnostics.plugins` in registry order. Disabling a plugin at runtime runs every teardown it
 registered and the one it returned.
+
+### The layout editor
+
+The kernel's `layout.ts` holds the saved layout the panel shows and a working copy every move changes
+(D92, D93). The shell adds a Layout submenu after every plugin's entries while any element is
+declared, listing each by where the copy puts it, with its moves; every move keeps the menu open, so
+the panel behind it is the preview. Save is a real link, `vscode://rigline.rigline/layout?p=…`,
+carrying the copy, what it started from and the token, where `registry.js`'s `save` says a companion
+answers; elsewhere it is Copy commands, the `rigline layout` commands for the places that changed.
+
+Nothing can push into a panel, so everything it learns about the file it pulls, by re-importing
+`registry.js` under a fresh query: after a Save click, until the baked layout equals the copy; when
+the menu opens, to say a newer layout is saved; and for Reload, which shows that layout in place.
 
 The kernel knows no capability by name. It owns the plugin lifecycle, the per-React-commit pass
 that re-places mounts and re-anchors watches (D52), the mount arbitration (host-placed nodes ordered

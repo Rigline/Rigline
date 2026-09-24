@@ -225,6 +225,10 @@ composer's form, where a button with no type would send the prompt; yours cannot
 `@rigline/plugin-api/ui` is the small label the composer's rows are made of, and a button when
 given `onClick`.
 
+A person can move an element while the panel is open, from Rigline's menu. It renders afresh where
+it lands, so anything it has to keep across a move belongs in a store made in `setup`, not in the
+component's own state.
+
 Keep what you place steady. An element in the footer whose text keeps changing makes the footer
 re-measure each time, and one in `rigRow` whose height keeps changing re-renders the whole panel.
 

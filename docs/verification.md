@@ -215,6 +215,14 @@ The loop is: `pnpm build`, `pnpm rigline install`, *Developer: Reload Webviews*,
 badge — on the full editor, the sidebar and the session list, because the three surfaces differ in
 what exists to check.
 
+A read that would cost a reload of the window you work in, or that needs a click VS Code itself
+routes, can run in a second, isolated VS Code driven over CDP. It uses a copy of the extension with
+this checkout's payload injected against a scratch home; the recipe is in
+`c:\dev\knowledge\vscode-extension-internals.md`. The Layout submenu's Save was read there end to
+end, except for one leg it cannot reach: the engine re-injects `~/.vscode/extensions` whoever runs
+it. So the real companion running the real `layout save` is unrun until the first release that
+carries both.
+
 Its copied report also carries the numbers nothing else can produce: the meters' peaks, the mount
 counters, and the two findings that should be empty. `mounts.multiple` names a singleton anchor
 whose selector matched several elements, so a decoration may be on the wrong control.

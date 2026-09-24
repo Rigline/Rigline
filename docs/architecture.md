@@ -24,12 +24,16 @@ bus before the app touches it; the post hook reads the data Node left, builds a 
 loads them. This is `@rigline/host`, built to the two hook files and, beside them, the runtime
 modules plugins import: one React for every plugin (D87).
 
-The channel between them is a directory of files, and nothing else. There is no protocol, no
-handshake, and no way for the panel to ask a follow-up question:
+The channel between them is a directory of files. There is no protocol and no handshake, and
+nothing can push into a panel; it can only read a file again, under a fresh query string:
 
     webview/rigline/generated.js   the identifier tables harvested from this directory's bundle
     webview/rigline/registry.js    the enabled plugins, their declarations, patch outcomes, the layout
     webview/rigline/plugins/<name>/  each enabled plugin's directory
+
+One thing goes the other way: a link a person clicks, which VS Code routes to the companion's URI
+handler. That is the panel's Save, and it needs the companion; without one, the panel copies the
+`rigline layout` commands instead (D93).
 
 Two consequences run through everything. **The payload is version-independent** (P7): `pre.js` and
 `post.js` name no harvested identifier, so one build of them serves every installed version, and
