@@ -139,6 +139,23 @@ describe("listPlugins", () => {
     expect(listed[0]?.can.length).toBeGreaterThan(1);
   });
 
+  it("says where the layout moved an element (D92)", () => {
+    const root = tempDir();
+    const spacer = { anchor: "footerSpacer", at: "before" };
+    writePlugin(root, "clock", {
+      elements: { face: { title: "Clock", placements: [spacer, "rigRow"], default: spacer } },
+    });
+    const configPath = join(tempDir(), "config.yaml");
+    writeFileSync(configPath, "layout:\n  rigRow: [clock/face]\n");
+
+    const [listing] = listPlugins({
+      roots: [{ label: "root", path: root }],
+      configPath,
+      sourcesPath: sourcesWith(),
+    });
+    expect(listing?.can).toContain('shows "Clock" in rigRow, moved from before footerSpacer');
+  });
+
   it("carries a declared host patch, with what it is for and not what it is", () => {
     const root = tempDir();
     writePlugin(root, "patcher", {

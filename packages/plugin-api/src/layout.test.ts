@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ElementSpec } from "./elements.ts";
-import { layoutProblems, parsePlace, placeElement, placeName } from "./layout.ts";
+import { describeElements, layoutProblems, parsePlace, placeElement, placeName } from "./layout.ts";
 
 const spacer = { anchor: "footerSpacer", at: "before" } as const;
 const shortId: ElementSpec = {
@@ -68,6 +68,33 @@ describe("placeElement", () => {
   it("takes the first list that names it", () => {
     const layout = { off: ["session-id/short-id"], rigRow: ["session-id/short-id"] };
     expect(placeElement(layout, "session-id/short-id", shortId).placement).toBeNull();
+  });
+});
+
+describe("describeElements", () => {
+  const elements = { "short-id": shortId, address };
+
+  it("says where each goes by default, or that it is off", () => {
+    expect(describeElements(elements)).toEqual([
+      'shows "Session id" before footerSpacer',
+      'offers "Messaging address", off by default',
+    ]);
+  });
+
+  it("says what the layout changed, and nothing where it only ordered", () => {
+    const moved = { rigRow: ["session-id/short-id", "session-id/address"] };
+    expect(describeElements(elements, "session-id", moved)).toEqual([
+      'shows "Session id" in rigRow, moved from before footerSpacer',
+      'shows "Messaging address" in rigRow, switched on',
+    ]);
+    const off = { off: ["session-id/short-id"] };
+    expect(describeElements(elements, "session-id", off)[0]).toBe(
+      'offers "Session id", switched off',
+    );
+    const pinned = { "before footerSpacer": ["session-id/short-id"] };
+    expect(describeElements(elements, "session-id", pinned)[0]).toBe(
+      'shows "Session id" before footerSpacer',
+    );
   });
 });
 

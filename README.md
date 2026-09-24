@@ -45,8 +45,10 @@ Command Palette with *Developer: Reload Webviews*.
 Four plugins come with it and are switched on: the **session-id** pill in the composer footer,
 **time marks** on transcript rows, the **worktree prefix** on session tab labels, and the
 **probe**, whose diagnostics in the menu behind the `RIG` pill tell you whether the rest of it is
-working. `rigline list` names them; `rigline disable NAME` switches one off. Writing your own is
-[docs/authoring.md](docs/authoring.md).
+working. `rigline list` names them; `rigline disable NAME` switches one off. `rigline layout` shows
+where each plugin's pills sit in the panel, and moves, orders or hides them. Every setting is in one
+file you can also edit by hand, described in [docs/config.md](docs/config.md). Writing your own
+plugin is [docs/authoring.md](docs/authoring.md).
 
 Run `rigline install` again after the extension updates — an update installs a fresh copy of the
 extension beside the old one, which quietly leaves the loader behind. `rigline update` is the other

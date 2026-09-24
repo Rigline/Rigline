@@ -1974,3 +1974,8 @@ The baked layout is where a panel starts, not what it is fixed to. A layout edit
 working copy, and saving writes that copy over the file's layout, warning when it overwrites a
 change made since the panel loaded; merging edits from several sources is deferred. That is why the
 bake keeps unresolved entries: a copy holding only what resolved would delete the rest on save.
+
+`rigline layout place ELEMENT default` undoes a move, so undoing is the same command as moving, with
+`default` as the place; `reset` empties the whole layout. `default` is a word for the command only:
+in the file an element is at its default by being in no list. A command that empties a place takes
+the place out, and `layout` with it when it was the last.

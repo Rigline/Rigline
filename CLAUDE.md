@@ -142,6 +142,7 @@ Written for somebody else, so don't rewrite them for us:
     pnpm rigline disable N  # switch a plugin off in config.yaml, and re-inject
     pnpm rigline enable N   # switch it back on, and re-inject
     pnpm rigline list       # every plugin, in load order: version, origin, source, switch, uses
+    pnpm rigline layout     # where each element is; place, order or reset, and re-inject
     pnpm rigline status     # per version: vanilla or patched, by backup
     pnpm rigline restore    # every version back to the extension's bytes
     pnpm rigline vscode-setup  # install the companion into every VS Code on PATH (--remove undoes)

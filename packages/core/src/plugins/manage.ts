@@ -178,7 +178,8 @@ function place(placement: Placement): AddResult {
   // Reported, never changed: `add` over a plugin already here is also how you update one, and
   // quietly switching it back on would overrule a decision nobody revisited. Read before anything
   // is written, so a config that does not parse costs nothing.
-  const disabled = readConfig(placement.configPath).disabled.includes(name);
+  const config = readConfig(placement.configPath);
+  const disabled = config.disabled.includes(name);
 
   const replaced = existsSync(dir);
   rmSync(dir, { recursive: true, force: true });
@@ -196,7 +197,10 @@ function place(placement: Placement): AddResult {
     replaced,
     overridesBundled,
     disabled,
-    can: [...describeUses(manifest.uses as Uses), ...describeElements(manifest.elements)],
+    can: [
+      ...describeUses(manifest.uses as Uses),
+      ...describeElements(manifest.elements, name, config.layout),
+    ],
     manifest,
   };
 }

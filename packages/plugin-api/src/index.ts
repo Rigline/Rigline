@@ -51,7 +51,6 @@ export type {
   ZoneSpec,
 } from "./elements.ts";
 export {
-  describeElements,
   ELEMENT_ID_PATTERN,
   elementGaps,
   placementGap,
@@ -69,7 +68,15 @@ export type {
   RiglineIdentifiers,
 } from "./identifiers.ts";
 export type { ElementPlace, Layout, LayoutPlugin } from "./layout.ts";
-export { layoutProblems, OFF, parsePlace, placeElement, placeName } from "./layout.ts";
+export {
+  describeElements,
+  elementRank,
+  layoutProblems,
+  OFF,
+  parsePlace,
+  placeElement,
+  placeName,
+} from "./layout.ts";
 export type { DeclaredUses, HostPatch, Manifest, ValidManifest } from "./manifest.ts";
 export {
   byteLength,

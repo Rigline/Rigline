@@ -81,8 +81,20 @@ export function editConfig(path: string, edit: (doc: Document) => boolean): bool
   configOf(path, doc);
   if (!edit(doc)) return false;
   const eol = text?.includes("\r\n") ? "\r\n" : "\n";
-  writeFileSync(path, doc.toString(TO_STRING).replaceAll("\n", eol));
+  writeFileSync(path, render(doc).replaceAll("\n", eol));
   return true;
+}
+
+/** The document as text; one emptied of settings keeps its header and nothing else, not `{}`. */
+function render(doc: Document): string {
+  if (!isMap(doc.contents) || doc.contents.items.length > 0) return doc.toString(TO_STRING);
+  const header = doc.commentBefore;
+  return header
+    ? `${header
+        .split("\n")
+        .map((line) => `#${line}`)
+        .join("\n")}\n`
+    : "";
 }
 
 /** Appends `name` to the list at `path`, making the list if there is none. False if already there. */

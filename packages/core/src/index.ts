@@ -120,6 +120,15 @@ export {
   readManifest,
   registryEngine,
 } from "./plugins/discover.ts";
+export type { LaidOutElement, LayoutView, PlaceResult } from "./plugins/layout.ts";
+export {
+  formatLayout,
+  orderInLayout,
+  parseWhere,
+  placeInLayout,
+  resetLayout,
+  viewLayout,
+} from "./plugins/layout.ts";
 export type {
   LabelledRoot,
   ListOptions,

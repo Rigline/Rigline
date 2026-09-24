@@ -1,7 +1,8 @@
 # Your settings
 
 Rigline keeps what you decide in one file, `~/.rigline/config.yaml`. You can edit it by hand, or
-let a command do it: `rigline disable` and `rigline enable` change it for you. A command edits the
+let a command do it: `rigline disable`, `rigline enable` and `rigline layout` change it for you. A
+command edits the
 file in place, so your comments, blank lines and the order you wrote things in all survive. Nothing
 you change takes effect until the next `rigline install` (the commands run one for you), and then a
 reload of the panel.
@@ -47,12 +48,29 @@ each named `plugin/element`. A place is one of:
   is the composer footer, beside Rigline's own pill.
 - `off`, for an element you do not want to see.
 
-An element can only go where its plugin allows. The plugin's `rigline.json` lists its elements under
-`elements`, with the places each may take.
+An element can only go where its plugin allows. `rigline layout` lists every element by place, marks
+those your layout put there, and says where else each may go:
+
+    rigRow
+      session-id/address   Messaging address  yours
+      session-id/full-id   Full session id    yours
+    off
+      session-id/short-id  Session id         yours; can also go before footerSpacer, rigRow
 
 Leave an element out and it stays where its plugin puts it, and so does everything a plugin you
 install later brings. In a place, the elements you list come first, in your order, and anything else
 that belongs there follows.
+
+The same changes from the command line, each of which edits the file and re-injects:
+
+    rigline layout place session-id/address rigRow           # to the end of that place
+    rigline layout place session-id/short-id off
+    rigline layout place session-id/short-id default         # back where its plugin puts it
+    rigline layout order rigRow session-id/full-id session-id/address
+    rigline layout reset                                     # everything back to its plugin's place
+
+A place of two words, like `before footerSpacer`, needs no quotes. `order` replaces what you have
+listed in that place; an element you leave out of it goes back where its plugin puts it.
 
 An entry that does not work — a misspelt place, a plugin you have removed, a place its element cannot
 go — is named by `rigline install` and `rigline check`. The element stays where its plugin puts it,

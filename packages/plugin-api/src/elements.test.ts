@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  describeElements,
   type Elements,
   elementGaps,
   elementsOf,
@@ -120,19 +119,7 @@ describe("elementGaps", () => {
   });
 });
 
-describe("describing elements", () => {
-  it("says where each goes by default, or that it is off", () => {
-    expect(
-      describeElements({
-        a: { title: "Session id", placements: [spacer], default: spacer },
-        b: { title: "Messaging address", placements: ["rigRow"], default: null },
-      }),
-    ).toEqual([
-      'shows "Session id" before footerSpacer',
-      'offers "Messaging address", off by default',
-    ]);
-  });
-
+describe("placements", () => {
   it("compares placements by value", () => {
     expect(samePlacement(spacer, { anchor: "footerSpacer", at: "before" })).toBe(true);
     expect(samePlacement(spacer, { anchor: "footerSpacer", at: "after" })).toBe(false);

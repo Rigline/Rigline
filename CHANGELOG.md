@@ -32,6 +32,12 @@ anything may change between releases.
   allows, orders the elements in a place, or switches one off, and leaves everything you have not
   mentioned where its plugin put it. `rigline install` and `rigline check` name any entry that does
   not work, and leave that element where its plugin puts it. See [docs/config.md](docs/config.md).
+- **`rigline layout`** lists every plugin's elements by where they are, marking those your layout
+  put there and where else each may go. `rigline layout place ELEMENT WHERE` moves one — `WHERE`
+  being a place such as `rigRow` or `before footerSpacer`, `off`, or `default` to undo a move —
+  `rigline layout order` sets the order in a place, and `rigline layout reset` empties the layout.
+  Each keeps your comments and re-injects. `rigline list` and `rigline add` say when an element has
+  been moved or switched off.
 - `Pill` in `@rigline/plugin-api/ui`: a rounded label in the app's own pill colours, like the model
   picker's, and a button when given `onClick`.
 - The `composerBox` anchor: the composer's bordered box.

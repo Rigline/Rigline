@@ -84,7 +84,8 @@ export function listPlugins(options: ListOptions): PluginListing[] {
     options.roots.map((r) => r.path),
     { last: options.last, bundledRoot },
   );
-  const disabled = new Set(readConfig(options.configPath).disabled);
+  const config = readConfig(options.configPath);
+  const disabled = new Set(config.disabled);
   const sources = readSources(options.sourcesPath);
   const label = new Map(options.roots.map((r) => [r.path, r.label]));
   const managed = new Set(options.roots.filter((r) => r.managed).map((r) => r.path));
@@ -103,7 +104,7 @@ export function listPlugins(options: ListOptions): PluginListing[] {
       description: plugin.manifest.description,
       can: [
         ...describeUses(plugin.manifest.uses as Uses),
-        ...describeElements(plugin.manifest.elements),
+        ...describeElements(plugin.manifest.elements, plugin.name, config.layout),
       ],
       patches: plugin.manifest.patches.map((patch) => ({
         why: patch.why,

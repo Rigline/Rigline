@@ -18,6 +18,7 @@ import { spawn } from "node:child_process";
 import { existsSync, watch as fsWatch, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join, relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
+import { placementLabel, placeName } from "@rigline/plugin-api";
 import {
   type AddResult,
   addPlugin,
@@ -29,13 +30,16 @@ import {
   collect,
   companionVsix,
   diffScans,
+  discoverPlugins,
   EXTENSIONS_DIR,
   editorSpawn,
+  enabledPlugins,
   extensionVersion,
   findExtension,
   formatDiff,
   formatDoctor,
   formatFlow,
+  formatLayout,
   formatPlugins,
   formatSetup,
   type Generated,
@@ -47,10 +51,15 @@ import {
   install,
   installedExtensions,
   listPlugins,
+  orderInLayout,
   parseSource,
+  parseWhere,
+  placeInLayout,
   readAnchorOverrides,
   readBundles,
+  readConfig,
   removePlugin,
+  resetLayout,
   restoreAll,
   riglinePaths,
   scanOf,
@@ -60,6 +69,7 @@ import {
   UserError,
   update,
   verdict,
+  viewLayout,
   watch,
 } from "../index.ts";
 import { buildPlugin } from "./build.ts";
@@ -123,6 +133,17 @@ const USAGE = `rigline ${CORE_VERSION}
       Switch a plugin off in ~/.rigline/config.yaml, or back on, and re-inject. This is how
       you decline one of the plugins bundled in the engine: there is nothing to delete, and
       an engine update would put it back.
+
+  rigline layout
+  rigline layout place ELEMENT WHERE
+  rigline layout order WHERE ELEMENT...
+  rigline layout reset
+      Where every enabled plugin's elements are, by place, marking those your layout put
+      there and where else each may go. place moves one element, written plugin/element, to
+      WHERE: a zone such as rigRow, before, after or inside an anchor such as before
+      footerSpacer, off, or default to put it back where its plugin puts it. order sets
+      which elements come first in a place, in that order. reset empties the layout. Each
+      edits ~/.rigline/config.yaml, keeping your comments, and re-injects.
 
   rigline list [--json]
       Every plugin found, in the order they load: its version, where it came from, whether
@@ -370,6 +391,69 @@ function switchCommand(args: string[], enabled: boolean): number {
       ? `${enabled ? "enabled" : "disabled"} ${result.name} in ${result.configPath}`
       : `${result.name} was already ${enabled ? "enabled" : "switched off"} in ${result.configPath}`,
   );
+  console.log("");
+  return reinject();
+}
+
+/**
+ * `layout`, which prints, and `layout place`, `order` and `reset`, which edit `config.yaml` and
+ * re-inject for the reason `enable` does (D56, D92).
+ */
+function layoutCommand(args: string[]): number {
+  const [verb, ...rest] = args;
+  const paths = riglinePaths();
+  const discovered = discoverPlugins(discoveryRoots(), {
+    last: ["probe"],
+    bundledRoot: bundledPluginsDir(),
+  });
+  if (verb === undefined) {
+    const config = readConfig(paths.config);
+    console.log(formatLayout(viewLayout(enabledPlugins(discovered, config), config)));
+    return 0;
+  }
+
+  if (verb === "place") {
+    const [name, ...where] = rest;
+    if (name === undefined) throw new UserError("layout place needs an element and a place");
+    const result = placeInLayout(paths.config, discovered, name, parseWhere(where));
+    const at = result.placement === null ? "off" : placementLabel(result.placement);
+    console.log(
+      !result.changed
+        ? `${paths.config} already says that`
+        : result.isDefault
+          ? `${name} goes where its plugin puts it: ${at}`
+          : result.placement === null
+            ? `${name} is switched off`
+            : `${name} goes ${at}`,
+    );
+  } else if (verb === "order") {
+    // A place may be two words and an element always has a slash, so the first slash ends it.
+    const split = rest.findIndex((arg) => arg.includes("/"));
+    const where = parseWhere(split === -1 ? rest : rest.slice(0, split));
+    if (where === "default") {
+      throw new UserError(
+        "order fills a place, and default is not one: `layout place ELEMENT default` puts one back",
+      );
+    }
+    const names = split === -1 ? [] : rest.slice(split);
+    const changed = orderInLayout(paths.config, discovered, where, names);
+    console.log(
+      changed ? `${placeName(where)}: ${names.join(", ")}` : `${paths.config} already says that`,
+    );
+  } else if (verb === "reset") {
+    if (rest.length > 0) {
+      throw new UserError(
+        "reset empties the whole layout; `layout place ELEMENT default` puts one back",
+      );
+    }
+    console.log(
+      resetLayout(paths.config)
+        ? `emptied the layout in ${paths.config}`
+        : `${paths.config} has no layout`,
+    );
+  } else {
+    throw new UserError(`unknown layout command "${verb}": place, order or reset`);
+  }
   console.log("");
   return reinject();
 }
@@ -828,6 +912,7 @@ const SETTINGS_VERBS = new Set([
   "disable",
   "enable",
   "list",
+  "layout",
   "vscode-setup",
 ]);
 
@@ -870,6 +955,8 @@ async function main(argv: string[]): Promise<number> {
       return switchCommand(rest, true);
     case "list":
       return listCommand(rest);
+    case "layout":
+      return layoutCommand(rest);
     case "vscode-setup":
       return vscodeSetupCommand(rest);
     case "status":

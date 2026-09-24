@@ -64,6 +64,7 @@ your injection alone, and `rigline restore` is what undoes the injection itself.
     rigline enable N   switch it back on, and re-inject
     rigline update     move the engine and every npm plugin to what its tag resolves to
     rigline list       every plugin, in load order: version, origin, source, switch, what it can do
+    rigline layout     where each plugin's elements are; place, order or reset them, and re-inject
 
     rigline build      build a plugin to one browser ES module
     rigline dev        rebuild and re-inject as you edit

@@ -77,6 +77,33 @@ export function placeElement(layout: Layout, name: string, spec: ElementSpec): E
   return { placement: spec.default, listed: null };
 }
 
+/**
+ * Where an element sorts among everything at its place: listed elements first, in list order, ahead
+ * of every registry rank, which starts at 0; then the rest by plugin, then manifest order.
+ */
+export function elementRank(place: ElementPlace, order: number, index: number): number {
+  return place.listed === null ? order + index / 1024 : place.listed - 2 ** 20;
+}
+
+/**
+ * One line per element, for what `list` and `add` say a plugin does: where each goes, and whether
+ * that is the person's doing.
+ */
+export function describeElements(elements: Elements, plugin = "", layout: Layout = {}): string[] {
+  return Object.entries(elements).map(([id, spec]) => {
+    const { placement, listed } = placeElement(layout, `${plugin}/${id}`, spec);
+    const title = `"${spec.title}"`;
+    if (placement === null) {
+      return `offers ${title}, ${listed === null || spec.default === null ? "off by default" : "switched off"}`;
+    }
+    const shows = `shows ${title} ${placementLabel(placement)}`;
+    if (listed === null || samePlacement(placement, spec.default)) return shows;
+    return spec.default === null
+      ? `${shows}, switched on`
+      : `${shows}, moved from ${placementLabel(spec.default)}`;
+  });
+}
+
 /** A plugin as the layout sees it. */
 export interface LayoutPlugin {
   readonly name: string;

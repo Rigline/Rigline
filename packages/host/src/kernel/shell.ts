@@ -10,6 +10,7 @@ import {
   type AnchorSpec,
   type ElementComponent,
   type ElementSpec,
+  elementRank,
   type IdentifierTables,
   type Layout,
   type MenuComponent,
@@ -32,9 +33,6 @@ const OWNER = "rigline";
 
 /** After every plugin's mount at the same anchor, so the pill sits nearest the spacer. */
 const PILL_ORDER = Number.MAX_SAFE_INTEGER;
-
-/** Subtracted from a listed element's index, which puts it ahead of registry order, from 0 (D92). */
-const LISTED = 2 ** 20;
 
 /** How often the failing count on the pill is refreshed, which is how often every check runs. */
 const POLL_MS = 1000;
@@ -209,9 +207,10 @@ export function createShellService(
     element(owner, order, index, id, spec, component, onError) {
       const name = `${owner}/${id}`;
       if (bound.has(name)) throw new Error(`element "${id}" is already bound`);
-      const { placement, listed } = placeElement(layout, name, spec);
+      const place = placeElement(layout, name, spec);
+      const { placement } = place;
       if (placement === null) {
-        const detail = listed === null ? "off by default" : "switched off in the layout";
+        const detail = place.listed === null ? "off by default" : "switched off in the layout";
         bound.set(name, { state: "off", detail });
         return () => bound.delete(name);
       }
@@ -220,9 +219,7 @@ export function createShellService(
         bound.set(name, where);
         return () => bound.delete(name);
       }
-      // A plugin's own elements between its registry slot and the next plugin's, in manifest order,
-      // so two of them at one anchor never claim the same position.
-      const rank = listed === null ? order + index / 1024 : listed - LISTED;
+      const rank = elementRank(place, order, index);
       let target: Element;
       let targetKey: string;
       let unplace: Teardown;

@@ -181,12 +181,3 @@ export function elementGaps(elements: Elements, tables: IdentifierTables): strin
   }
   return gaps;
 }
-
-/** One line per element, for what `list` and `add` say a plugin does. */
-export function describeElements(elements: Elements): string[] {
-  return Object.values(elements).map((spec) =>
-    spec.default === null
-      ? `offers "${spec.title}", off by default`
-      : `shows "${spec.title}" ${placementLabel(spec.default)}`,
-  );
-}
