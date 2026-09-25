@@ -371,12 +371,12 @@ built. The first two change what a plugin is written against.
 
 ## Next session
 
-`1.0.0-alpha.10` is the newest on `latest`, and the plugin UI is unreleased. Two things are next, in
-either order:
+`1.0.0-alpha.11` is the newest on `latest`, and carries the plugin UI. Two reads are owed, in either
+order:
 
-**Cut `1.0.0-alpha.11`**, which carries the plugin UI ([releasing.md](releasing.md)). Its first
-install is also the read the plugin UI owes: a Save through the companion running a released engine,
-with `rigline.enginePath` unset.
+**A Save through a released engine.** On a machine with `alpha.11` installed and
+`rigline.enginePath` unset, edit the layout in the panel and Save: the notification should say it
+saved, the panel should leave editing, and `~/.rigline/config.yaml` should hold the layout.
 
 **`ready` (D85), on the next Claude Code update.** When the new version lands under a running
 window, the status item should go to *Rigline: ready to restart* and stay there until a restart.
@@ -384,7 +384,7 @@ Check the output channel for the `installed:` line first, which is what says the
 arrived. If you would rather not wait, [companion.md](companion.md)'s *Reading it live* has the
 recipe for forcing one. When it reads clean, milestone 8 is done.
 
-After it, the open questions above are the work. None is planned yet, so the next step there is to
+After them, the open questions above are the work. None is planned yet, so the next step there is to
 pick one and settle it.
 
 ## Status log
@@ -451,3 +451,4 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
 - 2026-09-25: `rigline.enginePath`: the companion runs a checkout's engine (D94).
 - 2026-09-25: Editing in place (D95), place names (D96) and Rigline's own buttons (D97); plugin UI
   done.
+- 2026-09-25: `1.0.0-alpha.11`: the plugin UI.
