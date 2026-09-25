@@ -60,12 +60,15 @@ async function listed(engine: Engine): Promise<readonly ListedPlugin[]> {
   return answer as ListedPlugin[];
 }
 
+/** The engine's `add` places the plugin and stops, where this is set (D98). */
+const DEFER_INJECT = "RIGLINE_DEFER_INJECT";
+
 /**
- * The engine, then the plugins, then the injection.
+ * The engine, then the plugins, then one injection.
  *
  * The new engine is what places every plugin and writes every payload, so a stale injection cannot
- * outlive the run (D75): `add` re-injects for a plugin that moved, and an engine that moved with no
- * plugin behind it gets the `install` that nothing else would have run.
+ * outlive the run (D75). Each `add` defers its injection, so the report and its tail come last, once
+ * (D98). An engine older than that ignores the variable and re-injects per plugin, as it always did.
  */
 async function updateCommand(args: string[]): Promise<number> {
   const { values, positionals } = parseArgs({
@@ -81,17 +84,22 @@ async function updateCommand(args: string[]): Promise<number> {
   const engine = await ensureEngine({ registry });
   const updates = await updatePlugins({
     listed: await listed(engine),
-    engine: engine.run,
+    engine: (argv) => engine.run(argv, { [DEFER_INJECT]: "1" }),
     ...(positionals.length > 0 ? { names: positionals } : {}),
     registry,
   });
+  console.log(formatUpdates(updates));
 
+  const moved =
+    engineUpdate.outcome === "moved" ||
+    engineUpdate.outcome === "installed" ||
+    updates.some((u) => u.outcome === "updated");
   let injected = 0;
-  if (engineUpdate.outcome === "moved" || engineUpdate.outcome === "installed") {
+  if (moved) {
+    console.log("");
     injected = await engine.run(["install"]);
   }
 
-  console.log(formatUpdates(updates));
   const failed = updates.some((u) => u.outcome === "failed") || engineUpdate.outcome === "failed";
   return failed || injected !== 0 ? 1 : 0;
 }

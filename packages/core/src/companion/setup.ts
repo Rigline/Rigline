@@ -224,15 +224,17 @@ export function formatSetup(
   return [
     `${remove ? "Removing" : "Installing"} the companion in ${outcomes.length} editor${outcomes.length === 1 ? "" : "s"}:`,
     ...lines,
-    ...(changed
-      ? [
-          "",
-          "Reload the window for it to take effect: Developer: Reload Window.",
-          ...(remove || vsix === undefined ? [] : whyNotVisible(vsix, profile)),
-        ]
+    // An install's reload is the last line of the injection that follows it (D98).
+    ...(changed && remove
+      ? ["", "Reload the window for it to take effect: Developer: Reload Window."]
       : []),
+    ...(changed && !remove && vsix !== undefined ? whyNotVisible(vsix, profile) : []),
   ].join("\n");
 }
+
+/** The reload a newly installed companion needs, since it starts only in a reloaded window. */
+export const COMPANION_RELOAD =
+  "Reload the window for the companion to start: Developer: Reload Window.";
 
 /**
  * The two ways an install can succeed and leave nothing to see, or the one that is left once a

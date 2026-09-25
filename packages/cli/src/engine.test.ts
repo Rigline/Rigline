@@ -20,6 +20,7 @@ import {
   type EngineUpdate,
   engineDir,
   engineInstallArgv,
+  ensureEngine,
   findNpmCli,
   formatEngineUpdate,
   majorProblem,
@@ -394,3 +395,27 @@ function fakeChild(code: number) {
     },
   } as unknown as ReturnType<typeof import("node:child_process").spawn>;
 }
+
+describe("Engine.run", () => {
+  it("adds what it is given to this process's environment, which is how update defers (D98)", async () => {
+    const prefix = temp();
+    writeEngine(engineDir(prefix), core("1.0.0-alpha.7"));
+    const envs: (NodeJS.ProcessEnv | undefined)[] = [];
+    const engine = await ensureEngine({
+      home: prefix,
+      version: "1.0.0-alpha.7",
+      spawnImpl: (_command, _args, options) => {
+        envs.push(options.env);
+        return fakeChild(0);
+      },
+    });
+
+    await engine.run(["add", "staged"], { RIGLINE_DEFER_INJECT: "1" });
+    await engine.run(["install"]);
+
+    expect(envs[0]?.RIGLINE_DEFER_INJECT).toBe("1");
+    expect(Object.keys(envs[0] ?? {})).toEqual(expect.arrayContaining(Object.keys(process.env)));
+    // Absent rather than copied, so a plain run inherits exactly as it always did.
+    expect(envs[1]).toBeUndefined();
+  });
+});

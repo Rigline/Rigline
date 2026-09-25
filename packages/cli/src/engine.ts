@@ -158,12 +158,18 @@ export function engineInstallArgv(options: {
 export type SpawnLike = (
   command: string,
   args: readonly string[],
-  options: { readonly stdio: readonly ("inherit" | "ignore" | "pipe")[] },
+  options: {
+    readonly stdio: readonly ("inherit" | "ignore" | "pipe")[];
+    readonly env?: NodeJS.ProcessEnv;
+  },
 ) => ChildProcess;
 
 /** Node's own, narrowed to that shape. */
 const nodeSpawn: SpawnLike = (command, args, options) =>
-  spawn(command, [...args], { stdio: [...options.stdio] });
+  spawn(command, [...args], {
+    stdio: [...options.stdio],
+    ...(options.env === undefined ? {} : { env: options.env }),
+  });
 
 export interface EngineOptions {
   readonly home?: string;
@@ -191,8 +197,8 @@ export interface EngineOptions {
 export interface Engine {
   readonly version: string;
   readonly entry: string;
-  /** Run a verb with our stdio, and answer with the child's exit code. */
-  run(argv: readonly string[]): Promise<number>;
+  /** Run a verb with our stdio, and answer with the child's exit code. `env` adds to ours. */
+  run(argv: readonly string[], env?: Readonly<Record<string, string>>): Promise<number>;
   /** Run a verb and parse its stdout, which is how `sources.json` is read without reading it (D74). */
   json(argv: readonly string[]): Promise<unknown>;
 }
@@ -278,10 +284,11 @@ function engineAt(state: { version: string; entry: string }, options: EngineOpti
   return {
     version: state.version,
     entry: state.entry,
-    run: (argv) =>
+    run: (argv, env) =>
       new Promise((done, fail) => {
         const child = spawnImpl(node, [state.entry, ...argv], {
           stdio: ["inherit", "inherit", "inherit"],
+          ...(env === undefined ? {} : { env: { ...process.env, ...env } }),
         });
         child.on("error", fail);
         child.on("close", (code) => done(code ?? 1));

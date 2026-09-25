@@ -10,11 +10,32 @@ anything may change between releases.
 
 ## Unreleased
 
+### Added
+
+- `--verbose` on `rigline install`, `check` and `watch`, for the detail the shorter report leaves
+  out: extension paths, harvest counts, each host patch, and everything that moved since the last
+  install.
+- `~/.rigline/drift.txt`, the full list of what changed inside Claude Code the last time
+  `rigline install` found anything had.
+
 ### Changed
 
 - `rigline vscode-setup` installs the companion extension outside Settings Sync. Synced, it was
   carried to your other machines, where VS Code looks for it on the Marketplace, and nothing of
   Rigline's is published there. Run `rigline vscode-setup` again to move an existing install over.
+- The report from `rigline install`, `check` and every command that re-injects is shorter, and ends
+  with what matters: what to reload, then anything that needs you, last. Versions in the same state
+  share a line.
+- The reload advice matches what the command changed: *Reload Window* when `extension.js` changed,
+  *Reload Webviews* when only Rigline's files did, and nothing to reload when nothing changed.
+- A plugin whose required host patch does not apply is reported as refused, as the panel already
+  treated it, and not listed as loading. An optional host patch that does not apply now needs you,
+  as a missing optional dependency does, so the exit code is 1.
+- `rigline update` moves every plugin first and injects once, so it prints one report, after what
+  moved. A plugin whose update landed is no longer reported as failed because something else in
+  the report needs you.
+- A `~/.rigline/token` that holds no token is listed under what needs you, since Save in the panel
+  copies commands until it is deleted.
 
 ## 1.0.0-alpha.11 — 2026-09-25
 

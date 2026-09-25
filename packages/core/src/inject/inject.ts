@@ -50,7 +50,7 @@ import {
   layoutNotes,
 } from "../plugins/discover.ts";
 import { saveRecord } from "../plugins/save.ts";
-import { applyPatches, type PatchOutcome } from "./hostpatch.ts";
+import { applyPatches, type PatchOutcome, patchRefusal } from "./hostpatch.ts";
 import { importProblem, resolveRuntimeImports } from "./imports.ts";
 
 /**
@@ -157,20 +157,20 @@ export function hostVerdict(state: Injection): Verdict {
  * text, or a patch this installer did not write — so it is rolled back, leaving whatever used that
  * payload directory unreferenced rather than deleted on the strength of bytes nobody here wrote;
  * otherwise the two share no relation at all, meaning the extension was replaced in place, and the
- * live bytes become the new pristine baseline.
+ * live bytes become the new pristine baseline. Answers whether it rolled a patch back.
  */
-function settleWebviewBackup(state: Injection, log: (line: string) => void): void {
+function settleWebviewBackup(state: Injection, log: (line: string) => void): boolean {
   const live = readFileSync(state.bundle);
   if (!state.backupExists) {
     writeFileSync(state.backup, live);
-    return;
+    return false;
   }
   const backup = readFileSync(state.backup);
   if (live.equals(backup)) {
-    return;
+    return false;
   }
   if (live.equals(Buffer.concat([PRE_BYTES, backup, POST_BYTES]))) {
-    return;
+    return false;
   }
   if (live.includes(backup)) {
     writeFileSync(state.bundle, backup);
@@ -178,9 +178,26 @@ function settleWebviewBackup(state: Injection, log: (line: string) => void): voi
       `${state.bundle} carried an unrecognised patch; rolled it back from ${state.backup} ` +
         "(any payload directory it used is left in webview/, unreferenced)",
     );
-    return;
+    return true;
   }
   writeFileSync(state.backup, live);
+  return false;
+}
+
+/** `extension.js` as the extension shipped it, and whether that came from the backup. */
+function pristineHost(state: Injection): { readonly bytes: Buffer; readonly fromBackup: boolean } {
+  const fromBackup = state.hostBackupExists && hostBackupIsCurrent(state.hostBackup, state.host);
+  return { bytes: readFileSync(fromBackup ? state.hostBackup : state.host), fromBackup };
+}
+
+/** What each enabled plugin's host patch would do to `ext`, writing nothing: `check`'s half. */
+export function hostPatchOutcomes(
+  ext: string,
+  enabled: readonly DiscoveredPlugin[],
+): readonly PatchOutcome[] {
+  const declared = declaredPatches(enabled);
+  if (declared.length === 0) return [];
+  return applyPatches(pristineHost(inspect(ext)).bytes, declared).outcomes;
 }
 
 /**
@@ -301,11 +318,19 @@ export interface InstallReport {
   readonly ext: string;
   readonly version: string;
   readonly action: "injected" | "refreshed";
+  /** Whether anything a panel or the extension host reads was written: what a reload is owed for. */
+  readonly wrote: boolean;
   readonly hostChanged: boolean;
+  /** Whether the bundle carried a patch this installer did not write, now rolled back. */
+  readonly rolledBack: boolean;
   readonly patchOutcomes: readonly PatchOutcome[];
   readonly enabled: readonly string[];
   readonly disabled: readonly string[];
   readonly notes: readonly string[];
+  /** Discovery and `config.yaml` problems, the same for every version. */
+  readonly configNotes: readonly string[];
+  /** Why the panel's Save copies commands instead, when the token file is unusable (D93). */
+  readonly tokenProblem: string | null;
   /** Every enabled plugin, checked against this directory's tables before anything was written. */
   readonly verdicts: readonly PluginVerdict[];
   /** Each local anchor override, and what this version's class map makes of it (D44). */
@@ -313,11 +338,12 @@ export interface InstallReport {
 }
 
 /**
- * Every enabled plugin's verdict against one version's tables (D43).
+ * Every enabled plugin's verdict against one version's tables and host patches (D43, D98).
  *
- * The same `capabilityViolation` the kernel asks at load, asked here so a person learns from the
- * install rather than from a console line after a reload — and so the identifier name reaches the
- * plugin's maintainer in a bug report instead of "it stopped working".
+ * The same checks the kernel makes at load, in its order: a required host patch that did not apply,
+ * then `capabilityViolation`. Asked here so a person learns from the install rather than from a
+ * console line after a reload — and so the identifier name reaches the plugin's maintainer in a bug
+ * report instead of "it stopped working". An optional patch that did not apply is a gap.
  *
  * It changes nothing. A refused plugin is still copied and still baked into the registry, and the
  * kernel refuses it at load exactly as it would have: enforcement stays in one place, and a plugin
@@ -327,13 +353,20 @@ export interface InstallReport {
 export function pluginVerdicts(
   enabled: readonly DiscoveredPlugin[],
   tables: IdentifierTables,
+  patches: readonly PatchOutcome[] = [],
 ): PluginVerdict[] {
   return enabled.map((p) => ({
     plugin: p.name,
-    refusal: capabilityViolation(p.manifest.uses, tables) ?? entryImportProblem(p),
+    refusal:
+      patchRefusal(p.name, patches) ??
+      capabilityViolation(p.manifest.uses, tables) ??
+      entryImportProblem(p),
     missingOptional: [
       ...optionalGaps(p.manifest.uses, tables),
       ...elementGaps(p.manifest.elements, tables),
+      ...patches
+        .filter((o) => o.plugin === p.name && !o.required && !o.applied)
+        .map((o) => `its host patch did not apply: ${o.reason}`),
     ],
     rawClasses: Object.values(p.manifest.uses.classes).reduce((n, l) => n + l.length, 0),
   }));
@@ -370,7 +403,7 @@ export function install(ext: string, options: InstallOptions): InstallReport {
 
   // The identifiers a plugin declares against are harvested from the pristine bundle, so the
   // backup must be trustworthy before anything reads it.
-  settleWebviewBackup(state, log);
+  const rolledBack = settleWebviewBackup(state, log);
 
   mkdirSync(state.payloadDir, { recursive: true });
   // The payload lands before the bundle is ever patched: a static import pointing at a file that
@@ -391,45 +424,46 @@ export function install(ext: string, options: InstallOptions): InstallReport {
   if (writeIfChanged(join(state.payloadDir, "generated.js"), Buffer.from(generated.runtime))) {
     wrotePayload = true;
   }
-  log(`${ext}: ${generated.counts}`);
+  log(generated.counts);
 
   let hostChanged = false;
   let patchOutcomes: readonly PatchOutcome[] = [];
   let enabledNames: readonly string[] = [];
   let disabledNames: readonly string[] = [];
   const notes: string[] = [];
+  const configNotes: string[] = [];
+  let tokenProblem: string | null = null;
   let verdicts: readonly PluginVerdict[] = [];
 
   if (options.plugins) {
     const { roots, last, bundledRoot, configPath, tokenPath } = options.plugins;
-    const discovered = discoverPlugins(roots, { last, bundledRoot, log });
+    const note = (line: string): void => {
+      configNotes.push(line);
+    };
+    const discovered = discoverPlugins(roots, { last, bundledRoot, log: note });
     const config = readConfig(configPath);
-    const enabled = enabledPlugins(discovered, config, log);
-    for (const note of layoutNotes(config, enabled)) log(note);
+    const enabled = enabledPlugins(discovered, config, note);
+    configNotes.push(...layoutNotes(config, enabled));
     enabledNames = enabled.map((p) => p.name);
     const enabledSet = new Set(enabledNames);
     disabledNames = discovered.filter((p) => !enabledSet.has(p.name)).map((p) => p.name);
 
     const declared = declaredPatches(enabled);
     const hostLive = readFileSync(state.host);
-    const hostBackupCurrent =
-      state.hostBackupExists && hostBackupIsCurrent(state.hostBackup, state.host);
-    const hostPristine = hostBackupCurrent ? readFileSync(state.hostBackup) : hostLive;
+    const pristine = pristineHost(state);
 
-    const { bytes: hostBytes, outcomes } = applyPatches(hostPristine, declared);
+    const { bytes: hostBytes, outcomes } = applyPatches(pristine.bytes, declared);
     patchOutcomes = outcomes;
 
-    if (!hostBackupCurrent && outcomes.some((o) => o.applied)) {
+    if (!pristine.fromBackup && outcomes.some((o) => o.applied)) {
       // A patch is about to land and the backup does not already hold this build's pristine
       // bytes — either there was none, or it belonged to a build extension.js has since replaced.
-      writeFileSync(state.hostBackup, hostPristine);
+      writeFileSync(state.hostBackup, pristine.bytes);
     }
     if (!hostBytes.equals(hostLive)) {
       writeFileSync(state.host, hostBytes);
       hostChanged = true;
-      log(
-        'extension.js changed: run "Developer: Reload Window" (this ends the window\'s sessions)',
-      );
+      log("extension.js rewritten");
     }
     // The plugin's name, not its `why`: the rationale is a paragraph, it is the same paragraph on
     // every installed version, and `doctor` already carries it in full for the one case — a panel
@@ -459,12 +493,17 @@ export function install(ext: string, options: InstallOptions): InstallReport {
       rmSync(join(pluginsOut, entry.name), { recursive: true, force: true });
       wrotePayload = true;
     }
-    const save = tokenPath === undefined ? null : saveRecord(ext, tokenPath, log);
+    const save =
+      tokenPath === undefined
+        ? null
+        : saveRecord(ext, tokenPath, (line) => {
+            tokenProblem = line;
+          });
     const baked = Buffer.from(bakeRegistry(enabled, outcomes, config.layout, save));
     if (writeIfChanged(join(state.payloadDir, "registry.js"), baked)) wrotePayload = true;
 
     // Before the notes, because this is the one report that says whether a plugin will work here.
-    verdicts = pluginVerdicts(enabled, generated.tables);
+    verdicts = pluginVerdicts(enabled, generated.tables, outcomes);
     for (const verdict of verdicts) {
       if (verdict.refusal)
         log(`${verdict.plugin}: REFUSED on ${generated.tables.version} — ${verdict.refusal}`);
@@ -499,22 +538,22 @@ export function install(ext: string, options: InstallOptions): InstallReport {
   const alreadyPatched = live.equals(Buffer.concat([PRE_BYTES, backup, POST_BYTES]));
   if (!alreadyPatched) {
     writeFileSync(state.bundle, Buffer.concat([PRE_BYTES, backup, POST_BYTES]));
-    log(`${ext}: injected (${PATCH_BYTES} bytes added) — reload with Developer: Reload Webviews`);
-  } else if (!wrotePayload && !hostChanged) {
-    // Worth saying: it is the difference between rewriting a payload that happened to be identical
-    // and never having touched this version at all, which is what a weekly report should show.
-    log(`${ext}: already current, nothing written`);
+    log(`injected (${PATCH_BYTES} bytes added)`);
   }
 
   return {
     ext,
     version: generated.tables.version,
     action: alreadyPatched ? "refreshed" : "injected",
+    wrote: !alreadyPatched || wrotePayload || hostChanged,
     hostChanged,
+    rolledBack,
     patchOutcomes,
     enabled: enabledNames,
     disabled: disabledNames,
     notes,
+    configNotes,
+    tokenProblem,
     verdicts,
     anchorOverrides: anchorOverrideOutcomes(harvest.classes, overrides),
   };

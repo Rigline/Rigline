@@ -20,6 +20,7 @@ describe("riglineHome", () => {
       anchors: join("/g", "anchors.json"),
       plugins: join("/g", "plugins"),
       baseline: join("/g", "baseline.json"),
+      drift: join("/g", "drift.txt"),
       token: join("/g", "token"),
     });
   });

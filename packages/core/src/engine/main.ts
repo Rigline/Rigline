@@ -25,6 +25,7 @@ import {
   addPlugin,
   bundledDir,
   bundledPluginsDir,
+  COMPANION_RELOAD,
   CORE_VERSION,
   check,
   checkoutEngineNote,
@@ -77,6 +78,9 @@ import {
 } from "../index.ts";
 import { buildPlugin } from "./build.ts";
 
+/** Set by the wrapper's `update` on each `add`, so the plugins move first and inject once (D98). */
+const DEFER_INJECT = "RIGLINE_DEFER_INJECT";
+
 const USAGE = `rigline ${CORE_VERSION}
 
   rigline codegen [DIR] [--check] [--out FILE]
@@ -93,21 +97,23 @@ const USAGE = `rigline ${CORE_VERSION}
   rigline build [DIR] [--source FILE]
       Bundle a plugin's src/index.ts (or --source) into the entry its rigline.json names.
 
-  rigline install [--ext DIR] [--payload DIR]
+  rigline install [--ext DIR] [--payload DIR] [--verbose]
       Inject the loader into every installed extension version (or DIR), baking the enabled
-      plugins, and report what moved since the baseline and which plugins each version
-      refuses. Any entry in ~/.rigline/anchors.json is applied and named, with what this
-      version makes of it. Rewrites ./generated.ts when the directory has one and records
-      the new baseline; never commits either. Run it after an extension update, and reload
-      webviews afterwards. Exits 1 when a person is needed.
+      plugins, and report which plugins each version loads and which it refuses. Any entry
+      in ~/.rigline/anchors.json is applied and named, with what this version makes of it.
+      What moved since the baseline is listed in ~/.rigline/drift.txt. Rewrites
+      ./generated.ts when the directory has one and records the new baseline; never commits
+      either. The report ends with what to reload, then anything that needs you. --verbose
+      adds paths, harvest counts, each host patch and the full drift. Run it after an
+      extension update. Exits 1 when a person is needed.
 
-  rigline check [--ext DIR]
-      Read-only. Per installed version (or DIR): what moved since the baseline, which
-      plugins this version would refuse and by which identifier, which curated anchors it
-      lacks, and what it makes of each entry in ~/.rigline/anchors.json. Exits 1 when a
-      person is needed.
+  rigline check [--ext DIR] [--verbose]
+      Read-only. Per installed version (or DIR): whether it is injected and by which
+      engine, which plugins it would refuse and by which identifier, which curated anchors
+      it lacks, and what it makes of each entry in ~/.rigline/anchors.json. --verbose
+      lists what moved since the baseline. Exits 1 when a person is needed.
 
-  rigline watch [--interval SECONDS]
+  rigline watch [--interval SECONDS] [--verbose]
       install, and again whenever the set of installed extension directories changes,
       which is what an extension update looks like from outside VS Code.
 
@@ -238,6 +244,9 @@ interface ReinjectOptions {
   readonly payloadDir?: string;
   /** Refuse rather than shrug when nothing is installed: what `install`, asked outright, should do. */
   readonly required?: boolean;
+  readonly verbose?: boolean;
+  /** The reload line, when the command has a reason of its own for one. */
+  readonly reload?: string;
 }
 
 /**
@@ -256,6 +265,7 @@ function reinject(options: ReinjectOptions = {}): number {
   if (targets.length === 0) {
     if (options.required) throw new UserError("no Claude Code extension is installed");
     console.log("No Claude Code extension is installed, so nothing was injected.");
+    if (options.reload !== undefined) console.log(`\n${options.reload}`);
     return 0;
   }
   const report = update({
@@ -266,11 +276,11 @@ function reinject(options: ReinjectOptions = {}): number {
     // not asked for one, and it never commits what it rewrites (D30).
     codegen: true,
   });
-  console.log(formatFlow(report));
   console.log(
-    report.versions.some((v) => v.hostChanged)
-      ? `\nA host patch changed: run Developer: Reload Window (this ends the window's sessions).`
-      : `\nReload with Developer: Reload Webviews (current window only).`,
+    formatFlow(report, {
+      ...(options.verbose === undefined ? {} : { verbose: options.verbose }),
+      ...(options.reload === undefined ? {} : { reload: options.reload }),
+    }),
   );
   return report.attention.length > 0 ? 1 : 0;
 }
@@ -343,6 +353,8 @@ function addCommand(args: string[]): number {
   console.log(
     "  apply to what it does — https://github.com/Rigline/Rigline/blob/main/docs/plugin-policy.md",
   );
+  // `rigline update` injects once, after every plugin has moved (D98).
+  if (process.env[DEFER_INJECT] === "1") return 0;
   console.log("");
   return reinject();
 }
@@ -501,13 +513,18 @@ function removeCommand(args: string[]): number {
 function installCommand(args: string[]): number {
   const { values } = parseArgs({
     args,
-    options: { ext: { type: "string" }, payload: { type: "string" } },
+    options: {
+      ext: { type: "string" },
+      payload: { type: "string" },
+      verbose: { type: "boolean", default: false },
+    },
     allowPositionals: false,
   });
   return reinject({
     exts: values.ext ? [values.ext] : undefined,
     payloadDir: values.payload,
     required: true,
+    verbose: values.verbose,
   });
 }
 
@@ -598,7 +615,8 @@ async function vscodeSetupCommand(args: string[]): Promise<number> {
   // done at the moment somebody would otherwise have to be told about it.
   if (values.remove) return failed;
   console.log("");
-  return reinject() === 0 ? failed : 1;
+  const installed = outcomes.some((o) => o.code === 0);
+  return reinject(installed ? { reload: COMPANION_RELOAD } : {}) === 0 ? failed : 1;
 }
 
 function statusCommand(): number {
@@ -776,15 +794,17 @@ async function build(args: string[]): Promise<number> {
   return 0;
 }
 
-/** `--ext DIR`, for rehearsing against a copy rather than against what is installed (D39). */
-function extOption(args: string[]): readonly string[] | undefined {
-  const { values } = parseArgs({ args, options: { ext: { type: "string" } } });
-  return values.ext ? [resolve(values.ext)] : undefined;
-}
-
+/** `--ext DIR` rehearses against a copy rather than against what is installed (D39). */
 function checkCommand(args: string[]): number {
-  const report = check({ exts: extOption(args), plugins: pluginOptions() });
-  console.log(formatFlow(report));
+  const { values } = parseArgs({
+    args,
+    options: { ext: { type: "string" }, verbose: { type: "boolean", default: false } },
+  });
+  const report = check({
+    exts: values.ext ? [resolve(values.ext)] : undefined,
+    plugins: pluginOptions(),
+  });
+  console.log(formatFlow(report, { verbose: values.verbose }));
   return report.attention.length > 0 ? 1 : 0;
 }
 
@@ -795,7 +815,7 @@ function checkCommand(args: string[]): number {
 function watchCommand(args: string[]): Promise<number> {
   const { values } = parseArgs({
     args,
-    options: { interval: { type: "string" } },
+    options: { interval: { type: "string" }, verbose: { type: "boolean", default: false } },
     allowPositionals: false,
   });
   const seconds = values.interval === undefined ? 30 : Number(values.interval);
@@ -813,7 +833,7 @@ function watchCommand(args: string[]): Promise<number> {
       onReport(report) {
         console.log(`
 [${new Date().toISOString()}]`);
-        console.log(formatFlow(report));
+        console.log(formatFlow(report, { verbose: values.verbose }));
         code = report.attention.length > 0 ? 1 : 0;
       },
       onError(error) {

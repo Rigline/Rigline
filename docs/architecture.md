@@ -126,9 +126,10 @@ load-bearing at three points:
 5. Rebuild `extension.js` from `extension.js.orig` plus every enabled plugin's declared patches, and
    write it only if the bytes changed. See [patches.md](patches.md).
 6. Copy each enabled plugin's directory through the output filter, and bake `registry.js`.
-7. Check every enabled plugin's declarations against this version's tables and report by identifier
-   (D43). This changes nothing — a refused plugin is still copied and still baked, and the kernel
-   refuses it at load exactly as it would have. Enforcement stays in one place.
+7. Check every enabled plugin's declarations against this version's tables, and its host patch as
+   the kernel reads it, and report by identifier (D43, D98). This changes nothing — a refused plugin
+   is still copied and still baked, and the kernel refuses it at load exactly as it would have.
+   Enforcement stays in one place.
 8. **Only now** decide whether the two-line patch needs writing at all. After step 1 the live bytes
    are in exactly one of two shapes, so a rebuild-and-reinstall — the whole development loop —
    rewrites nothing.
@@ -136,6 +137,10 @@ load-bearing at three points:
 A plugin's problem never blocks any of this (D27). Two things do: a harvest under its own floor,
 which means our regex has drifted rather than that the extension has, and a failure in Rigline's own
 build.
+
+The report is written for whoever ran the command: a line per state, then what to reload, then
+*Needs you*, last (D98). What the installer logs per directory is `--verbose` only, and what moved
+since the baseline goes to `~/.rigline/drift.txt`, since the next install moves the baseline.
 
 `restore` is the inverse and the recovery path: copy both backups back, re-read to confirm the bytes
 match, remove the payload directory. It needs only Node and the engine — not VS Code, and not a
@@ -206,7 +211,8 @@ the template needs (D50). It imports nothing.
 off, the layout — edited by hand as well as by commands, which edit it in place, D91),
 `sources.json` (where `add` brought each plugin from, which `update` reads — both files the engine's
 to write, never the wrapper's, D74), `plugins/` (installed third-party plugins), `anchors.json` (local overrides and additions to
-the anchor table), `baseline.json` (the last harvest), and `engine/` (the npm prefix the wrapper
+the anchor table), `baseline.json` (the last harvest), `drift.txt` (what moved at the last install
+that found drift, since the next moves the baseline, D98), and `engine/` (the npm prefix the wrapper
 installs `@rigline/core` into, D73 — the one directory here that `rm -rf` is the documented repair
 for), and `.lock`, held while an engine installs so the CLI and the companion cannot install over
 each other. A clone of this repo is for developing Rigline, not for using it.

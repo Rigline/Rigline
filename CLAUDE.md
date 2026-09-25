@@ -25,7 +25,7 @@ no new plans. Update the plan before writing code; log status there, not here.
   `Atomics.wait` rather than making `install` async. Carries a negative result worth not
   re-proposing: a content check on the bundle's tail was evidenced against the corpus and rejected,
   because a rule that fits today's bundler refuses every install the day it changes.
-- [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D97.
+- [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D98.
 
 The internals, for a contributor to Rigline itself. The shape, not the argument — the argument is in
 decisions.md, and each doc cites the decisions it rests on.
@@ -135,7 +135,7 @@ Written for somebody else, so don't rewrite them for us:
 ## Working on the live extension
 
     pnpm build              # host, core, cli, the first-party plugins, then core's dist/bundled
-    pnpm rigline install    # inject every version, bake plugins, report drift, record the baseline
+    pnpm rigline install    # inject every version, bake plugins, record the baseline; --verbose for detail
     pnpm rigline check      # the same report, writing nothing
     pnpm rigline add SPEC   # install a plugin from a directory or npm, name it, re-inject
     pnpm rigline remove N   # delete a plugin rigline installed, and re-inject

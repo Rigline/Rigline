@@ -90,6 +90,10 @@ better default, and what worktree-prefix uses — loads the plugin without it: t
 and says so in its `why`. Deciding between them is deciding whether the plugin is coherent without
 the patch.
 
+`install` and `check` report both as the kernel reads them: a required patch that did not apply as
+its plugin refused, an optional one as a gap in a plugin that still loads. Either one appears under
+*Needs you* (D98).
+
 ## Carried, not derived
 
 Nothing in a webview can read `extension.js`. The CSP has no `connect-src`, and the only process

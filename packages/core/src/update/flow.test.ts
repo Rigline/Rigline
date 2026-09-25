@@ -7,7 +7,7 @@
  * is what makes it a real rehearsal — the harvest genuinely does not find the class, exactly as it
  * would not after an upstream rename.
  */
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ANCHORS } from "@rigline/plugin-api";
@@ -141,12 +141,19 @@ function plugins(root: string): { roots: string[]; configPath: string } {
   return { roots: [root], configPath: configWith([]) };
 }
 
-/** A plugin root whose one plugin substitutes bytes in `extension.js`, as `worktree-prefix` does. */
-function patchingPluginRoot(name: string): string {
+/**
+ * A plugin root whose one plugin substitutes bytes in `extension.js`, as `worktree-prefix` does.
+ * `missing` aims it at bytes the host fixture does not carry, so it cannot apply.
+ */
+function patchingPluginRoot(
+  name: string,
+  options: { readonly missing?: boolean; readonly required?: boolean } = {},
+): string {
   const root = tempDir("rigline-plugins-");
   const dir = join(root, name);
   mkdirSync(dir, { recursive: true });
-  // Equal byte length, against a string the host fixture really carries.
+  const target = options.missing ? "includeNothing:!1" : "includeWorktrees:!1";
+  // Equal byte length, against a string the host fixture really carries unless told otherwise.
   writeFileSync(
     join(dir, "rigline.json"),
     JSON.stringify({
@@ -155,10 +162,10 @@ function patchingPluginRoot(name: string): string {
       entry: "index.js",
       patches: [
         {
-          find: "includeWorktrees:!1",
-          replace: "includeWorktrees:!0",
+          find: target,
+          replace: `${target.slice(0, -1)}0`,
           why: "steers the worktree list",
-          required: false,
+          required: options.required ?? false,
         },
       ],
     }),
@@ -202,6 +209,44 @@ describe("a host patch is not a person being needed", () => {
 
     // Out of `attention`, not out of the report: the reload is still the thing to do next.
     expect(formatFlow(report)).toMatch(/extension\.js changed/);
+  });
+});
+
+/** The kernel's reading of a patch that did not apply, made where a person reads it (D98). */
+describe("a host patch that did not apply", () => {
+  it("refuses its plugin when the patch is required, from install and from check alike", () => {
+    for (const run of ["install", "check"] as const) {
+      const options = {
+        exts: [fixture()],
+        dir: tempDir("rigline-cwd-"),
+        baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+        plugins: plugins(patchingPluginRoot("strict", { missing: true, required: true })),
+      };
+      const report =
+        run === "install" ? update({ ...options, payloadDir: payload() }) : check(options);
+      expect(report.versions[0]?.verdicts[0]?.refusal).toMatch(
+        /^required host patch did not apply/,
+      );
+      expect(report.attention.filter((line) => line.includes('refuses "strict"'))).toHaveLength(1);
+      expect(formatFlow(report)).toContain("loading: none");
+    }
+  });
+
+  it("is a gap when the patch is optional, and the plugin still loads", () => {
+    const report = update({
+      exts: [fixture()],
+      payloadDir: payload(),
+      dir: tempDir("rigline-cwd-"),
+      baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+      plugins: plugins(patchingPluginRoot("relaxed", { missing: true })),
+    });
+    const verdict = report.versions[0]?.verdicts[0];
+    expect(verdict?.refusal).toBeNull();
+    expect(verdict?.missingOptional).toEqual([
+      "its host patch did not apply: anchor not found in the host bundle",
+    ]);
+    expect(report.attention.some((line) => line.includes('"relaxed" loads without'))).toBe(true);
+    expect(formatFlow(report)).toContain("loading: relaxed");
   });
 });
 
@@ -298,8 +343,8 @@ describe("the report a person reads", () => {
       }),
     );
     // Enabled means "not switched off", so the two were once folded together and a plugin was
-    // listed as loading two lines under its own REFUSED line.
-    expect(text).toContain("REFUSED needy");
+    // listed as loading beside its own refusal.
+    expect(text).toContain('refuses "needy"');
     expect(loadingLine(text)).toBe("loading: fine");
   });
 
@@ -315,7 +360,7 @@ describe("the report a person reads", () => {
         plugins: { roots: [root], configPath: configWith(["quiet"]) },
       }),
     );
-    expect(text).toContain("switched off in config: quiet");
+    expect(text).toContain("switched off: quiet");
     expect(loadingLine(text)).toBe("loading: fine");
   });
 
@@ -330,6 +375,89 @@ describe("the report a person reads", () => {
       }),
     );
     expect(loadingLine(text)).toBe("loading: none");
+  });
+
+  it("ends with the reload, then what needs a person, last", () => {
+    const text = formatFlow(
+      update({
+        exts: [fixture({ drop: "local3" })],
+        payloadDir: payload(),
+        dir: tempDir("rigline-cwd-"),
+        baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+        plugins: plugins(pluginRoot("needy", { classes: { f00000: ["local3"] } })),
+      }),
+    );
+    const sections = text.split("\n\n");
+    expect(sections.at(-2)).toBe("Reload with Developer: Reload Webviews (current window only).");
+    expect(sections.at(-1)).toMatch(/^Needs you:\n {2}- 2\.1\.270 refuses "needy"/);
+  });
+
+  it("says there is nothing to reload when the run changed nothing, rather than asking", () => {
+    const options = {
+      exts: [fixture()],
+      payloadDir: payload(),
+      dir: tempDir("rigline-cwd-"),
+      baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+      plugins: plugins(pluginRoot("fine", { classes: { f00000: ["local1"] } })),
+    };
+    update(options);
+    const text = formatFlow(update(options));
+    expect(text).toContain("2.1.270: already current");
+    expect(text).toContain("Nothing to reload: this run changed nothing in Claude Code.");
+    expect(text).not.toContain("Reload");
+  });
+
+  it("puts versions in the same state on one line, newest first", () => {
+    const text = formatFlow(
+      update({
+        exts: [fixture({ version: "2.1.268" }), fixture({ version: "2.1.270" })],
+        payloadDir: payload(),
+        dir: tempDir("rigline-cwd-"),
+        baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+      }),
+    );
+    expect(text.split("\n")[0]).toBe("2.1.270, 2.1.268: injected");
+  });
+
+  it("says a config note once, however many versions there are", () => {
+    const text = formatFlow(
+      update({
+        exts: [fixture({ version: "2.1.268" }), fixture({ version: "2.1.270" })],
+        payloadDir: payload(),
+        dir: tempDir("rigline-cwd-"),
+        baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+        plugins: { roots: [], configPath: configWith(["ghost"]) },
+      }),
+    );
+    expect(text.split('disables "ghost"')).toHaveLength(2);
+  });
+
+  it("owes no reload from check, which writes nothing", () => {
+    const text = formatFlow(
+      check({
+        exts: [fixture()],
+        dir: tempDir("rigline-cwd-"),
+        baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+      }),
+    );
+    expect(text).toContain("2.1.270: not injected");
+    expect(text).not.toMatch(/reload/i);
+  });
+
+  it("needs a person for a token file that holds no token, from install and from check", () => {
+    const tokenPath = join(tempDir("rigline-home-"), "token");
+    writeFileSync(tokenPath, "not a token\n");
+    const options = {
+      exts: [fixture()],
+      dir: tempDir("rigline-cwd-"),
+      baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+      plugins: { ...plugins(pluginRoot("fine", {})), tokenPath },
+    };
+    for (const report of [update({ ...options, payloadDir: payload() }), check(options)]) {
+      expect(
+        report.attention.filter((line) => line.includes("does not hold a token")),
+      ).toHaveLength(1);
+    }
   });
 });
 
@@ -394,7 +522,33 @@ describe("update", () => {
     expect(report.baseline?.kind).toBe("recorded");
     const classes = report.diffs.find((d) => d.view === "classes.classes");
     expect(classes?.gone).toEqual(["local3_f00000"]);
-    expect(formatFlow(report)).toContain("local3_f00000");
+    // One line by default, and the listing in a file: the next install moves the baseline (D98).
+    expect(formatFlow(report)).toContain(`since 2.1.268: identifiers moved; the list is in`);
+    expect(formatFlow(report)).not.toContain("local3_f00000");
+    expect(formatFlow(report, { verbose: true })).toContain("local3_f00000");
+    expect(readFileSync(report.driftFile ?? "", "utf8")).toContain("local3_f00000");
+
+    // And gone once nothing has moved, so it never describes a run that is over.
+    const again = update({
+      exts: [after],
+      payloadDir: payload(),
+      dir: tempDir("rigline-cwd-"),
+      baselinePath,
+    });
+    expect(again.driftFile).toBeNull();
+    expect(existsSync(report.driftFile ?? "")).toBe(false);
+  });
+
+  it("points check at --verbose, since check writes no list", () => {
+    const baselinePath = join(tempDir("rigline-home-"), "baseline.json");
+    writeBaseline(baselinePath, generate(harvestAll(readBundles(fixture()))).scan);
+    const report = check({
+      exts: [fixture({ drop: "local3" })],
+      dir: tempDir("rigline-cwd-"),
+      baselinePath,
+    });
+    expect(report.driftFile).toBeNull();
+    expect(formatFlow(report)).toContain("identifiers moved; check --verbose lists them");
   });
 
   it("rewrites a generated.ts the directory already has, and tells you to commit it", () => {

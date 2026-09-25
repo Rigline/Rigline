@@ -2173,3 +2173,47 @@ Rejected:
 
 Left out: the RIG pill as an element. The same machinery would place it, but a person could then
 switch off the one control that always reaches the menu.
+
+**D98. A report is written for whoever ran the command, and ends with what they must do
+(2026-09-25, Leo).** `install`, `check`, `watch` and every command that re-injects print one report.
+By default it holds what the person who ran the command acts on, and `--verbose` adds what a
+maintainer or plugin author reads: extension paths, harvest counts, capability notes, raw class
+pairs, each host patch, the baseline, and what was written. The report ends with a fixed tail:
+what to reload, then *Needs you*, last, because it is the part a person must not miss.
+
+The reload line is decided from what the run wrote: *Reload Window* when `extension.js` changed,
+*Reload Webviews* when only the payload did, and *Nothing to reload: this run changed nothing in
+Claude Code* otherwise, a fact about the run rather than a claim about a window the CLI cannot see
+(D82). `check` has no reload line.
+
+The body is a line per state rather than a block per version. Versions in the same state share a
+line, and a version with anchor overrides or a rolled-back patch gets its own. Refusals and gaps are
+named per version under *Needs you*, which is where D43's per-version outcome now lives. `loading:`
+is said once when every version loads the same set and per version when they differ, and it
+retires "N plugins checked, every declaration holds": its job was that silence never means fine,
+and `loading:` does that. Config notes (a layout entry that does not resolve, a disabled name not
+found, a shadowed plugin) are said once, and exit 0: D92 keeps an unresolved entry on purpose, and
+exiting 1 over a deliberate state would leave the companion reading *needs you* for good.
+
+Drift is one line. `install` writes the full listing, with D45's successors, to
+`~/.rigline/drift.txt` and names it, and removes the file when nothing moved: `--verbose` could not
+bring the listing back later, because the baseline moves with every install and the old extension
+directory is gone. `check` moves nothing, so its line points at `check --verbose`. The line carries
+no count, since one class sits in several views.
+
+A host patch is a verdict, as the kernel treats it: a required patch that did not apply refuses its
+plugin, and an optional one is a gap. So an optional patch whose anchor Claude Code moves has every
+companion reading *needs you* until an engine release repairs it, as a missing optional dependency
+already does. An unreadable token file joins *Needs you*, since a person has to delete it.
+
+`rigline update` injects once, at the end: it runs each plugin's `add` with `RIGLINE_DEFER_INJECT=1`,
+prints what moved, then runs `install` when anything did. An environment variable rather than a
+flag, because an engine that predates it ignores it and re-injects as before, where a flag would be
+refused by its strict `parseArgs`.
+
+Rejected:
+
+- The drift listing under `--verbose` alone, which the next install makes unrecoverable.
+- Layout problems under *Needs you* (above).
+- Judging an updated plugin from `list --json` after an `add` whose re-inject exited 1. It works,
+  but it leaves a report per plugin and the summary after the last tail.

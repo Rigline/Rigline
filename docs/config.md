@@ -96,6 +96,11 @@ Rigline's record, not a setting, so it is not meant for editing. A plugin you co
 `~/.rigline/anchors.json` repairs an anchor without waiting for a release; [anchors.md](anchors.md)
 says when you need one.
 
+`~/.rigline/drift.txt` lists what changed inside Claude Code the last time `rigline install` found
+anything had: the names plugins are built against, gone and new. It is there for working out why a
+plugin stopped after a Claude Code update. Each install rewrites it, or removes it when nothing
+moved.
+
 `~/.rigline/token` is a random value `rigline install` makes once and never changes. It goes into
 the panel, so a save made from the panel can show it came from one of your own. Leave it alone. If
 it is deleted, the next `install` makes a new one, and a panel still open from before needs

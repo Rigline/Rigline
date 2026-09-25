@@ -263,16 +263,16 @@ describe("a second run writes nothing", () => {
     writePlugin(root, "alpha");
     const options = { payloadDir: payload(), plugins: withPlugins([root]) };
 
-    install(ext, options);
+    expect(install(ext, options).wrote).toBe(true);
     const before = touched(payloadOutDir(ext));
     // mtime has millisecond resolution, so a rewrite inside the same tick would be invisible.
     sleepSync(20);
-    const lines: string[] = [];
-    const report = install(ext, { ...options, log: (line) => lines.push(line) });
+    const report = install(ext, options);
 
     expect(touched(payloadOutDir(ext))).toEqual(before);
     expect(report.action).toBe("refreshed");
-    expect(lines.join("\n")).toMatch(/already current, nothing written/);
+    // What the reload line is decided from (D98).
+    expect(report.wrote).toBe(false);
   });
 
   it("writes the one file that did change, and only that one", () => {
@@ -320,19 +320,14 @@ describe("a second run writes nothing", () => {
     });
     const configPath = join(tempDir("rigline-config-"), "config.yaml");
     writeFileSync(configPath, "layout:\n  rigRow: [clock/face, gone/away]\n");
-    const lines: string[] = [];
 
-    install(ext, {
-      payloadDir: payload(),
-      plugins: { roots: [root], configPath },
-      log: (l) => lines.push(l),
-    });
+    const report = install(ext, { payloadDir: payload(), plugins: { roots: [root], configPath } });
 
     // Kept whole: the panel's copy is what a save would write back.
     expect(readFileSync(join(payloadOutDir(ext), "registry.js"), "utf8")).toContain(
       'export const layout = {"rigRow":["clock/face","gone/away"]};',
     );
-    expect(lines).toContain(`${configPath}: gone/away: no plugin "gone" is installed`);
+    expect(report.configNotes).toContain(`${configPath}: gone/away: no plugin "gone" is installed`);
   });
 
   it("makes the token once and bakes it into every version, with no companion beside them (D93)", () => {

@@ -17,8 +17,8 @@
  * `check` and `update` differ in exactly one way: `check` writes nothing. Everything either of them
  * would say, `check` says, which is what makes it safe to run from a hook or from a watch loop.
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import {
   type AnchorOverrideOutcome,
   type AnchorOverrides,
@@ -29,7 +29,10 @@ import { type Generated, generate } from "../codegen/generate.ts";
 import { readBundles } from "../extension/bundles.ts";
 import { extensionVersion, installedExtensions } from "../extension/locate.ts";
 import {
+  verdict as bundleVerdict,
+  hostPatchOutcomes,
   type InstallOptions,
+  inspect,
   install,
   type PluginVerdict,
   pluginVerdicts,
@@ -44,6 +47,7 @@ import {
   layoutNotes,
   registryEngine,
 } from "../plugins/discover.ts";
+import { readToken } from "../plugins/save.ts";
 import { CORE_VERSION } from "../version.ts";
 import { type BaselineSource, GENERATED_FILE, readBaseline, writeBaseline } from "./baseline.ts";
 
@@ -71,8 +75,14 @@ export interface VersionReport {
   readonly anchorOverrides: readonly AnchorOverrideOutcome[];
   /** What the install did here, or null from `check`, which installs nothing. */
   readonly action: "injected" | "refreshed" | null;
+  /** Whether this run wrote anything a reload would pick up. Always false from `check`. */
+  readonly wrote: boolean;
   /** Whether `extension.js` changed, which needs a window reload rather than a webview reload. */
   readonly hostChanged: boolean;
+  /** Whether the bundle carried a patch this installer did not write, now rolled back. */
+  readonly rolledBack: boolean;
+  /** Whether the bundle carries the loader: true after `install`, read off disk by `check`. */
+  readonly injected: boolean;
   /**
    * Plugins not switched off in `config.yaml`, and those that are. Both, because "enabled" alone
    * cannot say why a plugin a person expected is absent from the panel, and that is the one
@@ -80,7 +90,7 @@ export interface VersionReport {
    */
   readonly enabled: readonly string[];
   readonly disabled: readonly string[];
-  /** Every line the installer logged, so a caller can print them under this version's heading. */
+  /** Every line the installer logged, which only `--verbose` prints (D98). */
   readonly log: readonly string[];
   /**
    * The engine version stamped into this directory's payload (D75), or null when nothing is
@@ -95,8 +105,14 @@ export interface VersionReport {
 }
 
 export interface FlowReport {
+  /** Which command made it. `check` writes nothing, so it owes no reload. */
+  readonly kind: "install" | "check";
   /** What the newest installed version was compared against, or null on a first run. */
   readonly baseline: BaselineSource | null;
+  /** Discovery and `config.yaml` problems, which are the same for every version. */
+  readonly configNotes: readonly string[];
+  /** Where `install` listed what moved, or null: nothing moved, or this is `check` (D98). */
+  readonly driftFile: string | null;
   /** The local anchor table override, as read: the file, and anything wrong with it (D44). */
   readonly overrides: AnchorOverrides;
   /** The newest installed version's harvest, which is what a written baseline records. */
@@ -121,6 +137,8 @@ export interface FlowOptions {
   readonly plugins?: InstallOptions["plugins"];
   /** Where the recorded baseline lives. Defaults to `~/.rigline/baseline.json`. */
   readonly baselinePath?: string;
+  /** Where `install` lists what moved. Defaults to `~/.rigline/drift.txt`. */
+  readonly driftPath?: string;
   /** Where the anchor override lives. Defaults to `~/.rigline/anchors.json`. */
   readonly anchorsPath?: string;
   /** The stability sample's timings, as `install` takes them. Injected only by tests. */
@@ -195,20 +213,20 @@ function anchorReport(
 export function check(options: FlowOptions = {}): FlowReport {
   const exts = options.exts ?? installedExtensions();
   const overrides = readAnchorOverrides(options.anchorsPath ?? riglinePaths().anchors);
-  // Discovery says nothing version-specific, but its lines are read under a version heading in
-  // `update` because that is where the installer logs them. Repeating them per version here is what
-  // keeps `check` saying everything `update` says, in the same place.
-  const discovery: string[] = [];
+  const configNotes: string[] = [];
+  const note = (line: string): void => {
+    configNotes.push(line);
+  };
   const discovered = options.plugins
     ? discoverPlugins(options.plugins.roots, {
         last: options.plugins.last,
         bundledRoot: options.plugins.bundledRoot,
-        log: (line) => discovery.push(line),
+        log: note,
       })
     : [];
   const config = options.plugins ? readConfig(options.plugins.configPath) : null;
-  const plugins = config ? enabledPlugins(discovered, config, (line) => discovery.push(line)) : [];
-  if (config) discovery.push(...layoutNotes(config, plugins));
+  const plugins = config ? enabledPlugins(discovered, config, note) : [];
+  if (config) configNotes.push(...layoutNotes(config, plugins));
   const enabled = plugins.map((p) => p.name);
   const disabled = discovered.filter((p) => !enabled.includes(p.name)).map((p) => p.name);
 
@@ -216,18 +234,33 @@ export function check(options: FlowOptions = {}): FlowReport {
   const versions: VersionReport[] = harvested.map((h) => ({
     ext: h.ext,
     version: h.version,
-    verdicts: pluginVerdicts(plugins, h.generated.tables),
+    verdicts: pluginVerdicts(plugins, h.generated.tables, hostPatchOutcomes(h.ext, plugins)),
     ...anchorReport(h.generated),
     anchorOverrides: anchorOverrideOutcomes(h.harvest.classes, overrides),
     action: null,
+    wrote: false,
     hostChanged: false,
+    rolledBack: false,
+    injected: bundleVerdict(inspect(h.ext)) === "patched",
     enabled,
     disabled,
-    log: discovery,
+    log: [],
     payloadEngine: payloadEngineOf(h.ext),
   }));
 
-  return settle(options, overrides, harvested, versions, null);
+  // Only a file that is there and unusable: a missing one is made by the next `install`.
+  const tokenPath = options.plugins?.tokenPath;
+  const token = tokenPath !== undefined && existsSync(tokenPath) ? readToken(tokenPath) : null;
+  const tokenProblem =
+    token !== null && "problem" in token
+      ? `Save in the panel copies commands instead: ${token.problem}`
+      : null;
+
+  return settle(options, overrides, harvested, versions, null, {
+    kind: "check",
+    configNotes,
+    tokenProblem,
+  });
 }
 
 /**
@@ -242,6 +275,8 @@ export function update(options: UpdateOptions): FlowReport {
   const overrides = readAnchorOverrides(options.anchorsPath ?? riglinePaths().anchors);
   const harvested: Harvested[] = [];
   const versions: VersionReport[] = [];
+  let configNotes: readonly string[] = [];
+  let tokenProblem: string | null = null;
 
   for (const ext of exts) {
     const log: string[] = [];
@@ -265,15 +300,32 @@ export function update(options: UpdateOptions): FlowReport {
       ...anchorReport(h.generated),
       anchorOverrides: report.anchorOverrides,
       action: report.action,
+      wrote: report.wrote,
       hostChanged: report.hostChanged,
+      rolledBack: report.rolledBack,
+      injected: true,
       enabled: report.enabled,
       disabled: report.disabled,
       log,
       payloadEngine: payloadEngineOf(ext),
     });
+    // The same for every version, since they come from discovery and the config.
+    configNotes = report.configNotes;
+    tokenProblem = report.tokenProblem;
   }
 
-  return settle(options, overrides, harvested, versions, options);
+  return settle(options, overrides, harvested, versions, options, {
+    kind: "install",
+    configNotes,
+    tokenProblem,
+  });
+}
+
+/** What `check` and `update` each know that the shared half does not. */
+interface Settling {
+  readonly kind: FlowReport["kind"];
+  readonly configNotes: readonly string[];
+  readonly tokenProblem: string | null;
 }
 
 /** The half both commands share: diff against the baseline, decide who needs a person, write. */
@@ -283,13 +335,18 @@ function settle(
   harvested: readonly Harvested[],
   versions: readonly VersionReport[],
   writeOptions: UpdateOptions | null,
+  settling: Settling,
 ): FlowReport {
   const dir = options.dir ?? process.cwd();
   const baselinePath = options.baselinePath ?? riglinePaths().baseline;
+  const { kind, configNotes, tokenProblem } = settling;
   const newest = harvested.at(-1);
   if (!newest) {
     return {
+      kind,
       baseline: null,
+      configNotes,
+      driftFile: null,
       overrides,
       scan: { version: "none", views: {} },
       diffs: [],
@@ -303,9 +360,11 @@ function settle(
   const baseline = readBaseline(dir, baselinePath);
   const diffs = baseline ? diffScans(baseline.scan, scan) : [];
   const wrote: string[] = [];
+  let driftFile: string | null = null;
   // A malformed override is a person's mistake in a file only they can fix, and it never blocks:
   // the entries that parsed have already been applied and the rest are simply not there (D44).
   const attention: string[] = [...overrides.problems];
+  if (tokenProblem !== null) attention.push(tokenProblem);
 
   for (const version of versions) {
     for (const verdict of version.verdicts) {
@@ -388,11 +447,32 @@ function settle(
         );
       }
     }
+    // Written before the baseline moves, because after it nothing can say what moved (D98).
+    const driftPath = options.driftPath ?? riglinePaths().drift;
+    if (baseline && scansDiffer(diffs)) {
+      mkdirSync(dirname(driftPath), { recursive: true });
+      writeFileSync(driftPath, `${formatDiff(baseline.scan, scan, diffs, Infinity)}\n`);
+      wrote.push(driftPath);
+      driftFile = driftPath;
+    } else {
+      rmSync(driftPath, { force: true });
+    }
     writeBaseline(baselinePath, scan);
     wrote.push(baselinePath);
   }
 
-  return { baseline, overrides, scan, diffs, versions, wrote, attention };
+  return {
+    kind,
+    baseline,
+    configNotes,
+    driftFile,
+    overrides,
+    scan,
+    diffs,
+    versions,
+    wrote,
+    attention,
+  };
 }
 
 /**
@@ -418,71 +498,113 @@ function overrideEffect(override: AnchorOverrideOutcome): string {
     : "does not resolve the anchor, which this version does not resolve either";
 }
 
-/** "1 plugin", "3 plugins". A report a person reads should not make them read "(s)". */
-function count(n: number, one: string, many: string): string {
-  return `${n} ${n === 1 ? one : many}`;
+export interface FormatOptions {
+  /** Everything a maintainer or plugin author reads as well (D98). */
+  readonly verbose?: boolean;
+  /** A reload line to use instead of the one the writes call for. */
+  readonly reload?: string;
 }
 
-/** A plain-text report of one flow, for the CLI and for a watcher's log. */
-export function formatFlow(report: FlowReport): string {
+/** What one version is, as a person reads it: what the run did, or what `check` found on disk. */
+function stateOf(version: VersionReport): string {
+  if (version.action === null) {
+    if (!version.injected) return "not injected";
+    return version.payloadEngine === null
+      ? "patched, unstamped"
+      : `patched by engine ${version.payloadEngine}`;
+  }
+  if (version.action === "injected") return "injected";
+  return version.wrote ? "refreshed" : "already current";
+}
+
+/**
+ * Enabled and not refused. Three states, not two: `enabled` means "not switched off in config", and
+ * folding it with the verdict listed a refused plugin as loading.
+ */
+function loadingOf(version: VersionReport): string {
+  const refused = new Set(version.verdicts.filter((v) => v.refusal !== null).map((v) => v.plugin));
+  return version.enabled.filter((name) => !refused.has(name)).join(", ") || "none";
+}
+
+/** Decided from what this run wrote, never from what a window has loaded, which nothing here sees. */
+function reloadLine(report: FlowReport): string {
+  if (report.versions.some((v) => v.hostChanged)) {
+    return "extension.js changed: run Developer: Reload Window (this ends the window's sessions).";
+  }
+  if (report.versions.some((v) => v.wrote)) {
+    return "Reload with Developer: Reload Webviews (current window only).";
+  }
+  return "Nothing to reload: this run changed nothing in Claude Code.";
+}
+
+/** A plain-text report of one flow, ending with what to reload and then what needs a person (D98). */
+export function formatFlow(report: FlowReport, options: FormatOptions = {}): string {
+  const verbose = options.verbose ?? false;
   const lines: string[] = [];
+  if (verbose) {
+    lines.push(
+      report.baseline
+        ? `baseline: ${report.baseline.path} (${report.baseline.scan.version})`
+        : `no baseline yet; ${report.scan.version} is the first one recorded`,
+    );
+  }
+
+  // Newest first, and versions in the same state on one line unless one has more to say.
+  const newestFirst = [...report.versions].reverse();
+  const rows: { names: string[]; state: string; detail: readonly string[] }[] = [];
+  for (const version of newestFirst) {
+    const state = stateOf(version);
+    const detail = [
+      ...(version.rolledBack
+        ? ["  its bundle carried a patch Rigline did not write, rolled back from the backup"]
+        : []),
+      ...(version.anchorOverrides.length > 0
+        ? [
+            `  anchor overrides, from ${report.overrides.path}:`,
+            ...version.anchorOverrides.map((o) => `    ${o.name}: ${overrideEffect(o)}`),
+          ]
+        : []),
+      ...(verbose ? [`  ${version.ext}`, ...version.log.map((line) => `  ${line}`)] : []),
+    ];
+    const same =
+      detail.length === 0
+        ? rows.find((row) => row.detail.length === 0 && row.state === state)
+        : undefined;
+    if (same) same.names.push(version.version);
+    else rows.push({ names: [version.version], state, detail });
+  }
+  for (const row of rows) lines.push(`${row.names.join(", ")}: ${row.state}`, ...row.detail);
+
+  if (newestFirst.length > 0) {
+    const loading = newestFirst.map(loadingOf);
+    if (loading.every((set) => set === loading[0])) lines.push(`loading: ${loading[0]}`);
+    else lines.push(...newestFirst.map((v, i) => `loading on ${v.version}: ${loading[i]}`));
+    const disabled = newestFirst[0]?.disabled ?? [];
+    if (disabled.length > 0) lines.push(`switched off: ${disabled.join(", ")}`);
+  }
+  lines.push(...report.configNotes);
+
   if (report.baseline) {
-    lines.push(`baseline: ${report.baseline.path} (${report.baseline.scan.version})`);
-    lines.push(
-      scansDiffer(report.diffs)
-        ? formatDiff(report.baseline.scan, report.scan, report.diffs)
-        : `nothing moved between ${report.baseline.scan.version} and ${report.scan.version}`,
-    );
-  } else {
-    lines.push(`no baseline yet; ${report.scan.version} is the first one recorded`);
-  }
-
-  for (const version of report.versions) {
-    lines.push(`\n${version.version}${version.action ? `: ${version.action}` : ""}`);
-    for (const line of version.log) lines.push(`  ${line}`);
-    if (version.anchorOverrides.length > 0) {
-      lines.push(`  anchor overrides, from ${report.overrides.path}:`);
-      for (const override of version.anchorOverrides) {
-        lines.push(`    ${override.name}: ${overrideEffect(override)}`);
-      }
-    }
-    for (const verdict of version.verdicts) {
-      if (verdict.refusal) lines.push(`  REFUSED ${verdict.plugin}: ${verdict.refusal}`);
-      else if (verdict.missingOptional.length > 0) {
-        lines.push(
-          `  ${verdict.plugin}: loads, without ${count(verdict.missingOptional.length, "optional dependency", "optional dependencies")}`,
-        );
-      }
-    }
-    // Said even when nothing is wrong. "Silence means fine" is something a person has to be taught
-    // to read; a count is something anyone can read.
-    const refusedNames = version.verdicts.filter((v) => v.refusal !== null).map((v) => v.plugin);
-    lines.push(
-      `  ${count(version.verdicts.length, "plugin", "plugins")} checked` +
-        (refusedNames.length === 0
-          ? ", every declaration holds"
-          : `, ${refusedNames.length} refused`) +
-        (version.anchorsMissing.length === 0
-          ? ""
-          : `; ${count(version.anchorsMissing.length, "curated anchor", "curated anchors")} unresolved`) +
-        (version.anchorsAmbiguous.length === 0
-          ? ""
-          : `; ${count(version.anchorsAmbiguous.length, "curated anchor", "curated anchors")} ambiguous`),
-    );
-    // Three states, not two. `enabled` means "not switched off in config", so folding it together
-    // with the verdict listed a plugin this version refuses as loading, two lines under its own
-    // REFUSED line — on the one output a person reads when a plugin vanishes from their panel.
-    const loading = version.enabled.filter((name) => !refusedNames.includes(name));
-    lines.push(`  loading: ${loading.join(", ") || "none"}`);
-    if (version.disabled.length > 0) {
-      lines.push(`  switched off in config: ${version.disabled.join(", ")}`);
+    const from = report.baseline.scan.version;
+    if (scansDiffer(report.diffs)) {
+      const where =
+        report.driftFile !== null
+          ? `the list is in ${report.driftFile}`
+          : verbose
+            ? "listed below"
+            : "check --verbose lists them";
+      lines.push(`since ${from}: identifiers moved; ${where}`);
+      if (verbose) lines.push(formatDiff(report.baseline.scan, report.scan, report.diffs));
+    } else if (from !== report.scan.version) {
+      lines.push(`nothing moved since ${from}`);
     }
   }
+  if (verbose) for (const path of report.wrote) lines.push(`wrote: ${path}`);
 
-  for (const path of report.wrote) lines.push(`\nwrote: ${path}`);
+  const sections = [lines.join("\n")];
+  if (report.kind === "install") sections.push(options.reload ?? reloadLine(report));
   if (report.attention.length > 0) {
-    lines.push("\nNeeds you:");
-    for (const line of report.attention) lines.push(`  - ${line}`);
+    sections.push(["Needs you:", ...report.attention.map((line) => `  - ${line}`)].join("\n"));
   }
-  return lines.join("\n");
+  return sections.filter((section) => section !== "").join("\n\n");
 }

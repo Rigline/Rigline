@@ -195,9 +195,10 @@ describe("setupCompanion", () => {
 });
 
 describe("formatSetup", () => {
-  it("asks for a reload when anything changed", () => {
+  it("asks for a reload after a removal, and leaves an install's to the injection after it", () => {
     const outcomes = [{ editor: editor("code", "VS Code", "code"), code: 0, output: "" }];
-    expect(formatSetup(outcomes, false)).toMatch(/Reload the window/);
+    expect(formatSetup(outcomes, true)).toMatch(/Reload the window/);
+    expect(formatSetup(outcomes, false)).not.toMatch(/Reload the window/);
   });
 
   it("does not ask for a reload when nothing did", () => {

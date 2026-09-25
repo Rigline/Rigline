@@ -27,6 +27,7 @@ export type { Generated } from "./codegen/generate.ts";
 export { generate } from "./codegen/generate.ts";
 export type { FoundEditor, SetupOptions, SetupOutcome } from "./companion/setup.ts";
 export {
+  COMPANION_RELOAD,
   checkoutEngineNote,
   companionVsix,
   EDITOR_CLIS,
@@ -80,6 +81,7 @@ export type {
   Verdict,
 } from "./inject/inject.ts";
 export {
+  hostPatchOutcomes,
   hostVerdict,
   inspect,
   install,
@@ -163,7 +165,13 @@ export {
   readGeneratedScan,
   writeBaseline,
 } from "./update/baseline.ts";
-export type { FlowOptions, FlowReport, UpdateOptions, VersionReport } from "./update/flow.ts";
+export type {
+  FlowOptions,
+  FlowReport,
+  FormatOptions,
+  UpdateOptions,
+  VersionReport,
+} from "./update/flow.ts";
 export { check, formatFlow, update } from "./update/flow.ts";
 export type { Watcher, WatchOptions } from "./update/watch.ts";
 export { watch } from "./update/watch.ts";
