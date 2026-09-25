@@ -294,6 +294,16 @@ A VS Code extension that notices a Claude Code update and re-injects, acquiring 
 engine rather than embedding it (D76 to D85). [history-m8.md](history-m8.md) is the archaeology and
 [companion.md](companion.md) the reference. One live read is owed.
 
+## Plugin UI in React — done 2026-09-25
+
+Plugins write React, rendered in one root Rigline owns (D87, D88): the RIG menu (D89), elements a
+plugin declares and a person places (D90 to D92), a Layout submenu that saves through the companion
+(D93), editing in place (D95), place names for a person (D96), and Rigline's own Edit and Reload
+buttons (D97). [host.md](host.md) and [architecture.md](architecture.md) are the reference,
+[authoring.md](authoring.md) the author's guide and [config.md](config.md) the user's. One read is
+owed: a Save through a released engine, since every save so far ran this checkout's engine through
+`rigline.enginePath`.
+
 ## Open questions
 
 The work after milestone 8. None of it is planned yet, and each wants a decision before anything is
@@ -345,9 +355,28 @@ built. The first two change what a plugin is written against.
   needs to. Revisit if the VSIX changes more often than expected, or if D77's conversation makes a
   listing wanted.
 
+- **Merging layout edits from several sources.** A save from the panel overwrites the file's layout
+  and warns when that replaces a change made since the panel loaded (D92). Revisit when that warning
+  costs somebody work.
+- **Decorations in React.** Per-row transcript decorations stay DOM. Triggered by a decoration DOM
+  makes painful; first answer the cost of one portal per row at several hundred rows, and the frame
+  in which a new row's node is empty before React renders into it.
+- **Menu order in `config.yaml`**, as a list of plugin names beside the layout (D89). Triggered by
+  somebody asking to reorder the RIG menu.
+- **A JSON Schema for the layout**, generated at install from the installed elements, so an editor
+  with a YAML language server completes element and place names. Triggered by hand-edited layouts
+  going wrong.
+- **The RIG pill as an element** (D97). Triggered by somebody asking to move it; weigh a person
+  switching off the one control that always reaches the menu.
+
 ## Next session
 
-`1.0.0-alpha.10` is the newest on `latest`. One live read is left, and it is milestone 8's last:
+`1.0.0-alpha.10` is the newest on `latest`, and the plugin UI is unreleased. Two things are next, in
+either order:
+
+**Cut `1.0.0-alpha.11`**, which carries the plugin UI ([releasing.md](releasing.md)). Its first
+install is also the read the plugin UI owes: a Save through the companion running a released engine,
+with `rigline.enginePath` unset.
 
 **`ready` (D85), on the next Claude Code update.** When the new version lands under a running
 window, the status item should go to *Rigline: ready to restart* and stay there until a restart.
@@ -413,4 +442,12 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
 - 2026-09-23: `rigline update` moved a published `alpha.8` engine to `alpha.10` and re-injected;
   milestone 7 done.
 - 2026-09-23: 8c's *Rigline: Show Plugins* read live.
+- 2026-09-23: Plugins write React: one React served by the panel (D87), and the shell with the RIG
+  menu (D88, D89).
+- 2026-09-24: Elements and `rigRow` (D90), settings in `config.yaml` (D91), the layout and `rigline
+  layout` (D92), and the Layout submenu saving through the companion (D93).
+- 2026-09-24: The kernel seals `acquireVsCodeApi` before plugins load, and D79 claims only what that
+  backs.
 - 2026-09-25: `rigline.enginePath`: the companion runs a checkout's engine (D94).
+- 2026-09-25: Editing in place (D95), place names (D96) and Rigline's own buttons (D97); plugin UI
+  done.
