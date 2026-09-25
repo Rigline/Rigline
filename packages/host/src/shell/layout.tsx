@@ -32,7 +32,8 @@ const COMPANION = "rigline.rigline";
 export const SAVE_NOTES: Record<Exclude<SaveState, "idle">, string> = {
   saving: "Saving through the Rigline companion…",
   saved: "Saved.",
-  unconfirmed: "Could not confirm the save. Rigline's notification and output say why.",
+  unconfirmed:
+    "Not confirmed. Rigline's notification says why; with none, the companion never got the save.",
 };
 
 /** A move, which keeps the menu open. */
@@ -79,7 +80,6 @@ export function layoutMenu(
         {placeable && (
           <MenuItem
             label="Edit in place"
-            description="on the panel itself"
             checked={editing}
             onSelect={() => editor.editing.set(!editing)}
           />
@@ -94,8 +94,8 @@ export function layoutMenu(
                 editor={editor}
                 element={element}
                 place={group.place}
-                first={i === 0}
-                last={i === group.elements.length - 1}
+                before={group.elements[i - 1]}
+                after={group.elements[i + 1]}
                 reading={readings.get(element.name)}
               />
             ))}
@@ -117,8 +117,9 @@ interface Where {
   readonly editor: LayoutEditor;
   readonly element: ViewElement;
   readonly place: string;
-  readonly first: boolean;
-  readonly last: boolean;
+  /** Its neighbours in the order its place shows, which a move names rather than a direction. */
+  readonly before: ViewElement | undefined;
+  readonly after: ViewElement | undefined;
 }
 
 function Moves(props: Where & { readonly reading: ElementReading | undefined }): ReactNode {
@@ -151,8 +152,8 @@ export function movesOf(editor: LayoutEditor, name: string): () => ReactNode {
             editor={editor}
             element={element}
             place={group.place}
-            first={i === 0}
-            last={i === group.elements.length - 1}
+            before={group.elements[i - 1]}
+            after={group.elements[i + 1]}
           />
         </>
       );
@@ -162,15 +163,21 @@ export function movesOf(editor: LayoutEditor, name: string): () => ReactNode {
 }
 
 function MoveItems(props: Where): ReactNode {
-  const { editor, element, place, first, last } = props;
+  const { editor, element, place, before, after } = props;
   const { name } = element;
   return (
     <>
-      {place !== OFF && !first && (
-        <MenuItem label="Move up" onSelect={stay(() => editor.shift(name, -1))} />
+      {place !== OFF && before !== undefined && (
+        <MenuItem
+          label={`Move before ${before.title}`}
+          onSelect={stay(() => editor.shift(name, -1))}
+        />
       )}
-      {place !== OFF && !last && (
-        <MenuItem label="Move down" onSelect={stay(() => editor.shift(name, 1))} />
+      {place !== OFF && after !== undefined && (
+        <MenuItem
+          label={`Move after ${after.title}`}
+          onSelect={stay(() => editor.shift(name, 1))}
+        />
       )}
       {element.also.map((to) => (
         <MenuItem key={to} label={`Move to ${to}`} onSelect={stay(() => editor.move(name, to))} />
@@ -180,7 +187,8 @@ function MoveItems(props: Where): ReactNode {
       )}
       {element.listed && (
         <MenuItem
-          label="Back to where its plugin puts it"
+          label="Plugin default"
+          description={element.defaultPlace}
           onSelect={stay(() => editor.move(name, null))}
         />
       )}

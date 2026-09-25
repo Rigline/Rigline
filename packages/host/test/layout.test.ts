@@ -138,6 +138,24 @@ describe("confirming a save", () => {
     expect(e.saving.get()).toBe("idle");
   });
 
+  it("leaves editing in place once the save is confirmed, unless the copy moved since", async () => {
+    const saved: Layout = { off: ["clock/face"] };
+    const { editor: e } = editor({}, () => saved);
+    e.editing.set(true);
+    e.move("clock/face", "off");
+    await e.confirm(e.working.get());
+    expect(e.editing.get()).toBe(false);
+
+    const { editor: f } = editor({}, () => saved);
+    f.editing.set(true);
+    f.move("clock/face", "off");
+    const confirming = f.confirm(f.working.get());
+    f.move("session-id/address", "rigRow");
+    await confirming;
+    expect(f.saving.get()).toBe("saved");
+    expect(f.editing.get()).toBe(true);
+  });
+
   it("says it could not confirm when the file never holds the copy", async () => {
     const { editor: e, reads } = editor({});
     e.move("clock/face", "off");

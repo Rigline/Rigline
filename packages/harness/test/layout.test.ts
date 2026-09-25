@@ -161,7 +161,7 @@ describe.skipIf(skip !== null)(`the Layout submenu${skip ? ` (${skip})` : ""}`, 
           w.__stages += records.length;
         }).observe(footer, { attributes: true, attributeFilter: ["data-fit-stage"] });
       });
-      await choose(page, "One", "Move down");
+      await choose(page, "One", "Move after Two");
       await expect.poll(order).toBe("21");
       await page.waitForTimeout(300);
       expect(await page.evaluate(() => (window as unknown as { __stages: number }).__stages)).toBe(
@@ -318,12 +318,12 @@ describe.skipIf(skip !== null)(`editing in place${skip ? ` (${skip})` : ""}`, ()
       await page.keyboard.press("ArrowRight");
       expect(await focusedItem(page)).toBe("deck/two");
       await page.keyboard.press("Enter");
-      await expect.poll(activeText).toBe("Move up");
+      await expect.poll(activeText).toBe("Move before One");
       await page.keyboard.press("Enter");
       await expect.poll(order).toBe("21");
-      // Move up took its own item away; the arrows still find the moves that are left.
+      // The move took its own item away; the arrows still find the moves that are left.
       await page.keyboard.press("ArrowDown");
-      expect(await activeText()).toBe("Move down");
+      expect(await activeText()).toBe("Move after One");
       await page.keyboard.press("Escape");
       expect(await focusedItem(page)).toBe("deck/two");
       await page.keyboard.press("Escape");

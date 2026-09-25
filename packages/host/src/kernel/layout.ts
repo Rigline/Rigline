@@ -141,6 +141,8 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
           baseline.set(saved);
           newer.set(false);
           saving.set("saved");
+          // A copy moved since the click is unsaved work, which leaving the mode would hide.
+          if (sameLayout(working.get(), copy)) editing.set(false);
           return;
         }
       }

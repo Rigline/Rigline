@@ -39,10 +39,10 @@ anything may change between releases.
   Each keeps your comments and re-injects. `rigline list` and `rigline add` say when an element has
   been moved or switched off.
 - **Arrange the panel from Rigline's menu.** Layout lists every element by where it sits, and moves
-  one up, down, to another place its plugin allows, off, or back where its plugin puts it, live in
-  the panel behind the menu. Save writes the result to `~/.rigline/config.yaml` through the companion
-  extension, keeping your comments, and its notification says if that replaced a change made since
-  the panel loaded. Without the companion, Copy commands gives you the `rigline layout` commands that
+  one before or after its neighbour, to another place its plugin allows, off, or back to its plugin's
+  default, live in the panel behind the menu. Save writes the result to `~/.rigline/config.yaml`
+  through the companion extension, keeping your comments, and its notification says if that replaced
+  a change made since the panel loaded. Without the companion, Copy commands gives you the `rigline layout` commands that
   do the same. Reload saved layout picks up a layout saved from another panel or a terminal without
   reloading anything. `rigline install` now makes `~/.rigline/token` once, which a Save carries so the
   companion knows it came from your own panel; see [docs/config.md](docs/config.md).
@@ -52,7 +52,7 @@ anything may change between releases.
   handle, with a click or with Enter, opens the same moves as the Layout submenu instead. `rigRow`
   shows while you edit, even with nothing in it, and a tray lists the elements that are switched off
   or have nowhere to go in this panel; drag one out to put it somewhere. A bar above the composer
-  holds Save, Revert changes and Done.
+  holds Save, Revert changes and Done, and a save the panel sees land ends the editing.
 - `Pill` in `@rigline/plugin-api/ui`: a rounded label in the app's own pill colours, like the model
   picker's, and a button when given `onClick`.
 - The `composerBox` anchor: the composer's bordered box.

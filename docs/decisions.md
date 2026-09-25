@@ -2121,7 +2121,7 @@ drop on and starting a drag never grows the composer. That is a row in the field
 ladder cannot see (D90). A slot gets no placeholder: it sits in the app's own containers, and a node
 in the footer is what D54 forbids, so its target is drawn on the layer.
 
-A drop writes the whole order of the place it lands in, as Move up and Move down do, so elements
+A drop writes the whole order of the place it lands in, as Move before and Move after do, so elements
 there at their default become listed. Writing less would have a drop and a move record the same
 arrangement differently.
 

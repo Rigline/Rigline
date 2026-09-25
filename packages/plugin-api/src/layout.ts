@@ -132,6 +132,8 @@ export interface ViewElement {
   readonly listed: boolean;
   /** The other places it may go, as the file spells them. */
   readonly also: readonly string[];
+  /** Where its plugin puts it, as the file spells a place. */
+  readonly defaultPlace: string;
 }
 
 export interface ViewPlace {
@@ -156,7 +158,14 @@ export function layoutView(layout: Layout, plugins: readonly LayoutPlugin[]): Vi
         .map(placeName);
       const rank = elementRank(placed, order, index);
       const list = byPlace.get(place) ?? [];
-      list.push({ name, title: spec.title, listed: placed.listed !== null, also, rank });
+      list.push({
+        name,
+        title: spec.title,
+        listed: placed.listed !== null,
+        also,
+        defaultPlace: placeName(spec.default),
+        rank,
+      });
       byPlace.set(place, list);
     });
   });
