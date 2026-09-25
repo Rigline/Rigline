@@ -10,6 +10,8 @@ anything may change between releases.
 
 ## Unreleased
 
+## 1.0.0-alpha.11 — 2026-09-25
+
 ### Added
 
 - **Rigline's menu.** The RIG pill in the composer footer is now Rigline's own, and clicking it
