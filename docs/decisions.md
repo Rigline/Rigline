@@ -2284,3 +2284,86 @@ Rejected:
 - A level number raised by hand, which somebody has to remember.
 - Comparing every companion directory rather than `PATH`'s: once one profile updated, every other
   profile's would read as current.
+
+**D100. The companion goes into every profile that has Claude Code, and is added wherever it is
+missing (2026-09-25, Leo).** Each profile carries its own extensions, so a companion installed into
+one is absent from a window bound to another. That window has no Save and no status, and a Claude
+Code update in that profile stays vanilla until some companion window happens to run. Nobody can see
+why: they switched repo, and Rigline stopped working.
+
+**Profiles are read from VS Code's own files.** Nothing lists them. The CLI has no verb for it, the
+extension API has no profile API, and the CLI's own `--profile` looks the name up in
+`userDataProfiles` in `<userData>/User/globalStorage/storage.json`. A profile's extensions are in
+`User/profiles/<location>/extensions.json`, and the default profile's are in
+`<extensionsDir>/extensions.json`. A profile with `useDefaultFlags.extensions` uses the default's.
+Rigline reads these files and writes only through the editor's CLI. The line companion.md drew,
+against patching VS Code's state, still holds. What it declined, inferring profiles from
+`storage.json`, is now done. A file or key that cannot be read falls back to the default profile,
+and the report says so. A misread name does no harm: for extension commands the CLI refuses an
+unknown profile rather than creating one.
+
+**`vscode-setup` installs into every profile that has Claude Code or the companion, and every look
+adds the companion wherever it is missing.** The rule reads only VS Code's current state. A profile
+with Claude Code and no companion gets one, unless `config.yaml` says otherwise, so there is no
+record and nothing to migrate. An editor gets additions only while the companion is in at least one
+of its profiles. That answers whether this person wanted the companion at all, and it means
+additions never cross editors.
+
+There are two looks. The companion's comes after self-update on every `start` and `moved` run, for
+its own editor. `rigline update`'s covers every editor on `PATH`, and an engine too old for the verb
+says nothing.
+
+The companion knows its editor exactly:
+
+- The user-data directory comes from `globalStorageUri`, which is always the default profile's, so
+  it names the directory and not the profile.
+- The extensions directory is the parent of its own path.
+- The CLI is `process.execPath` running `<appRoot>/out/cli.js` with `ELECTRON_RUN_AS_NODE`, which is
+  what the `code` shim runs.
+
+The terminal finds the directories from a table per editor. A portable install or a custom
+`--user-data-dir` falls outside that table.
+
+**The companion is managed through Rigline.** An uninstall from the Extensions view is undone at the
+next look. Disable sticks, because VS Code keeps the disabled list outside `extensions.json`. In
+`config.yaml`:
+
+- `companion.skipProfiles` names profiles to leave alone.
+- `companion.everyProfile: false` restores the old behaviour: the default profile or the one
+  `--profile` names, and no additions.
+
+`vscode-setup --remove --profile NAME` adds the name to the list, and `--profile NAME` takes it off,
+as `disable` and `enable` do. `--remove` alone takes the companion out of every profile, which also
+stops additions (D80).
+
+**A VSIX install re-extracts the shared directory every time,** into any profile, with or without
+`--force`. So adding the companion to one profile rewrites the directory another profile's running
+companion was loaded from. With identical bytes that is harmless, read live: the install succeeds on
+Windows and the running window does nothing. An addition therefore refuses when the directory at the
+carried version holds a different build, which is D99's case. It also leaves out `--force`, which
+permits only a downgrade. When a window of the target profile is open, the companion starts in it
+at once, without a restart.
+
+**Additions are skipped while `rigline.enginePath` is set.** A companion added by a checkout engine
+would start without the setting and re-inject with the released engine (D94). The setting stays per
+profile. A development setup kept apart from a release one needs a second VS Code instance with its
+own `--extensions-dir`, because every profile shares Claude Code's directories and `install` injects
+every version.
+
+`doctor` does not report profiles. Their names are the person's, and D53 keeps the report to files
+Rigline wrote.
+
+This amends D99. "Nothing is added to a profile or editor somebody left it out of" now means left
+out through Rigline. D99 rejected `rigline update` installing the VSIX, and that rejection no longer
+holds for adding a companion, now that the profiles can be read. Moving an existing companion stays
+self-update's job.
+
+Rejected:
+
+- Adding the companion only when Claude Code arrives in a profile, which would leave an uninstall
+  by hand alone. It needs a record of the last look, a migration case, and bookkeeping for failed
+  installs, all for a case Disable already covers.
+- Asking the CLI for membership with `--list-extensions --profile`. It is public, but it starts
+  Electron once per profile at every companion start, and it reads the same file.
+- An `enginePath` shared across profiles. No setting scope an extension can declare is both shared
+  across profiles and kept out of Settings Sync.

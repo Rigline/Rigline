@@ -356,12 +356,6 @@ built. The first two change what a plugin is written against.
   when it is taken.
 - **A plugins repository**, the home for a first-party plugin that is not part of the product.
   Triggered by the first such plugin; the git source comes first.
-- **`vscode-setup` into every profile that has Claude Code.** It installs into the default profile,
-  or the one `--profile` names; the companion keeps itself current wherever it is (D99), but getting
-  it into each profile is still by hand. The CLI can check a named profile's extensions and cannot
-  list profiles, so this takes reading VS Code's `storage.json`, which companion.md declines.
-  Triggered by that decision being revisited.
-
 - **Merging layout edits from several sources.** A save from the panel overwrites the file's layout
   and warns when that replaces a change made since the panel loaded (D92). Revisit when that warning
   costs somebody work.
