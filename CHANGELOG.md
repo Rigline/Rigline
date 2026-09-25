@@ -10,6 +10,8 @@ anything may change between releases.
 
 ## Unreleased
 
+## 1.0.0-alpha.12 — 2026-09-26
+
 ### Added
 
 - The companion extension updates itself. When the engine it runs carries a newer companion, it
