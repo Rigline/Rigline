@@ -42,7 +42,6 @@ anything may change between releases.
   output channel. Uninstalling it from a profile through the Extensions view is therefore undone;
   disable it there instead, or list the profile in `companion.skipProfiles`. It adds nothing in a
   remote window, or while `rigline.enginePath` is set.
-
 - `rigline vscode-setup` installs the companion extension outside Settings Sync. Synced, it was
   carried to your other machines, where VS Code looks for it on the Marketplace, and nothing of
   Rigline's is published there. Run `rigline vscode-setup` again to move an existing install over.
