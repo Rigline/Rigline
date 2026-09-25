@@ -50,6 +50,17 @@ export interface PluginsConfig {
   readonly layout: Layout;
 }
 
+/** `config.yaml`'s `companion` block: which VS Code profiles get the companion (D100). */
+export interface CompanionSettings {
+  /** False puts it only where `vscode-setup` is told, and never adds it anywhere by itself. */
+  readonly everyProfile: boolean;
+  /** Profile names, as VS Code shows them, never to add it to. */
+  readonly skipProfiles: readonly string[];
+}
+
+/** The `companion` block's path, for the commands that edit it. */
+export const SKIP_PROFILES = ["companion", "skipProfiles"] as const;
+
 /** The three files the split is between, as `riglinePaths` names them. */
 export interface ConfigFiles {
   readonly config: string;
@@ -69,6 +80,16 @@ const TO_STRING = { flowCollectionPadding: false } as const;
 export function readConfig(path: string): PluginsConfig {
   if (!existsSync(path)) return { path, disabled: [], layout: {} };
   return configOf(path, parseConfig(path, readFileSync(path, "utf8")));
+}
+
+/** The `companion` block, with its defaults when absent; malformed is loud, as for `readConfig`. */
+export function readCompanionSettings(path: string): CompanionSettings {
+  if (!existsSync(path)) return companionOf(path, undefined);
+  const value = (parseConfig(path, readFileSync(path, "utf8")).toJS() ?? {}) as Record<
+    string,
+    unknown
+  >;
+  return companionOf(path, value.companion);
 }
 
 /**
@@ -141,7 +162,24 @@ function configOf(path: string, doc: Document): PluginsConfig {
   if (!Array.isArray(disabled) || !disabled.every((d) => typeof d === "string")) {
     throw new UserError(`${path}: "disabled" must be a list of plugin names`);
   }
+  companionOf(path, value.companion);
   return { path, disabled, layout: layoutOf(path, value.layout) };
+}
+
+function companionOf(path: string, value: unknown): CompanionSettings {
+  if (value === undefined || value === null) return { everyProfile: true, skipProfiles: [] };
+  if (typeof value !== "object" || Array.isArray(value)) {
+    throw new UserError(`${path}: "companion" must be a mapping of settings`);
+  }
+  const { everyProfile = true, skipProfiles } = value as Record<string, unknown>;
+  if (typeof everyProfile !== "boolean") {
+    throw new UserError(`${path}: "companion.everyProfile" must be true or false`);
+  }
+  const skip = skipProfiles ?? [];
+  if (!Array.isArray(skip) || !skip.every((name) => typeof name === "string")) {
+    throw new UserError(`${path}: "companion.skipProfiles" must be a list of profile names`);
+  }
+  return { everyProfile, skipProfiles: skip };
 }
 
 /**

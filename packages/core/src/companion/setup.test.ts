@@ -1,12 +1,14 @@
 /**
  * `vscode-setup`, with no editor on the machine and no process spawned.
  *
- * The search and the argv are the parts worth holding: everything else is one `spawn` whose
- * behaviour belongs to VS Code.
+ * The search, the choice of profiles and the report are the parts worth holding: everything else is
+ * one `spawn` whose behaviour belongs to VS Code.
  */
-import { delimiter, join } from "node:path";
+import { delimiter, join, win32 } from "node:path";
 import { describe, expect, it } from "vitest";
 import { UserError } from "../errors.ts";
+import type { CompanionSettings } from "../plugins/config.ts";
+import { installArgv, type Profile, type ProfilesRead, uninstallArgv } from "./profiles.ts";
 import {
   checkoutEngineNote,
   EDITOR_CLIS,
@@ -14,7 +16,7 @@ import {
   type FoundEditor,
   findEditors,
   formatSetup,
-  setupArgv,
+  type SetupOutcome,
   setupCompanion,
 } from "./setup.ts";
 
@@ -32,7 +34,37 @@ const only =
     paths.includes(p);
 
 function editor(cli: string, label: string, path: string): FoundEditor {
-  return { cli, label, path };
+  return { cli, label, path, product: label, dataFolder: `.${cli}` };
+}
+
+const CODE = editor("code", "VS Code", join(abs("bin"), "code.cmd"));
+const CURSOR = editor("cursor", "Cursor", join(abs("bin"), "cursor.cmd"));
+
+const EVERY: CompanionSettings = { everyProfile: true, skipProfiles: [] };
+
+function profile(name: string, over: Partial<Profile> = {}): Profile {
+  return {
+    name,
+    location: name === "Default" ? null : name.toLowerCase(),
+    sharesDefault: false,
+    claudeCode: false,
+    companion: false,
+    ...over,
+  };
+}
+
+const read = (...profiles: Profile[]): ProfilesRead => ({ kind: "read", profiles });
+
+/** A CLI that records what it was asked, and fails for the paths `failing` names. */
+function recorder(...failing: string[]) {
+  const calls: { command: string; argv: readonly string[] }[] = [];
+  return {
+    calls,
+    run: async (command: string, argv: readonly string[]) => {
+      calls.push({ command, argv });
+      return failing.includes(command) ? { code: 1, output: "no" } : { code: 0, output: "" };
+    },
+  };
 }
 
 describe("findEditors", () => {
@@ -44,6 +76,16 @@ describe("findEditors", () => {
       exists: only(join(bin, "cursor.cmd"), join(bin, "code.cmd")),
     });
     expect(found.map((e) => e.cli)).toEqual(["code", "cursor"]);
+  });
+
+  it("carries the names each editor's directories are derived from", () => {
+    const bin = abs("bin");
+    const found = findEditors({
+      env: { PATH: bin },
+      platform: "win32",
+      exists: only(join(bin, "code.cmd")),
+    });
+    expect(found[0]).toMatchObject({ product: "Code", dataFolder: ".vscode" });
   });
 
   it("takes the shim on Windows, which is how the CLI ships", () => {
@@ -93,70 +135,102 @@ describe("findEditors", () => {
   });
 });
 
-describe("setupArgv", () => {
-  it("forces the install, so a re-run is a no-op rather than a refusal", () => {
-    expect(setupArgv(VSIX, false)).toEqual([
-      "--install-extension",
-      VSIX,
-      "--force",
-      "--do-not-sync",
-    ]);
-  });
-
-  it("keeps the install out of Settings Sync, and leaves an uninstall alone", () => {
-    expect(setupArgv(VSIX, false)).toContain("--do-not-sync");
-    expect(setupArgv(VSIX, true)).not.toContain("--do-not-sync");
-  });
-
-  it("uninstalls by extension id, which is what the editor knows it as", () => {
-    expect(setupArgv(VSIX, true)).toEqual(["--uninstall-extension", "rigline.rigline"]);
-  });
-
-  // Without it the CLI installs into the default profile, and a workspace bound to another never
-  // sees the companion while `code --list-extensions`, the extensions directory and
-  // `extensions.json` all agree it is installed.
-  it("names the profile when given one, on both directions", () => {
-    expect(setupArgv(VSIX, false, "Yarn PNP")).toEqual([
-      "--install-extension",
-      VSIX,
-      "--force",
-      "--do-not-sync",
-      "--profile",
-      "Yarn PNP",
-    ]);
-    expect(setupArgv(VSIX, true, "Yarn PNP")).toEqual([
-      "--uninstall-extension",
-      "rigline.rigline",
-      "--profile",
-      "Yarn PNP",
-    ]);
-  });
-
-  it("says nothing about profiles when none was asked for", () => {
-    expect(setupArgv(VSIX, false).join(" ")).not.toContain("--profile");
-  });
-});
-
 describe("setupCompanion", () => {
-  it("runs once per editor, with that editor's own CLI", async () => {
-    const calls: { command: string; argv: readonly string[] }[] = [];
+  it("installs into every profile with Claude Code or the companion, with each editor's CLI", async () => {
+    const { calls, run } = recorder();
     const outcomes = await setupCompanion({
       vsix: VSIX,
-      editors: [
-        editor("code", "VS Code", join(abs("bin"), "code.cmd")),
-        editor("cursor", "Cursor", join(abs("bin"), "cursor.cmd")),
-      ],
-      run: async (command, argv) => {
-        calls.push({ command, argv });
-        return { code: 0, output: "" };
-      },
+      editors: [CODE, CURSOR],
+      settings: EVERY,
+      profilesOf: (e) =>
+        e === CODE
+          ? read(
+              profile("Default", { claudeCode: true }),
+              profile("Yarn PNP", { claudeCode: true }),
+              profile("Kokai"),
+            )
+          : read(profile("Default", { companion: true })),
+      run,
     });
-
-    expect(calls.map((c) => c.command)).toEqual([
-      join(abs("bin"), "code.cmd"),
-      join(abs("bin"), "cursor.cmd"),
+    expect(calls).toEqual([
+      { command: CODE.path, argv: installArgv(VSIX, null, true) },
+      { command: CODE.path, argv: installArgv(VSIX, "Yarn PNP", true) },
+      { command: CURSOR.path, argv: installArgv(VSIX, null, true) },
     ]);
-    expect(outcomes).toHaveLength(2);
+    expect(outcomes[0]).toMatchObject({ skipped: [], others: 1 });
+  });
+
+  it("leaves out a skipped profile and says so", async () => {
+    const { calls, run } = recorder();
+    const outcomes = await setupCompanion({
+      vsix: VSIX,
+      editors: [CODE],
+      settings: { everyProfile: true, skipProfiles: ["Kokai"] },
+      profilesOf: () =>
+        read(profile("Default", { claudeCode: true }), profile("Kokai", { claudeCode: true })),
+      run,
+    });
+    expect(calls.map((c) => c.argv)).toEqual([installArgv(VSIX, null, true)]);
+    expect(outcomes[0]?.skipped).toEqual(["Kokai"]);
+  });
+
+  it("uses the default profile where the profiles cannot be read, and says why", async () => {
+    const { calls, run } = recorder();
+    const outcomes = await setupCompanion({
+      vsix: VSIX,
+      editors: [CODE],
+      settings: EVERY,
+      profilesOf: () => ({ kind: "unreadable", why: "storage.json is not JSON" }),
+      run,
+    });
+    expect(calls.map((c) => c.argv)).toEqual([installArgv(VSIX, null, true)]);
+    expect(outcomes[0]?.unread).toBe("storage.json is not JSON");
+  });
+
+  it("installs into the one profile named, in each editor that has it", async () => {
+    const { calls, run } = recorder();
+    const outcomes = await setupCompanion({
+      vsix: VSIX,
+      editors: [CODE, CURSOR],
+      profile: "Yarn PNP",
+      settings: EVERY,
+      profilesOf: (e) =>
+        e === CODE ? read(profile("Default"), profile("Yarn PNP")) : read(profile("Default")),
+      run,
+    });
+    expect(calls).toEqual([{ command: CODE.path, argv: installArgv(VSIX, "Yarn PNP", true) }]);
+    expect(outcomes[1]?.absent).toBe("Yarn PNP");
+  });
+
+  it("refuses a profile no editor has, naming the ones there are", async () => {
+    const { run } = recorder();
+    await expect(
+      setupCompanion({
+        vsix: VSIX,
+        editors: [CODE],
+        profile: "Yarn",
+        settings: EVERY,
+        profilesOf: () => read(profile("Default"), profile("Yarn PNP")),
+        run,
+      }),
+    ).rejects.toThrow(/no editor has a profile called "Yarn".*"Yarn PNP"/);
+  });
+
+  it("removes from every profile that holds the companion", async () => {
+    const { calls, run } = recorder();
+    await setupCompanion({
+      remove: true,
+      editors: [CODE],
+      settings: EVERY,
+      profilesOf: () =>
+        read(
+          profile("Default", { companion: true }),
+          profile("B"),
+          profile("C", { companion: true }),
+        ),
+      run,
+    });
+    expect(calls.map((c) => c.argv)).toEqual([uninstallArgv(null), uninstallArgv("C")]);
   });
 
   it("refuses with the Command Palette alternative when no CLI is on PATH", async () => {
@@ -164,6 +238,7 @@ describe("setupCompanion", () => {
       setupCompanion({
         vsix: VSIX,
         editors: [],
+        settings: EVERY,
         run: async () => {
           throw new Error("nothing should have run");
         },
@@ -173,76 +248,95 @@ describe("setupCompanion", () => {
 
   it("names the macOS repair in that refusal, since that is where the CLI is missing", async () => {
     await expect(
-      setupCompanion({ vsix: VSIX, editors: [], run: async () => ({ code: 0, output: "" }) }),
+      setupCompanion({
+        vsix: VSIX,
+        editors: [],
+        settings: EVERY,
+        run: async () => ({ code: 0, output: "" }),
+      }),
     ).rejects.toThrow(/Shell Command/);
   });
 
   it("carries on past an editor that failed, and reports it", async () => {
+    const { run } = recorder(CURSOR.path);
     const outcomes = await setupCompanion({
       vsix: VSIX,
-      editors: [
-        editor("code", "VS Code", join(abs("bin"), "code.cmd")),
-        editor("cursor", "Cursor", join(abs("bin"), "cursor.cmd")),
-      ],
-      run: async (command) =>
-        command.includes("cursor") ? { code: 1, output: "no" } : { code: 0, output: "" },
+      editors: [CODE, CURSOR],
+      settings: EVERY,
+      profilesOf: () => read(profile("Default", { claudeCode: true })),
+      run,
     });
-
     const report = formatSetup(outcomes, false);
-    expect(report).toContain("VS Code: installed");
-    expect(report).toContain("Cursor: failed");
+    expect(report).toContain("Default: installed");
+    expect(report).toContain("Default: failed (cursor exited 1)");
   });
 });
 
 describe("formatSetup", () => {
+  function outcome(over: Partial<SetupOutcome> = {}): SetupOutcome {
+    return {
+      editor: CODE,
+      results: [{ profile: "Default", code: 0, output: "" }],
+      skipped: [],
+      others: 0,
+      ...over,
+    };
+  }
+
   it("asks for a reload after a removal, and leaves an install's to the injection after it", () => {
-    const outcomes = [{ editor: editor("code", "VS Code", "code"), code: 0, output: "" }];
-    expect(formatSetup(outcomes, true)).toMatch(/Reload the window/);
-    expect(formatSetup(outcomes, false)).not.toMatch(/Reload the window/);
+    expect(formatSetup([outcome()], true)).toMatch(/Reload the window/);
+    expect(formatSetup([outcome()], false)).not.toMatch(/Reload the window/);
   });
 
   it("does not ask for a reload when nothing did", () => {
-    const outcomes = [{ editor: editor("code", "VS Code", "code"), code: 1, output: "broke" }];
-    expect(formatSetup(outcomes, false)).not.toMatch(/Reload the window/);
+    const failed = outcome({ results: [{ profile: "Default", code: 1, output: "broke" }] });
+    expect(formatSetup([failed], true)).not.toMatch(/Reload the window/);
   });
 
   it("names the binary it used, because one machine holds several `code`s", () => {
     // Leo's laptop: `code --list-extensions` listed it, the Extensions view never showed it, and
-    // nothing on screen said which editor had been installed into. `installed` alone is true and
-    // useless; the path is the whole diagnosis.
+    // nothing on screen said which editor had been installed into.
     const cli = join(abs("other-vscode"), "bin", "code.cmd");
-    const outcomes = [{ editor: editor("code", "VS Code", cli), code: 0, output: "" }];
-    expect(formatSetup(outcomes, false, VSIX)).toContain(cli);
+    const report = formatSetup([outcome({ editor: editor("code", "VS Code", cli) })], false, VSIX);
+    expect(report).toContain(cli);
   });
 
   it("names the VSIX, because the repair is installing it by hand elsewhere", () => {
-    const outcomes = [{ editor: editor("code", "VS Code", "code"), code: 0, output: "" }];
-    const report = formatSetup(outcomes, false, VSIX);
+    const report = formatSetup([outcome()], false, VSIX);
     expect(report).toContain(VSIX);
     expect(report).toMatch(/Install from VSIX/);
+    expect(formatSetup([outcome()], true)).not.toMatch(/Install from VSIX/);
   });
 
-  it("offers neither on a removal, where there is nothing to install by hand", () => {
-    const outcomes = [{ editor: editor("code", "VS Code", "code"), code: 0, output: "" }];
-    expect(formatSetup(outcomes, true)).not.toMatch(/Install from VSIX/);
+  it("names every profile it installed into or skipped, and counts the rest", () => {
+    const report = formatSetup(
+      [
+        outcome({
+          results: [
+            { profile: "Default", code: 0, output: "" },
+            { profile: "Yarn PNP", code: 0, output: "" },
+          ],
+          skipped: ["Kokai"],
+          others: 5,
+        }),
+      ],
+      false,
+      VSIX,
+    );
+    expect(report).toContain("Yarn PNP: installed");
+    expect(report).toContain("Kokai: skipped, by companion.skipProfiles");
+    expect(report).toContain("5 other profiles have no Claude Code");
   });
 
-  // The diagnosis that was missing, and the reason the other one was not enough: somebody using
-  // profiles can check "a different install", find it false, and be left with no next move.
-  it("names profiles as a cause, and says which one it used", () => {
-    const outcomes = [{ editor: editor("code", "VS Code", "code"), code: 0, output: "" }];
-    const report = formatSetup(outcomes, false, VSIX);
-    expect(report).toContain("the default profile");
-    expect(report).toMatch(/--profile NAME/);
-  });
-
-  it("stops suggesting a profile once one was named, and names it instead", () => {
-    const outcomes = [{ editor: editor("code", "VS Code", "code"), code: 0, output: "" }];
-    const report = formatSetup(outcomes, false, VSIX, "Yarn PNP");
-    expect(report).toContain("Yarn PNP");
-    expect(report).not.toMatch(/--profile NAME/);
-    // And it stops promising two of them, which is what listing one after "two causes" did.
-    expect(report).not.toMatch(/Two causes/);
+  // Every profile is read, so a profile is a cause only where that failed.
+  it("names profiles as a cause only where they could not be read", () => {
+    const read = formatSetup([outcome()], false, VSIX);
+    expect(read).not.toMatch(/--profile NAME/);
+    expect(read).not.toMatch(/Two causes/);
+    const unread = formatSetup([outcome({ unread: "no storage.json" })], false, VSIX);
+    expect(unread).toContain("no storage.json");
+    expect(unread).toMatch(/Two causes/);
+    expect(unread).toMatch(/--profile NAME/);
   });
 });
 
@@ -260,24 +354,20 @@ describe("checkoutEngineNote", () => {
 describe("editorSpawn", () => {
   it("runs a Windows .cmd through cmd.exe, because Node will not spawn one", () => {
     // Node throws EINVAL on a .cmd since the BatBadBut fix (CVE-2024-27980): a batch file can only
-    // be run by an interpreter, and `spawn` will not pick one for you. Every test here injects
-    // `run`, so the spawn itself had no coverage and `vscode-setup` had never worked on Windows.
-    const cmd = "C:VS Code\bincode.cmd";
-    const [file, argv, opts] = editorSpawn(
-      cmd,
-      ["--install-extension", "C:a b\r.vsix"],
-      "win32",
-      "cmd.exe",
-    );
+    // be run by an interpreter, and `spawn` will not pick one for you.
+    const cmd = win32.join("C:/", "VS Code", "bin", "code.cmd");
+    const vsix = win32.join("C:/", "a b", "r.vsix");
+    const [file, argv, opts] = editorSpawn(cmd, ["--install-extension", vsix], "win32", "cmd.exe");
     expect(file).toBe("cmd.exe");
     expect(argv.slice(0, 3)).toEqual(["/d", "/s", "/c"]);
-    expect(argv[3]).toBe('""C:VS Code\bincode.cmd" "--install-extension" "C:a b\r.vsix""');
+    expect(argv[3]).toBe(`""${cmd}" "--install-extension" "${vsix}""`);
     expect(opts.windowsVerbatimArguments).toBe(true);
   });
 
   it("spawns a real executable directly, even on Windows", () => {
-    const [file, argv, opts] = editorSpawn("C:\bincode.exe", ["--version"], "win32");
-    expect(file).toBe("C:\bincode.exe");
+    const exe = win32.join("C:/", "bin", "code.exe");
+    const [file, argv, opts] = editorSpawn(exe, ["--version"], "win32");
+    expect(file).toBe(exe);
     expect(argv).toEqual(["--version"]);
     expect(opts.windowsVerbatimArguments).toBeUndefined();
   });

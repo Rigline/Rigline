@@ -33,7 +33,24 @@ export {
   companionStatus,
   installedFingerprint,
 } from "./companion/fingerprint.ts";
-export type { FoundEditor, SetupOptions, SetupOutcome } from "./companion/setup.ts";
+export type {
+  Additions,
+  EditorCli,
+  EditorContext,
+  EditorDirs,
+  Profile,
+  ProfilesRead,
+} from "./companion/profiles.ts";
+export {
+  addWhereMissing,
+  editorDirs,
+  installArgv,
+  missingFrom,
+  readProfiles,
+  setupTargets,
+  uninstallArgv,
+} from "./companion/profiles.ts";
+export type { FoundEditor, ProfileOutcome, SetupOptions, SetupOutcome } from "./companion/setup.ts";
 export {
   COMPANION_RELOAD,
   COMPANION_VSIX,
@@ -43,7 +60,6 @@ export {
   editorSpawn,
   findEditors,
   formatSetup,
-  setupArgv,
   setupCompanion,
 } from "./companion/setup.ts";
 export type { DoctorOptions, DoctorReport } from "./doctor/collect.ts";
@@ -106,6 +122,7 @@ export { harvestAll, LAYERS, scanOf } from "./layers/index.ts";
 export type { RiglinePaths } from "./paths.ts";
 export { RIGLINE_HOME_VARIABLE, riglineHome, riglinePaths } from "./paths.ts";
 export type {
+  CompanionSettings,
   ConfigFiles,
   NpmSource,
   PathSource,
@@ -113,10 +130,14 @@ export type {
   PluginsConfig,
 } from "./plugins/config.ts";
 export {
+  addToList,
   describeSource,
   editConfig,
+  readCompanionSettings,
   readConfig,
   readSources,
+  removeFromList,
+  SKIP_PROFILES,
   splitLegacyConfig,
   updateSources,
 } from "./plugins/config.ts";

@@ -23,8 +23,17 @@ anything may change between releases.
   install.
 - `~/.rigline/drift.txt`, the full list of what changed inside Claude Code the last time
   `rigline install` found anything had.
+- A `companion` block in `~/.rigline/config.yaml`. `skipProfiles` lists VS Code profiles the
+  companion is never put into, and `everyProfile: false` keeps it to the default profile.
+  `rigline vscode-setup --remove --profile NAME` takes it out of one profile and adds that profile
+  to the list, and `--profile NAME` puts it back.
 
 ### Changed
+
+- `rigline vscode-setup` installs the companion into every VS Code profile that has Claude Code,
+  rather than only the default one, and lists each profile it installed into. Before, a workspace
+  bound to another profile ran without the companion, and nothing said so. `--remove` takes it out
+  of every profile. A `--profile` name that no profile has is refused, naming the ones there are.
 
 - `rigline vscode-setup` installs the companion extension outside Settings Sync. Synced, it was
   carried to your other machines, where VS Code looks for it on the Marketplace, and nothing of

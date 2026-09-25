@@ -5,9 +5,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   addToList,
   editConfig,
+  readCompanionSettings,
   readConfig,
   readSources,
   removeFromList,
+  SKIP_PROFILES,
   splitLegacyConfig,
   updateSources,
 } from "./config.ts";
@@ -25,6 +27,42 @@ afterEach(() => {
 });
 
 const SOURCE = { kind: "path", from: "/somewhere/clock", addedAt: "2026-09-18T11:00:00.000Z" };
+
+describe("readCompanionSettings", () => {
+  it("is every profile, none skipped, when the file or the block is absent (D100)", () => {
+    const path = join(tempDir(), "config.yaml");
+    expect(readCompanionSettings(path)).toEqual({ everyProfile: true, skipProfiles: [] });
+    writeFileSync(path, "disabled: [x]\n");
+    expect(readCompanionSettings(path)).toEqual({ everyProfile: true, skipProfiles: [] });
+  });
+
+  it("reads both settings as written", () => {
+    const path = join(tempDir(), "config.yaml");
+    writeFileSync(path, "companion:\n  everyProfile: false\n  skipProfiles:\n    - Kokai\n");
+    expect(readCompanionSettings(path)).toEqual({ everyProfile: false, skipProfiles: ["Kokai"] });
+  });
+
+  it("is loud about a block of the wrong shape, for every command that reads the file", () => {
+    const path = join(tempDir(), "config.yaml");
+    writeFileSync(path, "companion:\n  everyProfile: sometimes\n");
+    expect(() => readCompanionSettings(path)).toThrow(
+      /"companion.everyProfile" must be true or false/,
+    );
+    expect(() => readConfig(path)).toThrow(/everyProfile/);
+    writeFileSync(path, "companion:\n  skipProfiles: Kokai\n");
+    expect(() => readCompanionSettings(path)).toThrow(/"companion.skipProfiles" must be a list/);
+  });
+
+  it("makes the block when a command first skips a profile, and keeps what is there", () => {
+    const path = join(tempDir(), "config.yaml");
+    writeFileSync(path, "# mine\ndisabled: [x]\n");
+    editConfig(path, (doc) => addToList(doc, SKIP_PROFILES, "Kokai"));
+    expect(readFileSync(path, "utf8")).toContain("# mine");
+    expect(readCompanionSettings(path).skipProfiles).toEqual(["Kokai"]);
+    editConfig(path, (doc) => removeFromList(doc, SKIP_PROFILES, "Kokai"));
+    expect(readCompanionSettings(path).skipProfiles).toEqual([]);
+  });
+});
 
 describe("readConfig", () => {
   it("returns an empty disabled list when the file is absent, and still says where it looked", () => {

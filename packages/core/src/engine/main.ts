@@ -21,12 +21,16 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { placementLabel, placeName } from "@rigline/plugin-api";
 import {
+  type Additions,
   type AddResult,
   addPlugin,
+  addToList,
+  addWhereMissing,
   bundledDir,
   bundledPluginsDir,
   COMPANION_RELOAD,
   CORE_VERSION,
+  carriedCompanion,
   check,
   checkoutEngineNote,
   checkoutPluginsDir,
@@ -35,10 +39,15 @@ import {
   companionVsix,
   diffScans,
   discoverPlugins,
+  type EditorCli,
+  type EditorContext,
   EXTENSIONS_DIR,
+  editConfig,
+  editorDirs,
   editorSpawn,
   enabledPlugins,
   extensionVersion,
+  findEditors,
   findExtension,
   formatDiff,
   formatDoctor,
@@ -61,11 +70,14 @@ import {
   placeInLayout,
   readAnchorOverrides,
   readBundles,
+  readCompanionSettings,
   readConfig,
+  removeFromList,
   removePlugin,
   resetLayout,
   restoreAll,
   riglinePaths,
+  SKIP_PROFILES,
   saveFromPanel,
   scanOf,
   setPluginEnabled,
@@ -132,7 +144,8 @@ const USAGE = `rigline ${CORE_VERSION}
       Move the engine, and each plugin installed from npm, to whatever its tag resolves to
       now, and re-inject. A plugin pinned to a version, added from a directory, or placed by
       hand is reported and left alone, as is a newer version too young to install. --tag
-      follows a preview line instead of latest, for the engine.
+      follows a preview line instead of latest, for the engine. Where the companion is
+      installed, it is added to any VS Code profile that has Claude Code without it.
 
   rigline remove NAME
       Delete a plugin rigline installed, and re-inject. A plugin you did not install this
@@ -167,10 +180,11 @@ const USAGE = `rigline ${CORE_VERSION}
       step instead of install rather than after it. Declining it costs nothing: install is
       complete on its own. --remove takes the companion out and leaves the injection alone.
       Reload the window afterwards.
-      Extensions belong to a VS Code profile and this installs into the default one. If your
-      workspace uses another, pass --profile with the name from VS Code's profile switcher,
-      or the companion is installed, listed, and invisible to the window you are in. Copy the
-      name rather than typing it: an unknown one makes a new empty profile instead of failing.
+      It goes into every VS Code profile that has Claude Code, and is added to any profile
+      that gets Claude Code later. --profile NAME installs into that profile alone; with
+      --remove it takes the companion out of that one and keeps it out. The companion block
+      in ~/.rigline/config.yaml says the same by hand: skipProfiles, and everyProfile: false
+      for the default profile only.
 
   rigline status
       Per installed version: is each bundle vanilla or patched, judged against its backup.
@@ -566,45 +580,43 @@ async function vscodeSetupCommand(args: string[]): Promise<number> {
     },
     allowPositionals: false,
   });
-  if (values.profile !== undefined && values.profile.trim() === "") {
-    // An empty name would reach the CLI as one, and VS Code makes a profile out of whatever it is
-    // given rather than refusing — so the silent outcome is a junk profile nobody asked for.
+  const profile = values.profile;
+  if (profile !== undefined && profile.trim() === "") {
+    // The CLI reads an empty name as none, so this would quietly act on the default profile.
     throw new UserError("--profile needs a profile name");
   }
 
+  const paths = riglinePaths();
   const outcomes = await setupCompanion({
     remove: values.remove,
-    ...(values.profile === undefined ? {} : { profile: values.profile }),
-    run: async (command, argv) => {
-      const child = spawn(...editorSpawn(command, argv));
-      let output = "";
-      child.stdout?.setEncoding("utf8");
-      child.stdout?.on("data", (chunk: string) => {
-        output += chunk;
-      });
-      child.stderr?.setEncoding("utf8");
-      child.stderr?.on("data", (chunk: string) => {
-        output += chunk;
-      });
-      return await new Promise((done, fail) => {
-        child.on("error", fail);
-        child.on("close", (code) => done({ code: code ?? 1, output }));
-      });
-    },
+    ...(profile === undefined ? {} : { profile }),
+    settings: readCompanionSettings(paths.config),
+    run: (command, argv) => runEditor({ command, prefix: [] }, argv),
   });
 
-  console.log(
-    formatSetup(
-      outcomes,
-      values.remove,
-      values.remove ? undefined : companionVsix(),
-      values.profile,
-    ),
-  );
-  if (!values.remove && outcomes.some((o) => o.code === 0) && checkoutPluginsDir() !== null) {
+  console.log(formatSetup(outcomes, values.remove, values.remove ? undefined : companionVsix()));
+  // A profile removed by name stays out of every later look, and one installed by name comes back in
+  // (D100).
+  if (profile !== undefined) {
+    const changed = editConfig(paths.config, (doc) =>
+      values.remove
+        ? addToList(doc, SKIP_PROFILES, profile)
+        : removeFromList(doc, SKIP_PROFILES, profile),
+    );
+    if (changed) {
+      console.log(
+        values.remove
+          ? `\nadded "${profile}" to companion.skipProfiles in ${paths.config}, so it is not added back`
+          : `\ntook "${profile}" off companion.skipProfiles in ${paths.config}`,
+      );
+    }
+  }
+  const results = outcomes.flatMap((o) => o.results);
+  const installed = results.some((r) => r.code === 0);
+  if (!values.remove && installed && checkoutPluginsDir() !== null) {
     console.log(checkoutEngineNote(fileURLToPath(new URL("bin.js", import.meta.url))));
   }
-  const failed = outcomes.some((o) => o.code !== 0) ? 1 : 0;
+  const failed = results.some((r) => r.code !== 0) ? 1 : 0;
 
   // And inject, on `add`'s rule (D55, D56): a command that changes what is installed re-injects, so
   // the user is one reload away rather than one reload and a command they have to know about.
@@ -616,8 +628,110 @@ async function vscodeSetupCommand(args: string[]): Promise<number> {
   // done at the moment somebody would otherwise have to be told about it.
   if (values.remove) return failed;
   console.log("");
-  const installed = outcomes.some((o) => o.code === 0);
   return reinject(installed ? { reload: COMPANION_RELOAD } : {}) === 0 ? failed : 1;
+}
+
+/** Runs one editor's CLI and collects everything it said. */
+async function runEditor(
+  cli: EditorCli,
+  argv: readonly string[],
+): Promise<{ code: number; output: string }> {
+  const [command, args, options] = editorSpawn(cli.command, [...cli.prefix, ...argv]);
+  const child = spawn(command, args, {
+    ...options,
+    ...(cli.env === undefined ? {} : { env: { ...process.env, ...cli.env } }),
+  });
+  let output = "";
+  child.stdout?.setEncoding("utf8");
+  child.stdout?.on("data", (chunk: string) => {
+    output += chunk;
+  });
+  child.stderr?.setEncoding("utf8");
+  child.stderr?.on("data", (chunk: string) => {
+    output += chunk;
+  });
+  return await new Promise((done, fail) => {
+    child.on("error", fail);
+    child.on("close", (code) => done({ code: code ?? 1, output }));
+  });
+}
+
+/**
+ * `companion-profiles`: adds the companion wherever it is missing, as JSON on stdout (D100). Hidden,
+ * like `companion-status`. The companion names its own editor exactly; with nothing named, every
+ * editor on PATH, where `editorDirs` finds them.
+ */
+async function companionProfilesCommand(args: string[]): Promise<number> {
+  const { values } = parseArgs({
+    args,
+    options: {
+      "user-data-dir": { type: "string" },
+      "extensions-dir": { type: "string" },
+      "cli-node": { type: "string" },
+      "cli-script": { type: "string" },
+    },
+    allowPositionals: false,
+  });
+  let answer: Additions;
+  try {
+    answer = await addWhereMissing({
+      contexts: additionContexts(values),
+      settings: readCompanionSettings(riglinePaths().config),
+      carried: carriedCompanion(),
+      run: runEditor,
+    });
+  } catch (error) {
+    if (!(error instanceof UserError)) throw error;
+    answer = { v: 1, lines: [`added the companion to no profile: ${error.message}`], failed: true };
+  }
+  console.log(JSON.stringify(answer));
+  return 0;
+}
+
+function additionContexts(values: {
+  "user-data-dir"?: string | undefined;
+  "extensions-dir"?: string | undefined;
+  "cli-node"?: string | undefined;
+  "cli-script"?: string | undefined;
+}): EditorContext[] {
+  const {
+    "user-data-dir": userData,
+    "extensions-dir": extensionsDir,
+    "cli-node": node,
+    "cli-script": script,
+  } = values;
+  const none = [userData, extensionsDir, node, script].every((value) => value === undefined);
+  if (none) {
+    return findEditors().map((editor) => ({
+      label: editor.label,
+      ...editorDirs(editor),
+      cli: { command: editor.path, prefix: [] },
+    }));
+  }
+  if (
+    userData === undefined ||
+    extensionsDir === undefined ||
+    node === undefined ||
+    script === undefined
+  ) {
+    throw new UserError(
+      "companion-profiles takes all of --user-data-dir, --extensions-dir, --cli-node and " +
+        "--cli-script, or none",
+    );
+  }
+  // What the `code` shim runs, pointed at the instance the companion is running in.
+  return [
+    {
+      label: "",
+      userData,
+      extensionsDir,
+      cli: {
+        command: node,
+        prefix: [script, "--user-data-dir", userData, "--extensions-dir", extensionsDir],
+        env: { ELECTRON_RUN_AS_NODE: "1" },
+      },
+    },
+  ];
 }
 
 /**
@@ -972,6 +1086,7 @@ const SETTINGS_VERBS = new Set([
   "list",
   "layout",
   "vscode-setup",
+  "companion-profiles",
 ]);
 
 async function main(argv: string[]): Promise<number> {
@@ -1019,6 +1134,8 @@ async function main(argv: string[]): Promise<number> {
       return vscodeSetupCommand(rest);
     case "companion-status":
       return companionStatusCommand(rest);
+    case "companion-profiles":
+      return companionProfilesCommand(rest);
     case "status":
       return statusCommand();
     case "restore":
