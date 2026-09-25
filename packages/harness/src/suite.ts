@@ -12,7 +12,7 @@
  * `describe`. That is the one piece of test-framework knowledge in `src/`, and it is here rather
  * than copied into each test file because the alternative is every file launching its own browser.
  */
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Layout, SaveRecord } from "@rigline/plugin-api";
@@ -224,6 +224,7 @@ export function register(version: string): (options?: BootOptions) => Promise<Bo
       async close() {
         await page.close();
         await harness.close();
+        rmSync(dir, { recursive: true, force: true });
       },
     };
   };
