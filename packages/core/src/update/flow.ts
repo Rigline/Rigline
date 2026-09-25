@@ -39,6 +39,7 @@ import {
   type PluginVerdict,
   pluginVerdicts,
 } from "../inject/inject.ts";
+import { type InjectionLockOptions, withInjectionLock } from "../inject/lock.ts";
 import { diffScans, formatDiff, type Scan, scansDiffer, type ViewDiff } from "../layers/diff.ts";
 import { type Harvest, harvestAll } from "../layers/index.ts";
 import { HarvestError } from "../layers/types.ts";
@@ -159,6 +160,8 @@ export interface FlowOptions {
   readonly anchorsPath?: string;
   /** The stability sample's timings, as `install` takes them. Injected only by tests. */
   readonly wholeness?: InstallOptions["wholeness"];
+  /** The injection lock: where it is, how long to wait, and what to say while waiting (D105). */
+  readonly lock?: InjectionLockOptions;
 }
 
 export interface UpdateOptions extends FlowOptions {
@@ -270,6 +273,11 @@ function refusedVersion(ext: string, refused: Refusal, log: readonly string[]): 
  * the very baseline it would be reading.
  */
 export function check(options: FlowOptions = {}): FlowReport {
+  // Read-only and still locked: a bundle read mid-write is reported as unreadable (D104, D105).
+  return withInjectionLock({ what: "rigline check", ...options.lock }, () => checkHeld(options));
+}
+
+function checkHeld(options: FlowOptions): FlowReport {
   const exts = options.exts ?? installedExtensions();
   const overrides = readAnchorOverrides(options.anchorsPath ?? riglinePaths().anchors);
   const configNotes: string[] = [];
@@ -344,6 +352,10 @@ export function check(options: FlowOptions = {}): FlowReport {
  * repairing is often not the newest one. A version refused is reported and left as it was (D104).
  */
 export function update(options: UpdateOptions): FlowReport {
+  return withInjectionLock({ what: "rigline install", ...options.lock }, () => updateHeld(options));
+}
+
+function updateHeld(options: UpdateOptions): FlowReport {
   const exts = options.exts ?? installedExtensions();
   const overrides = readAnchorOverrides(options.anchorsPath ?? riglinePaths().anchors);
   const harvested: Harvested[] = [];

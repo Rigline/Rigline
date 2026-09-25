@@ -5,7 +5,7 @@
  * microseconds here rather than a real wait. What is not faked is the filesystem: `wx` is the
  * primitive the whole thing rests on, and a test that stubbed it would be asserting its own mock.
  */
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -111,9 +111,22 @@ describe("withHomeLock", () => {
     expect(answer).toBe("stolen");
   });
 
-  it("takes an unreadable lock rather than waiting for somebody nobody can name", async () => {
+  it("waits for an unreadable lock while it is young: a holder between its create and write", async () => {
+    const home = temp();
+    writeFileSync(lockPath(home), "");
+    const failure = await withHomeLock(
+      { home, what: "test", isAlive: never, waitMs: 0, sleep: nosleep },
+      async () => "unreached",
+    ).catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(HomeLockedError);
+    expect((failure as HomeLockedError).holder).toBeNull();
+  });
+
+  it("takes an unreadable lock once it is old", async () => {
     const home = temp();
     writeFileSync(lockPath(home), "half a wr");
+    const longAgo = new Date(Date.now() - 120_000);
+    utimesSync(lockPath(home), longAgo, longAgo);
     const answer = await withHomeLock(
       { home, what: "test", isAlive: always, sleep: nosleep },
       async () => "stolen",
@@ -142,22 +155,24 @@ describe("isStale", () => {
   const holder: LockHolder = { pid: 1, since: new Date(1_000).toISOString(), what: "x" };
 
   it("keeps a lock whose process is alive however old it is", () => {
-    expect(isStale(holder, 10_000_000, 60_000, always)).toBe(false);
+    expect(isStale(holder, Number.NaN, 10_000_000, 60_000, always)).toBe(false);
   });
 
-  it("keeps a young lock whose process has gone, because it may not have written its pid yet", () => {
-    expect(isStale(holder, 2_000, 60_000, never)).toBe(false);
+  it("keeps a young lock whose process has gone", () => {
+    expect(isStale(holder, Number.NaN, 2_000, 60_000, never)).toBe(false);
   });
 
   it("takes an old lock whose process has gone", () => {
-    expect(isStale(holder, 61_001, 60_000, never)).toBe(true);
+    expect(isStale(holder, Number.NaN, 61_001, 60_000, never)).toBe(true);
   });
 
-  it("takes a lock with no readable holder", () => {
-    expect(isStale(null, 0, 60_000, always)).toBe(true);
+  it("judges a lock with no readable holder by the file's own time", () => {
+    expect(isStale(null, 1_000, 2_000, 60_000, always)).toBe(false);
+    expect(isStale(null, 1_000, 61_000, 60_000, always)).toBe(true);
+    expect(isStale(null, Number.NaN, 0, 60_000, always)).toBe(true);
   });
 
   it("treats an unparseable timestamp as old rather than as the epoch", () => {
-    expect(isStale({ ...holder, since: "soon" }, 0, 60_000, never)).toBe(true);
+    expect(isStale({ ...holder, since: "soon" }, Number.NaN, 0, 60_000, never)).toBe(true);
   });
 });

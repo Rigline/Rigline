@@ -2,8 +2,7 @@
 
 The working document: what is being built, in what order, and where it stands. Durable rules live
 in [decisions.md](decisions.md); this file is about getting to 1.0. Phases 0 to 4b and 6 and
-milestone 7 are done, and milestone 8 is built with one live read owed, in **Next session**.
-Delivery has its own document, [ci.md](ci.md) — the branching rule, the release commands and the
+milestones 7 and 8 are done; what is next is in **Next session**. Delivery has its own document, [ci.md](ci.md) — the branching rule, the release commands and the
 two workflows.
 
 ## What Rigline is
@@ -195,9 +194,9 @@ D91), `sources.json` (the source each installed plugin came from — both the en
 `plugins/` (installed third-party plugins), `anchors.json` (local overrides and additions to the
 curated anchor table), `baseline.json` (the last harvest), `drift.txt` (what moved at the last
 install that found drift, D98), `engine/`, the npm prefix `rigline`
-installs `@rigline/core` into (D73), and `.lock`, held while an engine installs so the CLI and the
-companion cannot install over each other. A clone of this repo is for developing Rigline, not for using
-it.
+installs `@rigline/core` into (D73), `.lock`, held while an engine installs so the CLI and the
+companion cannot install over each other, and `inject.lock`, held while an engine injects (D105). A
+clone of this repo is for developing Rigline, not for using it.
 
 ### Distribution
 
@@ -340,6 +339,14 @@ built. The first two change what a plugin is written against.
   back. `findFiberByHostInstance` returned the same object, so D103 neither caused this nor fixed
   it. This comes from reading the source, not from an observation. A harness case that splices the
   list would show whether it is real.
+- **Whether the stability sample (D83) should stat through a handle.** Read on this Windows 11
+  machine under Node 26: while one process rewrote a 3 MB `.js` file, each rewrite taking about
+  270 ms (Defender scanning on close, it seems), `statSync` by path kept reporting the previous
+  size and mtime while `fstatSync` on an open handle showed the file truncated to 0. So the sample
+  can pass while a write is in flight, and the read after it then takes a fragment. D105's lock
+  keeps Rigline's own engines from racing, which is where it bit; VS Code's extraction still can.
+  The candidate is `openSync` and `fstatSync` in `stampOf`. First read whether libuv's by-path stat
+  is the lag, and whether a handle opened during VS Code's write is itself harmless.
 
 ## Deferred, with triggers
 
@@ -376,17 +383,15 @@ built. The first two change what a plugin is written against.
 
 ## Next session
 
-`1.0.0-alpha.11` is the newest on `latest`. `main` carries D98 to D104 unreleased, and the release
-waits on one fix.
-
-**Before the next release: one engine injects at a time.** With two VS Code windows open, each
-window's companion runs the engine on a Claude Code update. One engine's host-patch write lands
-inside the other's stability sample (D83), which then refuses with "still being written". The result
-is a false *needs you* in every window but one, on every update. Read live on 2.1.282. The plan, with
-the evidence, is `.local/plans/injection-lock.md`: an injection lock in the engine, amending D80,
-recorded as D105. After that, cut the release. The open questions above come after it.
+`1.0.0-alpha.11` is the newest on `latest`. `main` carries D98 to D105 unreleased and is ready to
+release. The open questions above come after it.
 
 The reads below are owed and deferred: exercise each when it comes up, not as a gate.
+
+**One engine injects at a time (D105)**, on the next Claude Code update with two windows open: both
+companions should reach *ready to restart*, and one output channel should show `rigline: waiting for
+rigline install (pid N) to finish`. A window whose companion runs this checkout's engine reads it
+before a release does.
 
 **A Save through a released engine.** On a machine with `alpha.11` installed and
 `rigline.enginePath` unset, edit the layout in the panel and Save: the notification should say it
@@ -491,3 +496,4 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   classes added, nothing gone.
 - 2026-09-25: `ready` (D85) read live on the 2.1.282 update; milestone 8 done. The same update showed
   concurrent engines refusing each other, which is next.
+- 2026-09-25: One engine injects at a time: `inject.lock` (D105).

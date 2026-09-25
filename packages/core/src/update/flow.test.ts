@@ -7,6 +7,7 @@
  * is what makes it a real rehearsal — the harvest genuinely does not find the class, exactly as it
  * would not after an upstream rename.
  */
+import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -14,7 +15,7 @@ import { ANCHORS } from "@rigline/plugin-api";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { harvestableHostReplies, harvestableWebview, writePayload } from "../../test/fixtures.ts";
 import { generate } from "../codegen/generate.ts";
-import { readBundles } from "../extension/bundles.ts";
+import { readBundles, sleepSync } from "../extension/bundles.ts";
 import { harvestAll } from "../layers/index.ts";
 import { RIGLINE_HOME_VARIABLE } from "../paths.ts";
 import { readBaseline, readGeneratedScan, writeBaseline } from "./baseline.ts";
@@ -698,6 +699,77 @@ describe("a refused version (D104)", () => {
       }),
     ).toThrow(/payload is missing post\.js/);
   });
+});
+
+/**
+ * Another engine, as a separate process: it takes the lock and rewrites `extension.js` with the
+ * bytes already there until the flow says it is waiting, then goes on for longer than the stability
+ * sample, and releases. `done` says how many writes landed after the flow began waiting.
+ */
+const OTHER_ENGINE = `
+import { closeSync, existsSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+const [lock, target, waiting, done] = process.argv.slice(2);
+const fd = openSync(lock, "wx");
+writeFileSync(fd, JSON.stringify({ pid: process.pid, since: new Date().toISOString(), what: "another engine" }));
+closeSync(fd);
+const pause = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+const bytes = readFileSync(target);
+const deadline = Date.now() + 20000;
+while (!existsSync(waiting) && Date.now() < deadline) {
+  writeFileSync(target, bytes);
+  pause(20);
+}
+let after = 0;
+for (; existsSync(waiting) && after < 10; after++) {
+  writeFileSync(target, bytes);
+  pause(50);
+}
+writeFileSync(done, String(after));
+rmSync(lock);
+`;
+
+describe("two engines at once (D105)", () => {
+  it("waits for the other engine's writes rather than refusing them as still being written", async () => {
+    const ext = fixture();
+    const lock = join(home, "inject.lock");
+    const options = {
+      exts: [ext],
+      payloadDir: payload(),
+      dir: tempDir("rigline-cwd-"),
+      baselinePath: join(home, "baseline.json"),
+      lock: { path: lock },
+    };
+    // Injected already, as the other engine will have done by the time this one gets the lock.
+    update(options);
+
+    const scratch = tempDir("rigline-race-");
+    const script = join(scratch, "engine.mjs");
+    const waiting = join(scratch, "waiting");
+    const done = join(scratch, "done");
+    writeFileSync(script, OTHER_ENGINE);
+    const child = spawn(
+      process.execPath,
+      [script, lock, join(ext, "extension.js"), waiting, done],
+      {
+        stdio: "ignore",
+      },
+    );
+    const exited = new Promise((resolve) => child.on("exit", resolve));
+    const until = Date.now() + 10_000;
+    while (!existsSync(lock) && Date.now() < until) sleepSync(10);
+
+    // The real stability sample. Without the lock this run reads the other engine's writes half-done.
+    const report = updateFlow({
+      ...options,
+      lock: { path: lock, onWait: () => writeFileSync(waiting, "") },
+    });
+    await exited;
+
+    expect(readFileSync(done, "utf8")).toBe("10");
+    expect(report.versions[0]?.refused).toBeNull();
+    expect(formatFlow(report)).toContain("2.1.270: already current");
+    expect(existsSync(lock)).toBe(false);
+  }, 30_000);
 });
 
 describe("the baseline", () => {

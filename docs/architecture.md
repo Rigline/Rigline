@@ -227,8 +227,9 @@ to write, never the wrapper's, D74), `plugins/` (installed third-party plugins),
 the anchor table), `baseline.json` (the last harvest), `drift.txt` (what moved at the last install
 that found drift, since the next moves the baseline, D98), and `engine/` (the npm prefix the wrapper
 installs `@rigline/core` into, D73 — the one directory here that `rm -rf` is the documented repair
-for), and `.lock`, held while an engine installs so the CLI and the companion cannot install over
-each other. A clone of this repo is for developing Rigline, not for using it.
+for), `.lock`, held while an engine installs so the CLI and the companion cannot install over
+each other, and `inject.lock`, held while an engine injects, checks or restores (D105). A clone of
+this repo is for developing Rigline, not for using it.
 
 **In the extension directory**, everything under `webview/rigline/` plus the two `.orig` backups.
 All of it is derived and all of it is disposable — except the backups, which are the only recovery

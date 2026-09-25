@@ -59,6 +59,7 @@ import {
   generate,
   harvestAll,
   hostVerdict,
+  type InjectionLockOptions,
   type InstallOptions,
   inspect,
   install,
@@ -88,11 +89,17 @@ import {
   verdict,
   viewLayout,
   watch,
+  withInjectionLock,
 } from "../index.ts";
 import { buildPlugin } from "./build.ts";
 
 /** Set by the wrapper's `update` on each `add`, so the plugins move first and inject once (D98). */
 const DEFER_INJECT = "RIGLINE_DEFER_INJECT";
+
+/** A wait on the injection lock goes to stderr, so stdout stays the report (D105). */
+const lockWait: InjectionLockOptions = {
+  onWait: (line) => console.error(`rigline: ${line}`),
+};
 
 const USAGE = `rigline ${CORE_VERSION}
 
@@ -284,12 +291,14 @@ function reinject(options: ReinjectOptions = {}): number {
     return 0;
   }
   const report = update({
-    exts: targets,
+    // Listed again under the lock, since a wait is time for the listing to change (D105).
+    exts: options.exts,
     payloadDir: options.payloadDir ?? bundledDir(),
     plugins: pluginOptions(),
     // Only where the directory already has one; this never creates a harvest for somebody who has
     // not asked for one, and it never commits what it rewrites (D30).
     codegen: true,
+    lock: lockWait,
   });
   console.log(
     formatFlow(report, {
@@ -794,7 +803,9 @@ function doctorCommand(args: string[]): number {
 }
 
 function restoreCommand(): number {
-  const results = restoreAll(installedExtensions());
+  const results = withInjectionLock({ ...lockWait, what: "rigline restore" }, () =>
+    restoreAll(installedExtensions()),
+  );
   let noBackup = 0;
   let hostFailed = 0;
   for (const result of results) {
@@ -931,6 +942,7 @@ function checkCommand(args: string[]): number {
   const report = check({
     exts: values.ext ? [resolve(values.ext)] : undefined,
     plugins: pluginOptions(),
+    lock: lockWait,
   });
   console.log(formatFlow(report, { verbose: values.verbose }));
   return report.attention.length > 0 ? 1 : 0;
@@ -957,6 +969,7 @@ function watchCommand(args: string[]): Promise<number> {
       payloadDir: bundledDir(),
       plugins: pluginOptions(),
       codegen: true,
+      lock: lockWait,
       intervalMs: seconds * 1000,
       onReport(report) {
         console.log(`
@@ -1010,21 +1023,24 @@ async function dev(args: string[]): Promise<number> {
       const built = await buildPlugin({ dir });
       console.log(`built ${basename(dir)}: ${built.input} -> ${built.output}`);
     }
-    let hostChanged = false;
-    for (const ext of exts) {
-      const report = install(ext, {
-        payloadDir: bundledDir(),
-        plugins: pluginOptions(),
-        anchors: overrides,
-      });
-      hostChanged ||= report.hostChanged;
-      for (const override of report.anchorOverrides) {
-        console.log(`  anchor override ${override.name}: ${overrides.path}`);
+    const hostChanged = withInjectionLock({ ...lockWait, what: "rigline dev" }, () => {
+      let changed = false;
+      for (const ext of exts) {
+        const report = install(ext, {
+          payloadDir: bundledDir(),
+          plugins: pluginOptions(),
+          anchors: overrides,
+        });
+        changed ||= report.hostChanged;
+        for (const override of report.anchorOverrides) {
+          console.log(`  anchor override ${override.name}: ${overrides.path}`);
+        }
+        for (const verdict of report.verdicts) {
+          if (verdict.refusal) console.log(`  REFUSED ${verdict.plugin}: ${verdict.refusal}`);
+        }
       }
-      for (const verdict of report.verdicts) {
-        if (verdict.refusal) console.log(`  REFUSED ${verdict.plugin}: ${verdict.refusal}`);
-      }
-    }
+      return changed;
+    });
     console.log(
       hostChanged
         ? "Developer: Reload Window (a host patch changed; this ends the window's sessions)"

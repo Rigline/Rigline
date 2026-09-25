@@ -116,6 +116,8 @@ export {
   restoreAll,
   verdict,
 } from "./inject/inject.ts";
+export type { InjectionLockOptions, LockHolder } from "./inject/lock.ts";
+export { InjectionLockedError, withInjectionLock } from "./inject/lock.ts";
 export type { Harvest } from "./layers/index.ts";
 export * from "./layers/index.ts";
 export { harvestAll, LAYERS, scanOf } from "./layers/index.ts";

@@ -154,9 +154,9 @@ directory that is still being written leaves `index.js.orig` untouched.
 
 ## What this does not do
 
-It does not make an install atomic. Two processes writing one extension directory is still the
-injector's problem and the home lock's (D80); this only stops *reading* a directory somebody else is
-mid-way through writing.
+It does not make an install atomic. Two engines writing one extension directory is the injection
+lock's problem (D105); this only stops *reading* a directory somebody else is mid-way through
+writing. The sample cannot tell who that somebody is, which is why the lock exists.
 
 It also does not remove D81's settle from the companion. Waiting two seconds is cheaper than
 refusing and retrying, and the two answer different halves: the settle avoids the refusal, and the

@@ -1465,8 +1465,9 @@ extension host**: `process
 .execPath` is VS Code's Electron binary, so `findNpmCli` finds nothing. D73's rule survives —
 npm must belong to the Node that runs it — and only the starting point moves: resolve `node` first,
 then take the npm beside *that*. `ELECTRON_RUN_AS_NODE` supplies an interpreter, not an npm, and does
-not help. **And two retrieval layers write one directory**, so acquisition needs a lock; injection
-does not, being rebuild-from-backup and idempotent.
+not help. **And two retrieval layers write one directory**, so acquisition needs a lock. Amended by
+D105 (2026-09-25): injection takes a lock of its own, because the stability sample cannot tell
+another engine's writes from VS Code's.
 
 The earlier draft had the companion refuse when no engine was present, reasoning that an extension
 quietly fetching from npm is what a reviewer would object to. Withdrawn: it is the same act `rigline`
@@ -2487,3 +2488,58 @@ Rejected:
   untouched. That is machinery for a rare case inside a rare case.
 - Catching every `UserError` per version. That would turn Rigline's own broken build into the same
   line printed once per version.
+
+**D105. One engine injects at a time (2026-09-25, Leo).** This amends D80, which left injection
+outside any lock because rebuild-from-backup is idempotent. The bytes still are, but D83's stability
+sample came after that reasoning, and it cannot tell who is writing. Read live on 2.1.282: two
+windows' companions each ran the engine after the update, one engine's host-patch write landed
+inside the other's quarter-second sample, and that engine refused the version as still being
+written. So with two windows open, every Claude Code update gave every window but one a false
+*needs you*, and those windows lost D85's *ready to restart*.
+
+Worse is possible. Read on Windows while building this: `statSync` by path went on reporting a
+file's previous size and mtime while another process was part-way through rewriting it, so the
+sample can pass during the other engine's write. The first injection of a version rewrites
+`webview/index.js`, and an engine that reads it half-written after the other has made the backup
+takes D81's branch for a live bundle unrelated to its backup: the fragment becomes `index.js.orig`.
+The lock rules that out between engines. The lag itself is an open question in plan.md.
+
+So the engine holds `<RIGLINE_HOME>/inject.lock` across every run that injects, checks or restores.
+
+- **Where.** `update` and `check` take it around the whole loop over versions, since the sample has
+  to happen inside it, and read the extension listing inside it, since a wait is time for the
+  listing to change. That covers `install`, every verb that re-injects, and `watch`. `dev`'s install
+  loop and `restore` take it in the command layer.
+- **`check` too.** It writes nothing, but a bundle read mid-write is reported as unreadable (D104),
+  and a second's wait is cheaper than a wrong answer.
+- **Not the home lock.** That one is held across an npm install, and sharing it would make an
+  injection wait on a download.
+- **The home lock's rules**, copied into core because the wrapper does not depend on core, and
+  synchronous because `install` is (D83): `wx`, the holder's pid, start time and command written
+  into the file, and a lock taken only when its process is gone and it is old.
+- **Old is fifteen seconds**, sized to a run and not to an npm install. On the corpus one version
+  injects from vanilla in 1.7 s and refreshes in 0.6 s, and all six from vanilla take 10.5 s. A
+  waiter gives up after thirty, so an engine killed mid-run is always taken over inside the wait.
+  Giving up refuses the whole run, naming the holder. The wait is printed on stderr as it starts,
+  which the companion pipes into its output channel.
+- **A lock whose file cannot be read is judged by the file's age.** The commonest unreadable lock is
+  a holder between its create and its write, and this lock is contended at one instant by design:
+  on release, every waiter's next poll races for it. The home lock took an unreadable lock at once,
+  and now has the same rule, so the two copies stay one set of rules.
+
+The second engine then runs after the first, its sample sees nothing moving, and every version reads
+*already current*. It exits 0, and its window reaches *ready to restart*, because the companion's
+stamps either side of the run differ by the first engine's writes.
+
+Engines with different `RIGLINE_HOME`s do not see each other's lock. Every default path shares one
+home, so this is recorded and not solved.
+
+Rejected:
+
+- The companion retrying a run refused as still being written. It treats the symptom, it needs an
+  exit code that says "transient", which is the engine protocol still undesigned, and a
+  `rigline install` typed in a terminal, or the CLI's watcher, would still race a companion.
+- Leaving Rigline's own files out of the sample. Rigline writes `extension.js` and
+  `webview/index.js`, the two whose half-written state D81 exists to catch.
+- Electing one companion to react. That is a lock by another name, at a layer that covers only
+  companions.

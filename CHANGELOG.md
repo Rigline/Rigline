@@ -75,6 +75,14 @@ anything may change between releases.
   needs you, with the reason, where before the command ended in a stack trace. `rigline watch` tries
   a version that was still being written again on its next look.
 
+### Fixed
+
+- With more than one VS Code window open, a Claude Code update no longer leaves every window but
+  one showing *Rigline: needs you*. Each window's companion ran Rigline at once, and one run's
+  writes looked to the other like the update still being written. Rigline now injects one run at a
+  time: a command that finds another running waits for it, says so, and then finds everything
+  already current.
+
 ## 1.0.0-alpha.11 — 2026-09-25
 
 ### Added

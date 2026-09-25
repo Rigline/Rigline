@@ -6,9 +6,10 @@
 import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { harvestableHostReplies, harvestableWebview, writePayload } from "../../test/fixtures.ts";
 import { EXTENSION_NAME_PREFIX } from "../extension/locate.ts";
+import { RIGLINE_HOME_VARIABLE } from "../paths.ts";
 import type { FlowReport } from "./flow.ts";
 import { watch } from "./watch.ts";
 
@@ -20,8 +21,14 @@ function tempDir(prefix: string): string {
   return dir;
 }
 
+/** The flow's defaults, the injection lock among them, point into a temporary home (D39). */
+beforeEach(() => {
+  process.env[RIGLINE_HOME_VARIABLE] = tempDir("rigline-home-env-");
+});
+
 afterEach(() => {
   vi.useRealTimers();
+  delete process.env[RIGLINE_HOME_VARIABLE];
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 

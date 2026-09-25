@@ -75,10 +75,17 @@ Clear it to read against the released engine.
 The CLI and the companion both write `<RIGLINE_HOME>/engine`, so `withHomeLock`
 ([lock.ts](../packages/cli/src/lock.ts)) takes `<RIGLINE_HOME>/.lock` by exclusive create, writing
 the holder's pid, start time and name into it. A lock is stolen only when its process is gone *and*
-it is old. It wraps `installEngine` rather than any command, held across the npm run, because a
-first run installs an engine whatever verb was typed. It covers the whole home, because `update`
-moves plugins in the same run. Injection stays outside, since rebuild-from-backup is idempotent. A
+it is old, and one whose file cannot be read is judged by the file's age. It wraps `installEngine`
+rather than any command, held across the npm run, because a first run installs an engine whatever
+verb was typed. It covers the whole home, because `update` moves plugins in the same run. A
 contended lock is a reported outcome, and the companion carries on with the engine already there.
+
+Injection has a lock of its own, `<RIGLINE_HOME>/inject.lock`, which the engine holds across every
+run that injects, checks or restores (D105). Two open windows mean two companions running the engine
+on one Claude Code update, and without it one engine's writes landed inside the other's stability
+sample and read as an update still in progress. The second engine now waits, says so in its output
+channel, and finds every version already current. It is apart from `.lock` so that an injection
+never waits on a download.
 
 Plugin-level races between two engines writing different plugin directories are left until they
 bite.

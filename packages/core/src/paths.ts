@@ -34,6 +34,8 @@ export interface RiglinePaths {
   readonly drift: string;
   /** What a panel's Save link carries so the companion knows it came from a panel (D93). */
   readonly token: string;
+  /** Held while an engine injects, checks or restores (D105). */
+  readonly injectLock: string;
 }
 
 export function riglinePaths(home = riglineHome()): RiglinePaths {
@@ -47,5 +49,6 @@ export function riglinePaths(home = riglineHome()): RiglinePaths {
     baseline: join(home, "baseline.json"),
     drift: join(home, "drift.txt"),
     token: join(home, "token"),
+    injectLock: join(home, "inject.lock"),
   };
 }

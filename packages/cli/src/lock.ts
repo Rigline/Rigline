@@ -7,15 +7,22 @@
  * the wrapper's README already tells people to delete.
  *
  * The whole home rather than the engine directory, because `update` moves plugins in the same run
- * and those collide the same way. Injection is deliberately *not* covered: it is
- * rebuild-from-backup and idempotent, so two processes injecting write the same bytes, and a lock
- * held across it would serialise the slow half for nothing.
+ * and those collide the same way. Injection takes a lock of its own in the engine, `inject.lock`,
+ * with these rules (D105): sharing this one would make an injection wait on a download.
  *
  * `wx` is the primitive. Exclusive create is atomic on both platforms and needs no dependency, and
  * it is what decides a stolen lock too: a stealer unlinks and then races for `wx` like everybody
  * else, so two processes deciding to steal at once still produce one winner.
  */
-import { closeSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  closeSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { UserError } from "./errors.ts";
 
@@ -76,23 +83,33 @@ function readHolder(path: string): LockHolder | null {
     }
     return { pid, since, what };
   } catch {
-    // Unreadable or half-written: treated as stale rather than as a holder, because a file nobody
-    // can identify is one nobody can wait for sensibly.
     return null;
   }
 }
 
-/** Whether a holder has stopped mattering. A lock with no readable holder is always stale. */
+/** The lock file's modification time, or NaN once it has gone. */
+function writtenAt(path: string): number {
+  try {
+    return statSync(path).mtimeMs;
+  } catch {
+    return Number.NaN;
+  }
+}
+
+/**
+ * Whether a lock has stopped mattering: old, and its process gone. A lock nobody can read is judged
+ * by the file's own age, since it is usually a holder between its create and its write (D105).
+ */
 export function isStale(
   holder: LockHolder | null,
+  fileTime: number,
   now: number,
   staleMs: number,
   isAlive: (pid: number) => boolean,
 ): boolean {
-  if (holder === null) return true;
-  const since = Date.parse(holder.since);
+  const since = holder === null ? fileTime : Date.parse(holder.since);
   const old = Number.isNaN(since) || now - since >= staleMs;
-  return old && !isAlive(holder.pid);
+  return old && (holder === null || !isAlive(holder.pid));
 }
 
 export class HomeLockedError extends UserError {
@@ -149,7 +166,7 @@ export async function withHomeLock<T>(options: LockOptions, work: () => Promise<
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
       const held = readHolder(path);
-      if (isStale(held, now(), staleMs, isAlive)) {
+      if (isStale(held, writtenAt(path), now(), staleMs, isAlive)) {
         // Unlink and go round again rather than writing over it: `wx` is what settles a tie, and
         // two stealers both reaching this line still produce one winner.
         rmSync(path, { force: true });
