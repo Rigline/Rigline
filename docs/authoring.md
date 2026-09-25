@@ -223,7 +223,8 @@ never bind is a failing line on the diagnostics panel.
 Each element renders in a form of its own. The composer box and its footer are inside the
 composer's form, where a button with no type would send the prompt; yours cannot. `Pill` from
 `@rigline/plugin-api/ui` is the small label the composer's rows are made of, and a button when
-given `onClick`.
+given `onClick`, which receives the click event. It takes a `ref` and ARIA attributes too, for a
+pill that opens something of yours.
 
 A person can move an element while the panel is open, from Rigline's menu. It renders afresh where
 it lands, so anything it has to keep across a move belongs in a store made in `setup`, not in the

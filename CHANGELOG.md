@@ -27,6 +27,8 @@ anything may change between releases.
   companion is never put into, and `everyProfile: false` keeps it to the default profile.
   `rigline vscode-setup --remove --profile NAME` takes it out of one profile and adds that profile
   to the list, and `--profile NAME` puts it back.
+- `@rigline/plugin-api`: `Pill` takes a `ref` and ARIA attributes, and passes the click event to
+  `onClick`, so a pill can open a popup of its own and say so to a screen reader.
 
 ### Changed
 

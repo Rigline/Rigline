@@ -7,7 +7,7 @@
  * `@rigline/plugin-api/ui`. The menu renders in the root's own container on `body`, never inside the
  * pill: the pill is a child of the composer footer, which re-measures on any mutation inside it (D54).
  */
-import { useStore } from "@rigline/plugin-api/ui";
+import { Pill, useStore } from "@rigline/plugin-api/ui";
 import { FaultContext, MENU_CSS, MenuPanel, PILL_CSS } from "@rigline/plugin-api/ui/internal";
 import { Component, type ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -19,6 +19,7 @@ import type { Contribution, PlacedElement, ShellOptions } from "./types.ts";
 
 const CSS = `
 .rigline-pill {
+  display: inline-flex;
   --app-pill-foreground: #fff;
   --app-pill-background: #2d7d46;
   --app-pill-hover-background: #2d7d46;
@@ -121,7 +122,7 @@ function Elements(props: { readonly elements: readonly PlacedElement[] }): React
 function Shell(props: ShellOptions & { readonly own: Contribution }): ReactNode {
   const { pill, contributions, elements, failing, editor, own } = props;
   const [open, setOpen] = useState<"first" | "menu" | null>(null);
-  const button = useRef<HTMLButtonElement>(null);
+  const button = useRef<HTMLElement>(null);
   const close = useCallback((restoreFocus: boolean) => {
     setOpen(null);
     if (restoreFocus) button.current?.focus();
@@ -145,22 +146,18 @@ function Shell(props: ShellOptions & { readonly own: Contribution }): ReactNode 
   return (
     <>
       {createPortal(
-        <button
-          ref={button}
-          type="button"
-          className={
-            count > 0
-              ? "rigline-ui-pill rigline-pill rigline-pill-failing"
-              : "rigline-ui-pill rigline-pill"
-          }
-          aria-haspopup="menu"
-          aria-expanded={open !== null}
-          title={`${summary} — click to ${open ? "close" : "open"} Rigline's menu`}
-          // A click the keyboard made has no pointer detail, and opens onto the first item.
-          onClick={(e) => setOpen(open ? null : e.detail === 0 ? "first" : "menu")}
-        >
-          {count > 0 ? `RIG ${count}` : "RIG"}
-        </button>,
+        <span className={count > 0 ? "rigline-pill rigline-pill-failing" : "rigline-pill"}>
+          <Pill
+            ref={button}
+            aria-haspopup="menu"
+            aria-expanded={open !== null}
+            title={`${summary} — click to ${open ? "close" : "open"} Rigline's menu`}
+            // A click the keyboard made has no pointer detail, and opens onto the first item.
+            onClick={(e) => setOpen(open ? null : e.detail === 0 ? "first" : "menu")}
+          >
+            {count > 0 ? `RIG ${count}` : "RIG"}
+          </Pill>
+        </span>,
         pill,
       )}
       {open && <MenuPanel anchor={pill} entries={items} initialFocus={open} onClose={close} />}

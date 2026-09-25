@@ -261,7 +261,9 @@ describe.skipIf(skip !== null)(`editing in place${skip ? ` (${skip})` : ""}`, ()
       await page.waitForSelector(".rigline-edit-handle", { state: "detached" });
       await page.waitForSelector('[data-rigline-zone="rigRow"]', { state: "detached" });
       expect(
-        await page.evaluate(() => document.activeElement?.classList.contains("rigline-pill")),
+        await page.evaluate(
+          () => document.activeElement === document.querySelector(".rigline-pill button"),
+        ),
       ).toBe(true);
     } finally {
       await booted.close();
@@ -339,7 +341,9 @@ describe.skipIf(skip !== null)(`editing in place${skip ? ` (${skip})` : ""}`, ()
       await page.keyboard.press("Escape");
       await page.waitForSelector(".rigline-edit-handle", { state: "detached" });
       expect(
-        await page.evaluate(() => document.activeElement?.classList.contains("rigline-pill")),
+        await page.evaluate(
+          () => document.activeElement === document.querySelector(".rigline-pill button"),
+        ),
       ).toBe(true);
     } finally {
       await booted.close();

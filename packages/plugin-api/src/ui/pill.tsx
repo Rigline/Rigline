@@ -2,7 +2,7 @@
  * A pill: the app's model pill's look, on its own tokens, in monospace for the identifiers and counts
  * a pill usually carries, so an element looks at home in the footer or in `rigRow`.
  */
-import { type ReactNode, useContext } from "react";
+import { type AriaAttributes, type MouseEvent, type ReactNode, type Ref, useContext } from "react";
 import { FaultContext, message } from "./fault.ts";
 
 export const PILL_CSS = `
@@ -32,35 +32,40 @@ button.rigline-ui-pill:hover {
 }
 `;
 
-export interface PillProps {
+/** Also takes ARIA attributes, which reach the element. */
+export interface PillProps extends AriaAttributes {
   readonly children?: ReactNode;
   /** The tooltip. */
   readonly title?: string;
   /** Fainter, for a pill holding its place until it has something to say. */
   readonly muted?: boolean;
   /** Makes the pill a button. A throw disables the plugin, as a render throw does. */
-  readonly onClick?: () => void;
+  readonly onClick?: (event: MouseEvent<HTMLButtonElement>) => void;
+  /** The span, or the button when there is `onClick`. */
+  readonly ref?: Ref<HTMLElement>;
 }
 
 export function Pill(props: PillProps): ReactNode {
-  const { children, title, muted, onClick } = props;
+  const { children, title, muted, onClick, ref, ...aria } = props;
   const fault = useContext(FaultContext);
   const className = muted === true ? "rigline-ui-pill rigline-ui-pill-muted" : "rigline-ui-pill";
   if (onClick === undefined) {
     return (
-      <span className={className} title={title}>
+      <span {...aria} ref={ref} className={className} title={title}>
         {children}
       </span>
     );
   }
   return (
     <button
+      {...aria}
+      ref={ref as Ref<HTMLButtonElement>}
       type="button"
       className={className}
       title={title}
-      onClick={() => {
+      onClick={(event) => {
         try {
-          onClick();
+          onClick(event);
         } catch (e) {
           fault(`its pill's click handler threw: ${message(e)}`);
         }

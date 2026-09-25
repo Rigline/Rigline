@@ -106,10 +106,10 @@ export default { setup(ctx) { ctx.element("badge", () => jsx(Pill, { children: "
             const r = e?.getBoundingClientRect();
             return r ? { height: r.height, mid: r.top + r.height / 2 } : null;
           };
-          const rig = document.querySelector(".rigline-pill");
+          const rig = document.querySelector(".rigline-pill button");
           return {
             element: box('[data-rigline-slot="slotted/badge"] .rigline-ui-pill'),
-            rig: box(".rigline-pill"),
+            rig: box(".rigline-pill button"),
             background: rig ? getComputedStyle(rig).backgroundColor : null,
           };
         });

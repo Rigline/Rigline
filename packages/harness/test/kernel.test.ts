@@ -349,7 +349,7 @@ export default { setup() {} };`,
           const w = window as unknown as {
             __rigline: { react: { fiberFor(element: Element): unknown } };
           };
-          const pill = document.querySelector(".rigline-pill");
+          const pill = document.querySelector(".rigline-pill button");
           const fiber = pill
             ? (w.__rigline.react.fiberFor(pill) as { memoizedProps?: Record<string, unknown> })
             : null;
@@ -470,7 +470,7 @@ export default { setup(ctx) {
           });
         });
 
-        await page.focus(".rigline-pill");
+        await page.focus(".rigline-pill button");
         await page.keyboard.press("Enter");
         await page.waitForSelector(".rigline-menu");
         expect(await focused()).toBe("Alpha one");
@@ -500,9 +500,11 @@ export default { setup(ctx) {
         expect(await focused()).toContain("Beta sub");
         await page.keyboard.press("Escape");
         await page.waitForSelector(".rigline-menu", { state: "detached" });
-        expect(await page.evaluate(() => document.activeElement?.className)).toContain(
-          "rigline-pill",
-        );
+        expect(
+          await page.evaluate(
+            () => document.activeElement === document.querySelector(".rigline-pill button"),
+          ),
+        ).toBe(true);
         expect(
           await page.evaluate(() => (window as unknown as { __escapes: number }).__escapes),
         ).toBe(0);
