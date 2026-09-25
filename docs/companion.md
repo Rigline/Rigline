@@ -145,7 +145,10 @@ handler, and `install` reads it from the manifest to decide that an installed co
 
 An engine verb, forwarded by the wrapper. It installs the bundled VSIX into every editor whose CLI
 is on `PATH` (`code`, `code-insiders`, `codium`, `cursor`, `windsurf`), with `--force` so re-running
-is a no-op, and then injects, so the first reload after it already works. `--remove` uninstalls and
+is a no-op, and then injects, so the first reload after it already works. It passes
+`--do-not-sync`, which the CLI accepts though its help omits it: Settings Sync would carry the id to
+other machines, where VS Code asks the Marketplace for `rigline.rigline`, which is unclaimed (D93).
+A re-run moves an existing install to machine scope, and an update keeps the scope it finds. `--remove` uninstalls and
 leaves the injection alone, because `restore` is the verb for that. A batch-file CLI is spawned
 through `cmd.exe`, since Node refuses to spawn one directly.
 

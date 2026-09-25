@@ -95,7 +95,17 @@ describe("findEditors", () => {
 
 describe("setupArgv", () => {
   it("forces the install, so a re-run is a no-op rather than a refusal", () => {
-    expect(setupArgv(VSIX, false)).toEqual(["--install-extension", VSIX, "--force"]);
+    expect(setupArgv(VSIX, false)).toEqual([
+      "--install-extension",
+      VSIX,
+      "--force",
+      "--do-not-sync",
+    ]);
+  });
+
+  it("keeps the install out of Settings Sync, and leaves an uninstall alone", () => {
+    expect(setupArgv(VSIX, false)).toContain("--do-not-sync");
+    expect(setupArgv(VSIX, true)).not.toContain("--do-not-sync");
   });
 
   it("uninstalls by extension id, which is what the editor knows it as", () => {
@@ -110,6 +120,7 @@ describe("setupArgv", () => {
       "--install-extension",
       VSIX,
       "--force",
+      "--do-not-sync",
       "--profile",
       "Yarn PNP",
     ]);

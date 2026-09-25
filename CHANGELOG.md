@@ -10,6 +10,12 @@ anything may change between releases.
 
 ## Unreleased
 
+### Changed
+
+- `rigline vscode-setup` installs the companion extension outside Settings Sync. Synced, it was
+  carried to your other machines, where VS Code looks for it on the Marketplace, and nothing of
+  Rigline's is published there. Run `rigline vscode-setup` again to move an existing install over.
+
 ## 1.0.0-alpha.11 — 2026-09-25
 
 ### Added

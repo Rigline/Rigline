@@ -81,8 +81,11 @@ export function findEditors(options: FindEditorsOptions = {}): readonly FoundEdi
 /**
  * The argv for one editor.
  *
- * `--force` so a re-run is a no-op rather than a refusal about a version already installed, which
- * matters because `update` will want to call this behind the user.
+ * `--force` so a re-run is a no-op rather than a refusal about a version already installed.
+ *
+ * `--do-not-sync` because Settings Sync would carry the id to other machines, where VS Code asks the
+ * Marketplace for it and `rigline.rigline` is unclaimed (D93). It also moves an existing install to
+ * machine scope, and later updates keep it.
  *
  * `--profile` because without it the CLI installs into the *default* profile, and a workspace bound
  * to any other one never sees the companion while every check says it is installed.
@@ -91,7 +94,7 @@ export function setupArgv(vsix: string, remove: boolean, profile?: string): read
   const forProfile = profile === undefined ? [] : ["--profile", profile];
   return remove
     ? ["--uninstall-extension", "rigline.rigline", ...forProfile]
-    : ["--install-extension", vsix, "--force", ...forProfile];
+    : ["--install-extension", vsix, "--force", "--do-not-sync", ...forProfile];
 }
 
 /**
