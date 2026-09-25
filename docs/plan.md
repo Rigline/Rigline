@@ -486,3 +486,5 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   covered, and the React layer's view is react-dom's version (D103).
 - 2026-09-25: A refusal belongs to one version: `install`, `check` and `watch` report it and carry on
   (D104).
+- 2026-09-25: 2.1.282 snapshotted, `generated.ts` regenerated and the harness moved to it; three
+  classes added, nothing gone.

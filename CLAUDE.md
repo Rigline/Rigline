@@ -201,7 +201,7 @@ A Linux checkout lives at `~/rigline-linux` inside WSL Ubuntu, with its own `nod
 directory cannot hold both platforms' native binaries. It exists because the release gate runs on
 one platform and so cannot see a platform assumption, which is how `1.0.0-alpha.7` was spent. Use
 `bash -ic`, not `-lc`: nvm installs into `.bashrc`, which a login shell does not read. The corpus is
-at a Windows path, so its tests skip there with a reason — 73 skipped is the healthy number.
+at a Windows path, so its tests skip there with a reason — 126 skipped is the healthy number.
 [docs/releasing.md](docs/releasing.md) has the command and why CI, not this, is the gate.
 
 Reference bundles are at `c:\dev\kb\vscode-claude-code-versions\<version>\`. The extension deletes

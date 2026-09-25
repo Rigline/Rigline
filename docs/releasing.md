@@ -69,7 +69,7 @@ its own `node_modules`, because a shared one cannot hold both platforms' native 
 
 `bash -ic` rather than `-lc`: nvm installs into `.bashrc`, which a login shell does not read. The
 corpus lives at a Windows path so its tests skip there with a reason, which is the designed
-behaviour and not a failure — expect 73 skipped. This is the fast loop; the CI run above is the
+behaviour and not a failure — expect 126 skipped. This is the fast loop; the CI run above is the
 gate, because it also covers the Node matrix and the `--frozen-lockfile` install.
 
 ## One-time setup
