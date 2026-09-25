@@ -337,6 +337,12 @@ built. The first two change what a plugin is written against.
   Claude Code ships React 19 the harvest fails and `install` refuses that version outright — every
   plugin, not only the transcript's. The `"__reactFiber$"` key prefix is an unminified literal in
   both majors and is the obvious replacement.
+- **Whether the harvest should read any JS string quote.** The class-map, protocol, replies and
+  React regexes all anchor on `"`, which is what Claude Code's bundler writes. Rolldown's minifier
+  writes plain strings as template literals (`` rendererPackageName:`react-dom` `` in Rigline's own
+  `runtime/shell.js`), so a bundler change of that kind would trip every floor at once and `install`
+  would refuse every version. The failure would be loud, not silent, and nothing suggests Claude
+  Code's bundler is about to change.
 
 ## Deferred, with triggers
 
