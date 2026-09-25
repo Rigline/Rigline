@@ -54,7 +54,7 @@ at all in CI.
 **So cut from a commit CI has already been green on.** Push, watch `ci.yml` go green across its
 matrix, and only then run `pnpm release`. That costs one CI run and closes the whole class, not just
 the platform half — it is the only check that sees what the release run will see. Finish any tidying
-before that push: the cut refuses a dirty tree, and `ci.yml` cancels an in-progress run when a newer
+before that push: the cut refuses a dirty tree, an untracked file included, and `ci.yml` cancels an in-progress run when a newer
 push arrives, so a fix made while waiting starts the wait again.
 
 `pnpm release` now asks GitHub for that verdict on the exact commit it would tag, and refuses on a
@@ -66,6 +66,11 @@ without the GitHub CLI would be a worse gate than none. Only a *failure* stops t
 its own `node_modules`, because a shared one cannot hold both platforms' native binaries:
 
     wsl.exe -d Ubuntu -- bash -ic "cd ~/rigline-linux && git pull --quiet && pnpm install --frozen-lockfile && pnpm build && pnpm test"
+
+`git pull` takes what is on GitHub, so as written the loop tests a commit only after it is pushed.
+To run it before the push, pull from this checkout instead: `git pull --ff-only
+/mnt/c/dev/lee/rigline main`. The Linux checkout is then ahead of `origin` until the push, and the
+next plain pull fast-forwards.
 
 `bash -ic` rather than `-lc`: nvm installs into `.bashrc`, which a login shell does not read. The
 corpus lives at a Windows path so its tests skip there with a reason, which is the designed
