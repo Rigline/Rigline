@@ -8,6 +8,7 @@ pnpm-publish-summary.json
 
 # Local only: working plans and agent scratch.
 .local/
+AGENTS.md
 
 # Worktrees Claude Code creates for this repo, which are checkouts of it.
 .claude/worktrees/
