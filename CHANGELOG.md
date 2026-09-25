@@ -46,6 +46,11 @@ anything may change between releases.
   do the same. Reload saved layout picks up a layout saved from another panel or a terminal without
   reloading anything. `rigline install` now makes `~/.rigline/token` once, which a Save carries so the
   companion knows it came from your own panel; see [docs/config.md](docs/config.md).
+- **Edit the layout on the panel itself.** Edit in place, under Layout in Rigline's menu, puts a
+  handle over each element. Choosing a handle, with a click or with Enter, opens the same moves as
+  the Layout submenu. `rigRow` shows while you edit, even with nothing in it, and a tray lists the
+  elements that are switched off or have nowhere to go in this panel. A bar above the composer holds
+  Save, Revert changes and Done.
 - `Pill` in `@rigline/plugin-api/ui`: a rounded label in the app's own pill colours, like the model
   picker's, and a button when given `onClick`.
 - The `composerBox` anchor: the composer's bordered box.

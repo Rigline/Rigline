@@ -553,7 +553,13 @@ export function MenuPanel(props: MenuPanelProps): ReactNode {
         else onClose(true);
         return true;
       }
-      const active = document.activeElement;
+      let active = document.activeElement;
+      // A choice can unmount the item it was made on, leaving the open menu with nothing focused.
+      if (active === null || active === document.body) {
+        const level = shownLevel(panel);
+        level?.focus();
+        active = level;
+      }
       if (!(active instanceof HTMLElement) || !panel.contains(active)) return false;
       if (e.key === "Tab") {
         onClose(true);

@@ -28,6 +28,8 @@ export interface LayoutEditor {
   /** Whether the saved layout, when last read, differed from the baseline. */
   readonly newer: Store<boolean>;
   readonly saving: Store<SaveState>;
+  /** Whether the panel is being edited in place (D95). */
+  readonly editing: Store<boolean>;
   /** What Save goes through, or null where `install` baked nothing. */
   readonly save: SaveRecord | null;
   /** Moves `name` last into `place`, or back to its default where `place` is null. */
@@ -64,6 +66,7 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
   const view = store(layoutView(baked, plugins));
   const newer = store(false);
   const saving = store<SaveState>("idle");
+  const editing = store(false);
   working.subscribe(() => view.set(layoutView(working.get(), plugins)));
 
   /** A move: a save's outcome is about the copy it saved, so it goes once the copy changes. */
@@ -78,6 +81,7 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
     view,
     newer,
     saving,
+    editing,
     save,
     move(name, place) {
       edit(withElementAt(working.get(), name, place));

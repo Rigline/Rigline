@@ -28,6 +28,15 @@ export interface PlacedElement {
   readonly targetKey: string;
 }
 
+/** A place some element can go that this panel has: a zone's node, or a slot at an anchor (D95). */
+export type PanelPlace =
+  | { readonly place: string; readonly zone: Element }
+  | {
+      readonly place: string;
+      readonly selector: string;
+      readonly at: "before" | "after" | "inside";
+    };
+
 export interface ShellOptions {
   /** The host-placed node the pill renders into. */
   readonly pill: Element;
@@ -43,6 +52,10 @@ export interface ShellOptions {
   readonly editor: LayoutEditor;
   /** What became of each bound element, keyed `plugin/element`. */
   readonly readings: ReadonlyMap<string, ElementReading>;
+  /** Every place a bound element offers that this panel has. */
+  readonly places: Store<readonly PanelPlace[]>;
+  /** The composer's box, which editing in place sits above, or null where the panel has none. */
+  readonly composer: () => Element | null;
   /** A fault in the shell itself, rather than in a contribution. */
   readonly onError: (reason: string) => void;
 }

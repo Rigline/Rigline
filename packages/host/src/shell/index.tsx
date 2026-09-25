@@ -12,6 +12,7 @@ import { FaultContext, MENU_CSS, MenuPanel, PILL_CSS } from "@rigline/plugin-api
 import { Component, type ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
+import { EDIT_CSS, EditLayer } from "./edit.tsx";
 import { layoutMenu } from "./layout.tsx";
 import type { Contribution, PlacedElement, ShellOptions } from "./types.ts";
 
@@ -59,6 +60,15 @@ const CSS = `
 }
 .rigline-zone:not(:has(> :not(:empty))) {
   display: none;
+}
+.rigline-zone[data-rigline-editing] {
+  display: flex;
+  outline: 1px dashed var(--vscode-focusBorder, #007fd4);
+  outline-offset: -3px;
+}
+.rigline-zone[data-rigline-editing]:not(:has(> :not(:empty)))::before {
+  content: attr(data-rigline-zone);
+  font-size: 0.85em;
 }
 `;
 
@@ -115,16 +125,21 @@ function Elements(props: { readonly elements: readonly PlacedElement[] }): React
 }
 
 function Shell(props: ShellOptions & { readonly own: Contribution }): ReactNode {
-  const { pill, contributions, elements, failing, own } = props;
+  const { pill, contributions, elements, failing, editor, own } = props;
   const [open, setOpen] = useState<"first" | "menu" | null>(null);
   const button = useRef<HTMLButtonElement>(null);
   const close = useCallback((restoreFocus: boolean) => {
     setOpen(null);
     if (restoreFocus) button.current?.focus();
   }, []);
+  const leave = useCallback(() => {
+    editor.editing.set(false);
+    button.current?.focus();
+  }, [editor]);
   const count = useStore(failing);
   const contributed = useStore(contributions);
-  const laidOut = useStore(props.editor.view).length > 0;
+  const laidOut = useStore(editor.view).length > 0;
+  const editing = useStore(editor.editing);
   // Rigline's own entry after every plugin's, which the menu divides from them by owner.
   const items = useMemo(
     () => (laidOut ? [...contributed, own] : contributed),
@@ -152,6 +167,15 @@ function Shell(props: ShellOptions & { readonly own: Contribution }): ReactNode 
       )}
       {open && <MenuPanel anchor={pill} entries={items} initialFocus={open} onClose={close} />}
       <Elements elements={placed} />
+      {editing && (
+        <EditLayer
+          editor={editor}
+          readings={props.readings}
+          composer={props.composer}
+          onLeave={leave}
+          onError={props.onError}
+        />
+      )}
     </>
   );
 }
@@ -159,7 +183,7 @@ function Shell(props: ShellOptions & { readonly own: Contribution }): ReactNode 
 export function startShell(options: ShellOptions): () => void {
   const style = document.createElement("style");
   style.setAttribute("data-rigline-style", "rigline");
-  style.textContent = CSS + MENU_CSS + PILL_CSS;
+  style.textContent = CSS + MENU_CSS + PILL_CSS + EDIT_CSS;
   document.head.appendChild(style);
   const root = createRoot(options.layer, {
     // A contribution's boundary reports through its plugin's error path, which logs it attributed.
@@ -169,7 +193,7 @@ export function startShell(options: ShellOptions): () => void {
   const own: Contribution = {
     key: -1,
     owner: "rigline",
-    component: layoutMenu(options.editor, options.readings),
+    component: layoutMenu(options.editor, options.readings, options.places),
     onError: options.onError,
   };
   root.render(<Shell {...options} own={own} />);

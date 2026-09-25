@@ -25,7 +25,7 @@ import {
   ZONES,
   type ZoneName,
 } from "@rigline/plugin-api";
-import type { Contribution, PlacedElement, StartShell } from "../shell/types.ts";
+import type { Contribution, PanelPlace, PlacedElement, StartShell } from "../shell/types.ts";
 import type { CheckService } from "./checks.ts";
 import type { LayoutEditor } from "./layout.ts";
 import type { MountService } from "./mounts.ts";
@@ -117,6 +117,9 @@ export function createShellService(
   const bound = new Map<string, ElementReading>();
   const bindings = new Map<string, Binding>();
   const zones = new Map<string, Zone>();
+  const places = store<readonly PanelPlace[]>([]);
+  /** The zones held in place while the panel is edited, so an empty one shows (D95). */
+  let held: string[] = [];
   const failing = store(0);
   let next = 0;
 
@@ -149,8 +152,7 @@ export function createShellService(
     return (ANCHORS[anchor as AnchorName] as AnchorSpec | undefined)?.kind === "singleton";
   }
 
-  /** The zone's node, placed while it has members and taken out when the last one leaves. */
-  function join(name: string, anchor: string, selector: string): HTMLElement {
+  function zoneOf(name: string): Zone {
     let zone = zones.get(name);
     if (!zone) {
       const node = document.createElement("div");
@@ -159,6 +161,12 @@ export function createShellService(
       zone = { node, members: 0, stop: null };
       zones.set(name, zone);
     }
+    return zone;
+  }
+
+  /** The zone's node, placed while it has members and taken out when the last one leaves. */
+  function join(name: string, anchor: string, selector: string): HTMLElement {
+    const zone = zoneOf(name);
     zone.members += 1;
     if (zone.stop === null) {
       const { node } = zone;
@@ -182,6 +190,49 @@ export function createShellService(
       zone.stop?.();
       zone.stop = null;
     }
+  }
+
+  /** Every place a bound element offers that resolves on this panel, each once. */
+  function publishPlaces(): void {
+    const found = new Map<string, PanelPlace>();
+    for (const b of bindings.values()) {
+      for (const placement of b.spec.placements) {
+        const place = placeName(placement);
+        if (found.has(place)) continue;
+        const where = resolve(placement);
+        if ("state" in where) continue;
+        found.set(
+          place,
+          typeof placement === "string"
+            ? { place, zone: zoneOf(placement).node }
+            : { place, selector: where.selector, at: placement.at },
+        );
+      }
+    }
+    places.set([...found.values()]);
+  }
+
+  function hold(): void {
+    for (const p of places.get()) {
+      if (!("zone" in p)) continue;
+      const where = resolve(p.place);
+      if ("state" in where) continue;
+      join(p.place, where.anchor, where.selector).setAttribute("data-rigline-editing", "");
+      held.push(p.place);
+    }
+  }
+
+  function release(): void {
+    for (const name of held) {
+      zones.get(name)?.node.removeAttribute("data-rigline-editing");
+      leave(name);
+    }
+    held = [];
+  }
+
+  function composer(): Element | null {
+    const selector = tables.anchorSelectors?.composerBox;
+    return selector ? document.querySelector(selector) : null;
   }
 
   /** Beside the footer spacer where there is one (D54), and in a corner of the panel where not. */
@@ -284,6 +335,7 @@ export function createShellService(
     const layout = editor.working.get();
     for (const [name, b] of bindings) settle(name, b, layout);
   });
+  editor.editing.subscribe(() => (editor.editing.get() ? hold() : release()));
 
   return {
     contribute(owner, order, component, onError) {
@@ -303,11 +355,13 @@ export function createShellService(
       const b: Binding = { owner, order, index, id, spec, component, onError, at: null };
       bindings.set(name, b);
       settle(name, b, editor.working.get());
+      publishPlaces();
       return () => {
         if (bindings.get(name) !== b) return;
         b.at?.unplace();
         bindings.delete(name);
         bound.delete(name);
+        publishPlaces();
       };
     },
     bound,
@@ -333,6 +387,8 @@ export function createShellService(
           failing,
           editor,
           readings: bound,
+          places,
+          composer,
           onError: fail,
         });
         state.started = true;

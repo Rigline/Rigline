@@ -2,7 +2,8 @@
  * The Layout submenu against the real bundle (D93): moves re-place live, Save is a link carrying the
  * copy, the guard cancels a click VS Code would never see, no companion means Copy commands, and
  * Reload picks up a layout saved elsewhere. `registry.js` is rewritten mid-run where a test stands
- * in for the engine, since the panel learns what the file holds only by reading it again.
+ * in for the engine, since the panel learns what the file holds only by reading it again. Then
+ * editing in place over the same copy (D95).
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -47,6 +48,17 @@ async function openLayout(page: Page): Promise<void> {
   await page.waitForSelector(".rigline-pill");
   await page.click(".rigline-pill");
   await page.getByRole("menuitem", { name: /^Layout/ }).click();
+}
+
+async function enterEditing(page: Page): Promise<void> {
+  await openLayout(page);
+  await page.getByRole("menuitemcheckbox", { name: /^Edit in place/ }).click();
+  await page.waitForSelector(".rigline-edit-handle");
+}
+
+/** The `data-rigline-item` of what has focus: a handle or a chip names its element. */
+function focusedItem(page: Page): Promise<string | null | undefined> {
+  return page.evaluate(() => document.activeElement?.getAttribute("data-rigline-item"));
 }
 
 async function choose(page: Page, element: string, move: string): Promise<void> {
@@ -176,6 +188,128 @@ describe.skipIf(skip !== null)(`the Layout submenu${skip ? ` (${skip})` : ""}`, 
       await page.getByRole("menuitem", { name: /^Layout/ }).click();
       await page.getByRole("menuitem", { name: /^Reload saved layout/ }).click();
       await page.waitForSelector(".deck-one", { state: "detached" });
+    } finally {
+      await booted.close();
+    }
+  }, 30000);
+});
+
+describe.skipIf(skip !== null)(`editing in place${skip ? ` (${skip})` : ""}`, () => {
+  const boot = register(VERSION);
+
+  it("covers each element with a handle, holds rigRow open, and trays the rest", async () => {
+    const booted = await boot({ plugins: [deck], save: COMPANION });
+    const { page } = booted;
+    try {
+      await enterEditing(page);
+      await page.locator(".rigline-edit-handle").nth(1).waitFor();
+      const covered = await page.evaluate(() =>
+        ["one", "two"].map((id) => {
+          const element = document.querySelector(`.deck-${id}`)?.getBoundingClientRect();
+          const handle = document
+            .querySelector(`[data-rigline-item="deck/${id}"]`)
+            ?.getBoundingClientRect();
+          if (!element || !handle) return false;
+          return (
+            handle.left <= element.left &&
+            handle.right >= element.right &&
+            handle.top <= element.top &&
+            handle.bottom >= element.bottom
+          );
+        }),
+      );
+      expect(covered).toEqual([true, true]);
+      const zone = await page.locator('[data-rigline-zone="rigRow"]').boundingBox();
+      expect(zone?.height ?? 0).toBeGreaterThan(0);
+      const three = page.locator('.rigline-edit-chip[data-rigline-item="deck/three"]');
+      await expect(three.locator(".rigline-edit-why").textContent()).resolves.toBe("off");
+      // Entered with the pointer, focus still lands on the first handle for the keyboard to take up.
+      expect(await focusedItem(page)).toBe("deck/one");
+
+      await page.locator(".rigline-edit-bar").getByRole("button", { name: "Done" }).click();
+      await page.waitForSelector(".rigline-edit-handle", { state: "detached" });
+      await page.waitForSelector('[data-rigline-zone="rigRow"]', { state: "detached" });
+      expect(
+        await page.evaluate(() => document.activeElement?.classList.contains("rigline-pill")),
+      ).toBe(true);
+    } finally {
+      await booted.close();
+    }
+  }, 30000);
+
+  it("opens an element's moves from its handle, and never reaches the element", async () => {
+    const booted = await boot({ plugins: [deck], save: COMPANION });
+    const { page } = booted;
+    try {
+      await enterEditing(page);
+      await page.evaluate(() => {
+        const w = window as unknown as { __clicks: number };
+        w.__clicks = 0;
+        document.querySelector(".deck-one")?.addEventListener("click", () => w.__clicks++);
+      });
+      await page.locator('[data-rigline-item="deck/one"]').click();
+      expect(await page.evaluate(() => (window as unknown as { __clicks: number }).__clicks)).toBe(
+        0,
+      );
+      await page.getByText("One — before footerSpacer").waitFor();
+      await page.getByRole("menuitem", { name: "Move to rigRow" }).click();
+      await page.waitForSelector('[data-rigline-zone="rigRow"] .deck-one');
+      await page.getByText("One — rigRow").waitFor();
+      // Off takes the handle away, so the pop-over closes onto the element's chip.
+      await page.getByRole("menuitem", { name: "Switch off" }).click();
+      await page.waitForSelector(".rigline-menu", { state: "detached" });
+      expect(await focusedItem(page)).toBe("deck/one");
+      expect(await page.evaluate(() => document.activeElement?.className)).toBe(
+        "rigline-edit-chip",
+      );
+
+      const href =
+        (await page
+          .locator('.rigline-edit-bar a[href^="vscode://rigline.rigline/layout?p="]')
+          .getAttribute("href")) ?? "";
+      const payload = JSON.parse(
+        Buffer.from(new URL(href).searchParams.get("p") ?? "", "base64url").toString("utf8"),
+      );
+      expect(payload.to).toEqual({ off: ["deck/one"] });
+
+      await page.locator(".rigline-edit-bar").getByRole("button", { name: "Done" }).click();
+      await page.click(".rigline-pill");
+      await page.getByRole("menuitem", { name: /^Layout.*unsaved changes/ }).waitFor();
+    } finally {
+      await booted.close();
+    }
+  }, 30000);
+
+  it("edits from the keyboard through the same moves", async () => {
+    const booted = await boot({ plugins: [deck], save: COMPANION });
+    const { page } = booted;
+    try {
+      await enterEditing(page);
+      const activeText = () => page.evaluate(() => document.activeElement?.textContent ?? "");
+      const order = () =>
+        page.evaluate(() => {
+          const one = document.querySelector('[data-rigline-slot="deck/one"]');
+          const two = document.querySelector('[data-rigline-slot="deck/two"]');
+          if (!one || !two) return null;
+          return one.compareDocumentPosition(two) & Node.DOCUMENT_POSITION_FOLLOWING ? "12" : "21";
+        });
+      await expect.poll(() => focusedItem(page)).toBe("deck/one");
+      await page.keyboard.press("ArrowRight");
+      expect(await focusedItem(page)).toBe("deck/two");
+      await page.keyboard.press("Enter");
+      await expect.poll(activeText).toBe("Move up");
+      await page.keyboard.press("Enter");
+      await expect.poll(order).toBe("21");
+      // Move up took its own item away; the arrows still find the moves that are left.
+      await page.keyboard.press("ArrowDown");
+      expect(await activeText()).toBe("Move down");
+      await page.keyboard.press("Escape");
+      expect(await focusedItem(page)).toBe("deck/two");
+      await page.keyboard.press("Escape");
+      await page.waitForSelector(".rigline-edit-handle", { state: "detached" });
+      expect(
+        await page.evaluate(() => document.activeElement?.classList.contains("rigline-pill")),
+      ).toBe(true);
     } finally {
       await booted.close();
     }

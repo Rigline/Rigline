@@ -2097,3 +2097,38 @@ Rejected:
   build, and either is replaced whenever the tag differs, by an older release too: between
   `pnpm release` bumping the checkout and `release:finish`. A link puts the checkout under npm's
   reify and under the `rm -rf` D73 gives as the recovery.
+
+**D95. Editing in place is a mode over the working copy, and it adds only the pointer (2026-09-25,
+Leo).** The Layout submenu (D93) edits at one remove: an element by its title, a place by its name.
+Editing in place puts a handle over each element on the panel. It is a mode, turned on from the
+Layout submenu, because handles on every element all the time would be clutter, the open menu covers
+the composer the elements sit in, and a mode gives empty places and a bar a moment to show. It
+edits D93's working copy and nothing else, so the submenu and the handles are two views of one copy,
+and leaving the mode keeps unsaved changes as closing the menu does.
+
+A handle opens its element's moves, the items the element's row in the Layout submenu opens, as a
+pop-over at the handle. That is the keyboard's whole route: the handles are one tab stop with the
+arrows moving between them, and every edit is a move from a menu that already works from the
+keyboard. Dragging is the pointer's route, added on top, and it changes the copy only on the drop:
+moving an element out of the footer changes the footer's width, which can change its fit stage and
+move every target under the pointer.
+
+Nothing joins the app's DOM that a layout would not place anyway. The handles, the bar and the tray
+of elements with nothing on screen are on the shell's `body` layer, positioned each frame from what
+they cover; an element's box is measured as a range over its `form`, which is `display: contents`.
+A zone some element offers is held in place for the whole mode, empty or not, so it has a box to
+drop on and starting a drag never grows the composer. That is a row in the fieldset, which the fit
+ladder cannot see (D90). A slot gets no placeholder: it sits in the app's own containers, and a node
+in the footer is what D54 forbids, so its target is drawn on the layer.
+
+A drop writes the whole order of the place it lands in, as Move up and Move down do, so elements
+there at their default become listed. Writing less would have a drop and a move record the same
+arrangement differently.
+
+Rejected:
+
+- Handles on hover, outside a mode. There is no moment to show an empty zone or a bar, and pointing
+  at an element to use it would light up its handle.
+- A keyboard drag — pick up, arrows, drop — as the ARIA pattern has it. A second scheme to design and
+  test, for what the moves already do.
+- Re-placing live while dragging, which moves the fit stage and the targets under the pointer.
