@@ -47,10 +47,12 @@ anything may change between releases.
   reloading anything. `rigline install` now makes `~/.rigline/token` once, which a Save carries so the
   companion knows it came from your own panel; see [docs/config.md](docs/config.md).
 - **Edit the layout on the panel itself.** Edit in place, under Layout in Rigline's menu, puts a
-  handle over each element. Choosing a handle, with a click or with Enter, opens the same moves as
-  the Layout submenu. `rigRow` shows while you edit, even with nothing in it, and a tray lists the
-  elements that are switched off or have nowhere to go in this panel. A bar above the composer holds
-  Save, Revert changes and Done.
+  handle over each element. Drag a handle to any place its plugin allows — the places it can go are
+  outlined, and a marker shows where it will land — or onto the bar to switch it off. Choosing a
+  handle, with a click or with Enter, opens the same moves as the Layout submenu instead. `rigRow`
+  shows while you edit, even with nothing in it, and a tray lists the elements that are switched off
+  or have nowhere to go in this panel; drag one out to put it somewhere. A bar above the composer
+  holds Save, Revert changes and Done.
 - `Pill` in `@rigline/plugin-api/ui`: a rounded label in the app's own pill colours, like the model
   picker's, and a button when given `onClick`.
 - The `composerBox` anchor: the composer's bordered box.

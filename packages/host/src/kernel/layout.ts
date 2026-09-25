@@ -7,6 +7,7 @@ import {
   type Layout,
   type LayoutPlugin,
   layoutView,
+  OFF,
   type SaveRecord,
   type Store,
   sameLayout,
@@ -36,6 +37,11 @@ export interface LayoutEditor {
   move(name: string, place: string | null): void;
   /** Swaps `name` with its neighbour in the order its place shows. */
   shift(name: string, by: -1 | 1): void;
+  /**
+   * Puts `name` before the element at `index` in the order `place` shows now, counting `name` where
+   * it is already there; switches it off where `place` is off (D95).
+   */
+  drop(name: string, place: string, index: number): void;
   /** Reads the saved layout afresh and shows it, dropping unsaved changes. */
   reload(): Promise<void>;
   /** Reads the saved layout afresh and says whether it moved since this panel's baseline. */
@@ -96,6 +102,23 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
       names[from] = names[to] as string;
       names[to] = name;
       edit(withOrder(working.get(), group.place, names));
+    },
+    drop(name, place, index) {
+      const shown =
+        view
+          .get()
+          .find((p) => p.place === place)
+          ?.elements.map((e) => e.name) ?? [];
+      const from = shown.indexOf(name);
+      if (place === OFF) {
+        if (from === -1) edit(withElementAt(working.get(), name, OFF));
+        return;
+      }
+      const names = shown.filter((n) => n !== name);
+      const at = from !== -1 && from < index ? index - 1 : index;
+      names.splice(Math.max(0, Math.min(at, names.length)), 0, name);
+      if (from !== -1 && names.every((n, i) => n === shown[i])) return;
+      edit(withOrder(working.get(), place, names));
     },
     async reload() {
       const saved = await readSaved();

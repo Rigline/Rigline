@@ -62,6 +62,38 @@ describe("moves", () => {
   });
 });
 
+describe("dropping", () => {
+  it("writes the whole order of the place, listing the elements there at their default", () => {
+    const { editor: e } = editor({});
+    e.drop("session-id/short-id", "rigRow", 0);
+    expect(e.working.get()).toEqual({ rigRow: ["session-id/short-id", "clock/face"] });
+    e.drop("session-id/short-id", "rigRow", 2);
+    expect(e.working.get()).toEqual({ rigRow: ["clock/face", "session-id/short-id"] });
+  });
+
+  it("counts the element's own position when it moves within its place", () => {
+    const { editor: e } = editor({ rigRow: ["session-id/address"] });
+    e.drop("session-id/address", "rigRow", 2);
+    expect(e.working.get()).toEqual({ rigRow: ["clock/face", "session-id/address"] });
+  });
+
+  it("changes nothing when dropped where it started", () => {
+    const baked = { rigRow: ["session-id/address"] };
+    const { editor: e } = editor(baked);
+    e.drop("session-id/address", "rigRow", 0);
+    e.drop("session-id/address", "rigRow", 1);
+    expect(e.working.get()).toBe(baked);
+  });
+
+  it("switches off, and leaves an element that is off already", () => {
+    const { editor: e } = editor({});
+    e.drop("session-id/address", "off", 0);
+    expect(e.working.get()).toEqual({});
+    e.drop("clock/face", "off", 0);
+    expect(e.working.get()).toEqual({ off: ["clock/face"] });
+  });
+});
+
 describe("the saved layout", () => {
   it("says a newer one is saved when the file moved since the panel loaded", async () => {
     let saved: Layout = {};

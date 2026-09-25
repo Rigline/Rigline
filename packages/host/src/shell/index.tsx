@@ -171,6 +171,7 @@ function Shell(props: ShellOptions & { readonly own: Contribution }): ReactNode 
         <EditLayer
           editor={editor}
           readings={props.readings}
+          places={props.places}
           composer={props.composer}
           onLeave={leave}
           onError={props.onError}
