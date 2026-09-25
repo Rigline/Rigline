@@ -162,8 +162,9 @@ tier, so the local run is the stronger one.
    `preminor` and `premajor`. It runs lint, typecheck, build and test first and refuses to cut if any
    of them fails; then it computes the version, rolls `## Unreleased` into a section headed by it,
    writes it into every manifest **and into core's own `CORE_VERSION`**, commits, tags `v<version>`
-   and pushes. Add `--dry-run` to see all of that without writing anything, or `--skip-checks` when
-   you have just run them by hand.
+   and pushes. Add `--dry-run` to see the version and the changelog section without writing
+   anything; it stops before the checks, so a clean dry run says nothing about them. Add
+   `--skip-checks` when you have just run them by hand.
 2. Watch the run the tag triggered. Its summary names each package and version staged, because
    nothing notifies you that a stage is waiting. A green tick is not the check. `npm stage list
    --json` is: all four at the new version, each with `"actorType": "trusted automation"`, which only
