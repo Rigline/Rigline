@@ -25,7 +25,7 @@ import {
   NO_ANCHOR_OVERRIDES,
 } from "../anchors/overrides.ts";
 import { generate } from "../codegen/generate.ts";
-import { UserError } from "../errors.ts";
+import { UnfinishedExtensionError, UserError } from "../errors.ts";
 import {
   HOST_BACKUP,
   HOST_BUNDLE,
@@ -374,9 +374,9 @@ export function pluginVerdicts(
 
 /**
  * Installs or refreshes the loader in one extension directory. See the module comment and
- * docs/host.md for the full step order; in brief: settle the webview backup, copy the payload and
- * write this directory's identifier tables, apply and bake any declared host patches, and only
- * then decide whether the two-line patch itself needs writing at all.
+ * docs/host.md for the full step order; in brief: settle the webview backup, harvest, copy the
+ * payload and write this directory's identifier tables, apply and bake any declared host patches,
+ * and only then decide whether the two-line patch itself needs writing at all.
  */
 export function install(ext: string, options: InstallOptions): InstallReport {
   const log = options.log ?? (() => {});
@@ -393,7 +393,7 @@ export function install(ext: string, options: InstallOptions): InstallReport {
   // says nothing (D81).
   const problem = wholenessProblem(ext, options.wholeness ?? {});
   if (problem !== null) {
-    throw new UserError(
+    throw new UnfinishedExtensionError(
       `${ext} is not finished being written: ${problem}. An extension update is probably in ` +
         "progress; try again in a moment. Nothing was changed.",
     );
@@ -404,6 +404,13 @@ export function install(ext: string, options: InstallOptions): InstallReport {
   // The identifiers a plugin declares against are harvested from the pristine bundle, so the
   // backup must be trustworthy before anything reads it.
   const rolledBack = settleWebviewBackup(state, log);
+
+  // Before any write, so a version Rigline cannot read keeps whatever injection it had whole (D104).
+  const overrides = options.anchors ?? NO_ANCHOR_OVERRIDES;
+  const harvest = harvestAll(readBundles(ext));
+  // The merged table, so an override reaches the `generated.js` the loader reads rather than only
+  // the report about it.
+  const generated = generate(harvest, overrides.table);
 
   mkdirSync(state.payloadDir, { recursive: true });
   // The payload lands before the bundle is ever patched: a static import pointing at a file that
@@ -416,11 +423,6 @@ export function install(ext: string, options: InstallOptions): InstallReport {
   if (syncDir(join(options.payloadDir, RUNTIME_DIR), join(state.payloadDir, RUNTIME_DIR))) {
     wrotePayload = true;
   }
-  const overrides = options.anchors ?? NO_ANCHOR_OVERRIDES;
-  const harvest = harvestAll(readBundles(ext));
-  // The merged table, so an override reaches the `generated.js` the loader reads rather than only
-  // the report about it.
-  const generated = generate(harvest, overrides.table);
   if (writeIfChanged(join(state.payloadDir, "generated.js"), Buffer.from(generated.runtime))) {
     wrotePayload = true;
   }

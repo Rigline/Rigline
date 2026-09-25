@@ -10,15 +10,15 @@
  * What it never does is block on a plugin's problem (D27). An update has already removed the
  * loader; refusing to inject because one plugin declared an identifier that has gone would cost
  * every working plugin and the probe badge that names the broken one. It reports the plugin, injects
- * around it, and the post hook refuses it at load. Only two things block: a harvest falling under
- * its own floor, which is a `HarvestError` from the layer and means our own regex has drifted
- * rather than that the extension has, and a failure in Rigline's own build.
+ * around it, and the post hook refuses it at load. A version is refused, and left as it was, when
+ * Rigline cannot read it or it is still being written; every other version carries on (D104). Only
+ * a failure in Rigline's own build stops the run.
  *
  * `check` and `update` differ in exactly one way: `check` writes nothing. Everything either of them
  * would say, `check` says, which is what makes it safe to run from a hook or from a watch loop.
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import {
   type AnchorOverrideOutcome,
   type AnchorOverrides,
@@ -26,12 +26,14 @@ import {
   readAnchorOverrides,
 } from "../anchors/overrides.ts";
 import { type Generated, generate } from "../codegen/generate.ts";
+import { UnfinishedExtensionError } from "../errors.ts";
 import { readBundles } from "../extension/bundles.ts";
 import { extensionVersion, installedExtensions } from "../extension/locate.ts";
 import {
   verdict as bundleVerdict,
   hostPatchOutcomes,
   type InstallOptions,
+  type InstallReport,
   inspect,
   install,
   type PluginVerdict,
@@ -39,6 +41,7 @@ import {
 } from "../inject/inject.ts";
 import { diffScans, formatDiff, type Scan, scansDiffer, type ViewDiff } from "../layers/diff.ts";
 import { type Harvest, harvestAll } from "../layers/index.ts";
+import { HarvestError } from "../layers/types.ts";
 import { riglinePaths } from "../paths.ts";
 import { readConfig } from "../plugins/config.ts";
 import {
@@ -51,10 +54,20 @@ import { readToken } from "../plugins/save.ts";
 import { CORE_VERSION } from "../version.ts";
 import { type BaselineSource, GENERATED_FILE, readBaseline, writeBaseline } from "./baseline.ts";
 
+/** Why the flow left one version as it was (D104). */
+export interface Refusal {
+  /** Still being written, which a retry fixes; or not readable by this Rigline, which a release fixes. */
+  readonly kind: "unfinished" | "unreadable";
+  readonly reason: string;
+}
+
 /** What one installed extension directory looks like after the flow has been over it. */
 export interface VersionReport {
   readonly ext: string;
+  /** The directory's name instead, for a refused one whose `package.json` could not be read. */
   readonly version: string;
+  /** Why it was left as it was, or null. A refused version has no verdicts and no anchor report. */
+  readonly refused: Refusal | null;
   /** Every enabled plugin checked against this version's tables (D43). */
   readonly verdicts: readonly PluginVerdict[];
   /** Curated anchor names this version does not resolve: the repair path's own gaps (D44). */
@@ -73,7 +86,7 @@ export interface VersionReport {
    * nothing else in a bug report would show.
    */
   readonly anchorOverrides: readonly AnchorOverrideOutcome[];
-  /** What the install did here, or null from `check`, which installs nothing. */
+  /** What the install did here, or null from `check`, which installs nothing, and when refused. */
   readonly action: "injected" | "refreshed" | null;
   /** Whether this run wrote anything a reload would pick up. Always false from `check`. */
   readonly wrote: boolean;
@@ -115,8 +128,11 @@ export interface FlowReport {
   readonly driftFile: string | null;
   /** The local anchor table override, as read: the file, and anything wrong with it (D44). */
   readonly overrides: AnchorOverrides;
-  /** The newest installed version's harvest, which is what a written baseline records. */
-  readonly scan: Scan;
+  /**
+   * The newest installed version's harvest, which is what a written baseline records. Null when
+   * that version was refused: the baseline then stays where it was, rather than moving backwards.
+   */
+  readonly scan: Scan | null;
   readonly diffs: readonly ViewDiff[];
   readonly versions: readonly VersionReport[];
   /** Files written. Empty from `check`. */
@@ -203,6 +219,49 @@ function anchorReport(
 }
 
 /**
+ * The refusal an error from one version stands for, or null for an error that is not one: a bug,
+ * or Rigline's own build failing, either of which stops the run (D27, D104).
+ */
+function refusalOf(error: unknown): Refusal | null {
+  if (error instanceof UnfinishedExtensionError) {
+    return { kind: "unfinished", reason: error.message };
+  }
+  if (error instanceof HarvestError) return { kind: "unreadable", reason: error.message };
+  return null;
+}
+
+/** A version the flow left as it was: what is on disk, and nothing the flow did not learn. */
+function refusedVersion(ext: string, refused: Refusal, log: readonly string[]): VersionReport {
+  let version = basename(ext);
+  let injected = false;
+  try {
+    version = extensionVersion(ext);
+    injected = bundleVerdict(inspect(ext)) === "patched";
+  } catch {
+    // A directory still being written may have neither yet, which is what the refusal says.
+  }
+  return {
+    ext,
+    version,
+    refused,
+    verdicts: [],
+    anchorsMissing: [],
+    anchorsAmbiguous: [],
+    anchorsUnverified: [],
+    anchorOverrides: [],
+    action: null,
+    wrote: false,
+    hostChanged: false,
+    rolledBack: false,
+    injected,
+    enabled: [],
+    disabled: [],
+    log,
+    payloadEngine: payloadEngineOf(ext),
+  };
+}
+
+/**
  * What every installed version says about itself and about the plugins, writing nothing.
  *
  * The two questions D28 names, asked of the installed bundle alone and never differentially: does
@@ -230,23 +289,37 @@ export function check(options: FlowOptions = {}): FlowReport {
   const enabled = plugins.map((p) => p.name);
   const disabled = discovered.filter((p) => !enabled.includes(p.name)).map((p) => p.name);
 
-  const harvested = exts.map((ext) => harvestOne(ext, overrides));
-  const versions: VersionReport[] = harvested.map((h) => ({
-    ext: h.ext,
-    version: h.version,
-    verdicts: pluginVerdicts(plugins, h.generated.tables, hostPatchOutcomes(h.ext, plugins)),
-    ...anchorReport(h.generated),
-    anchorOverrides: anchorOverrideOutcomes(h.harvest.classes, overrides),
-    action: null,
-    wrote: false,
-    hostChanged: false,
-    rolledBack: false,
-    injected: bundleVerdict(inspect(h.ext)) === "patched",
-    enabled,
-    disabled,
-    log: [],
-    payloadEngine: payloadEngineOf(h.ext),
-  }));
+  const harvested: Harvested[] = [];
+  const versions: VersionReport[] = [];
+  for (const ext of exts) {
+    let h: Harvested;
+    try {
+      h = harvestOne(ext, overrides);
+    } catch (error) {
+      const refused = refusalOf(error);
+      if (refused === null) throw error;
+      versions.push(refusedVersion(ext, refused, []));
+      continue;
+    }
+    harvested.push(h);
+    versions.push({
+      ext: h.ext,
+      version: h.version,
+      refused: null,
+      verdicts: pluginVerdicts(plugins, h.generated.tables, hostPatchOutcomes(h.ext, plugins)),
+      ...anchorReport(h.generated),
+      anchorOverrides: anchorOverrideOutcomes(h.harvest.classes, overrides),
+      action: null,
+      wrote: false,
+      hostChanged: false,
+      rolledBack: false,
+      injected: bundleVerdict(inspect(h.ext)) === "patched",
+      enabled,
+      disabled,
+      log: [],
+      payloadEngine: payloadEngineOf(h.ext),
+    });
+  }
 
   // Only a file that is there and unusable: a missing one is made by the next `install`.
   const tokenPath = options.plugins?.tokenPath;
@@ -268,7 +341,7 @@ export function check(options: FlowOptions = {}): FlowReport {
  *
  * Installing happens per version and never stops at the first failure, for the reason D4 gives: a
  * window that was already open goes on being served the old directory, so the version most worth
- * repairing is often not the newest one.
+ * repairing is often not the newest one. A version refused is reported and left as it was (D104).
  */
 export function update(options: UpdateOptions): FlowReport {
   const exts = options.exts ?? installedExtensions();
@@ -284,18 +357,27 @@ export function update(options: UpdateOptions): FlowReport {
     // the tables from the bundle it is patching. The harvest here is the report's, and the two are
     // the same work done twice on purpose: sharing it would make the installer's correctness depend
     // on a caller having harvested the right directory.
-    const report = install(ext, {
-      payloadDir: options.payloadDir,
-      plugins: options.plugins,
-      anchors: overrides,
-      ...(options.wholeness === undefined ? {} : { wholeness: options.wholeness }),
-      log: (line) => log.push(line),
-    });
+    let report: InstallReport;
+    try {
+      report = install(ext, {
+        payloadDir: options.payloadDir,
+        plugins: options.plugins,
+        anchors: overrides,
+        ...(options.wholeness === undefined ? {} : { wholeness: options.wholeness }),
+        log: (line) => log.push(line),
+      });
+    } catch (error) {
+      const refused = refusalOf(error);
+      if (refused === null) throw error;
+      versions.push(refusedVersion(ext, refused, log));
+      continue;
+    }
     const h = harvestOne(ext, overrides);
     harvested.push(h);
     versions.push({
       ext,
       version: extensionVersion(ext),
+      refused: null,
       verdicts: report.verdicts,
       ...anchorReport(h.generated),
       anchorOverrides: report.anchorOverrides,
@@ -340,15 +422,14 @@ function settle(
   const dir = options.dir ?? process.cwd();
   const baselinePath = options.baselinePath ?? riglinePaths().baseline;
   const { kind, configNotes, tokenProblem } = settling;
-  const newest = harvested.at(-1);
-  if (!newest) {
+  if (versions.length === 0) {
     return {
       kind,
       baseline: null,
       configNotes,
       driftFile: null,
       overrides,
-      scan: { version: "none", views: {} },
+      scan: null,
       diffs: [],
       versions,
       wrote: [],
@@ -356,9 +437,12 @@ function settle(
     };
   }
 
-  const scan = newest.generated.scan;
+  // Only the newest installed version's, never the newest that happened to be readable, so a
+  // committed `generated.ts` and the baseline cannot move backwards (D104).
+  const newest = versions.at(-1)?.refused ? undefined : harvested.at(-1);
+  const scan = newest?.generated.scan ?? null;
   const baseline = readBaseline(dir, baselinePath);
-  const diffs = baseline ? diffScans(baseline.scan, scan) : [];
+  const diffs = baseline && scan ? diffScans(baseline.scan, scan) : [];
   const wrote: string[] = [];
   let driftFile: string | null = null;
   // A malformed override is a person's mistake in a file only they can fix, and it never blocks:
@@ -367,6 +451,7 @@ function settle(
   if (tokenProblem !== null) attention.push(tokenProblem);
 
   for (const version of versions) {
+    if (version.refused) attention.push(refusalLine(kind, version.version, version.refused));
     for (const verdict of version.verdicts) {
       if (verdict.refusal) {
         attention.push(`${version.version} refuses "${verdict.plugin}": ${verdict.refusal}`);
@@ -431,7 +516,7 @@ function settle(
     }
   }
 
-  if (writeOptions) {
+  if (writeOptions && newest && scan) {
     if (writeOptions.codegen) {
       const path = join(dir, GENERATED_FILE);
       // Rendered from the shipped anchor table, never the merged one (D44). What goes in here is
@@ -475,6 +560,14 @@ function settle(
   };
 }
 
+/** A refused version, as the line under *Needs you* that says whose move it is. */
+function refusalLine(kind: FlowReport["kind"], version: string, refused: Refusal): string {
+  const lead = kind === "install" ? `${version} was not injected` : version;
+  return refused.kind === "unfinished"
+    ? `${lead}: ${refused.reason}`
+    : `${lead}: Rigline cannot read this version of Claude Code, and needs an update for it (${refused.reason})`;
+}
+
 /**
  * What one override entry did to this version, as the line a person reads (D44).
  *
@@ -507,6 +600,11 @@ export interface FormatOptions {
 
 /** What one version is, as a person reads it: what the run did, or what `check` found on disk. */
 function stateOf(version: VersionReport): string {
+  if (version.refused) {
+    const why =
+      version.refused.kind === "unfinished" ? "still being written" : "Rigline cannot read it";
+    return version.injected ? `left as it was, ${why}` : `not injected, ${why}`;
+  }
   if (version.action === null) {
     if (!version.injected) return "not injected";
     return version.payloadEngine === null
@@ -545,7 +643,9 @@ export function formatFlow(report: FlowReport, options: FormatOptions = {}): str
     lines.push(
       report.baseline
         ? `baseline: ${report.baseline.path} (${report.baseline.scan.version})`
-        : `no baseline yet; ${report.scan.version} is the first one recorded`,
+        : report.scan
+          ? `no baseline yet; ${report.scan.version} is the first one recorded`
+          : "no baseline yet",
     );
   }
 
@@ -575,16 +675,18 @@ export function formatFlow(report: FlowReport, options: FormatOptions = {}): str
   }
   for (const row of rows) lines.push(`${row.names.join(", ")}: ${row.state}`, ...row.detail);
 
-  if (newestFirst.length > 0) {
-    const loading = newestFirst.map(loadingOf);
+  // Refused versions have no verdicts to say what loads, and their row already says why.
+  const read = newestFirst.filter((version) => version.refused === null);
+  if (read.length > 0) {
+    const loading = read.map(loadingOf);
     if (loading.every((set) => set === loading[0])) lines.push(`loading: ${loading[0]}`);
-    else lines.push(...newestFirst.map((v, i) => `loading on ${v.version}: ${loading[i]}`));
-    const disabled = newestFirst[0]?.disabled ?? [];
+    else lines.push(...read.map((v, i) => `loading on ${v.version}: ${loading[i]}`));
+    const disabled = read[0]?.disabled ?? [];
     if (disabled.length > 0) lines.push(`switched off: ${disabled.join(", ")}`);
   }
   lines.push(...report.configNotes);
 
-  if (report.baseline) {
+  if (report.baseline && report.scan) {
     const from = report.baseline.scan.version;
     if (scansDiffer(report.diffs)) {
       const where =

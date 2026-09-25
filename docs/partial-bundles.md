@@ -134,6 +134,10 @@ Not a throw from deep inside `settleWebviewBackup`. `install` refuses *before* i
 written anything, names what is missing, and says an extension update is probably in progress and to
 try again — true, actionable, and the opposite of what happened before.
 
+The refusal is that one version's. The flow reports it under *Needs you* and installs every other
+version, and the CLI's watcher keeps the listing outstanding until a pass finds the directory
+finished (D104).
+
 `restore` deliberately does **not** apply the check. It reads a backup and writes it back; if a backup is already
 a fragment, refusing to restore leaves the user with no path at all. It is the last resort and
 should stay the thing that always runs.

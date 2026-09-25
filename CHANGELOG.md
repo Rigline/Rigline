@@ -70,6 +70,10 @@ anything may change between releases.
 - What moved since the last install now reports react-dom's version rather than the React names
   Rigline checks for. The first install after upgrading Rigline therefore says the React layer
   moved. Nothing in Claude Code did.
+- A version of Claude Code that Rigline cannot read, or that is still being written, no longer stops
+  `rigline install`, `check` or `watch` for the others. It is left as it was and listed under what
+  needs you, with the reason, where before the command ended in a stack trace. `rigline watch` tries
+  a version that was still being written again on its next look.
 
 ## 1.0.0-alpha.11 — 2026-09-25
 

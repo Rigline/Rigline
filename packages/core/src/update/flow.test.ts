@@ -480,7 +480,7 @@ describe("update", () => {
       expect(readFileSync(join(ext, "webview", "index.js"), "utf8")).toContain("rigline/pre.js");
     }
     expect(report.wrote).toContain(baselinePath);
-    expect(report.scan.version).toBe("2.1.270");
+    expect(report.scan?.version).toBe("2.1.270");
   });
 
   it("injects around a plugin it would refuse rather than blocking on it (D27)", () => {
@@ -583,6 +583,120 @@ describe("update", () => {
       codegen: true,
     });
     expect(report.wrote.some((p) => p.endsWith("generated.ts"))).toBe(false);
+  });
+});
+
+describe("a refused version (D104)", () => {
+  /** A whole directory whose bundle this Rigline cannot read: every layer finds nothing. */
+  function unreadable(version: string): string {
+    const ext = fixture({ version });
+    writeFileSync(join(ext, "webview", "index.js"), "var nothing=1;");
+    return ext;
+  }
+
+  it("injects every other version when the newest cannot be read, and moves no baseline", () => {
+    const cwd = tempDir("rigline-cwd-");
+    const older = fixture({ version: "2.1.268" });
+    writeFileSync(join(cwd, "generated.ts"), generate(harvestAll(readBundles(older))).source);
+    const committed = readFileSync(join(cwd, "generated.ts"), "utf8");
+    const baselinePath = join(tempDir("rigline-home-"), "baseline.json");
+    const newer = unreadable("2.1.290");
+
+    const report = update({
+      exts: [older, newer],
+      payloadDir: payload(),
+      dir: cwd,
+      baselinePath,
+      codegen: true,
+    });
+
+    expect(report.versions.map((v) => v.refused?.kind ?? null)).toEqual([null, "unreadable"]);
+    expect(readFileSync(join(older, "webview", "index.js"), "utf8")).toContain("rigline/pre.js");
+    expect(readFileSync(join(newer, "webview", "index.js"), "utf8")).not.toContain(
+      "rigline/pre.js",
+    );
+    expect(existsSync(join(newer, "webview", "rigline"))).toBe(false);
+    expect(report.attention).toContainEqual(
+      expect.stringMatching(
+        /^2\.1\.290 was not injected: Rigline cannot read this version of Claude Code, and needs an update for it \(classes: found 0 modules/,
+      ),
+    );
+    // Neither may move back to 2.1.268 just because it was the newest that could be read.
+    expect(report.scan).toBeNull();
+    expect(existsSync(baselinePath)).toBe(false);
+    expect(readFileSync(join(cwd, "generated.ts"), "utf8")).toBe(committed);
+
+    const text = formatFlow(report);
+    expect(text).toContain("2.1.290: not injected, Rigline cannot read it");
+    expect(text).toContain("2.1.268: injected");
+  });
+
+  it("injects the newer version when an older one cannot be read, which used to stop the run", () => {
+    const older = unreadable("2.1.268");
+    const newer = fixture({ version: "2.1.270" });
+    const baselinePath = join(tempDir("rigline-home-"), "baseline.json");
+
+    const report = update({
+      exts: [older, newer],
+      payloadDir: payload(),
+      dir: tempDir("rigline-cwd-"),
+      baselinePath,
+    });
+
+    expect(report.versions.map((v) => v.refused?.kind ?? null)).toEqual(["unreadable", null]);
+    expect(readFileSync(join(newer, "webview", "index.js"), "utf8")).toContain("rigline/pre.js");
+    // The newest was read, so the baseline moves as it always has.
+    expect(report.scan?.version).toBe("2.1.270");
+    expect(report.wrote).toContain(baselinePath);
+  });
+
+  it("refuses a version still being written, and injects the one beside it", () => {
+    const whole = fixture({ version: "2.1.268" });
+    const half = fixture({ version: "2.1.270" });
+    rmSync(join(half, "webview", "index.css"));
+
+    const report = update({
+      exts: [whole, half],
+      payloadDir: payload(),
+      dir: tempDir("rigline-cwd-"),
+      baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+    });
+
+    expect(report.versions[1]?.refused?.kind).toBe("unfinished");
+    expect(report.attention).toContainEqual(
+      expect.stringMatching(
+        /^2\.1\.270 was not injected: [^\n]{1,300} is not finished being written: webview\/index\.css is not there yet/,
+      ),
+    );
+    expect(readFileSync(join(whole, "webview", "index.js"), "utf8")).toContain("rigline/pre.js");
+    expect(existsSync(join(half, "webview", "index.js.orig"))).toBe(false);
+  });
+
+  it("reports the same from check, which used to report nothing at all", () => {
+    const report = check({
+      exts: [fixture({ version: "2.1.268" }), unreadable("2.1.290")],
+      dir: tempDir("rigline-cwd-"),
+      baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+    });
+
+    expect(report.versions.map((v) => v.refused?.kind ?? null)).toEqual([null, "unreadable"]);
+    expect(report.attention).toContainEqual(
+      expect.stringMatching(/^2\.1\.290: Rigline cannot read this version of Claude Code/),
+    );
+    expect(formatFlow(report)).toContain("2.1.290: not injected, Rigline cannot read it");
+  });
+
+  it("still stops when Rigline's own build is broken, which is no one version's problem (D27)", () => {
+    const broken = payload();
+    rmSync(join(broken, "post.js"));
+    expect(() =>
+      update({
+        exts: [fixture({ version: "2.1.268" }), fixture({ version: "2.1.270" })],
+        payloadDir: broken,
+        dir: tempDir("rigline-cwd-"),
+        baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+      }),
+    ).toThrow(/payload is missing post\.js/);
   });
 });
 

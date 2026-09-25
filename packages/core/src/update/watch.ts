@@ -28,9 +28,9 @@ export interface WatchOptions extends UpdateOptions {
   /** Every completed update, in order. Errors reach `onError` instead. */
   onReport(report: FlowReport): void;
   /**
-   * A failure that stopped one update. The watcher carries on: a harvest that failed against a
-   * half-written directory during an install succeeds on the next pass, and a watcher that exited
-   * on the first of those would be a watcher that is never running when it is needed.
+   * A failure that stopped one update, which is a bug rather than a refused version (D104). The
+   * watcher carries on and tries that listing again, since a watcher that exited on the first of
+   * those would be a watcher that is never running when it is needed.
    */
   onError?(error: unknown): void;
   /** Run the flow once at start, before any change. Default true: the loader may already be gone. */
@@ -49,36 +49,41 @@ function fingerprint(exts: readonly string[]): string {
 export function watch(options: WatchOptions): Watcher {
   const intervalMs = options.intervalMs ?? 30_000;
   const look = (): string[] => installedExtensions(options.extensionsDir);
-  let last = fingerprint(look());
+  /** The listing a run has dealt with. One left unfinished, or one that threw, stays outstanding (D81). */
+  let last: string | null = options.immediate === false ? fingerprint(look()) : null;
   let running = false;
 
-  const run = (exts: readonly string[]): void => {
+  /** Whether the run dealt with this listing. */
+  const run = (exts: readonly string[]): boolean => {
     // Guarded rather than queued: an update that outruns the interval means the machine is busy,
     // and the right answer then is to skip this tick, not to build a backlog of identical work.
-    if (running) return;
+    if (running) return false;
     running = true;
     try {
       // The list this tick saw, not whatever the flow would find for itself: the directory can
       // change again mid-update, and reporting on a set nobody observed would be a report about
       // a moment that never existed.
-      options.onReport(update({ ...options, exts }));
+      const report = update({ ...options, exts });
+      options.onReport(report);
+      return !report.versions.some((version) => version.refused?.kind === "unfinished");
     } catch (error) {
       if (options.onError) options.onError(error);
       else throw error;
+      return false;
     } finally {
       running = false;
     }
   };
 
-  if (options.immediate !== false) run(look());
-
-  const timer = setInterval(() => {
+  const tick = (): void => {
     const exts = look();
     const now = fingerprint(exts);
     if (now === last) return;
-    last = now;
-    run(exts);
-  }, intervalMs);
+    if (run(exts)) last = now;
+  };
+
+  tick();
+  const timer = setInterval(tick, intervalMs);
   // Not `unref`ed: a watcher is the process's whole reason to be alive.
 
   return {

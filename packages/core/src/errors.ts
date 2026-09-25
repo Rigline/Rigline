@@ -7,3 +7,9 @@
 export class UserError extends Error {
   override readonly name = "UserError";
 }
+
+/**
+ * An extension directory still being written, refused before anything is read (D81). Its own type
+ * so the flow can refuse that one version and carry on with the rest (D104).
+ */
+export class UnfinishedExtensionError extends UserError {}

@@ -47,6 +47,8 @@ function options(extensionsDir: string, reports: FlowReport[], errors: unknown[]
     payloadDir: payload(),
     dir: tempDir("rigline-cwd-"),
     baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+    // No quarter-second sample per version per run: nothing here is written while it is read.
+    wholeness: { sleep: () => {} },
     intervalMs: 10,
     onReport: (report: FlowReport) => reports.push(report),
     onError: (error: unknown) => errors.push(error),
@@ -123,35 +125,57 @@ describe("watch", () => {
     }
   });
 
-  it("survives a directory it cannot harvest, because the next pass usually can", () => {
+  it("keeps a directory still being written outstanding, and takes it once finished (D81)", () => {
     vi.useFakeTimers();
     const extensionsDir = tempDir("rigline-exts-");
-    installVersion(extensionsDir, "2.1.268");
+    const old = installVersion(extensionsDir, "2.1.268");
     const reports: FlowReport[] = [];
     const errors: unknown[] = [];
 
     const watcher = watch(options(extensionsDir, reports, errors));
     try {
-      expect(errors).toEqual([]);
-
       // Half-written, the way a directory looks while VS Code is still unpacking into it.
       const half = join(extensionsDir, `${EXTENSION_NAME_PREFIX}2.1.271-win32-x64`);
       mkdirSync(join(half, "webview"), { recursive: true });
       writeFileSync(join(half, "package.json"), JSON.stringify({ version: "2.1.271" }));
-      vi.advanceTimersByTime(30);
-      expect(errors).toHaveLength(1);
+      vi.advanceTimersByTime(10);
+      const seen = reports.at(-1)?.versions;
+      expect(seen?.find((v) => v.version === "2.1.271")?.refused?.kind).toBe("unfinished");
+      // The version beside it was not held up by it (D104).
+      expect(seen?.find((v) => v.version === "2.1.268")?.action).not.toBeNull();
 
-      // Finished. The watcher is still running and picks it up.
-      cpSync(join(extensionsDir, `${EXTENSION_NAME_PREFIX}2.1.268-win32-x64`), half, {
-        recursive: true,
-      });
+      // Finished in place, so the listing never changes again, and the watcher still takes it.
+      cpSync(old, half, { recursive: true });
       writeFileSync(join(half, "package.json"), JSON.stringify({ version: "2.1.271" }));
-      rmSync(join(extensionsDir, `${EXTENSION_NAME_PREFIX}2.1.268-win32-x64`), {
-        recursive: true,
-        force: true,
-      });
-      vi.advanceTimersByTime(30);
-      expect(reports.at(-1)?.versions.map((v) => v.version)).toEqual(["2.1.271"]);
+      vi.advanceTimersByTime(10);
+      expect(reports.at(-1)?.versions.map((v) => v.refused)).toEqual([null, null]);
+
+      // Dealt with, so it stops there.
+      const settled = reports.length;
+      vi.advanceTimersByTime(100);
+      expect(reports).toHaveLength(settled);
+      expect(errors).toEqual([]);
+    } finally {
+      watcher.stop();
+    }
+  });
+
+  it("does not keep retrying a version Rigline cannot read, since only a release changes that", () => {
+    vi.useFakeTimers();
+    const extensionsDir = tempDir("rigline-exts-");
+    installVersion(extensionsDir, "2.1.268");
+    const reports: FlowReport[] = [];
+
+    const watcher = watch(options(extensionsDir, reports));
+    try {
+      const unreadable = installVersion(extensionsDir, "2.1.272");
+      writeFileSync(join(unreadable, "webview", "index.js"), "var nothing=1;");
+      vi.advanceTimersByTime(10);
+      const settled = reports.length;
+      expect(reports.at(-1)?.versions.at(-1)?.refused?.kind).toBe("unreadable");
+
+      vi.advanceTimersByTime(100);
+      expect(reports).toHaveLength(settled);
     } finally {
       watcher.stop();
     }

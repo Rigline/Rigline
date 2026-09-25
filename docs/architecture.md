@@ -116,12 +116,14 @@ load-bearing at three points:
    over it, means nothing to do; the backup appearing *inside* the live bytes with some other head
    or tail means a patch this installer did not write, rolled back; no relation at all means the
    extension was replaced in place and the live bytes are the new baseline.
-2. **Write the payload before the bundle is patched.** A static import pointing at a file that is
+2. **Harvest before anything is written**, and generate. A version this Rigline cannot read is
+   refused here, so one an earlier run injected keeps that injection whole (D104).
+3. **Write the payload before the bundle is patched.** A static import pointing at a file that is
    not there yet blanks the panel on the next reload. Superseded payload directory names are removed
    here too — an orphaned one is not inert, because a webview opened before the rollback goes on
-   running a whole second loader generation until the window reloads.
-3. Harvest the bundles, generate, and write `generated.js` — the merged anchor table, so a local
-   override reaches the loader and not just the report about it (D44).
+   running a whole second loader generation until the window reloads. Then `generated.js`, from the
+   merged anchor table, so a local override reaches the loader and not just the report about it
+   (D44).
 4. Discover plugins, read `config.yaml`, and take the enabled set.
 5. Rebuild `extension.js` from `extension.js.orig` plus every enabled plugin's declared patches, and
    write it only if the bytes changed. See [patches.md](patches.md).
@@ -134,9 +136,9 @@ load-bearing at three points:
    are in exactly one of two shapes, so a rebuild-and-reinstall — the whole development loop —
    rewrites nothing.
 
-A plugin's problem never blocks any of this (D27). Two things do: a harvest under its own floor,
-which means our regex has drifted rather than that the extension has, and a failure in Rigline's own
-build.
+A plugin's problem never blocks any of this (D27). Nor does one version's: a version Rigline cannot
+read, or one still being written, is refused and left as it was, and every other version is installed
+(D104). Only a failure in Rigline's own build stops the run.
 
 The report is written for whoever ran the command: a line per state, then what to reload, then
 *Needs you*, last (D98). What the installer logs per directory is `--verbose` only, and what moved

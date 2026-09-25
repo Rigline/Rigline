@@ -34,8 +34,8 @@ that points at two different controls and let a plugin decorate the wrong one in
 
 **P3. One plugin's failure never costs another plugin, or the loader.** Refusal at load, isolation
 at runtime, and an install that reports a plugin problem and injects around it. What blocks an
-install is only what makes injecting itself wrong: a collapsed harvest, or a failure in Rigline's
-own build.
+install is only what makes injecting itself wrong: a collapsed harvest, which blocks that one version
+(D104), or a failure in Rigline's own build.
 
 **P4. Reads are immutable; writes are declared, patch-shaped, outbound and synchronous.** A tap is
 handed a frozen deep clone. A rewrite returns a patch over declared fields of a message the app
@@ -576,7 +576,7 @@ around it, and the post hook refuses it at load. An update has already removed t
 blocking to report one plugin would cost every working plugin and the probe badge that names the
 broken one. What blocks: the class harvest falling under its floor, or a failure in Rigline's own
 build or typecheck. The exit code is non-zero whenever a human is needed, including from `check`
-and `watch`.
+and `watch`. Narrowed by D104: a harvest under its floor blocks its own version, not the run.
 
 **D28. "Regressed" is named answers, not a percentage.** Does every declared identifier still exist,
 and does the repo still typecheck against the regenerated types. Roughly 6% of class names go
@@ -2452,3 +2452,38 @@ Rejected:
 - Binding the key to the app's renderer through the suffix on its root's `__reactContainer$`. The
   prefix already finds the owning renderer, and binding asserts another internal.
 - An element-to-fiber map built by walking each commit. Commits fire once per streamed token.
+
+**D104. A refusal belongs to one version (2026-09-25, Leo).** `install` refuses a version in two
+ways: the directory is still being written (D81), or Rigline cannot read its bundle, which is a
+`HarvestError`. Both were throws, and nothing between them and the command caught them. `update`
+takes versions oldest first, so a new version Rigline could not read left the older ones injected,
+but ended the run in a stack trace: no report, no reload advice, no baseline, and nothing naming the
+version. An older version that could not be read stopped every newer one. `check` reported nothing
+at all. And `install` wrote the payload before it harvested, so a version an earlier run had injected
+got a new `pre.js` beside its old tables.
+
+This narrows D27. It is D4 applied to failure: each version is patched with its own tables, so one
+version's bundle says nothing about another's.
+
+- `install` harvests before anything is written, straight after settling the backup. A refused
+  version is left as it was. The settle is the only write before the harvest, and it leaves the
+  bundle as it was or vanilla, never half-injected. A version injected by an earlier run keeps that
+  injection whole, with its old payload and tables still agreeing with each other.
+- `update` and `check` catch those two refusals per version, and nothing else. The unfinished one is
+  `UnfinishedExtensionError`, a `UserError`, so "payload is missing", which is Rigline's own build
+  failing, still stops the run. Any other exception is a bug and keeps its stack.
+- A refused version is reported under *Needs you* with its reason, so the exit code is 1. The
+  companion then shows *needs you* and still makes its reload decision for the rest.
+- The baseline and `generated.ts` move only to the newest installed version, and stay put while it
+  is refused. Moving them to the newest *readable* version would send an author's committed file
+  backwards.
+- The CLI's watcher treats a listing as dealt with only after a run that left nothing unfinished,
+  as the companion already does (D81). An unreadable version is not retried, because nothing changes
+  until Rigline does.
+
+Rejected:
+
+- Splitting `settleWebviewBackup` into a decision and a write, so a refused version is byte-for-byte
+  untouched. That is machinery for a rare case inside a rare case.
+- Catching every `UserError` per version. That would turn Rigline's own broken build into the same
+  line printed once per version.

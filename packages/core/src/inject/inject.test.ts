@@ -590,6 +590,31 @@ describe("plugins", () => {
   });
 });
 
+describe("a version this Rigline cannot read (D104)", () => {
+  it("is refused before anything is written, so an earlier injection stays whole", () => {
+    const ext = fixture();
+    install(ext, { payloadDir: payload("v1", "v1") });
+    // The loader still around the bundle, and the bundle one this Rigline's patterns cannot read:
+    // the state an upgrade leaves behind when a pattern stops matching.
+    const live = readFileSync(bundlePath(ext));
+    const backup = readFileSync(backupPath(ext));
+    const at = live.indexOf(backup);
+    const nothing = Buffer.from("var nothing=1;", "latin1");
+    writeFileSync(backupPath(ext), nothing);
+    writeFileSync(
+      bundlePath(ext),
+      Buffer.concat([live.subarray(0, at), nothing, live.subarray(at + backup.length)]),
+    );
+    const before = readFileSync(bundlePath(ext));
+
+    expect(() => install(ext, { payloadDir: payload("v2", "v2") })).toThrow(
+      /classes: found 0 modules/,
+    );
+    expect(readFileSync(join(payloadOutDir(ext), "pre.js"), "utf8")).toBe("v1");
+    expect(readFileSync(bundlePath(ext))).toEqual(before);
+  });
+});
+
 describe("the runtime modules", () => {
   it("copies the runtime, and drops a chunk the new build no longer has", () => {
     const ext = fixture();

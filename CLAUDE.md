@@ -25,7 +25,7 @@ no new plans. Update the plan before writing code; log status there, not here.
   `Atomics.wait` rather than making `install` async. Carries a negative result worth not
   re-proposing: a content check on the bundle's tail was evidenced against the corpus and rejected,
   because a rule that fits today's bundler refuses every install the day it changes.
-- [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D103.
+- [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D104.
 
 The internals, for a contributor to Rigline itself. The shape, not the argument — the argument is in
 decisions.md, and each doc cites the decisions it rests on.
@@ -130,7 +130,8 @@ Written for somebody else, so don't rewrite them for us:
   re-run rather than a green result about code that is not loaded, but the rebuild is still yours to
   do.
 - **A plugin's problem never blocks the install.** Report it by name, inject around it, refuse it
-  at load. Only a collapsed harvest or Rigline's own build failure blocks.
+  at load. A collapsed harvest refuses its one version and leaves it as it was (D104); only
+  Rigline's own build failure stops the run.
 
 ## Working on the live extension
 

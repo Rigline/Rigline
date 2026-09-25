@@ -484,3 +484,5 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   (D102).
 - 2026-09-25: Rows' fibers are read off the element by the `__reactFiber$` prefix, so React 19 is
   covered, and the React layer's view is react-dom's version (D103).
+- 2026-09-25: A refusal belongs to one version: `install`, `check` and `watch` report it and carry on
+  (D104).
