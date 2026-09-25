@@ -199,8 +199,11 @@ export interface Engine {
   readonly entry: string;
   /** Run a verb with our stdio, and answer with the child's exit code. `env` adds to ours. */
   run(argv: readonly string[], env?: Readonly<Record<string, string>>): Promise<number>;
-  /** Run a verb and parse its stdout, which is how `sources.json` is read without reading it (D74). */
-  json(argv: readonly string[]): Promise<unknown>;
+  /**
+   * Run a verb and parse its stdout, which is how `sources.json` is read without reading it (D74).
+   * `quiet` drops stderr, where an engine too old for the verb prints its usage.
+   */
+  json(argv: readonly string[], options?: { readonly quiet?: boolean }): Promise<unknown>;
 }
 
 /**
@@ -293,8 +296,9 @@ function engineAt(state: { version: string; entry: string }, options: EngineOpti
         child.on("error", fail);
         child.on("close", (code) => done(code ?? 1));
       }),
-    json: async (argv) => {
-      const run = await capture(node, [state.entry, ...argv], spawnImpl, "inherit");
+    json: async (argv, options) => {
+      const stderr = options?.quiet ? "ignore" : "inherit";
+      const run = await capture(node, [state.entry, ...argv], spawnImpl, stderr);
       if (run.code !== 0) {
         throw new UserError(`the engine exited ${run.code} for \`${argv.join(" ")}\``);
       }
@@ -314,7 +318,7 @@ async function capture(
   command: string,
   argv: readonly string[],
   spawnImpl: SpawnLike = nodeSpawn,
-  stderr: "inherit" | "pipe" = "pipe",
+  stderr: "inherit" | "pipe" | "ignore" = "pipe",
 ): Promise<{ readonly code: number; readonly output: string }> {
   return await new Promise((done, fail) => {
     const child = spawnImpl(command, argv, { stdio: ["ignore", "pipe", stderr] });

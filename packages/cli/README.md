@@ -44,7 +44,10 @@ from a VSIX that ships inside the engine. Nothing is downloaded, and the compani
 engine does. It injects as it goes, so it is a step *instead of* `install` rather than after it.
 
 From then on it watches for the extension update and re-injects behind it, so there is nothing to
-remember after one.
+remember after one. It goes into every VS Code profile that has Claude Code, and into any profile
+that gets Claude Code later; the `companion` settings in
+[`~/.rigline/config.yaml`](https://github.com/Rigline/Rigline/blob/main/docs/config.md) keep it out
+of the profiles you name.
 
 **Decline it and lose nothing.** `install` remains complete on its own, and is the right answer if
 you would rather not add an extension, cannot install one, or simply prefer running the thing

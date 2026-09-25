@@ -396,6 +396,47 @@ function fakeChild(code: number) {
   } as unknown as ReturnType<typeof import("node:child_process").spawn>;
 }
 
+/** A finished child whose stdout said `text`, before it closed. */
+function speaking(text: string) {
+  const handlers = new Map<string, (value: number) => void>();
+  queueMicrotask(() => queueMicrotask(() => handlers.get("close")?.(0)));
+  return {
+    stdout: {
+      setEncoding() {},
+      on(event: string, handler: (chunk: string) => void) {
+        if (event === "data") queueMicrotask(() => handler(text));
+        return this;
+      },
+    },
+    stderr: null,
+    on(event: string, handler: (value: number) => void) {
+      handlers.set(event, handler);
+      return this;
+    },
+  } as unknown as ReturnType<typeof import("node:child_process").spawn>;
+}
+
+describe("Engine.json", () => {
+  it("drops stderr when quiet, where an engine too old for a verb prints its usage (D100)", async () => {
+    const prefix = temp();
+    writeEngine(engineDir(prefix), core("1.0.0-alpha.7"));
+    const stderr: unknown[] = [];
+    const engine = await ensureEngine({
+      home: prefix,
+      version: "1.0.0-alpha.7",
+      spawnImpl: (_command, _args, options) => {
+        stderr.push(options.stdio[2]);
+        return speaking('{"v":1}');
+      },
+    });
+
+    expect(await engine.json(["companion-profiles"], { quiet: true })).toEqual({ v: 1 });
+    await engine.json(["list", "--json"]);
+
+    expect(stderr).toEqual(["ignore", "inherit"]);
+  });
+});
+
 describe("Engine.run", () => {
   it("adds what it is given to this process's environment, which is how update defers (D98)", async () => {
     const prefix = temp();

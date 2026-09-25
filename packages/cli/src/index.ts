@@ -89,6 +89,7 @@ async function updateCommand(args: string[]): Promise<number> {
     registry,
   });
   console.log(formatUpdates(updates));
+  await addCompanions(engine);
 
   const moved =
     engineUpdate.outcome === "moved" ||
@@ -102,6 +103,19 @@ async function updateCommand(args: string[]): Promise<number> {
 
   const failed = updates.some((u) => u.outcome === "failed") || engineUpdate.outcome === "failed";
   return failed || injected !== 0 ? 1 : 0;
+}
+
+/**
+ * The companion into every VS Code profile that has Claude Code without it (D100). Before the
+ * injection, so the report's tail stays last (D98), and silent from an engine too old for the verb.
+ */
+async function addCompanions(engine: Engine): Promise<void> {
+  const answer = (await engine.json(["companion-profiles"], { quiet: true }).catch(() => null)) as {
+    v?: unknown;
+    lines?: unknown;
+  } | null;
+  if (answer?.v !== 1 || !Array.isArray(answer.lines)) return;
+  for (const line of answer.lines) if (typeof line === "string") console.log(line);
 }
 
 /**
