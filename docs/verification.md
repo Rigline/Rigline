@@ -175,6 +175,11 @@ root's and sets `root` to the repository and `include` to itself, and runs with
 `--reporter=verbose`, since the default reporter hides a passing test's output. What it finds goes
 into the plan; the file does not ship.
 
+**Look at a UI change before calling it done.** Assertions check where things are, not how they
+read, and a marker drawn over a label passes every one of them. A read that boots the harness and
+calls `page.screenshot()` shows the real composer with Rigline's layer over it — without VS Code's
+theme, whose colours only tier 3 shows.
+
 A file skips, with a reason, when the corpus lacks its version or Chromium will not launch — and the
 reason says which.
 
