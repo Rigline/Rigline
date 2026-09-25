@@ -65,6 +65,11 @@ anything may change between releases.
 - A plugin that declares `transcript` under `uses.optional` now loads and goes without it where this
   version of Claude Code cannot serve it. Before, calling `decorateTranscript` disabled the plugin.
 - `@rigline/plugin-api`: `IdentifierTables.react` carries `missing`, and its `version` may be null.
+- Rigline keeps working when Claude Code moves to React 19, including plugins that decorate the
+  transcript. Before, `rigline install` would have refused that version of Claude Code.
+- What moved since the last install now reports react-dom's version rather than the React names
+  Rigline checks for. The first install after upgrading Rigline therefore says the React layer
+  moved. Nothing in Claude Code did.
 
 ## 1.0.0-alpha.11 — 2026-09-25
 

@@ -4785,13 +4785,8 @@ export const SCAN = {
       "webview_focused",
       "write_memory_file"
     ],
-    "react.anchors": [
-      "__REACT_DEVTOOLS_GLOBAL_HOOK__",
-      "findFiberByHostInstance",
-      "isDisabled",
-      "memoizedProps",
-      "onCommitFiberRoot",
-      "supportsFiber"
+    "react.renderer": [
+      "18.3.1"
     ],
     "replies.replies": [
       "accept_diff_response",

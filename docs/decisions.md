@@ -2418,3 +2418,37 @@ still fails loudly here, where it can be fixed, rather than in a user's install.
 
 Rejected: keeping the block, and shipping a fix in each release in which React moves something.
 Until that release ships, every plugin on that version is lost for the sake of one.
+
+**D103. A row's fiber is read off the element by the `__reactFiber$` prefix, on every React major
+(2026-09-25, Leo).** The host used to take `findFiberByHostInstance` from the internals react-dom
+injects into the devtools hook, and the React layer asserted that literal. React 19 no longer passes
+it: react-dom 19.3.0's internals are `bundleType`, `version`, `rendererPackageName`,
+`currentDispatcherRef` and `reconcilerVersion`. So on the day Claude Code ships React 19, `fiberFor`
+would return null for every row.
+
+On React 18 the two lookups are the same read. In every corpus version, `findFiberByHostInstance`
+is React's `getClosestInstanceFromNode`, and its first statement returns
+`element["__reactFiber$" + suffix]` when that is set. The two differ only for an element React did
+not create. There the function walks up the DOM and returns the nearest owned ancestor's fiber,
+while the key read returns null, which is what `fiberFor` has always promised. So `fiberFor` finds
+the element's own key starting with `__reactFiber$` and returns its value, and the React layer
+asserts that prefix instead. The prefix is once per bundle in every corpus version and in react-dom
+19.3.0. An element carries only the keys of the renderer that created it, so the prefix also finds
+the right renderer while Rigline's own React 19 shares the page.
+
+The layer's view becomes `renderer`, react-dom's version. The asserted names never differ between
+two scans by the same Rigline, so a diff of them only ever reported Rigline's own edits as the
+extension's. This change would have been the first to do so. The version is the React fact that does
+change between extension versions, and it makes the drift report name the day React moves. The
+switch itself reports the React layer as moved, once, on each machine's first install after
+upgrading.
+
+Rejected:
+
+- Keeping `findFiberByHostInstance` and falling back to the key. On 18 they are the same read, and
+  the path that must work after the move would run nowhere until the move.
+- Asserting `findFiberByHostInstance` only below React 19, which is a version matrix inside the
+  harvest.
+- Binding the key to the app's renderer through the suffix on its root's `__reactContainer$`. The
+  prefix already finds the owning renderer, and binding asserts another internal.
+- An element-to-fiber map built by walking each commit. Commits fire once per streamed token.

@@ -24,9 +24,10 @@ and an ISO `timestamp`. Those are the only sources, and a caller wanting one alw
 a list built from either alone is half-timed.
 
 **The DOM carries no identity.** A row's uuid reaches the DOM through no attribute and no id. It is
-read from React instead, through `findFiberByHostInstance` — react-dom's own lookup, handed over
-when the renderer injected into the devtools hook the pre hook installed, rather than a scan for the
-`__reactFiber$…` property whose suffix is randomised per load.
+read from React instead, through the fiber react-dom keeps on every element it creates, under a
+`__reactFiber$…` property whose suffix is randomised per load. The host finds it by its prefix among
+the element's own keys. React 18's `findFiberByHostInstance` reads the same property first, and
+React 19 no longer hands that function over at all (D103).
 
 ## What an entry is
 

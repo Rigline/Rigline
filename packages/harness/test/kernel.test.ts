@@ -7,6 +7,9 @@
  * Skips with a reason, rather than failing, when the corpus snapshot or a launchable Chromium is
  * absent, so a fresh clone without either is not blocked. The scaffolding is in src/suite.ts.
  */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { bundledDir, harvestReact } from "@rigline/core";
 import { EMPTY_DECLARATIONS } from "@rigline/plugin-api";
 import { describe, expect, it } from "vitest";
 import type { FixturePlugin } from "../src/payload.ts";
@@ -221,18 +224,13 @@ export default { setup() {} };`,
 
     it("keeps the app's renderer when another injects after it", async () => {
       // What a second react-dom does to the hook: a plugin carrying its own React, or Rigline's
-      // own shell. Its fiber lookup knows only its own tree, so taking it would leave every row
-      // unidentified, and its commits are not the app's re-renders.
+      // own shell. Its commits are not the app's re-renders, and its version is not the app's.
       const intruder: FixturePlugin = {
         name: "intruder",
         manifest: { uses: { transcript: true } },
         source: `export default { setup(ctx) {
     const hook = window.__REACT_DEVTOOLS_GLOBAL_HOOK__;
-    window.__intruder = hook.inject({
-      version: "19.1.0",
-      rendererPackageName: "react-dom",
-      findFiberByHostInstance: () => null,
-    });
+    window.__intruder = hook.inject({ version: "19.1.0", rendererPackageName: "react-dom" });
     ctx.decorateTranscript((entry) => {
       const d = document.createElement("i");
       d.className = "harness-time";
@@ -330,6 +328,34 @@ export default { setup() {} };`,
         const failed = d.plugins.find((p) => p.name === "stray");
         expect(failed?.status).toBe("error");
         expect(failed?.reason).toContain("left-pad");
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
+    it("reads a fiber off an element react-dom 19 rendered, which Rigline's own pill is", async () => {
+      // The nearest thing to a React 19 app until Claude Code ships one (D103): the shell's
+      // react-dom, rendering into the same page.
+      const shell = readFileSync(join(bundledDir(), "runtime", "shell.js"), "utf8");
+      expect(shell).not.toContain("findFiberByHostInstance");
+      const anchors = harvestReact(shell);
+      expect(anchors.version).toMatch(/^19\./);
+      expect(anchors.missing).toEqual([]);
+
+      const booted = await boot();
+      try {
+        await booted.page.waitForSelector(".rigline-pill");
+        const popup = await booted.page.evaluate(() => {
+          const w = window as unknown as {
+            __rigline: { react: { fiberFor(element: Element): unknown } };
+          };
+          const pill = document.querySelector(".rigline-pill");
+          const fiber = pill
+            ? (w.__rigline.react.fiberFor(pill) as { memoizedProps?: Record<string, unknown> })
+            : null;
+          return fiber?.memoizedProps?.["aria-haspopup"] ?? null;
+        });
+        expect(popup).toBe("menu");
       } finally {
         await booted.close();
       }

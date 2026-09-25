@@ -338,11 +338,8 @@ interface RiglineBridge {
      */
     onCommit(handler: () => void): () => void;
     /**
-     * The fiber the app's renderer associates with `element`, or null.
-     *
-     * React's own lookup, handed over when the renderer injected — not a scan for the
-     * `__reactFiber$..` key it happens to be implemented with. Null before any renderer has
-     * injected, and for an element React does not own.
+     * The fiber `element` was created with, read from react-dom's own `__reactFiber$` property, or
+     * null for an element no React created (D103).
      */
     fiberFor(element: Element): unknown;
     /** The app's react-dom version, once it has injected. Null means it has not, and will not. */
@@ -666,16 +663,18 @@ try {
    */
   const DEVTOOLS_HOOK = "__REACT_DEVTOOLS_GLOBAL_HOOK__";
 
+  /** The fiber key's prefix, before its per-load suffix, spelled literally for the same reason. */
+  const FIBER_KEY = "__reactFiber$";
+
   const commitHandlers = new Set<() => void>();
   let commitScheduled = false;
-  let findFiber: ((element: Element) => unknown) | null = null;
   let rendererVersion: string | null = null;
   let nextRendererId = 1;
 
   /**
    * The first renderer to inject is the app's: react-dom initialises in the bundle body, and nothing
-   * else can load one before post.js runs. A later one's fiber lookup knows only its own tree, and
-   * its commits are not the app's re-renders, so neither may reach the transcript or the mount pass.
+   * else can load one before post.js runs. A later one's commits are not the app's re-renders, so
+   * they may not reach the transcript or the mount pass.
    */
   let appInjected = false;
   let appRendererId: unknown = null;
@@ -702,12 +701,8 @@ try {
   }
 
   /**
-   * Keep what the app's renderer handed over: its id, its version, and its element-to-fiber lookup.
-   * Any later renderer is only counted.
-   *
-   * Everything else in the internals object is devtools' business. Taking the lookup from here
-   * rather than reading the `__reactFiber$..` key ourselves is the point of using the hook at all —
-   * that key's suffix is randomised per load, and React already has a function for it.
+   * Keep what the app's renderer handed over: its id and its version. Any later renderer is only
+   * counted. Everything else in the internals object is devtools' business.
    */
   function noteInjection(id: unknown, internals: unknown): void {
     if (appInjected) {
@@ -716,14 +711,11 @@ try {
     }
     appInjected = true;
     appRendererId = id;
-    const renderer = internals as { version?: unknown; findFiberByHostInstance?: unknown } | null;
+    const renderer = internals as { version?: unknown } | null;
     if (!renderer || typeof renderer !== "object") return;
     if (typeof renderer.version === "string") {
       rendererVersion = renderer.version;
       bridge.diagnostics.react.version = renderer.version;
-    }
-    if (typeof renderer.findFiberByHostInstance === "function") {
-      findFiber = renderer.findFiberByHostInstance as (element: Element) => unknown;
     }
   }
 
@@ -851,13 +843,11 @@ try {
         return () => void commitHandlers.delete(handler);
       },
       fiberFor(element) {
-        if (!findFiber) return null;
-        try {
-          return findFiber(element) ?? null;
-        } catch (e) {
-          bridge.diagnostics.errors.push(`fiber:${e instanceof Error ? e.message : String(e)}`);
-          return null;
-        }
+        // Own keys: `for...in` would also walk every accessor on the element's prototype chain.
+        const key = Object.keys(element).find((k) => k.startsWith(FIBER_KEY));
+        return key === undefined
+          ? null
+          : ((element as unknown as Record<string, unknown>)[key] ?? null);
       },
       rendererVersion() {
         return rendererVersion;

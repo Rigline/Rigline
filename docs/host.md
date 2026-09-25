@@ -64,9 +64,9 @@ harvested identifier and reads no generated table. What it does:
   it missed.
 - Installs or chains the React devtools hook, and coalesces the app's commit notices to one per
   animation frame. The first renderer to inject is the app's, since react-dom initialises in the
-  bundle body before `post.js` can load another: its version and `findFiberByHostInstance` are kept,
-  and a later renderer — a plugin's own React, or Rigline's — is counted in
-  `diagnostics.react.foreign` and otherwise ignored.
+  bundle body before `post.js` can load another: its version is kept, and a later renderer — a
+  plugin's own React, or Rigline's — is counted in `diagnostics.react.foreign` and otherwise
+  ignored. A row's fiber is read off the element itself, by the `__reactFiber$` prefix (D103).
 - Publishes all of this on `globalThis.__rigline` as the bridge the post hook drives, with a
   `diagnostics` object the probe reads. The bridge is host-internal and not part of `ctx`; the probe
   is the one plugin that reads it.

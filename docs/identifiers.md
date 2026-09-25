@@ -137,7 +137,9 @@ today's protocol size and fire on every smaller fixture.
 
 The transcript capability rests on react-dom's devtools integration: the global hook name,
 `supportsFiber` and `isDisabled` (which react-dom checks before accepting a hook),
-`onCommitFiberRoot`, `findFiberByHostInstance`, and `memoizedProps`.
+`onCommitFiberRoot`, and `memoizedProps`. It also rests on the `__reactFiber$` prefix of the property
+react-dom keeps an element's fiber under, which is what the host reads a row's identity through on
+React 18 and 19 alike (D103).
 
 None of those is a class or a message type, so nothing else in the system could notice one moving,
 and every one of them fails *silently* — a capability that quietly resolves no rows. So this layer
@@ -151,9 +153,13 @@ because nothing else rests on react-dom's internals (D102). What makes the other
 doesn't apply here: this is a list of named assertions, not a pattern that could quietly match less.
 The corpus tests are what fail loudly when one of them stops holding.
 
-`__REACT_DEVTOOLS_GLOBAL_HOOK__` is spelled literally twice — here and in `pre.ts`, which is
-statically imported and so cannot read a generated table — and a test holds the two spellings to
-each other.
+`__REACT_DEVTOOLS_GLOBAL_HOOK__` and `__reactFiber$` are each spelled literally twice — here and in
+`pre.ts`, which is statically imported and so cannot read a generated table — and a test holds each
+pair of spellings together against the built `pre.js`.
+
+Its view, `renderer`, holds react-dom's version and nothing else. The asserted names would be the
+same in every scan made by the same Rigline, so a diff of them could only report Rigline's own
+edits, as if they were the extension's (D103).
 
 ## The anchor table, on top
 
@@ -214,7 +220,7 @@ as right. A module that only lost names, or only gained them, produces nothing: 
 or an addition, not a rename.
 
 Only `classes.classes` is grouped this way, and that is stated by name rather than sniffed from the
-identifier shape. The react layer's own `__REACT_DEVTOOLS_GLOBAL_HOOK__` ends in six word characters
+identifier shape. An identifier such as `__REACT_DEVTOOLS_GLOBAL_HOOK__` ends in six word characters
 after an underscore and would parse as a local name in a fictitious module — the same coincidental
 match the class harvest already guards against.
 

@@ -6,9 +6,8 @@
  * the moment the row object was built, not the moment the message happened, so it is never read.
  * The real times arrive on the bus in two carriers, `get_session_response` (the transcript as it
  * was on disk) and `io_message` (everything since). And the DOM carries no identity, so a row is
- * matched to its message through React's own fiber for the element, handed over by the devtools
- * hook the pre hook installed. `@rigline/plugin-api` owns the three derivations; this owns the
- * plumbing and the cost.
+ * matched to its message through the fiber react-dom keeps on the element (D103).
+ * `@rigline/plugin-api` owns the three derivations; this owns the plumbing and the cost.
  *
  * Rows are keyed by index upstream, so React reuses one element for a different message when the
  * list is spliced. Identity is therefore re-read from scratch on every sweep, and plugins are

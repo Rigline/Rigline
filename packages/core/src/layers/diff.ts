@@ -79,7 +79,7 @@ export function scanFromJson(json: ScanJson): Scan {
  * a protocol message type, a payload field (`type.key`) or a reply name is a bare identifier with
  * no embedded grouping key, so "arrived in the same place" is not a question that can be asked of
  * them — there is no place, only a flat set. Sniffing the shape instead of naming the view was tried
- * and rejected: the react layer's own required anchor `__REACT_DEVTOOLS_GLOBAL_HOOK__` ends in
+ * and rejected: an identifier such as `__REACT_DEVTOOLS_GLOBAL_HOOK__` ends in
  * `_HOOK__`, six word characters after an underscore, and would parse as local
  * `__REACT_DEVTOOLS_GLOBAL` in a fictitious module `HOOK__` — the exact coincidental match
  * `classes.ts`'s own harvest comment warns about for `sessionId:"abc123_OOQiHg"`. Naming the view

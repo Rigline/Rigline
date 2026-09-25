@@ -664,19 +664,26 @@ describe("the app's renderer, and any other", () => {
     return globalRecord()[HOOK] as DevtoolsHook;
   }
 
-  function renderer(version: string, fiber: string) {
-    return { version, rendererPackageName: "react-dom", findFiberByHostInstance: () => fiber };
+  function renderer(version: string) {
+    return { version, rendererPackageName: "react-dom" };
   }
 
   /** Past the commit notice's coalescing, which falls back to a 16ms timer with no animation frame. */
   const settle = () => new Promise((resolve) => setTimeout(resolve, 50));
 
-  it("keeps the first renderer's lookup and version, and only counts a later one", async () => {
+  it("reads an element's fiber from react-dom's own key, whatever its suffix", async () => {
     const h = await boot();
-    hook().inject(renderer("18.3.1", "app fiber"));
-    hook().inject(renderer("19.1.0", "foreign fiber"));
+    const row = { __reactProps$x7q2: { message: {} }, __reactFiber$x7q2: "row fiber" };
+    expect(h.bridge.react.fiberFor(row)).toBe("row fiber");
+    expect(h.bridge.react.fiberFor({ __reactProps$x7q2: {} })).toBeNull();
+    expect(h.bridge.react.fiberFor(Object.create({ __reactFiber$x7q2: "inherited" }))).toBeNull();
+  });
 
-    expect(h.bridge.react.fiberFor({})).toBe("app fiber");
+  it("keeps the first renderer's version, and only counts a later one", async () => {
+    const h = await boot();
+    hook().inject(renderer("18.3.1"));
+    hook().inject(renderer("19.1.0"));
+
     expect(h.bridge.react.rendererVersion()).toBe("18.3.1");
     expect(h.bridge.diagnostics.react.version).toBe("18.3.1");
     expect(h.bridge.diagnostics.react.foreign).toBe(1);
@@ -684,8 +691,8 @@ describe("the app's renderer, and any other", () => {
 
   it("notifies on the app's commits and never on another renderer's", async () => {
     const h = await boot();
-    const app = hook().inject(renderer("18.3.1", "app fiber"));
-    const other = hook().inject(renderer("19.1.0", "foreign fiber"));
+    const app = hook().inject(renderer("18.3.1"));
+    const other = hook().inject(renderer("19.1.0"));
     let notices = 0;
     h.bridge.react.onCommit(() => {
       notices += 1;
@@ -714,10 +721,10 @@ describe("the app's renderer, and any other", () => {
     const h = await boot(existing);
     expect(h.bridge.diagnostics.react.hook).toBe("chained");
 
-    const app = hook().inject(renderer("18.3.1", "app fiber"));
-    const other = hook().inject(renderer("19.1.0", "foreign fiber"));
+    const app = hook().inject(renderer("18.3.1"));
+    const other = hook().inject(renderer("19.1.0"));
     expect([app, other]).toEqual([7, 8]);
-    expect(h.bridge.react.fiberFor({})).toBe("app fiber");
+    expect(h.bridge.react.rendererVersion()).toBe("18.3.1");
 
     hook().onCommitFiberRoot(other, {});
     hook().onCommitFiberRoot(app, {});

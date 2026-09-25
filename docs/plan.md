@@ -332,11 +332,14 @@ built. The first two change what a plugin is written against.
   (D100) and the Save link (D93), each added where one was needed. The aim is that everything runs
   current versions, which `update` and the companion's self-update keep it at, not two-way
   compatibility paid for in flexibility.
-- **The React layer does not survive the app moving to React 19.** React 19's devtools injection no
-  longer passes `findFiberByHostInstance`, and the React layer asserts that literal (D11), so the day
-  Claude Code ships React 19 the harvest fails and `install` refuses that version outright — every
-  plugin, not only the transcript's. The `"__reactFiber$"` key prefix is an unminified literal in
-  both majors and is the obvious replacement.
+- **Whether a reused row can report its previous message.** React writes an element's
+  `__reactFiber$` property when it creates the element, and never on update. It rewrites
+  `__reactProps$` on every update. So after an update, the fiber there can be the alternate, whose
+  `.return` chain holds the previous render's props. A row React reuses for a different message
+  (rows are keyed by index) could then report the old message's identity until the fiber flips
+  back. `findFiberByHostInstance` returned the same object, so D103 neither caused this nor fixed
+  it. This comes from reading the source, not from an observation. A harness case that splices the
+  list would show whether it is real.
 
 ## Deferred, with triggers
 
@@ -479,3 +482,5 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   minifier over every corpus version (D101).
 - 2026-09-25: A React literal gone from the bundle refuses the transcript's plugins, not the install
   (D102).
+- 2026-09-25: Rows' fibers are read off the element by the `__reactFiber$` prefix, so React 19 is
+  covered, and the React layer's view is react-dom's version (D103).
