@@ -2132,3 +2132,16 @@ Rejected:
 - A keyboard drag — pick up, arrows, drop — as the ARIA pattern has it. A second scheme to design and
   test, for what the moves already do.
 - Re-placing live while dragging, which moves the fit stage and the targets under the pointer.
+
+**D96. The panel names a place by its title; the file and the CLI by its spelling (2026-09-25,
+Leo).** The panel showed the file's spelling for every place — `before footerSpacer`, `rigRow` — in
+its headings and its moves, and an anchor's name is not something a person placing a pill should
+have to read. The panel calls them Footer, Rigline row and Off. `config.yaml` and `rigline layout`
+keep the spelling, since a person editing the file reads the file's vocabulary, and a move carries
+the spelling as its tooltip, which ties the two names together.
+
+A zone's title is in `ZONES`. A slot's is in a table keyed by the place's spelling, because what a
+slot is called depends on its position as well as its anchor: before the footer's spacer is the
+footer, after it is beside the send button. A slot nobody has titled shows its spelling.
+
+Rejected: a title on the anchor, which cannot say which side of it a place is.

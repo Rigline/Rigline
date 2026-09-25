@@ -13,6 +13,8 @@ import type { IdentifierTables } from "./tables.ts";
 export interface ZoneSpec {
   /** The anchor the zone's row is kept last in. The zone's surfaces are this anchor's. */
   readonly anchor: AnchorName;
+  /** What the panel calls it. */
+  readonly title: string;
   readonly description: string;
 }
 
@@ -20,6 +22,7 @@ export interface ZoneSpec {
 export const ZONES = {
   rigRow: {
     anchor: "composerBox",
+    title: "Rigline row",
     description: "A row at the foot of the composer box, under its controls.",
   },
 } as const satisfies Record<string, ZoneSpec>;

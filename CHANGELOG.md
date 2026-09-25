@@ -38,13 +38,14 @@ anything may change between releases.
   `rigline layout order` sets the order in a place, and `rigline layout reset` empties the layout.
   Each keeps your comments and re-injects. `rigline list` and `rigline add` say when an element has
   been moved or switched off.
-- **Arrange the panel from Rigline's menu.** Layout lists every element by where it sits, and moves
-  one before or after its neighbour, to another place its plugin allows, off, or back to its plugin's
-  default, live in the panel behind the menu. Save writes the result to `~/.rigline/config.yaml`
-  through the companion extension, keeping your comments, and its notification says if that replaced
-  a change made since the panel loaded. Without the companion, Copy commands gives you the `rigline layout` commands that
-  do the same. Reload saved layout picks up a layout saved from another panel or a terminal without
-  reloading anything. `rigline install` now makes `~/.rigline/token` once, which a Save carries so the
+- **Arrange the panel from Rigline's menu.** Layout lists every element by where it sits — the
+  footer, the Rigline row, or off — and moves one before or after its neighbour, to another place
+  its plugin allows, off, or back to its plugin's default, live in the panel behind the menu. Save
+  writes the result to `~/.rigline/config.yaml` through the companion extension, keeping your
+  comments, and its notification says if that replaced a change made since the panel loaded.
+  Without the companion, Copy commands gives you the `rigline layout` commands that do the same.
+  Reload saved layout picks up a layout saved from another panel or a terminal without reloading
+  anything. `rigline install` now makes `~/.rigline/token` once, which a Save carries so the
   companion knows it came from your own panel; see [docs/config.md](docs/config.md).
 - **Edit the layout on the panel itself.** Edit in place, under Layout in Rigline's menu, puts a
   handle over each element. Drag a handle to any place its plugin allows — the places it can go are

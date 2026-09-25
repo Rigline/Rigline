@@ -19,6 +19,7 @@ import {
   placementGap,
   placementLabel,
   placeName,
+  placeTitle,
   type Surface,
   store,
   type Teardown,
@@ -158,6 +159,7 @@ export function createShellService(
       const node = document.createElement("div");
       node.className = "rigline-zone";
       node.setAttribute("data-rigline-zone", name);
+      node.setAttribute("data-rigline-title", placeTitle(name));
       zone = { node, members: 0, stop: null };
       zones.set(name, zone);
     }

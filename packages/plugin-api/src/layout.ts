@@ -13,6 +13,7 @@ import {
   samePlacement,
   ZONE_NAMES,
   ZONES,
+  type ZoneName,
 } from "./elements.ts";
 
 /** Each place, as the file spells it, to the elements listed there as `plugin/element`. */
@@ -27,6 +28,16 @@ const SLOT = new RegExp(`^(${SLOT_POSITIONS.join("|")}) ([A-Za-z][A-Za-z0-9]{0,6
 export function placeName(placement: Placement | null): string {
   if (placement === null) return OFF;
   return typeof placement === "string" ? placement : `${placement.at} ${placement.anchor}`;
+}
+
+/** What the panel calls a slot whose spelling is not for a person to read (D96). */
+const SLOT_TITLES: Readonly<Record<string, string>> = { "before footerSpacer": "Footer" };
+
+/** What the panel calls a place; the file and the CLI keep its spelling (D96). */
+export function placeTitle(place: string): string {
+  if (place === OFF) return "Off";
+  if (Object.hasOwn(ZONES, place)) return ZONES[place as ZoneName].title;
+  return SLOT_TITLES[place] ?? place;
 }
 
 /** What a place's name means, null being off, or why it means nothing. */

@@ -8,6 +8,7 @@ import {
   layoutCommands,
   MAX_SAVE_PAYLOAD,
   OFF,
+  placeTitle,
   SAVE_PAYLOAD_VERSION,
   type Store,
   sameLayout,
@@ -87,7 +88,7 @@ export function layoutMenu(
         {saving !== "idle" && <MenuNote>{SAVE_NOTES[saving]}</MenuNote>}
         {view.map((group) => (
           <Fragment key={group.place}>
-            <MenuNote>{group.place}</MenuNote>
+            <MenuNote>{placeTitle(group.place)}</MenuNote>
             {group.elements.map((element, i) => (
               <Moves
                 key={element.name}
@@ -146,7 +147,7 @@ export function movesOf(editor: LayoutEditor, name: string): () => ReactNode {
       return (
         <>
           <MenuNote>
-            {element.title} — {group.place}
+            {element.title} — {placeTitle(group.place)}
           </MenuNote>
           <MoveItems
             editor={editor}
@@ -180,7 +181,12 @@ function MoveItems(props: Where): ReactNode {
         />
       )}
       {element.also.map((to) => (
-        <MenuItem key={to} label={`Move to ${to}`} onSelect={stay(() => editor.move(name, to))} />
+        <MenuItem
+          key={to}
+          label={`Move to ${placeTitle(to)}`}
+          title={to}
+          onSelect={stay(() => editor.move(name, to))}
+        />
       ))}
       {place !== OFF && (
         <MenuItem label="Switch off" onSelect={stay(() => editor.move(name, OFF))} />
@@ -188,7 +194,7 @@ function MoveItems(props: Where): ReactNode {
       {element.listed && (
         <MenuItem
           label="Plugin default"
-          description={element.defaultPlace}
+          description={placeTitle(element.defaultPlace)}
           onSelect={stay(() => editor.move(name, null))}
         />
       )}

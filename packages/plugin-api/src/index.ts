@@ -84,6 +84,7 @@ export {
   parsePlace,
   placeElement,
   placeName,
+  placeTitle,
   sameLayout,
   withElementAt,
   withOrder,

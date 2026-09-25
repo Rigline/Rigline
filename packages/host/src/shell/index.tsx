@@ -67,7 +67,7 @@ const CSS = `
   outline-offset: -3px;
 }
 .rigline-zone[data-rigline-editing]:not(:has(> :not(:empty)))::before {
-  content: attr(data-rigline-zone);
+  content: attr(data-rigline-title);
   font-size: 0.85em;
 }
 `;

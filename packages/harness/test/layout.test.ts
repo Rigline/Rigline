@@ -100,7 +100,7 @@ describe.skipIf(skip !== null)(`the Layout submenu${skip ? ` (${skip})` : ""}`, 
       const pillTop = () =>
         page.evaluate(() => document.querySelector(".rigline-pill")?.getBoundingClientRect().top);
       const opened = await pillTop();
-      await choose(page, "Three", "Move to rigRow");
+      await choose(page, "Three", "Move to Rigline row");
       await page.waitForSelector('[data-rigline-zone="rigRow"] .deck-three');
       // The new row grows the composer and lifts the pill; the open menu follows it off the pill.
       expect(await pillTop()).toBeLessThan(opened ?? 0);
@@ -177,7 +177,7 @@ describe.skipIf(skip !== null)(`the Layout submenu${skip ? ` (${skip})` : ""}`, 
     const { page } = booted;
     try {
       await openLayout(page);
-      await choose(page, "Three", "Move to rigRow");
+      await choose(page, "Three", "Move to Rigline row");
       await page.waitForSelector('[data-rigline-zone="rigRow"] .deck-three');
       expect(await page.locator('a[href^="vscode:"]').count()).toBe(0);
       await page.evaluate(() => {
@@ -272,10 +272,10 @@ describe.skipIf(skip !== null)(`editing in place${skip ? ` (${skip})` : ""}`, ()
       expect(await page.evaluate(() => (window as unknown as { __clicks: number }).__clicks)).toBe(
         0,
       );
-      await page.getByText("One — before footerSpacer").waitFor();
-      await page.getByRole("menuitem", { name: "Move to rigRow" }).click();
+      await page.getByText("One — Footer").waitFor();
+      await page.getByRole("menuitem", { name: "Move to Rigline row" }).click();
       await page.waitForSelector('[data-rigline-zone="rigRow"] .deck-one');
-      await page.getByText("One — rigRow").waitFor();
+      await page.getByText("One — Rigline row").waitFor();
       // Off takes the handle away, so the pop-over closes onto the element's chip.
       await page.getByRole("menuitem", { name: "Switch off" }).click();
       await page.waitForSelector(".rigline-menu", { state: "detached" });
