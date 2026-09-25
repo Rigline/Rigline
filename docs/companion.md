@@ -9,8 +9,9 @@ to D85 in [decisions.md](decisions.md); what the milestone that built it turned 
 A second retrieval layer (D80). It acquires `@rigline/core` into `<RIGLINE_HOME>/engine` exactly as
 `rigline` does, and spawns that engine for every piece of work, unless `rigline.enginePath` names
 another (D94, below). It never harvests, injects or reads a manifest, and it never carries a copy of
-the engine: one engine owns bytes, and everything else acquires it. So the companion cannot disagree with the CLI, and the VSIX needs a new release only
-when the *scheduling* changes. New engines, anchor tables and plugins arrive underneath it.
+the engine: one engine owns bytes, and everything else acquires it. So the companion cannot disagree
+with the CLI. New engines, anchor tables and plugins arrive underneath it, and the companion follows
+them itself, from the VSIX the engine carries (D99, below).
 
 It is optional. `rigline install` after each update is the whole of Rigline, and declining the
 companion must cost nothing (D80). It is sideloaded rather than listed (D76).
@@ -33,8 +34,9 @@ with and fetches nothing.
   own `package.json`; its version comes from the workspace manifest and cannot drift.
 - **Acquisition is the wrapper's code, bundled.** The package takes `rigline` as `workspace:*` and
   imports `rigline/engine`, the one subpath the wrapper exports. It is the only project allowed to
-  declare `rigline` (D80 amends D69). The VSIX therefore freezes a snapshot of acquisition, which is
-  why acquisition is the one part of Rigline to keep small. It passes its version from the manifest
+  declare `rigline` (D80 amends D69). The VSIX therefore freezes a snapshot of acquisition until it
+  next updates itself, and a companion whose acquisition fails never gets that far, which is why
+  acquisition is the one part of Rigline to keep small (D99). It passes its version from the manifest
   VS Code read, because inside a VSIX the wrapper's own lookup finds no manifest.
 
 ## Finding Node
@@ -101,6 +103,34 @@ output piped into the **Rigline** output channel a line at a time, and then deci
 | `moved` | *Rigline: ready to restart*. A new version is patched behind this window (D85). |
 | `start` | *Rigline*, green. |
 | anything throws | *Rigline: failed*, with the message. A run never rejects, since nobody would see it. |
+
+## Updating itself
+
+After every `start` or `moved` run, and after the reload offer so it never delays one, the companion
+runs `companion-status` with its own directory through the engine that run used (D99). The engine
+fingerprints that directory alone against `dist/bundled/rigline.vsix.json`, since every profile
+shares the extensions directory. When it is not the carried companion, the companion installs the
+carried VSIX with `workbench.extensions.installExtension`, which for a VSIX installs into this
+window's profile. The new version takes over at the next extension-host restart, which the
+companion never takes: VS Code shows its own restart badge on the Extensions icon and a banner in
+the Extensions view, and removes the old directory at a later start.
+
+What it will not do, each read in `selfupdate.ts`:
+
+- **Install at its own version.** VS Code would delete the running companion's directory and
+  extract over it. A mismatch at the same version means the fingerprint rule is out of step, and is
+  logged.
+- **Install a fingerprint twice.** The profile's `globalState` records what was installed, so the
+  runs until a restart, and a second window of the profile, leave it.
+- **Run with `rigline.enginePath` set.** A checkout build carries the release's version, so every
+  build would be a same-version reinstall; `vscode-setup` is the developer's path (D94).
+- **Complain twice.** A failed install is retried each run and logged with the *Install from VSIX…*
+  path, and sets *needs you* once per carried fingerprint, only over a green status.
+
+The engine's answer is parsed from stdout alone, since an engine too old for the verb prints its
+usage on stderr, and a shape without `v: 1` is logged and ignored. A new major is a manual step: the
+wrapper refuses to move the engine across it, and the companion says *needs you*, naming
+`rigline vscode-setup`.
 
 ## The reload offer
 
@@ -185,6 +215,14 @@ and these reproduce the cases on demand:
   follows ([verification.md](verification.md)).
 - **The engine is a released one**, a day behind this checkout at most (D48), unless
   `rigline.enginePath` is set. Clear it to read what a user gets.
+- **Self-update** needs an engine that carries a different companion, and `enginePath` skips it. So
+  read it in the isolated VS Code (`c:\dev\knowledge\vscode-extension-internals.md`) with a scratch
+  `RIGLINE_HOME` holding this checkout's core and plugin-api, `pnpm pack`ed and npm-installed into
+  `engine/`, which at the released version reads as current. Install this build relabelled with an
+  older version and a changed description, with `--do-not-sync`. Set `USERPROFILE` to a scratch home
+  whose `.vscode/extensions` is the `--extensions-dir`, so the engine's `install` never reaches the
+  live extensions. The output channel's log under the user-data dir shows the update; after a
+  restart, only the new directory is left and the log says nothing about updating.
 - **A panel that stops accepting prompts** after a write under a live window was seen twice and has
   not recurred in three retests. If it does, open *Developer: Open Webview Developer Tools* before
   reloading: a reload destroys the only evidence.

@@ -193,7 +193,8 @@ the harvest reduced to its layer views, which is the baseline the install flow d
 A user's machine keeps its own state under `~/.rigline/`: `config.yaml` (what a person decides,
 D91), `sources.json` (the source each installed plugin came from — both the engine's to write, D74),
 `plugins/` (installed third-party plugins), `anchors.json` (local overrides and additions to the
-curated anchor table), `baseline.json` (the last harvest), `engine/`, the npm prefix `rigline`
+curated anchor table), `baseline.json` (the last harvest), `drift.txt` (what moved at the last
+install that found drift, D98), `engine/`, the npm prefix `rigline`
 installs `@rigline/core` into (D73), and `.lock`, held while an engine installs so the CLI and the
 companion cannot install over each other. A clone of this repo is for developing Rigline, not for using
 it.
@@ -351,9 +352,11 @@ built. The first two change what a plugin is written against.
   when it is taken.
 - **A plugins repository**, the home for a first-party plugin that is not part of the product.
   Triggered by the first such plugin; the git source comes first.
-- **Auto-updating the companion.** A sideloaded VSIX does not update itself, and under D80 it barely
-  needs to. Revisit if the VSIX changes more often than expected, or if D77's conversation makes a
-  listing wanted.
+- **`vscode-setup` into every profile that has Claude Code.** It installs into the default profile,
+  or the one `--profile` names; the companion keeps itself current wherever it is (D99), but getting
+  it into each profile is still by hand. The CLI can check a named profile's extensions and cannot
+  list profiles, so this takes reading VS Code's `storage.json`, which companion.md declines.
+  Triggered by that decision being revisited.
 
 - **Merging layout edits from several sources.** A save from the panel overwrites the file's layout
   and warns when that replaces a change made since the panel loaded (D92). Revisit when that warning
@@ -383,6 +386,10 @@ window, the status item should go to *Rigline: ready to restart* and stay there 
 Check the output channel for the `installed:` line first, which is what says the update actually
 arrived. If you would rather not wait, [companion.md](companion.md)'s *Reading it live* has the
 recipe for forcing one. When it reads clean, milestone 8 is done.
+
+**After the next release, `rigline vscode-setup` once on each machine.** The companions installed
+now predate self-update (D99) and sync; the one run makes them machine-scoped and able to follow the
+engine from then on.
 
 After them, the open questions above are the work. None is planned yet, so the next step there is to
 pick one and settle it.
@@ -452,3 +459,6 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
 - 2026-09-25: Editing in place (D95), place names (D96) and Rigline's own buttons (D97); plugin UI
   done.
 - 2026-09-25: `1.0.0-alpha.11`: the plugin UI.
+- 2026-09-25: `vscode-setup` installs the companion outside Settings Sync.
+- 2026-09-25: The report ends with what to reload, then what needs you (D98).
+- 2026-09-25: The companion updates itself from the engine it runs, read live (D99).

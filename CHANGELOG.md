@@ -12,6 +12,12 @@ anything may change between releases.
 
 ### Added
 
+- The companion extension updates itself. When the engine it runs carries a newer companion, it
+  installs that one into its own VS Code profile, and the new version takes over the next time
+  extensions restart; it never restarts anything itself. Run `rigline vscode-setup` once more to
+  get a companion that does this. A companion pointed at a checkout with `rigline.enginePath` does
+  not update itself.
+- `rigline doctor` says whether each installed companion is the one the engine carries.
 - `--verbose` on `rigline install`, `check` and `watch`, for the detail the shorter report leaves
   out: extension paths, harvest counts, each host patch, and everything that moved since the last
   install.

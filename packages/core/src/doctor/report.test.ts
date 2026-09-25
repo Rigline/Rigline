@@ -24,6 +24,7 @@ function reportWith(overrides: Partial<DoctorReport> = {}): DoctorReport {
     riglineVersion: "1.0.0-alpha.0",
     installs: [],
     anchorOverrides: NO_ANCHOR_OVERRIDES,
+    companion: { carried: null, installed: [] },
     problems: [],
     ...overrides,
   };

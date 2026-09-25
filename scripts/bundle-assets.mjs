@@ -20,8 +20,10 @@ import {
   readFileSync,
   rmSync,
   utimesSync,
+  writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
+import { COMPANION_SIDECAR, COMPANION_VSIX, companionFingerprint } from "@rigline/core";
 import { fail as failWith, ROOT, say } from "./lib/workspace.mjs";
 
 const fail = (message) => failWith(message, "bundle-assets");
@@ -105,10 +107,19 @@ for (const name of plugins) {
 //
 // Deliberately not added to `assertBundledIsCurrent`'s links. That chain exists because a stale
 // *payload* means injecting code which is not what this checkout says; a stale VSIX only means an
-// older extension is offered, which carries its own version and is visible. Adding it would let an
-// unbuilt `packages/vscode/src` refuse `bundledDir()`, and with it `restore` — coupling the
-// recovery path to the companion's build state is a much worse trade than an old VSIX.
-copy(join(ROOT, "packages", "vscode", "rigline.vsix"), join(BUNDLED, "rigline.vsix"));
+// older extension is offered, which a companion updating itself installs and then runs. Adding it
+// would let an unbuilt `packages/vscode/src` refuse `bundledDir()`, and with it `restore` —
+// coupling the recovery path to the companion's build state is a much worse trade than an old VSIX.
+copy(join(ROOT, "packages", "vscode", "rigline.vsix"), join(BUNDLED, COMPANION_VSIX));
+
+// Beside it, what an installed companion compares itself with: the files the VSIX packs (D99).
+const companionDist = join(ROOT, "packages", "vscode", "dist");
+const manifest = JSON.parse(readFileSync(join(companionDist, "package.json"), "utf8"));
+const code = readFileSync(join(companionDist, "extension.cjs"), "utf8");
+writeFileSync(
+  join(BUNDLED, COMPANION_SIDECAR),
+  `${JSON.stringify({ version: manifest.version, fingerprint: companionFingerprint(code, manifest) }, null, 2)}\n`,
+);
 
 say(
   `bundled ${PAYLOAD_FILES.length} payload files, the runtime, ${plugins.length} plugins and the companion ` +

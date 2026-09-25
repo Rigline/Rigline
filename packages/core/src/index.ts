@@ -25,9 +25,18 @@ export {
 } from "./assets.ts";
 export type { Generated } from "./codegen/generate.ts";
 export { generate } from "./codegen/generate.ts";
+export type { CarriedCompanion, CompanionStatus } from "./companion/fingerprint.ts";
+export {
+  COMPANION_SIDECAR,
+  carriedCompanion,
+  companionFingerprint,
+  companionStatus,
+  installedFingerprint,
+} from "./companion/fingerprint.ts";
 export type { FoundEditor, SetupOptions, SetupOutcome } from "./companion/setup.ts";
 export {
   COMPANION_RELOAD,
+  COMPANION_VSIX,
   checkoutEngineNote,
   companionVsix,
   EDITOR_CLIS,

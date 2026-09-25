@@ -2217,3 +2217,70 @@ Rejected:
 - Layout problems under *Needs you* (above).
 - Judging an updated plugin from `list --json` after an `add` whose re-inject exited 1. It works,
   but it leaves a report per plugin and the summary after the last tail.
+
+**D99. The companion updates itself from the engine it runs (2026-09-25, Leo).** An installed
+companion stayed whatever `vscode-setup` last put there, and so did the acquisition code frozen into
+it: the engine carries the current VSIX, and nothing installed it. D76's "`rigline update` moves it"
+was never built. Now, after every `start` or `moved` run, the companion asks the engine it just ran
+whether it is the companion that engine carries, and when it is not, installs the carried VSIX
+through `workbench.extensions.installExtension`. For a VSIX that command installs into the calling
+window's profile, so each companion updates itself where it lives, in whichever editor that is, and
+nothing is added to a profile or editor somebody left it out of (D80).
+
+**The engine recognises a companion by fingerprint.** `bundle-assets` writes
+`dist/bundled/rigline.vsix.json` beside the VSIX, holding its version and fingerprint: sha256 of
+`extension.cjs` without its source-map line, and the manifest with keys sorted and without `version`
+or VS Code's `__metadata`. The source map embeds sources with the checkout's line endings, which is
+the only difference between a Windows build and a Linux one. `companion-status PATH`, a verb kept out
+of the usage like `layout save`, fingerprints the companion at `PATH` alone, since every profile
+shares the extensions directory and a newer directory beside it can be another profile's, and
+answers JSON carrying `v`, a shape every future engine owes every installed companion. The rule
+lives in the engine, so changing it is an engine release. The version keeps tracking releases,
+because the wrapper's major gate reads it.
+
+**It installs only when that changes something.** Not at the same version, where VS Code deletes the
+running companion's directory and extracts in place, silently; a mismatch there means the rule is out
+of step with VS Code, and is logged. Not when the profile's `globalState` records that fingerprint as
+installed already, which is what stops a reinstall at every run until extensions restart, and what
+covers a second window. It never restarts anything, since that ends every Claude session in the
+window (D82); VS Code shows its own restart badge and banner. A failed install is tried again at the
+next run, and logged with the remedy that works in any profile, *Extensions: Install from VSIX…* with
+the carried path. It says
+*needs you* once per carried fingerprint and only over a green status, because some refusals, such
+as an `extensions.allowed` policy, are not the person's to fix. It is skipped while
+`rigline.enginePath` is set: D94 says a dev engine is never updated, and a checkout build carries the
+release's version, so every build would be a same-version reinstall. `vscode-setup` stays the
+developer's path.
+
+**A major version is a manual step.** The wrapper refuses an engine of another major, so a 1.x
+companion never sees a 2.x VSIX. The companion says *needs you*, naming `rigline vscode-setup`,
+instead of carrying on green with the old engine.
+
+`vscode-setup` passes `--do-not-sync`, since Settings Sync would carry the id to machines where VS
+Code asks the Marketplace for it and the name is unclaimed (D93), and an update keeps the machine
+scope it finds.
+
+This amends D76: the companion moves itself, and `rigline update` never did. It amends D80 without
+retiring it: a change to acquisition now reaches installed companions at the next engine release,
+but a companion whose acquisition fails never reaches `companion-status`, so acquisition and this
+step stay the code that must never break.
+
+Accepted: an engine rollback downgrades the companion, since the command forces the version it is
+given, and a rollback to before this leaves a companion that cannot update itself. A companion that
+predates this is updated once by hand. An install through *Install from VSIX…* syncs, since the
+palette cannot pass `--do-not-sync`.
+
+Rejected:
+
+- `rigline update` installing the VSIX. It goes through each editor's `code` CLI into the default
+  profile, and nothing records where the companion lives, so it would add companions where they
+  were left out and miss the profile they are in. And it never reaches somebody who uses only the
+  companion, whose engine is current before they would type it.
+- A notice in `install` and `check`. It matters only for companions that predate this, and it
+  nags anybody who disabled theirs.
+- A companion version that moves only when its bytes do. The major gate reads that version, so a
+  1.x-labelled companion would refuse every 2.x engine, and it needed a committed record, a release
+  step, and a workflow check that fires only after the tag is pushed.
+- A level number raised by hand, which somebody has to remember.
+- Comparing every companion directory rather than `PATH`'s: once one profile updated, every other
+  profile's would read as current.

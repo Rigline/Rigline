@@ -103,18 +103,39 @@ export function marked(
   };
 }
 
+/** The Node and the engine a run used, which the self-update after it asks again (D99). */
+export interface Runner {
+  readonly nodePath: string;
+  readonly entry: string;
+}
+
 export type AcquireResult =
   /** `reload` is what this window needs to show it, which is usually nothing (D82). */
-  | { readonly kind: "injected"; readonly engine: string; readonly reload: Reload | null }
+  | {
+      readonly kind: "injected";
+      readonly engine: string;
+      readonly reload: Reload | null;
+      readonly runner: Runner;
+    }
   /**
    * The engine wants a person. It may still have injected — a non-zero exit means somebody is
    * needed, not that nothing happened — so this carries a reload too, decided from the bytes.
    */
-  | { readonly kind: "attention"; readonly message: string; readonly reload: Reload | null }
+  | {
+      readonly kind: "attention";
+      readonly message: string;
+      readonly reload: Reload | null;
+      readonly runner: Runner;
+    }
   /** The engine ran and had nothing to inject into. Not a failure, and not a success either. */
-  | { readonly kind: "waiting"; readonly engine: string }
+  | { readonly kind: "waiting"; readonly engine: string; readonly runner: Runner }
   | { readonly kind: "no-node"; readonly message: string }
   | { readonly kind: "failed"; readonly message: string };
+
+/** The major of a version, or null when it has none to read. */
+function majorOf(version: string): string | null {
+  return /^(\d+)\./.exec(version)?.[1] ?? null;
+}
 
 /**
  * Bring the engine up to date and re-inject, reporting through the editor as it goes.
@@ -145,9 +166,12 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
   }
 
   try {
-    const engine =
-      namedEngine(editor, exists) ??
-      (await acquired(editor, acquisition, { nodePath, label: LABEL, version }));
+    const named = namedEngine(editor, exists);
+    const { engine, majorAhead } =
+      named === undefined
+        ? await acquired(editor, acquisition, { nodePath, label: LABEL, version })
+        : { engine: named, majorAhead: null };
+    const runner: Runner = { nodePath, entry: engine.entry };
     editor.status("working", "Rigline: injecting", `Running ${engine.version}`);
     const before = stamps(editor.extensionPath(CLAUDE_CODE));
     const code = await runEngine(nodePath, engine.entry, ["install"], (line) => editor.log(line));
@@ -163,7 +187,7 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
         "Rigline is ready, and will inject as soon as the Claude Code extension is installed.",
       );
       editor.log("nothing to inject into: the Claude Code extension is not installed");
-      return { kind: "waiting", engine: engine.version };
+      return { kind: "waiting", engine: engine.version, runner };
     }
 
     // Decided from the bytes and never from the exit code, so it is right against an engine that
@@ -177,13 +201,23 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
     });
     if (reload !== null) editor.log(`this window loaded Claude Code unpatched: ${reload} reload`);
 
+    if (majorAhead !== null) {
+      // The wrapper refuses another major, so this companion stays on the old engine for good (D99).
+      const message =
+        `Rigline ${majorAhead} is a new major version, which this companion cannot run. ` +
+        "Run `npm i -g rigline@latest`, then `rigline vscode-setup`.";
+      editor.status("attention", "Rigline: needs you", message);
+      editor.log(message);
+      return { kind: "attention", message, reload, runner };
+    }
+
     if (code !== 0) {
       // Not "install failed": a non-zero exit means somebody is wanted, which a bundled plugin
       // patching `extension.js` used to trigger on every single update having worked perfectly.
       const message = `the engine exited ${code}; what it said is in this output channel, above.`;
       editor.status("attention", "Rigline: needs you", message);
       editor.log(message);
-      return { kind: "attention", message, reload };
+      return { kind: "attention", message, reload, runner };
     }
 
     // A version patched behind this window must not look like steady state (D85).
@@ -197,7 +231,7 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
     } else {
       editor.status("ok", "Rigline", `Injected by engine ${engine.version}`);
     }
-    return { kind: "injected", engine: engine.version, reload };
+    return { kind: "injected", engine: engine.version, reload, runner };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     editor.status("attention", "Rigline: failed", message);
@@ -206,21 +240,27 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
   }
 }
 
-/** The acquired engine, moved first if its tag has. */
+/**
+ * The acquired engine, moved first if its tag has, and the version of a newer major the wrapper
+ * refused to move it to, if that is why it did not.
+ */
 async function acquired(
   editor: Editor,
   acquisition: Acquisition,
   options: Parameters<Acquisition["ensureEngine"]>[0],
-): Promise<Runnable> {
+): Promise<{ readonly engine: Runnable; readonly majorAhead: string | null }> {
   editor.status("working", "Rigline: updating", "Checking for a newer Rigline engine");
   const update = await acquisition.updateEngine(options);
   editor.log(`engine: ${update.outcome}${update.to === undefined ? "" : ` ${update.to}`}`);
+  let majorAhead: string | null = null;
   if (update.outcome === "failed") {
     // Reported, not thrown, and not fatal: a contended lock lands here, and the right answer is
     // to carry on with the engine already present rather than to give up on this update (D80).
     editor.log(`engine update did not happen: ${update.reason ?? "no reason given"}`);
+    const theirs = update.to === undefined ? null : majorOf(update.to);
+    if (theirs !== null && theirs !== majorOf(options.version)) majorAhead = update.to ?? null;
   }
-  return await acquisition.ensureEngine(options);
+  return { engine: await acquisition.ensureEngine(options), majorAhead };
 }
 
 export interface ShowPluginsOptions {

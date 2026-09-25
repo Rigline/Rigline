@@ -381,9 +381,11 @@ export async function updateEngine(options: EngineOptions = {}): Promise<EngineU
 
   const problem = majorProblem(options.version ?? wrapperVersion(), resolved.version);
   if (problem !== null) {
+    // `to`, so a caller can tell a major it cannot follow from a failure it can retry (D99).
     return {
       outcome: "failed",
       ...(installed === null ? {} : { from: installed }),
+      to: resolved.version,
       reason: problem,
     };
   }

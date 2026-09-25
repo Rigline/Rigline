@@ -3,24 +3,16 @@
  * `rigline layout save` does with the payload of a panel's Save link, which the companion hands it.
  */
 import { randomBytes, timingSafeEqual } from "node:crypto";
-import {
-  existsSync,
-  linkSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, linkSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { decodeSavePayload, type SaveRecord, sameLayout } from "@rigline/plugin-api";
+import { companionDirs } from "../companion/fingerprint.ts";
 import { UserError } from "../errors.ts";
 import { URL_SCHEME } from "../extension/locate.ts";
 import { readConfig } from "./config.ts";
 import { writeLayout } from "./layout.ts";
 
 const TOKEN = /^[A-Za-z0-9_-]{22}$/;
-const COMPANION_PREFIX = "rigline.rigline-";
 
 type TokenResult = { readonly token: string } | { readonly problem: string };
 
@@ -71,13 +63,11 @@ function writeExclusive(path: string, text: string): void {
  * while, and nothing here orders versions.
  */
 export function companionHandlesSave(extensionsDir: string): boolean {
-  if (!existsSync(extensionsDir)) return false;
-  return readdirSync(extensionsDir, { withFileTypes: true }).some((entry) => {
-    if (!entry.isDirectory() || !entry.name.startsWith(COMPANION_PREFIX)) return false;
+  return companionDirs(extensionsDir).some((dir) => {
     try {
-      const manifest = JSON.parse(
-        readFileSync(join(extensionsDir, entry.name, "package.json"), "utf8"),
-      ) as { activationEvents?: unknown };
+      const manifest = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")) as {
+        activationEvents?: unknown;
+      };
       return (
         Array.isArray(manifest.activationEvents) && manifest.activationEvents.includes("onUri")
       );

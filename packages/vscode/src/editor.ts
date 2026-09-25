@@ -1,7 +1,7 @@
 /**
  * The editor, as the companion needs it.
  *
- * Everything the companion does is testable except the nine things below, so those are the seam:
+ * Everything the companion does is testable except the things below, so those are the seam:
  * `extension.ts` adapts the real `vscode` module to this, and every other module in this package
  * imports nothing from VS Code at all. That is the same split `@rigline/host` uses for the webview
  * and core uses for the filesystem, and it is why 8a's logic can be driven by vitest even though
@@ -59,6 +59,11 @@ export interface Editor {
   reloadWebviews(): Promise<void>;
   /** The whole window. The only thing that picks up a changed `extension.js`. */
   reloadWindow(): Promise<void>;
+  /** Install a VSIX into this window's profile; it runs once extensions next restart (D99). */
+  installExtension(vsix: string): Promise<void>;
+  /** A value kept in this profile's state for the companion, shared by the profile's windows. */
+  remembered(key: string): unknown;
+  remember(key: string, value: unknown): Promise<void>;
 }
 
 /** The extension the whole project is about. */

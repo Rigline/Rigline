@@ -10,8 +10,10 @@
  */
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { COMPANION_SIDECAR, companionFingerprint } from "../companion/fingerprint.ts";
+import { COMPANION_VSIX } from "../companion/setup.ts";
 import { RIGLINE_HOME_VARIABLE } from "../paths.ts";
 import { collect } from "./collect.ts";
 import { formatDoctor } from "./report.ts";
@@ -101,6 +103,39 @@ describe("collect", () => {
     const report = collect({ exts: [], now: NOW, home: "/nowhere" });
     expect(report.anchorOverrides.names).toEqual(["composer"]);
     expect(formatDoctor(report)).toContain("`composer`");
+  });
+
+  it("says whether each companion beside the extensions is the one this engine carries (D99)", () => {
+    const claude = ext("2.1.270");
+    const code = "exports.activate = () => {};\n";
+    const manifest = { name: "rigline", version: "1.0.0-alpha.11" };
+    const bundled = tempDir("rigline-doctor-bundled-");
+    writeFileSync(join(bundled, COMPANION_VSIX), "a vsix");
+    writeFileSync(
+      join(bundled, COMPANION_SIDECAR),
+      JSON.stringify({
+        version: "1.0.0-alpha.11",
+        fingerprint: companionFingerprint(code, manifest),
+      }),
+    );
+    for (const [name, body] of [
+      ["rigline.rigline-1.0.0-alpha.11", code],
+      ["rigline.rigline-1.0.0-alpha.9", `${code};`],
+    ] as const) {
+      const dir = join(dirname(claude), name);
+      mkdirSync(dir);
+      writeFileSync(join(dir, "extension.cjs"), body);
+      writeFileSync(join(dir, "package.json"), JSON.stringify(manifest));
+    }
+
+    const report = collect({ exts: [claude], now: NOW, home: "/nowhere", bundled });
+    expect(report.companion.carried?.version).toBe("1.0.0-alpha.11");
+    const verdicts = report.companion.installed.map((c) => [basename(c.dir), c.current]).sort();
+    expect(verdicts).toEqual([
+      ["rigline.rigline-1.0.0-alpha.11", true],
+      ["rigline.rigline-1.0.0-alpha.9", false],
+    ]);
+    expect(formatDoctor(report)).toContain("not the one carried");
   });
 
   it("turns an unreadable directory into a problem line and carries on", () => {

@@ -25,7 +25,7 @@ no new plans. Update the plan before writing code; log status there, not here.
   `Atomics.wait` rather than making `install` async. Carries a negative result worth not
   re-proposing: a content check on the bundle's tail was evidenced against the corpus and rejected,
   because a rule that fits today's bundler refuses every install the day it changes.
-- [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D98.
+- [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D99.
 
 The internals, for a contributor to Rigline itself. The shape, not the argument — the argument is in
 decisions.md, and each doc cites the decisions it rests on.
@@ -187,7 +187,8 @@ Code — has the companion run `install` with the released engine, whose payload
 this checkout's while every check passes, and everything it runs for the panel, Save included, is
 released code. Set, the status item reads *Rigline (dev)*. The tell that it is not working is a
 probe report without what you just built; compare the installed `post.js` with
-`packages/core/dist/bundled/post.js`. Re-run `vscode-setup` after changing the companion itself.
+`packages/core/dist/bundled/post.js`. Re-run `vscode-setup` after changing the companion itself: it
+updates itself only while `rigline.enginePath` is unset (D99).
 
 An update installs a new versioned directory and deletes the old one, so it silently reverts the
 injection. A window that was open keeps running the old directory until *Developer: Reload Window*.

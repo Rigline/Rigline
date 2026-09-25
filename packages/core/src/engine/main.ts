@@ -31,6 +31,7 @@ import {
   checkoutEngineNote,
   checkoutPluginsDir,
   collect,
+  companionStatus,
   companionVsix,
   diffScans,
   discoverPlugins,
@@ -619,6 +620,19 @@ async function vscodeSetupCommand(args: string[]): Promise<number> {
   return reinject(installed ? { reload: COMPANION_RELOAD } : {}) === 0 ? failed : 1;
 }
 
+/**
+ * `companion-status PATH`: the companion's, as `layout save` is, so the usage leaves it out. Whether
+ * the companion in `PATH` is the one this engine carries, as JSON on stdout (D99).
+ */
+function companionStatusCommand(args: string[]): number {
+  const { positionals } = parseArgs({ args, options: {}, allowPositionals: true });
+  if (positionals.length !== 1) {
+    throw new UserError("companion-status takes the companion's own directory");
+  }
+  console.log(JSON.stringify(companionStatus(resolve(positionals[0] as string))));
+  return 0;
+}
+
 function statusCommand(): number {
   const targets = installedExtensions();
   if (targets.length === 0) throw new UserError("no Claude Code extension is installed");
@@ -1003,6 +1017,8 @@ async function main(argv: string[]): Promise<number> {
       return layoutCommand(rest);
     case "vscode-setup":
       return vscodeSetupCommand(rest);
+    case "companion-status":
+      return companionStatusCommand(rest);
     case "status":
       return statusCommand();
     case "restore":

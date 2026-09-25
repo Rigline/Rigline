@@ -168,6 +168,28 @@ function overrideSection(overrides: AnchorOverrides, home: RegExp | null): strin
   return lines;
 }
 
+/** Whether each installed companion is the one this engine would update it to (D99). */
+function companionSection(companion: DoctorReport["companion"], home: RegExp | null): string[] {
+  const lines: string[] = ["## Companion extension", ""];
+  lines.push(
+    companion.carried === null
+      ? "This engine carries no companion."
+      : `This engine carries ${companion.carried.version}.`,
+    "",
+  );
+  if (companion.installed.length === 0) {
+    lines.push("None installed beside the Claude Code extension.", "");
+    return lines;
+  }
+  for (const { dir, current } of companion.installed) {
+    lines.push(
+      `- \`${abbreviate(dir, home)}\`: ${current ? "the one carried" : "not the one carried"}`,
+    );
+  }
+  lines.push("");
+  return lines;
+}
+
 /** The whole diagnostic as markdown. */
 export function formatDoctor(report: DoctorReport): string {
   const home = homePattern(report.home);
@@ -193,6 +215,7 @@ export function formatDoctor(report: DoctorReport): string {
   }
 
   lines.push(...overrideSection(report.anchorOverrides, home));
+  lines.push(...companionSection(report.companion, home));
 
   lines.push(
     "## What is not here",

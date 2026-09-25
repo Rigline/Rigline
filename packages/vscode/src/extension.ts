@@ -12,6 +12,7 @@ import * as vscode from "vscode";
 import { acquireAndInject, ENGINE_SETTING, marked, saveLayout, showPlugins } from "./acquire.ts";
 import { CLAUDE_CODE, type Editor, type Health } from "./editor.ts";
 import { type ReloadOffer, reloadOffer } from "./reload.ts";
+import { selfUpdate } from "./selfupdate.ts";
 import { type Stamps, startingReason, type WatchReason, watchExtension } from "./watch.ts";
 
 /** Not contributed to the palette: VS Code already has one, and this one clears our status. */
@@ -68,6 +69,16 @@ export function activate(context: vscode.ExtensionContext): void {
     reloadWindow: async () => {
       await vscode.commands.executeCommand("workbench.action.reloadWindow");
     },
+    installExtension: async (vsix) => {
+      await vscode.commands.executeCommand(
+        "workbench.extensions.installExtension",
+        vscode.Uri.file(vsix),
+      );
+    },
+    remembered: (key) => context.globalState.get(key),
+    remember: async (key, value) => {
+      await context.globalState.update(key, value);
+    },
   };
 
   // From the manifest VS Code read, never from disk: inside a VSIX the wrapper's own lookup
@@ -75,14 +86,15 @@ export function activate(context: vscode.ExtensionContext): void {
   const version = String(context.extension.packageJSON.version ?? "0.0.0");
 
   const offer = reloadOffer(editor);
+  const own = context.extension.extensionUri.fsPath;
 
   const watcher = watchExtension({
     editor,
     id: CLAUDE_CODE,
-    installed: installedIn(dirname(context.extension.extensionUri.fsPath)),
+    installed: installedIn(dirname(own)),
     stamps,
     react: async (reason) => {
-      await run(editor, version, reason, offer);
+      await run(editor, version, reason, offer, own);
     },
   });
   context.subscriptions.push(watcher);
@@ -136,7 +148,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Deliberately not awaited: activation must return promptly, and every failure inside is already
   // a result rather than a rejection, so there is nothing here for a `catch` to add.
-  void run(editor, version, startingReason(editor, CLAUDE_CODE), offer);
+  void run(editor, version, startingReason(editor, CLAUDE_CODE), offer, own);
 }
 
 async function run(
@@ -144,6 +156,7 @@ async function run(
   version: string,
   reason: WatchReason,
   offer: ReloadOffer,
+  own: string,
 ): Promise<void> {
   const wrapper = await import("rigline/engine");
   const result = await acquireAndInject({
@@ -164,6 +177,35 @@ async function run(
   // A run that wants a person may still have injected, so the offer is still owed — but it does not
   // get to overwrite what the status line is saying about the person.
   if (result.kind === "attention") void offer.settle(result.reload, "", true);
+
+  // After the offer, which it must not delay, and never with a named engine, which is a checkout
+  // that is never updated (D94, D99).
+  if (!("runner" in result) || editor.setting(ENGINE_SETTING) !== undefined) return;
+  const { runner } = result;
+  await selfUpdate({
+    editor,
+    version,
+    ask: () => captureEngine(runner.nodePath, runner.entry, ["companion-status", own]),
+    green: result.kind === "injected" && reason.kind === "start" && result.reload === null,
+  });
+}
+
+/** The engine's stdout alone: stderr is where an engine too old for the verb prints its usage. */
+function captureEngine(
+  nodePath: string,
+  entry: string,
+  argv: readonly string[],
+): Promise<{ code: number; stdout: string }> {
+  return new Promise((done, fail) => {
+    const child = spawn(nodePath, [entry, ...argv], { stdio: ["ignore", "pipe", "ignore"] });
+    let stdout = "";
+    child.stdout?.setEncoding("utf8");
+    child.stdout?.on("data", (chunk: string) => {
+      stdout += chunk;
+    });
+    child.on("error", fail);
+    child.on("close", (code) => done({ code: code ?? 1, stdout }));
+  });
 }
 
 /**

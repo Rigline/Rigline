@@ -12,10 +12,23 @@
  * Every failure becomes a line in `problems` and the walk continues.
  */
 import { homedir } from "node:os";
+import { dirname } from "node:path";
 import { type AnchorOverrides, readAnchorOverrides } from "../anchors/overrides.ts";
-import { installedExtensions } from "../extension/locate.ts";
+import {
+  type CarriedCompanion,
+  carriedCompanion,
+  companionDirs,
+  installedFingerprint,
+} from "../companion/fingerprint.ts";
+import { EXTENSIONS_DIR, installedExtensions } from "../extension/locate.ts";
 import { CORE_VERSION } from "../version.ts";
 import { type InstallState, installStates } from "./install.ts";
+
+/** The companion this engine carries, and each one installed beside Claude Code (D99). */
+export interface CompanionReport {
+  readonly carried: CarriedCompanion | null;
+  readonly installed: readonly { readonly dir: string; readonly current: boolean }[];
+}
 
 export interface DoctorReport {
   readonly generatedAtMs: number;
@@ -30,6 +43,7 @@ export interface DoctorReport {
    * it: the tables it produced are already baked into the payload by the time anyone looks.
    */
   readonly anchorOverrides: AnchorOverrides;
+  readonly companion: CompanionReport;
   /** Problems with the collection itself, not with anything it found. */
   readonly problems: readonly string[];
 }
@@ -42,6 +56,8 @@ export interface DoctorOptions {
   readonly home?: string;
   /** Where the anchor override lives. Defaults to `~/.rigline/anchors.json`. */
   readonly anchorsPath?: string;
+  /** The engine's `dist/bundled`, for the companion it carries. Defaults to this engine's. */
+  readonly bundled?: string;
 }
 
 export function collect(options: DoctorOptions = {}): DoctorReport {
@@ -60,6 +76,25 @@ export function collect(options: DoctorOptions = {}): DoctorReport {
   const installs = installStates(exts);
   if (installs.length === 0) problems.push("no Claude Code extension directory was found");
 
+  let carried: CarriedCompanion | null = null;
+  try {
+    carried = carriedCompanion(options.bundled);
+  } catch (error) {
+    problems.push(
+      `could not read the companion this engine carries: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  // Beside the extensions it was given, so a test never reads the live directory (D39).
+  const extensionsDir = options.exts
+    ? exts[0] === undefined
+      ? null
+      : dirname(exts[0])
+    : EXTENSIONS_DIR;
+  const installed = (extensionsDir === null ? [] : companionDirs(extensionsDir)).map((dir) => ({
+    dir,
+    current: carried !== null && installedFingerprint(dir) === carried.fingerprint,
+  }));
+
   return {
     generatedAtMs: options.now ?? Date.now(),
     platform: options.platform ?? process.platform,
@@ -68,6 +103,7 @@ export function collect(options: DoctorOptions = {}): DoctorReport {
     riglineVersion: CORE_VERSION,
     installs,
     anchorOverrides: readAnchorOverrides(options.anchorsPath),
+    companion: { carried, installed },
     problems,
   };
 }

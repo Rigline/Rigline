@@ -100,10 +100,39 @@ describe("acquireAndInject", () => {
       env: { PATH: NODE_DIR },
     });
 
-    expect(result).toEqual({ kind: "injected", engine: "1.0.0-alpha.7", reload: null });
+    expect(result).toEqual({
+      kind: "injected",
+      engine: "1.0.0-alpha.7",
+      reload: null,
+      runner: { nodePath: NODE, entry: ENTRY },
+    });
     expect(a.acquiring).toEqual(["update", "ensure"]);
     expect(a.calls).toEqual([["install"]]);
     expect(e.statuses.at(-1)).toMatchObject({ health: "ok", text: "Rigline" });
+  });
+
+  it("wants a person when the wrapper refuses a new major, not green on the old engine (D99)", async () => {
+    const e = editor();
+    const a = acquisition({
+      updateEngine: async () => ({
+        outcome: "failed",
+        to: "2.0.0",
+        reason: "rigline 1.x cannot run engine 2.x",
+      }),
+    });
+    const result = await acquireAndInject({
+      editor: e.editor,
+      acquisition: a.acquisition,
+      ...runner(a),
+      ...QUIET,
+      version: "1.0.0-alpha.12",
+      exists: (p) => p === NODE,
+      env: { PATH: NODE_DIR },
+    });
+
+    expect(result.kind).toBe("attention");
+    expect(e.statuses.at(-1)).toMatchObject({ health: "attention", text: "Rigline: needs you" });
+    expect(e.statuses.at(-1)?.tooltip).toContain("rigline vscode-setup");
   });
 
   it("hands the wrapper the Node it found and the companion's lock label (D80)", async () => {
@@ -178,7 +207,7 @@ describe("acquireAndInject", () => {
       env: { PATH: NODE_DIR },
     });
 
-    expect(result).toEqual({ kind: "injected", engine: "1.0.0-alpha.7", reload: null });
+    expect(result).toMatchObject({ kind: "injected", engine: "1.0.0-alpha.7", reload: null });
     expect(a.calls).toEqual([["install"]]);
     expect(e.lines.join("\n")).toMatch(/pid 4/);
   });
@@ -336,7 +365,7 @@ describe("acquireAndInject", () => {
       env: { PATH: NODE_DIR },
     });
 
-    expect(result).toEqual({ kind: "waiting", engine: "1.0.0-alpha.7" });
+    expect(result).toMatchObject({ kind: "waiting", engine: "1.0.0-alpha.7" });
     expect(e.statuses.at(-1)).toMatchObject({ health: "idle", text: "Rigline: no Claude Code" });
   });
 
@@ -369,7 +398,7 @@ describe("acquireAndInject", () => {
       env: { PATH: NODE_DIR },
     });
 
-    expect(result).toEqual({ kind: "injected", engine: "1.0.0-alpha.7", reload: "webviews" });
+    expect(result).toMatchObject({ kind: "injected", engine: "1.0.0-alpha.7", reload: "webviews" });
   });
 
   it("says nothing about a reload after a move, whatever the install changed", async () => {
@@ -395,7 +424,7 @@ describe("acquireAndInject", () => {
       env: { PATH: NODE_DIR },
     });
 
-    expect(result).toEqual({ kind: "injected", engine: "1.0.0-alpha.7", reload: null });
+    expect(result).toMatchObject({ kind: "injected", engine: "1.0.0-alpha.7", reload: null });
   });
 
   it("marks a version newly patched in the background as ready, not plain ok", async () => {
@@ -434,7 +463,7 @@ describe("an engine named by rigline.enginePath (D94)", () => {
       env: { PATH: NODE_DIR },
     });
 
-    expect(result).toEqual({ kind: "injected", engine: DEV_ENTRY, reload: null });
+    expect(result).toMatchObject({ kind: "injected", engine: DEV_ENTRY, reload: null });
     expect(a.acquiring).toEqual([]);
     expect(a.entries).toEqual([DEV_ENTRY]);
     expect(e.lines.join("\n")).toContain(`engine: ${DEV_ENTRY}`);
