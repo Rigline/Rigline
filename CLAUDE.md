@@ -192,6 +192,10 @@ probe report without what you just built; compare the installed `post.js` with
 after giving another profile Claude Code: while `rigline.enginePath` is set, the companion neither
 updates itself nor adds itself to other profiles (D99, D100).
 
+**From a worktree beside another session, stop at the harness.** There is one live extension: an
+`install` from the worktree and one from the main checkout overwrite each other's payload, and the
+next reload re-injects whichever checkout `rigline.enginePath` names. Look at it live after the merge.
+
 An update installs a new versioned directory and deletes the old one, so it silently reverts the
 injection. A window that was open keeps running the old directory until *Developer: Reload Window*.
 A payload change needs *Developer: Reload Webviews* (current window only, and it ends the in-flight
