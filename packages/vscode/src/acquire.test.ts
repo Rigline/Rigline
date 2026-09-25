@@ -350,9 +350,8 @@ describe("acquireAndInject", () => {
   });
 
   it("does not report success when there is nothing to inject into", async () => {
-    // Leo's laptop: `vscode-setup` run before Claude Code was installed. The engine's `install`
-    // exits 0 having done nothing, so reading the exit code alone painted a green badge over an
-    // absent feature — and a green badge that means nothing is the failure P8 exists against.
+    // `vscode-setup` run before Claude Code was installed. An engine that answers that with 0 painted
+    // a green badge over an absent feature, which is the failure P8 exists against.
     const e = editor({}, null);
     const a = acquisition();
     const result = await acquireAndInject({

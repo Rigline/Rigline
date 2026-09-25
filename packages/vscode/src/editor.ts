@@ -14,10 +14,9 @@ export interface Disposable {
 
 /** Where a status line sits: green, working, or wanting somebody. */
 /**
- * `idle` exists because green was lying. The engine's `install` exits 0 when no Claude Code is
- * installed — nothing to do is not an error for the CLI — so a companion reading the exit code
- * alone reported success over an absent feature, which is the one thing P8 forbids. The companion
- * knows better than the exit code does: it can ask the editor whether the extension is there.
+ * `idle` exists because the exit code cannot say it. `install` answers an absent Claude Code with 1,
+ * and engines have answered it with 0, which painted green over an absent feature (P8); neither is
+ * true. The companion knows better than the exit code does: it asks the editor.
  *
  * `stale` is the same complaint about this window rather than about the machine: injected on disk,
  * absent from the panel in front of the user until something reloads (D82).

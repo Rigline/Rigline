@@ -176,9 +176,8 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
     const before = stamps(editor.extensionPath(CLAUDE_CODE));
     const code = await runEngine(nodePath, engine.entry, ["install"], (line) => editor.log(line));
 
-    // The exit code cannot tell these apart and the editor can. `install` exits 0 having done
-    // nothing when no Claude Code is installed, so reading the code alone paints a green badge over
-    // an absent feature — green while nothing works is exactly what P8 forbids.
+    // Asked of the editor, never the exit code: `install` answers an absent Claude Code with 1, and
+    // engines have answered it with 0, so the code would say either a person or green (P8).
     const path = editor.extensionPath(CLAUDE_CODE);
     if (path === undefined) {
       editor.status(

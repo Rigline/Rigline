@@ -155,11 +155,20 @@ the placing and the injecting:
    differs. The release-age gate applies unless no engine is installed yet (D48), and a failed
    resolution is reported while the run carries on with the engine it has.
 2. Resolve each recorded plugin source, and fetch, vet and stage the ones that moved; the engine
-   `add`s each, which re-injects (D70).
-3. If the engine moved, run one `install`, or the payload on disk stays the previous engine's (D75).
+   `add`s each without injecting, under `RIGLINE_DEFER_INJECT` (D70, D98).
+3. If the engine or any plugin moved, run one `install`, or the payload on disk stays the previous
+   engine's (D75).
 
 The companion does step 1 and then an `install` on every activation and every arriving Claude Code
-version ([companion.md](companion.md)).
+version, and then updates itself from the VSIX that engine carries ([companion.md](companion.md),
+D99).
+
+**The wrapper and the companion talk to an engine of any version**, older or newer than themselves,
+so what they ask of it has to degrade. A new instruction to an existing verb is an environment
+variable, which an older engine ignores; a new flag would have its strict `parseArgs` refuse the
+whole command. A new question is a new verb, whose answer is JSON carrying `v`, read from stdout
+alone, since an engine that predates it prints its usage on stderr and exits 1, which the caller
+treats as "cannot tell".
 
 ## The boot pipeline
 

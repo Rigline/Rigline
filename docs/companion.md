@@ -98,7 +98,7 @@ output piped into the **Rigline** output channel a line at a time, and then deci
 
 | outcome | status item |
 | --- | --- |
-| no Claude Code installed | *Rigline: no Claude Code*. `install` exits 0 with nothing to do, so the exit code is not trusted. |
+| no Claude Code installed | *Rigline: no Claude Code*, asked of the editor: `install` refuses with 1, and engines have exited 0, so the exit code is not trusted. |
 | the engine exits non-zero | *Rigline: needs you*. A person is wanted, but it may still have injected, so the reload decision runs anyway. |
 | `moved` | *Rigline: ready to restart*. A new version is patched behind this window (D85). |
 | `start` | *Rigline*, green. |
