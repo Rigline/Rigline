@@ -218,7 +218,9 @@ match the class harvest already guards against.
 1. A module in `core/src/layers/` implementing `Layer`, with `defineLayer` so `views` type-check
    against `harvest`'s return.
 2. Derive every pattern against a real bundle from the corpus, and **bound every regex**. A
-   stringified record is one line; `.*` and `(.+?)` cross into unrelated fields.
+   stringified record is one line; `.*` and `(.+?)` cross into unrelated fields. Match a string in
+   any of `"`, `'` and `` ` ``, because the minifier chooses the quote (D101). `minifier.test.ts`
+   holds every layer to that without being told about a new one.
 3. A floor under every corpus version's count, with a message that says the anchor moved rather than
    that the extension shrank.
 4. Views named for what a report would say about them.

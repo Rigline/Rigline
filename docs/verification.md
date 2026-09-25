@@ -73,6 +73,10 @@ Two sources of bundle text, and the difference matters:
   version in `CORPUS_VERSIONS` (`packages/core/test/corpus.ts`); the harness drives one of them,
   `HARNESS_VERSION`, which moves with the installed extension and the committed `generated.ts`.
 
+Both are also read a second way: rewritten by Rolldown, whose minifier quotes differently from
+Claude Code's bundler, and held to the same harvest (`minifier.test.ts`, D101). That covers a change
+of bundler, which neither source shows on its own.
+
 The injector's fixtures deliberately carry CRLF line endings and non-ASCII bytes, because
 byte-faithful I/O is the property under test (D37): text-mode I/O on Windows rewrites every line
 ending and turns a 133-byte patch into a 2.2 KB one.

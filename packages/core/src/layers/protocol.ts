@@ -27,10 +27,10 @@ import { type Bundles, defineLayer, HarvestError, type Layer } from "./types.ts"
 const LAYER = "protocol";
 
 /** One outbound `sendRequest({type:"...", ...})` call: the app expects a correlated reply. */
-export const OUTBOUND_REQUEST = /sendRequest\(\{\s*type:\s*"([a-z][a-z0-9_]*)"/g;
+export const OUTBOUND_REQUEST = /sendRequest\(\{\s*type:\s*["'`]([a-z][a-z0-9_]*)["'`]/g;
 
 /** One outbound `send({type:"...", ...})` call: a bare notification, no reply expected. */
-export const OUTBOUND_NOTIFY = /[.\s]send\(\{\s*type:\s*"([a-z][a-z0-9_]*)"/g;
+export const OUTBOUND_NOTIFY = /[.\s]send\(\{\s*type:\s*["'`]([a-z][a-z0-9_]*)["'`]/g;
 
 /**
  * The literal that opens the inbound-push dispatch loop: `for await (<ident> of this.fromHost)
@@ -104,7 +104,7 @@ function topLevelSwitchCases(js: string, open: number): string[] {
   let quote: string | null = null;
   let escaped = false;
   const cases = new Set<string>();
-  const caseLabel = /^case\s*"([a-z][a-z0-9_]*)"/;
+  const caseLabel = /^case\s*["'`]([a-z][a-z0-9_]*)["'`]/;
 
   for (let i = open; i < js.length; i++) {
     const c = js.charAt(i);

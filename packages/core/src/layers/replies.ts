@@ -25,7 +25,7 @@ export interface Responses {
 }
 
 /** Every `{type:"..._response"}` literal in the host bundle. */
-const RESPONSE_LITERAL = /\{\s*type:\s*"([a-z][a-z0-9_]*_response)"/g;
+const RESPONSE_LITERAL = /\{\s*type:\s*["'`]([a-z][a-z0-9_]*_response)["'`]/g;
 
 /** Well under the roughly 98 to 109 measured; a bundle under this matched almost nothing. */
 const RESPONSE_LITERAL_FLOOR = 60;

@@ -2367,3 +2367,28 @@ Rejected:
   Electron once per profile at every companion start, and it reads the same file.
 - An `enginePath` shared across profiles. No setting scope an extension can declare is both shared
   across profiles and kept out of Settings Sync.
+
+**D101. Every harvest pattern reads a string in any of the three quotes (2026-09-25, Leo).** Which
+quote a string is written in is the minifier's choice, not the extension's. Claude Code's bundler
+writes `"`. Rolldown's writes plain strings as template literals, even with compression off. Put
+through Rolldown's minifier, 2.1.280 fails every layer at once, with no class module, no outbound
+request and no renderer descriptor. With each pattern's `"` widened to `["'`]`, the same bundle
+harvests identically in every view but one.
+
+So a pattern that matches a quote matches all three, without a backreference. What sits between the
+quotes is limited to identifier and class-name characters, so a mismatched pair finds nothing a
+matched pair would not, and the capture groups keep their numbers. The brace walkers already skip
+strings in all three.
+
+The exception is `classes.reused`, because a compressor legitimately changes it. It folds
+`c?F(A,{className:x}):F(B,{className:x})` into `F(c?A:B,{className:x})`: one slot, which is then
+counted once instead of twice. A site count is syntactic (D7), and a different compressor writes
+different syntax.
+
+`minifier.test.ts` holds every view to the original under Rolldown. In CI it runs the synthetic
+fixture through Rolldown's printer. Where the corpus is present, it also runs every corpus version
+through the full minifier.
+
+Rejected: normalising the bundle's strings before harvesting. Doing that safely needs a tokeniser
+that understands template interpolation and regex literals, and all it would buy is what a character
+class already does.

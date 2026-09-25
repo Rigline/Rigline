@@ -28,7 +28,7 @@ interface SiteFields {
   readonly spread: boolean;
 }
 
-const SIMPLE_KEY = /^\s*(?:"([A-Za-z_$][\w$]*)"|([A-Za-z_$][\w$]*))\s*:/;
+const SIMPLE_KEY = /^\s*(?:["'`]([A-Za-z_$][\w$]*)["'`]|([A-Za-z_$][\w$]*))\s*:/;
 
 /**
  * Depth-1 keys of the object literal opening at `open` (the index of its `{`). Tracks all three

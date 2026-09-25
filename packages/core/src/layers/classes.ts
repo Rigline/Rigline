@@ -54,7 +54,7 @@ export interface Classes {
  * so it is skipped rather than harvested as a bogus local name `sessionId` in module `OOQiHg`.
  */
 const CLASS_MAP_ENTRY =
-  /(?:"([A-Za-z_$][\w$-]*)"|([A-Za-z_$][\w$]*))\s*:\s*"([A-Za-z_$][\w$-]*_([-_A-Za-z0-9]{6}))"/g;
+  /(?:["'`]([A-Za-z_$][\w$-]*)["'`]|([A-Za-z_$][\w$]*))\s*:\s*["'`]([A-Za-z_$][\w$-]*_([-_A-Za-z0-9]{6}))["'`]/g;
 
 /** Below either floor the regex has stopped matching the bundle's actual shape; see `HarvestError`. */
 const MIN_MODULES = 30;
@@ -122,7 +122,7 @@ export function harvestClassMap(js: string): ClassMap {
  * first value happens to end in an underscore and six characters.
  */
 const CLASS_MAP_DECL =
-  /(?<![\w$.])([A-Za-z_$][\w$]*)\s*=\s*\{(?:"([A-Za-z_$][\w$-]*)"|([A-Za-z_$][\w$]*))\s*:\s*"([A-Za-z_$][\w$-]*_([-_A-Za-z0-9]{6}))"/g;
+  /(?<![\w$.])([A-Za-z_$][\w$]*)\s*=\s*\{(?:["'`]([A-Za-z_$][\w$-]*)["'`]|([A-Za-z_$][\w$]*))\s*:\s*["'`]([A-Za-z_$][\w$-]*_([-_A-Za-z0-9]{6}))["'`]/g;
 
 /**
  * Below this the access pattern has stopped matching; a real bundle holds 1300 to 1600 references.

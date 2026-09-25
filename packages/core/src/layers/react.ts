@@ -75,14 +75,14 @@ const REQUIRED_NAMES: ReadonlySet<string> = new Set(REQUIRED.map((anchor) => anc
  * The renderer descriptor react-dom registers itself with. Anchored on `rendererPackageName`,
  * never on `version:"..."` alone, because that string alone appears all over a bundle this size.
  */
-const RENDERER = /rendererPackageName:"react-dom"/;
+const RENDERER = /rendererPackageName:["'`]react-dom["'`]/;
 
 /**
  * The version, read beside the renderer descriptor rather than searched for on its own, for the
  * same reason: `version:"..."` alone is not a safe anchor in a bundle this large.
  */
 const VERSION_NEAR_RENDERER =
-  /version:"(\d+\.\d+\.\d+)"[^{}]{0,200}rendererPackageName:"react-dom"/;
+  /version:["'`](\d+\.\d+\.\d+)["'`][^{}]{0,200}rendererPackageName:["'`]react-dom["'`]/;
 
 /**
  * Reads the React anchors out of the webview bundle, or throws `HarvestError` naming the literal

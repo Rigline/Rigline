@@ -57,6 +57,8 @@ anything may change between releases.
   the report needs you.
 - A `~/.rigline/token` that holds no token is listed under what needs you, since Save in the panel
   copies commands until it is deleted.
+- `rigline install` keeps working if Claude Code's build starts writing strings with single quotes
+  or backticks. Before, every version would have been refused.
 
 ## 1.0.0-alpha.11 — 2026-09-25
 
