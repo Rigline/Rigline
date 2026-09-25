@@ -380,6 +380,10 @@ built. The first two change what a plugin is written against.
   going wrong.
 - **The RIG pill as an element** (D97). Triggered by somebody asking to move it; weigh a person
   switching off the one control that always reaches the menu.
+- **Colour on `Pill`** (D89): any colour allowed, the theme's own the easy choice. Triggered by the
+  first plugin that wants a coloured pill. Whatever wraps a pill to colour it must not be a plain
+  inline box: a slot is a flex container, so a plain span becomes a block holding a line of text,
+  and the pill sits on that line about a pixel low. The RIG pill's span is `inline-flex` for this.
 
 ## Next session
 

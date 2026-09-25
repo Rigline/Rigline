@@ -1901,6 +1901,12 @@ a specificity fight, and the served module has no manifest to declare anchors in
 disappears degrades to the theme variable it aliased, which is what theme variables alone would
 have given everywhere.
 
+The kit makes the app's look the easy path and prevents no other (2026-09-25, Leo). A plugin
+chooses its own colours, including ones that fail some theme: no check could tell those from the ones
+that suit it, and a plugin can draw any colour in its own element anyway. What is worth building is
+making the theme's own colours easy to choose. `Pill` takes no colour yet; the RIG pill is green
+because the span around it sets the pill's tokens, which is Rigline's own arrangement and not an API.
+
 A submenu replaces the menu's contents under a back row rather than flying out beside it. The panel
 is often a narrow sidebar with no room beside the menu, the diagnostics are wider than a flyout
 could be, and drill-down needs none of a flyout's hover-intent machinery.
