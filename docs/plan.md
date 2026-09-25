@@ -389,6 +389,19 @@ recipe for forcing one. When it reads clean, milestone 8 is done.
 now predate self-update (D99) and sync; the one run makes them machine-scoped and able to follow the
 engine from then on, and puts one in every profile with Claude Code (D100).
 
+**The companion adding itself (D100), after the next release**, on a machine with
+`rigline.enginePath` unset, since a dev companion adds nothing:
+
+1. Make a profile and install Claude Code into it from a window of that profile.
+2. Reload a window of a profile that has the companion. Its output channel should say it added the
+   companion to the new profile, and the new profile's open window should start the companion
+   without a restart.
+3. Uninstall the companion there, and the next reload elsewhere puts it back. Disable it, and it
+   stays disabled.
+4. `rigline update` should print the line when it adds the companion.
+
+Still unread: a remote window, and the directory names of the VS Code forks.
+
 After them, the open questions above are the work. None is planned yet, so the next step there is to
 pick one and settle it.
 
