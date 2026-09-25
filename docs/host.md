@@ -168,6 +168,17 @@ Nothing can push into a panel, so everything it learns about the file it pulls, 
 `registry.js` under a fresh query: after a Save click, until the baked layout equals the copy; when
 the menu opens, to say a newer layout is saved; and for Reload, which shows that layout in place.
 
+Edit in place, a checkbox at the top of the submenu, sets the editor's `editing` store (D95). While
+it is set, the kernel holds every zone a bound element offers in place, empty or not, marked
+`data-rigline-editing` so its CSS shows the zone with its name. The shell's `edit.tsx` draws on the
+root's own layer, never in the app's DOM: a handle over each element with a box, measured every frame
+as a range over its `form`, and a bar above `composerBox` holding a tray of the elements without one,
+Save or Copy commands, Revert changes and Done. A handle's click or Enter opens the element's moves,
+the items its row in the submenu opens, in a `MenuPanel` anchored at the handle. A drag outlines only
+the places its element offers that this panel has, which the kernel publishes as `places` when
+elements bind, and calls the editor's `drop` once, on release; the bar is the target for off. A
+slot's target is a band drawn beside its anchor rather than a placeholder in the footer (D54).
+
 The kernel knows no capability by name. It owns the plugin lifecycle, the per-React-commit pass
 that re-places mounts and re-anchors watches (D52), the mount arbitration (host-placed nodes ordered
 by registry order and stamped `data-rigline-mount`), and the diagnostics object. Everything a plugin can do comes from a
