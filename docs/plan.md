@@ -329,8 +329,9 @@ built. The first two change what a plugin is written against.
 - **What 1.0 needs.** This plan names milestones, not the bar a 1.0 release has to clear.
 - **The protocol between the wrapper, the companion and the engine.** It was never designed: verbs
   and exit codes, `RIGLINE_DEFER_INJECT` (D98), `companion-status` (D99), `companion-profiles`
-  (D100) and the Save link (D93), each added where one was needed. The aim is that everything runs current versions, which `update`
-  and the companion's self-update keep it at, not two-way compatibility paid for in flexibility.
+  (D100) and the Save link (D93), each added where one was needed. The aim is that everything runs
+  current versions, which `update` and the companion's self-update keep it at, not two-way
+  compatibility paid for in flexibility.
 - **The React layer does not survive the app moving to React 19.** React 19's devtools injection no
   longer passes `findFiberByHostInstance`, and the React layer asserts that literal (D11), so the day
   Claude Code ships React 19 the harvest fails and `install` refuses that version outright — every
@@ -372,8 +373,10 @@ built. The first two change what a plugin is written against.
 
 ## Next session
 
-`1.0.0-alpha.11` is the newest on `latest`, and carries the plugin UI. Two reads are owed, in either
-order:
+`1.0.0-alpha.11` is the newest on `latest`, and carries the plugin UI. The work now is the open
+questions above. None is planned yet, so the next step is to pick one and settle it.
+
+The reads below are owed and deferred: exercise each when it comes up, not as a gate.
 
 **A Save through a released engine.** On a machine with `alpha.11` installed and
 `rigline.enginePath` unset, edit the layout in the panel and Save: the notification should say it
@@ -401,9 +404,6 @@ engine from then on, and puts one in every profile with Claude Code (D100).
 4. `rigline update` should print the line when it adds the companion.
 
 Still unread: a remote window, and the directory names of the VS Code forks.
-
-After them, the open questions above are the work. None is planned yet, so the next step there is to
-pick one and settle it.
 
 ## Status log
 
