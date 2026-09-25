@@ -7,10 +7,11 @@
  */
 import { spawn } from "node:child_process";
 import { existsSync, readdirSync, statSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import * as vscode from "vscode";
 import { acquireAndInject, ENGINE_SETTING, marked, saveLayout, showPlugins } from "./acquire.ts";
 import { CLAUDE_CODE, type Editor, type Health } from "./editor.ts";
+import { addToProfiles } from "./profiles.ts";
 import { type ReloadOffer, reloadOffer } from "./reload.ts";
 import { selfUpdate } from "./selfupdate.ts";
 import { type Stamps, startingReason, type WatchReason, watchExtension } from "./watch.ts";
@@ -87,6 +88,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const offer = reloadOffer(editor);
   const own = context.extension.extensionUri.fsPath;
+  const here = () => profilesArgs(context, own);
 
   const watcher = watchExtension({
     editor,
@@ -94,7 +96,7 @@ export function activate(context: vscode.ExtensionContext): void {
     installed: installedIn(dirname(own)),
     stamps,
     react: async (reason) => {
-      await run(editor, version, reason, offer, own);
+      await run(editor, version, reason, offer, own, here);
     },
   });
   context.subscriptions.push(watcher);
@@ -148,7 +150,30 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Deliberately not awaited: activation must return promptly, and every failure inside is already
   // a result rather than a rejection, so there is nothing here for a `catch` to add.
-  void run(editor, version, startingReason(editor, CLAUDE_CODE), offer, own);
+  void run(editor, version, startingReason(editor, CLAUDE_CODE), offer, own, here);
+}
+
+/**
+ * `companion-profiles`' arguments for the editor this window runs in (D100), or why there are none.
+ * `globalStorageUri` is the default profile's in every profile, so it names the user-data directory;
+ * the CLI is what the `code` shim runs.
+ */
+function profilesArgs(context: vscode.ExtensionContext, own: string): readonly string[] | string {
+  if (vscode.env.remoteName !== undefined) return "this window's extensions run on a remote host";
+  const storage = context.globalStorageUri.fsPath;
+  const user = dirname(dirname(storage));
+  if (basename(user) !== "User") return `global storage is not where it was expected: ${storage}`;
+  return [
+    "companion-profiles",
+    "--user-data-dir",
+    dirname(user),
+    "--extensions-dir",
+    dirname(own),
+    "--cli-node",
+    process.execPath,
+    "--cli-script",
+    join(vscode.env.appRoot, "out", "cli.js"),
+  ];
 }
 
 async function run(
@@ -157,6 +182,7 @@ async function run(
   reason: WatchReason,
   offer: ReloadOffer,
   own: string,
+  here: () => readonly string[] | string,
 ): Promise<void> {
   const wrapper = await import("rigline/engine");
   const result = await acquireAndInject({
@@ -178,15 +204,27 @@ async function run(
   // get to overwrite what the status line is saying about the person.
   if (result.kind === "attention") void offer.settle(result.reload, "", true);
 
-  // After the offer, which it must not delay, and never with a named engine, which is a checkout
-  // that is never updated (D94, D99).
+  // After the offer, which it must not delay, and never with a named engine: a checkout is never
+  // updated, and a companion it added would run the released engine (D94, D99, D100).
   if (!("runner" in result) || editor.setting(ENGINE_SETTING) !== undefined) return;
   const { runner } = result;
-  await selfUpdate({
+  const green = result.kind === "injected" && reason.kind === "start" && result.reload === null;
+  const updated = await selfUpdate({
     editor,
     version,
     ask: () => captureEngine(runner.nodePath, runner.entry, ["companion-status", own]),
-    green: result.kind === "injected" && reason.kind === "start" && result.reload === null,
+    green,
+  });
+
+  const args = here();
+  if (typeof args === "string") {
+    editor.log(`did not look for profiles without the companion: ${args}`);
+    return;
+  }
+  await addToProfiles({
+    editor,
+    ask: () => captureEngine(runner.nodePath, runner.entry, args),
+    green: green && updated !== "failed",
   });
 }
 

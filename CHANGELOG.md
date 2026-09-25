@@ -36,6 +36,10 @@ anything may change between releases.
   of every profile. A `--profile` name that no profile has is refused, naming the ones there are.
 - `rigline update` adds the companion to any VS Code profile that has Claude Code without it, in
   every editor where the companion is already installed.
+- The companion does the same for its own editor each time a window starts, and says so in its
+  output channel. Uninstalling it from a profile through the Extensions view is therefore undone;
+  disable it there instead, or list the profile in `companion.skipProfiles`. It adds nothing in a
+  remote window, or while `rigline.enginePath` is set.
 
 - `rigline vscode-setup` installs the companion extension outside Settings Sync. Synced, it was
   carried to your other machines, where VS Code looks for it on the Marketplace, and nothing of
