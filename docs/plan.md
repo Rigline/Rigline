@@ -387,8 +387,8 @@ built. The first two change what a plugin is written against.
 
 ## Next session
 
-`1.0.0-alpha.11` is the newest on `latest`. `main` carries D98 to D105 unreleased and is ready to
-release. The open questions above come after it.
+`1.0.0-alpha.12` is the newest on `latest`, and `main` has nothing unreleased. The open questions
+above are the next work.
 
 The reads below are owed and deferred: exercise each when it comes up, not as a gate.
 
@@ -397,16 +397,16 @@ companions should reach *ready to restart*, and one output channel should show `
 rigline install (pid N) to finish`. A window whose companion runs this checkout's engine reads it
 before a release does.
 
-**A Save through a released engine.** On a machine with `alpha.11` installed and
+**A Save through a released engine.** On a machine with `alpha.12` installed and
 `rigline.enginePath` unset, edit the layout in the panel and Save: the notification should say it
 saved, the panel should leave editing, and `~/.rigline/config.yaml` should hold the layout.
 
-**After the next release, `rigline vscode-setup` once on each machine.** The companions installed
+**`rigline update`, then `rigline vscode-setup` once, on each machine.** The companions installed
 now predate self-update (D99) and sync; the one run makes them machine-scoped and able to follow the
 engine from then on, and puts one in every profile with Claude Code (D100).
 
-**The companion adding itself (D100), after the next release**, on a machine with
-`rigline.enginePath` unset, since a dev companion adds nothing:
+**The companion adding itself (D100)**, on a machine with `rigline.enginePath` unset, since a dev
+companion adds nothing:
 
 1. Make a profile and install Claude Code into it from a window of that profile.
 2. Reload a window of a profile that has the companion. Its output channel should say it added the
@@ -501,3 +501,5 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
 - 2026-09-25: `ready` (D85) read live on the 2.1.282 update; milestone 8 done. The same update showed
   concurrent engines refusing each other, which is next.
 - 2026-09-25: One engine injects at a time: `inject.lock` (D105).
+- 2026-09-26: `1.0.0-alpha.12`: the report, the companion's self-update and profiles, and D101 to
+  D105.
