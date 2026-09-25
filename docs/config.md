@@ -79,11 +79,36 @@ go — is named by `rigline install` and `rigline check`. The element stays wher
 and the entry stays in the file, so a plugin you remove and add back finds its place waiting. An
 element listed under two places goes to the first, and the second is reported.
 
+## Which VS Code profiles get the companion
+
+If you installed the companion extension with `rigline vscode-setup`, it goes into every VS Code
+profile that has Claude Code, and it adds itself to any profile that gets Claude Code later. The
+`companion` block changes that:
+
+    companion:
+      skipProfiles:
+        - Kokai
+      everyProfile: false
+
+- `skipProfiles` lists profiles, by the name VS Code's profile switcher shows, that are never given
+  the companion. The default profile is `Default`. Renaming a profile takes it off the list.
+- `everyProfile: false` keeps the companion to the default profile, or the one you name with
+  `vscode-setup --profile`, and it is never added anywhere by itself.
+
+The same from the command line:
+
+    rigline vscode-setup --remove --profile Kokai   # out of that profile, and onto skipProfiles
+    rigline vscode-setup --profile Kokai            # back in, and off skipProfiles
+
+Uninstalling the companion from a profile in VS Code's Extensions view does not last: it is put back
+the next time it looks. Disable it there instead, which VS Code keeps, or list the profile here.
+
 ## Mistakes
 
 A file that is not valid YAML stops every command that reads it, naming the file and the line, and
-changes nothing. So does a `disabled` that is not a list of names, or a `layout` that is not places
-with lists under them. A key with nothing after it, like `disabled:`, is an empty list, not a
+changes nothing. So does a `disabled` that is not a list of names, a `layout` that is not places
+with lists under them, or a `companion` block whose `everyProfile` is not true or false or whose
+`skipProfiles` is not a list. A key with nothing after it, like `disabled:`, is an empty list, not a
 mistake.
 
 ## The other files here

@@ -156,16 +156,19 @@ the placing and the injecting:
    resolution is reported while the run carries on with the engine it has.
 2. Resolve each recorded plugin source, and fetch, vet and stage the ones that moved; the engine
    `add`s each without injecting, under `RIGLINE_DEFER_INJECT` (D70, D98).
-3. If the engine or any plugin moved, run one `install`, or the payload on disk stays the previous
+3. Add the companion to every VS Code profile that has Claude Code without it, through the engine's
+   `companion-profiles` (D100).
+4. If the engine or any plugin moved, run one `install`, or the payload on disk stays the previous
    engine's (D75).
 
 The companion does step 1 and then an `install` on every activation and every arriving Claude Code
-version, and then updates itself from the VSIX that engine carries ([companion.md](companion.md),
-D99).
+version. It then updates itself from the VSIX that engine carries (D99), and adds itself to its own
+editor's profiles that lack it (D100) ([companion.md](companion.md)).
 
 **There is no designed protocol between the wrapper, the companion and the engine yet.** They talk
 through the engine's verbs and exit codes, `RIGLINE_DEFER_INJECT` (D98), and JSON answers
-(`companion-status`, D99, and the Save link's payload, D93), each added where one was needed. The aim
+(`companion-status`, D99; `companion-profiles`, D100; and the Save link's payload, D93), each added
+where one was needed. The aim
 is that everything runs current versions, which `update` and the companion's self-update keep it at,
 not that each side tolerates the other's age. Designing it is an open question in [plan.md](plan.md).
 

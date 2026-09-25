@@ -181,14 +181,15 @@ published install they are the only root that has them; here they are found twic
 **Point the companion at this checkout's engine.** Install it from here with `pnpm rigline
 vscode-setup`, which prints the line to add to VS Code's user settings: `rigline.enginePath`, naming
 this checkout's `packages/core/dist/engine/bin.js` (D94). Set it in every profile the companion is
-in, not only the one you work in, because every profile's companion writes the same Claude Code
-directories. Unset, every extension-host start — *Reload Window*, *Restart Extensions*, opening VS
+in, which `vscode-setup` makes every profile with Claude Code, not only the one you work in, because
+every profile's companion writes the same Claude Code directories. Unset, every extension-host start — *Reload Window*, *Restart Extensions*, opening VS
 Code — has the companion run `install` with the released engine, whose payload silently replaces
 this checkout's while every check passes, and everything it runs for the panel, Save included, is
 released code. Set, the status item reads *Rigline (dev)*. The tell that it is not working is a
 probe report without what you just built; compare the installed `post.js` with
-`packages/core/dist/bundled/post.js`. Re-run `vscode-setup` after changing the companion itself: it
-updates itself only while `rigline.enginePath` is unset (D99).
+`packages/core/dist/bundled/post.js`. Re-run `vscode-setup` after changing the companion itself, or
+after giving another profile Claude Code: while `rigline.enginePath` is set, the companion neither
+updates itself nor adds itself to other profiles (D99, D100).
 
 An update installs a new versioned directory and deletes the old one, so it silently reverts the
 injection. A window that was open keeps running the old directory until *Developer: Reload Window*.

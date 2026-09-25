@@ -288,6 +288,11 @@ describe("formatSetup", () => {
     expect(formatSetup([outcome()], false)).not.toMatch(/Reload the window/);
   });
 
+  it("puts a note about the settings before the reload, which stays last (D98)", () => {
+    const report = formatSetup([outcome()], true, undefined, "added C to skipProfiles");
+    expect(report.indexOf("skipProfiles")).toBeLessThan(report.indexOf("Reload the window"));
+  });
+
   it("does not ask for a reload when nothing did", () => {
     const failed = outcome({ results: [{ profile: "Default", code: 1, output: "broke" }] });
     expect(formatSetup([failed], true)).not.toMatch(/Reload the window/);

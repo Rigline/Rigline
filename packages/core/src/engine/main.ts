@@ -594,23 +594,23 @@ async function vscodeSetupCommand(args: string[]): Promise<number> {
     run: (command, argv) => runEditor({ command, prefix: [] }, argv),
   });
 
-  console.log(formatSetup(outcomes, values.remove, values.remove ? undefined : companionVsix()));
   // A profile removed by name stays out of every later look, and one installed by name comes back in
   // (D100).
-  if (profile !== undefined) {
-    const changed = editConfig(paths.config, (doc) =>
+  const skipChanged =
+    profile !== undefined &&
+    editConfig(paths.config, (doc) =>
       values.remove
         ? addToList(doc, SKIP_PROFILES, profile)
         : removeFromList(doc, SKIP_PROFILES, profile),
     );
-    if (changed) {
-      console.log(
-        values.remove
-          ? `\nadded "${profile}" to companion.skipProfiles in ${paths.config}, so it is not added back`
-          : `\ntook "${profile}" off companion.skipProfiles in ${paths.config}`,
-      );
-    }
-  }
+  const note = !skipChanged
+    ? undefined
+    : values.remove
+      ? `added "${profile}" to companion.skipProfiles in ${paths.config}, so it is not added back`
+      : `took "${profile}" off companion.skipProfiles in ${paths.config}`;
+  console.log(
+    formatSetup(outcomes, values.remove, values.remove ? undefined : companionVsix(), note),
+  );
   const results = outcomes.flatMap((o) => o.results);
   const installed = results.some((r) => r.code === 0);
   if (!values.remove && installed && checkoutPluginsDir() !== null) {

@@ -58,8 +58,15 @@ prints the line. Then `pnpm build` and a reload is the whole loop.
 
 It is machine-scoped, so Settings Sync does not carry it, but a profile's settings are its own: it
 has to be set in every profile the companion is installed in, since each of those companions writes
-the same Claude Code directories. A path that is not there is *Rigline:
-failed*, naming the setting, never a quiet fall back to the acquired engine. Every status carries
+the same Claude Code directories. `vscode-setup` puts the companion in every profile that has Claude
+Code, so that is each of those. A companion with the setting set adds itself to no other profile,
+because one it added would start without the setting (D100). A path that is not there is *Rigline:
+failed*, naming the setting, never a quiet fall back to the acquired engine.
+
+A development profile beside release profiles is not isolation. Every profile shares Claude Code's
+directories, and `install` injects every version on disk, so each start of a release profile's
+window replaces the checkout's payload. For a setup kept apart from a release one, use a second VS
+Code instance with its own `--extensions-dir`. Every status carries
 *(dev)* while it is set, with the entry in the tooltip and on the output channel's `engine:` line.
 Clear it to read against the released engine.
 
@@ -132,6 +139,37 @@ usage on stderr, and a shape without `v: 1` is logged and ignored. A new major i
 wrapper refuses to move the engine across it, and the companion says *needs you*, naming
 `rigline vscode-setup`.
 
+## Adding itself to other profiles
+
+After self-update, the companion runs `companion-profiles` through the same engine, naming its own
+editor exactly (D100). Its arguments are:
+
+- `--user-data-dir`, three levels up from `globalStorageUri`. That URI is the default profile's in
+  every profile, so it names the directory and never the profile.
+- `--extensions-dir`, the parent of its own directory.
+- `--cli-node` and `--cli-script`, which are `process.execPath` and `<appRoot>/out/cli.js`: what the
+  `code` shim runs, with no `PATH` lookup.
+
+The engine reads `storage.json` and each profile's `extensions.json`. It adds the companion to every
+profile that has Claude Code and lacks the companion, unless `config.yaml`'s `companion` block says
+otherwise. It answers `{ v: 1, lines, failed }` on stdout, which is parsed as `companion-status`'s
+answer is. Each line goes to the output channel. A failure says *needs you* once per distinct
+failure, only over green, and is forgotten after a look that succeeds.
+
+An open window of the profile added to starts the companion at once, with no restart, and its own
+`start` run finds nothing to add. The companion skips its look in a remote window, whose paths are
+the remote host's, and while `rigline.enginePath` is set. `rigline update` runs the same verb,
+without arguments, for every editor on `PATH`.
+
+A VSIX install re-extracts the shared directory every time, so adding the companion to one profile
+rewrites the directory another profile's running companion was loaded from. With identical bytes
+that is harmless: read live, the install succeeds on Windows and the running window does nothing. The
+engine refuses when the directory at the carried version holds a different build.
+
+It fights an uninstall made through the Extensions view, which leaves no trace in `extensions.json`.
+Disable does not come back, since VS Code keeps the disabled list elsewhere. So a person who does
+not want the companion in a profile disables it there, or lists the profile in `skipProfiles`.
+
 ## The reload offer
 
 Only after a `start`, only for bytes that moved, and only while Claude Code is active (D82). What
@@ -174,13 +212,26 @@ handler, and `install` reads it from the manifest to decide that an installed co
 ## `rigline vscode-setup`
 
 An engine verb, forwarded by the wrapper. It installs the bundled VSIX into every editor whose CLI
-is on `PATH` (`code`, `code-insiders`, `codium`, `cursor`, `windsurf`), with `--force` so re-running
-is a no-op, and then injects, so the first reload after it already works. It passes
-`--do-not-sync`, which the CLI accepts though its help omits it: Settings Sync would carry the id to
-other machines, where VS Code asks the Marketplace for `rigline.rigline`, which is unclaimed (D93).
-A re-run moves an existing install to machine scope, and an update keeps the scope it finds. `--remove` uninstalls and
-leaves the injection alone, because `restore` is the verb for that. A batch-file CLI is spawned
-through `cmd.exe`, since Node refuses to spawn one directly.
+is on `PATH` (`code`, `code-insiders`, `codium`, `cursor`, `windsurf`), and then injects, so the
+first reload after it already works.
+
+In each editor it installs into every profile that has Claude Code or the companion, less
+`skipProfiles`. It uses the default profile alone when no profile has either, or under
+`everyProfile: false`. It finds each editor's directories from a table in `EDITOR_CLIS`, in the order
+VS Code itself resolves them (`VSCODE_PORTABLE`, then `VSCODE_APPDATA` and `VSCODE_EXTENSIONS`, then
+the platform's default). Only VS Code's entries have been read on a machine.
+
+`--profile NAME` acts on that profile alone, and refuses a name no editor has, listing the ones
+there are. With `--remove` it also adds the name to `skipProfiles`; without it, it takes the name off.
+`--remove` alone uninstalls from every profile that holds the companion and leaves the injection
+alone, because `restore` is the verb for that.
+
+It passes `--do-not-sync`, which the CLI accepts though its help omits it: Settings Sync would carry
+the id to other machines, where VS Code asks the Marketplace for `rigline.rigline`, which is
+unclaimed (D93). A re-run moves an existing install to machine scope, and an update keeps the scope
+it finds. A re-run re-extracts the same bytes; `--force` is there so that it can also downgrade after
+an engine rollback. A batch-file CLI is spawned through `cmd.exe`, since Node refuses to spawn one
+directly.
 
 Where no CLI is found, it refuses, names the *Install from VSIX* palette command and prints the
 VSIX path. It does not write into `~/.vscode/extensions` itself: registering an extension by
@@ -190,15 +241,19 @@ patching VS Code's own state is a worse act than the one Rigline already commits
 ## The profile trap
 
 VS Code profiles each carry their own extensions, and `code --install-extension` installs into the
-**default** profile. On a machine with profiles the install succeeds and the directory and manifest
-are right, while a window on another profile never offers the extension to its host. The tells are
-that the companion is absent (not merely inert) from the Extensions view and from *Developer: Show
-Running Extensions*, that there is no **Rigline** output channel, and that the extension host log
-never activates `rigline.rigline`.
+**default** profile unless told otherwise. A window on a profile without the companion never offers
+it to its host. The tells are:
 
-`--profile NAME` is the repair, passed through to `code`. Copy the name rather than typing it,
-because a name that does not match creates a new empty profile. The profile is asked for rather than
-inferred from VS Code's private `storage.json`.
+- The companion is absent from the Extensions view and from *Developer: Show Running Extensions*,
+  not merely inert.
+- There is no **Rigline** output channel.
+- The extension host log never activates `rigline.rigline`.
+
+Rigline reads the profiles now (D100), so this is left only where they cannot be read: a portable
+install, a custom `--user-data-dir`, a fork whose entry in the table is wrong, or a remote window.
+`vscode-setup` then says it used the default profile, and `--profile NAME` is the repair. For
+extension commands the CLI refuses a name it does not know, with `Profile 'X' not found.`, and
+creates nothing; only opening a window with an unknown `--profile` creates one.
 
 ## Reading it live
 
@@ -223,6 +278,18 @@ and these reproduce the cases on demand:
   whose `.vscode/extensions` is the `--extensions-dir`, so the engine's `install` never reaches the
   live extensions. The output channel's log under the user-data dir shows the update; after a
   restart, only the new directory is left and the log says nothing about updating.
+- **Profiles** need no window. `VSCODE_APPDATA` and `VSCODE_EXTENSIONS` move both the engine's
+  table and the CLI onto scratch directories.
+  - Put the isolated VS Code's `bin` first on `PATH`.
+  - Set `USERPROFILE` and `RIGLINE_HOME` to scratch directories, so the injection that follows finds
+    no Claude Code.
+  - Make profiles by writing `userDataProfiles` into the scratch `storage.json`.
+  - Stand in for Claude Code with a VSIX holding only `extension/package.json`, with publisher
+    `anthropic` and name `claude-code`, zipped by `tar --format zip`.
+  - Then run `vscode-setup` and `companion-profiles`, and read each profile's `extensions.json`
+    after each step.
+
+  What a window adds is only whether an open window reacts, and that was read once, for D100.
 - **A panel that stops accepting prompts** after a write under a live window was seen twice and has
   not recurred in three retests. If it does, open *Developer: Open Webview Developer Tools* before
   reloading: a reload destroys the only evidence.

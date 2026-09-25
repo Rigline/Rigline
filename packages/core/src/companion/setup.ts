@@ -277,12 +277,14 @@ export function formatSetup(
   outcomes: readonly SetupOutcome[],
   remove: boolean,
   vsix?: string,
+  note?: string,
 ): string {
   const changed = outcomes.some((o) => o.results.some((r) => r.code === 0));
   const unread = outcomes.some((o) => o.unread !== undefined);
   return [
     `${remove ? "Removing" : "Installing"} the companion in ${outcomes.length} editor${outcomes.length === 1 ? "" : "s"}:`,
     ...outcomes.flatMap((outcome) => editorLines(outcome, remove)),
+    ...(note === undefined ? [] : ["", note]),
     // An install's reload is the last line of the injection that follows it (D98).
     ...(changed && remove
       ? ["", "Reload the window for it to take effect: Developer: Reload Window."]

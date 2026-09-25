@@ -328,8 +328,8 @@ built. The first two change what a plugin is written against.
   ([ci.md](ci.md)), and every live read has been on Windows.
 - **What 1.0 needs.** This plan names milestones, not the bar a 1.0 release has to clear.
 - **The protocol between the wrapper, the companion and the engine.** It was never designed: verbs
-  and exit codes, `RIGLINE_DEFER_INJECT` (D98), `companion-status` (D99) and the Save link (D93),
-  each added where one was needed. The aim is that everything runs current versions, which `update`
+  and exit codes, `RIGLINE_DEFER_INJECT` (D98), `companion-status` (D99), `companion-profiles`
+  (D100) and the Save link (D93), each added where one was needed. The aim is that everything runs current versions, which `update`
   and the companion's self-update keep it at, not two-way compatibility paid for in flexibility.
 - **The React layer does not survive the app moving to React 19.** React 19's devtools injection no
   longer passes `findFiberByHostInstance`, and the React layer asserts that literal (D11), so the day
@@ -387,7 +387,7 @@ recipe for forcing one. When it reads clean, milestone 8 is done.
 
 **After the next release, `rigline vscode-setup` once on each machine.** The companions installed
 now predate self-update (D99) and sync; the one run makes them machine-scoped and able to follow the
-engine from then on.
+engine from then on, and puts one in every profile with Claude Code (D100).
 
 After them, the open questions above are the work. None is planned yet, so the next step there is to
 pick one and settle it.
@@ -460,3 +460,5 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
 - 2026-09-25: `vscode-setup` installs the companion outside Settings Sync.
 - 2026-09-25: The report ends with what to reload, then what needs you (D98).
 - 2026-09-25: The companion updates itself from the engine it runs, read live (D99).
+- 2026-09-25: The companion goes into every profile that has Claude Code, and is added where it is
+  missing (D100); read end to end against a scratch VS Code.
