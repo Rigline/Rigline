@@ -205,7 +205,8 @@ at a Windows path, so its tests skip there with a reason — 126 skipped is the 
 [docs/releasing.md](docs/releasing.md) has the command and why CI, not this, is the gate.
 
 Reference bundles are at `c:\dev\kb\vscode-claude-code-versions\<version>\`. The extension deletes
-superseded versions, so snapshot a new one there before it goes. Older VSIXs can be fetched from
+superseded versions, so snapshot a new one there before it goes, from its `.orig` backups:
+[docs/verification.md](docs/verification.md) has the recipe. Older VSIXs can be fetched from
 the Marketplace.
 
 ## Workflow

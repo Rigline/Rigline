@@ -77,6 +77,21 @@ Both are also read a second way: rewritten by Rolldown, whose minifier quotes di
 Claude Code's bundler, and held to the same harvest (`minifier.test.ts`, D101). That covers a change
 of bundler, which neither source shows on its own.
 
+### Adding a version to the corpus
+
+Snapshot from the installed directory's **backups**, never its live files, because an installed
+version is injected, and a patched bundle in the corpus would be harvested as if Claude Code shipped
+it. Copy `webview/index.js.orig` to `webview/index.js`, and `extension.js.orig` to `extension.js`
+where it exists (it only does once a host patch has applied). `webview/index.css` and `package.json`
+are never patched, so copy those as they are. Check that neither copied bundle contains `rigline`.
+
+Then add the version to `CORPUS_VERSIONS`, read `pnpm rigline diff <previous> <new>` for what moved,
+and run `pnpm rigline codegen <the new corpus directory>`. Pass the directory: `codegen` with no
+argument harvests the newest *installed* version, which may be one the corpus does not have. Move
+`HARNESS_VERSION` to it, and run the whole suite. Codegen reports any anchor the new version leaves
+missing or ambiguous. A new version also adds its corpus tests to the Linux checkout's skip count
+([releasing.md](releasing.md)).
+
 The injector's fixtures deliberately carry CRLF line endings and non-ASCII bytes, because
 byte-faithful I/O is the property under test (D37): text-mode I/O on Windows rewrites every line
 ending and turns a 133-byte patch into a 2.2 KB one.

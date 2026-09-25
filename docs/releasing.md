@@ -69,8 +69,12 @@ its own `node_modules`, because a shared one cannot hold both platforms' native 
 
 `bash -ic` rather than `-lc`: nvm installs into `.bashrc`, which a login shell does not read. The
 corpus lives at a Windows path so its tests skip there with a reason, which is the designed
-behaviour and not a failure — expect 126 skipped. This is the fast loop; the CI run above is the
-gate, because it also covers the Node matrix and the `--frozen-lockfile` install.
+behaviour and not a failure — expect 126 skipped. The count grows with every corpus version and
+harness test. To re-measure it on Windows, point `CORPUS` in `packages/core/test/corpus.ts` at a
+directory that does not exist for one `pnpm test`, then put it back with an edit, not `git checkout`,
+which would also drop any change to that file you have not committed. Nothing skips by platform, so
+that count is the Linux one. This is the fast loop; the CI run above is the gate, because it also
+covers the Node matrix and the `--frozen-lockfile` install.
 
 ## One-time setup
 

@@ -289,11 +289,11 @@ under `core`, and each plugin through `ctx.check` (D63 to D68). Read live on 2.1
 first-party plugins ship inside core (D69 to D75). [history-m7.md](history-m7.md) is the
 archaeology and [architecture.md](architecture.md) the reference.
 
-## Milestone 8: the companion extension — built 2026-09-23
+## Milestone 8: the companion extension — done 2026-09-25
 
 A VS Code extension that notices a Claude Code update and re-injects, acquiring and running the
 engine rather than embedding it (D76 to D85). [history-m8.md](history-m8.md) is the archaeology and
-[companion.md](companion.md) the reference. One live read is owed.
+[companion.md](companion.md) the reference.
 
 ## Plugin UI in React — done 2026-09-25
 
@@ -376,20 +376,21 @@ built. The first two change what a plugin is written against.
 
 ## Next session
 
-`1.0.0-alpha.11` is the newest on `latest`, and carries the plugin UI. The work now is the open
-questions above. None is planned yet, so the next step is to pick one and settle it.
+`1.0.0-alpha.11` is the newest on `latest`. `main` carries D98 to D104 unreleased, and the release
+waits on one fix.
+
+**Before the next release: one engine injects at a time.** With two VS Code windows open, each
+window's companion runs the engine on a Claude Code update. One engine's host-patch write lands
+inside the other's stability sample (D83), which then refuses with "still being written". The result
+is a false *needs you* in every window but one, on every update. Read live on 2.1.282. The plan, with
+the evidence, is `.local/plans/injection-lock.md`: an injection lock in the engine, amending D80,
+recorded as D105. After that, cut the release. The open questions above come after it.
 
 The reads below are owed and deferred: exercise each when it comes up, not as a gate.
 
 **A Save through a released engine.** On a machine with `alpha.11` installed and
 `rigline.enginePath` unset, edit the layout in the panel and Save: the notification should say it
 saved, the panel should leave editing, and `~/.rigline/config.yaml` should hold the layout.
-
-**`ready` (D85), on the next Claude Code update.** When the new version lands under a running
-window, the status item should go to *Rigline: ready to restart* and stay there until a restart.
-Check the output channel for the `installed:` line first, which is what says the update actually
-arrived. If you would rather not wait, [companion.md](companion.md)'s *Reading it live* has the
-recipe for forcing one. When it reads clean, milestone 8 is done.
 
 **After the next release, `rigline vscode-setup` once on each machine.** The companions installed
 now predate self-update (D99) and sync; the one run makes them machine-scoped and able to follow the
@@ -488,3 +489,5 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   (D104).
 - 2026-09-25: 2.1.282 snapshotted, `generated.ts` regenerated and the harness moved to it; three
   classes added, nothing gone.
+- 2026-09-25: `ready` (D85) read live on the 2.1.282 update; milestone 8 done. The same update showed
+  concurrent engines refusing each other, which is next.
