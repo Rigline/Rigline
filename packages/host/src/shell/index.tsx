@@ -19,21 +19,14 @@ import type { Contribution, PlacedElement, ShellOptions } from "./types.ts";
 
 const CSS = `
 .rigline-pill {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 4px;
-  padding: 1px 6px;
-  border: none;
-  border-radius: 6px;
-  font: 10px/1.4 var(--app-monospace-font-family, monospace);
-  color: #fff;
-  background: #2d7d46;
-  cursor: pointer;
-  vertical-align: middle;
+  --app-pill-foreground: #fff;
+  --app-pill-background: #2d7d46;
+  --app-pill-hover-background: #2d7d46;
   user-select: none;
 }
 .rigline-pill-failing {
-  background: #a3352f;
+  --app-pill-background: #a3352f;
+  --app-pill-hover-background: #a3352f;
 }
 .rigline-pill-fixed {
   position: fixed;
@@ -155,7 +148,11 @@ function Shell(props: ShellOptions & { readonly own: Contribution }): ReactNode 
         <button
           ref={button}
           type="button"
-          className={count > 0 ? "rigline-pill rigline-pill-failing" : "rigline-pill"}
+          className={
+            count > 0
+              ? "rigline-ui-pill rigline-pill rigline-pill-failing"
+              : "rigline-ui-pill rigline-pill"
+          }
           aria-haspopup="menu"
           aria-expanded={open !== null}
           title={`${summary} — click to ${open ? "close" : "open"} Rigline's menu`}

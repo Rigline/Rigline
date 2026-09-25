@@ -82,6 +82,8 @@ anything may change between releases.
   writes looked to the other like the update still being written. Rigline now injects one run at a
   time: a command that finds another running waits for it, says so, and then finds everything
   already current.
+- The RIG pill now matches the other pills in the composer footer in height and shape, and sits
+  level with them. Before, it was smaller, squarer, and sat slightly low.
 
 ## 1.0.0-alpha.11 — 2026-09-25
 

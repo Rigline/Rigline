@@ -121,6 +121,7 @@ export function createShellService(
   fail: (reason: string) => void,
 ): ShellService {
   const pill = document.createElement("span");
+  pill.className = "rigline-slot";
   const state = { started: false, error: null as string | null, pill };
   const entries: (Contribution & { readonly order: number })[] = [];
   const contributions = store<readonly Contribution[]>([]);

@@ -85,6 +85,43 @@ export default { setup(ctx) { ctx.element("badge", () => jsx(Pill, { children: "
       }
     }, 20000);
 
+    it("draws the RIG pill as the footer's other pills are, in its own colour", async () => {
+      const slotted: FixturePlugin = {
+        name: "slotted",
+        manifest: {
+          elements: { badge: { title: "Badge", placements: [SPACER], default: SPACER } },
+        },
+        source: `import { jsx } from "react/jsx-runtime";
+import { Pill } from "@rigline/plugin-api/ui";
+export default { setup(ctx) { ctx.element("badge", () => jsx(Pill, { children: "badge" })); } };`,
+      };
+      const booted = await boot({ plugins: [slotted] });
+      const { page } = booted;
+      try {
+        await page.waitForSelector('[data-rigline-slot="slotted/badge"] .rigline-ui-pill');
+        await page.waitForSelector(".rigline-pill");
+        const read = await page.evaluate(() => {
+          const box = (selector: string) => {
+            const e = document.querySelector(selector);
+            const r = e?.getBoundingClientRect();
+            return r ? { height: r.height, mid: r.top + r.height / 2 } : null;
+          };
+          const rig = document.querySelector(".rigline-pill");
+          return {
+            element: box('[data-rigline-slot="slotted/badge"] .rigline-ui-pill'),
+            rig: box(".rigline-pill"),
+            background: rig ? getComputedStyle(rig).backgroundColor : null,
+          };
+        });
+        expect(read.element).not.toBeNull();
+        expect(read.rig?.height).toBe(read.element?.height);
+        expect(read.rig?.mid).toBeCloseTo(read.element?.mid ?? Number.NaN, 0);
+        expect(read.background).toBe("rgb(45, 125, 70)");
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
     it("keeps rigRow last in the composer box, after the model pill's row, and gone with its last element", async () => {
       const rowed: FixturePlugin = {
         name: "rowed",
