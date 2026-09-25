@@ -5,7 +5,12 @@
 import type { Page } from "playwright";
 import { describe, expect, it } from "vitest";
 import type { FixturePlugin } from "../src/payload.ts";
-import { harnessSkipReason, register, HARNESS_VERSION as VERSION } from "../src/suite.ts";
+import {
+  harnessSkipReason,
+  RIGLINE_OFF,
+  register,
+  HARNESS_VERSION as VERSION,
+} from "../src/suite.ts";
 
 const SPACER = { anchor: "footerSpacer", at: "before" } as const;
 
@@ -91,7 +96,7 @@ export default { setup(ctx) {
   window.__unbind = ctx.element("note", () => jsx("span", { className: "harness-row-item", children: "in the row" }));
 } };`,
       };
-      const booted = await boot({ plugins: [rowed] });
+      const booted = await boot({ plugins: [rowed], layout: RIGLINE_OFF });
       const { page } = booted;
       try {
         await page.setViewportSize({ width: 720, height: 800 });
@@ -296,7 +301,11 @@ export default { setup(ctx) {
   ctx.menu(() => jsx("span", { className: "harness-partial-entry", children: "still here" }));
 } };`,
       };
-      const booted = await boot({ plugins: [partial], remove: { anchors: ["footerSpacer"] } });
+      const booted = await boot({
+        plugins: [partial],
+        remove: { anchors: ["footerSpacer"] },
+        layout: RIGLINE_OFF,
+      });
       const { page } = booted;
       try {
         await page.waitForSelector(".rigline-pill");

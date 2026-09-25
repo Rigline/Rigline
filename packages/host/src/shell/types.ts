@@ -61,3 +61,6 @@ export interface ShellOptions {
 }
 
 export type StartShell = (options: ShellOptions) => () => void;
+
+/** Rigline's own elements' components, by id, for the kernel to bind (D97). */
+export type RiglineElements = (editor: LayoutEditor) => Readonly<Record<string, ElementComponent>>;

@@ -141,6 +141,9 @@ async function chromiumLaunchFailure(): Promise<string | null> {
  */
 export const HARNESS_VERSION = "2.1.280";
 
+/** Rigline's own elements switched off, for a case about what `rigRow` holds or whether it is there. */
+export const RIGLINE_OFF: Layout = { off: ["rigline/edit", "rigline/reload"] };
+
 /**
  * Why this file's tests cannot run, or null. Read at module scope so a `describe.skipIf` can use
  * it: a fresh clone without the corpus or without a launchable Chromium is not a failure, and a

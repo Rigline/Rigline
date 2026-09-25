@@ -69,6 +69,8 @@ describe("viewLayout", () => {
       "rigRow",
       "  session-id/address   Messaging address  yours",
       "  clock/face           Clock",
+      "  rigline/edit         Edit button        can also go before footerSpacer",
+      "  rigline/reload       Reload button      can also go before footerSpacer",
       "off",
       "  session-id/short-id  Session id         yours; can also go before footerSpacer, rigRow",
       "  session-id/full-id   Full session id    can also go rigRow",
@@ -117,6 +119,13 @@ describe("placeInLayout", () => {
 
     placeInLayout(path, plugins, "session-id/short-id", "default");
     expect(readFileSync(path, "utf8")).toBe("");
+  });
+
+  it("places Rigline's own elements, which no plugin declares", () => {
+    const path = configFile("");
+    placeInLayout(path, plugins, "rigline/edit", { anchor: "footerSpacer", at: "before" });
+    expect(readConfig(path).layout).toEqual({ "before footerSpacer": ["rigline/edit"] });
+    expect(viewLayout(plugins, readConfig(path)).problems).toEqual([]);
   });
 
   it("keeps a header comment when the last setting goes", () => {

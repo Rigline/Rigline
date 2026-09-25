@@ -84,6 +84,12 @@ describe("validateManifest", () => {
     ]);
   });
 
+  it("keeps the name rigline for Rigline's own elements", () => {
+    expect(validateManifest({ ...minimal, name: "rigline" }, "rigline").problems).toEqual([
+      `"name" cannot be "rigline", which owns Rigline's own elements`,
+    ]);
+  });
+
   it("rejects a non-object outright", () => {
     expect(validateManifest("nope", "demo").problems).toEqual([
       "rigline.json must be a JSON object",

@@ -20,19 +20,27 @@ import {
   placementLabel,
   placeName,
   placeTitle,
+  RIGLINE,
+  RIGLINE_ELEMENTS,
   type Surface,
   store,
   type Teardown,
   ZONES,
   type ZoneName,
 } from "@rigline/plugin-api";
-import type { Contribution, PanelPlace, PlacedElement, StartShell } from "../shell/types.ts";
+import type {
+  Contribution,
+  PanelPlace,
+  PlacedElement,
+  RiglineElements,
+  StartShell,
+} from "../shell/types.ts";
 import type { CheckService } from "./checks.ts";
 import type { LayoutEditor } from "./layout.ts";
 import type { MountService } from "./mounts.ts";
 
 /** Whose mount the pill and the zones are, in `data-rigline-mount` and in the mount diagnostics. */
-const OWNER = "rigline";
+const OWNER = RIGLINE;
 
 /** After every plugin's mount at the same anchor, so the pill sits nearest the spacer. */
 const PILL_ORDER = Number.MAX_SAFE_INTEGER;
@@ -77,8 +85,11 @@ export interface ShellService {
   ): Teardown;
   /** Every bound element, keyed `owner/id`. */
   readonly bound: ReadonlyMap<string, ElementReading>;
-  /** Place the pill and load the root. Once, after every plugin's `setup` has run. */
-  start(): Promise<void>;
+  /**
+   * Place the pill, load the root, and bind Rigline's own elements at registry order `order`, after
+   * every plugin's (D97). Once, after every plugin's `setup` has run.
+   */
+  start(order: number): Promise<void>;
   readonly state: ShellState;
 }
 
@@ -339,6 +350,30 @@ export function createShellService(
   });
   editor.editing.subscribe(() => (editor.editing.get() ? hold() : release()));
 
+  function bind(
+    owner: string,
+    order: number,
+    index: number,
+    id: string,
+    spec: ElementSpec,
+    component: ElementComponent,
+    onError: (reason: string) => void,
+  ): Teardown {
+    const name = `${owner}/${id}`;
+    if (bindings.has(name)) throw new Error(`element "${id}" is already bound`);
+    const b: Binding = { owner, order, index, id, spec, component, onError, at: null };
+    bindings.set(name, b);
+    settle(name, b, editor.working.get());
+    publishPlaces();
+    return () => {
+      if (bindings.get(name) !== b) return;
+      b.at?.unplace();
+      bindings.delete(name);
+      bound.delete(name);
+      publishPlaces();
+    };
+  }
+
   return {
     contribute(owner, order, component, onError) {
       const entry = { key: next++, owner, order, component, onError };
@@ -351,23 +386,9 @@ export function createShellService(
         publish();
       };
     },
-    element(owner, order, index, id, spec, component, onError) {
-      const name = `${owner}/${id}`;
-      if (bindings.has(name)) throw new Error(`element "${id}" is already bound`);
-      const b: Binding = { owner, order, index, id, spec, component, onError, at: null };
-      bindings.set(name, b);
-      settle(name, b, editor.working.get());
-      publishPlaces();
-      return () => {
-        if (bindings.get(name) !== b) return;
-        b.at?.unplace();
-        bindings.delete(name);
-        bound.delete(name);
-        publishPlaces();
-      };
-    },
+    element: bind,
     bound,
-    async start() {
+    async start(order) {
       place();
       poll();
       setInterval(poll, POLL_MS);
@@ -377,6 +398,7 @@ export function createShellService(
       try {
         const shell = (await import(new URL("./runtime/shell.js", import.meta.url).href)) as {
           startShell?: StartShell;
+          riglineElements?: RiglineElements;
         };
         if (typeof shell.startShell !== "function") {
           throw new Error("runtime/shell.js exports no startShell");
@@ -394,6 +416,11 @@ export function createShellService(
           onError: fail,
         });
         state.started = true;
+        const own = shell.riglineElements?.(editor) ?? {};
+        Object.entries(RIGLINE_ELEMENTS).forEach(([id, spec], index) => {
+          const component = own[id];
+          if (component) bind(RIGLINE, order, index, id, spec, component, fail);
+        });
       } catch (e) {
         state.error = e instanceof Error ? e.message : String(e);
         fail(`the shell did not load: ${state.error}`);

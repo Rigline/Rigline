@@ -14,6 +14,7 @@ import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { EDIT_CSS, EditLayer } from "./edit.tsx";
 import { layoutMenu } from "./layout.tsx";
+import { OWN_CSS } from "./own.tsx";
 import type { Contribution, PlacedElement, ShellOptions } from "./types.ts";
 
 const CSS = `
@@ -184,7 +185,7 @@ function Shell(props: ShellOptions & { readonly own: Contribution }): ReactNode 
 export function startShell(options: ShellOptions): () => void {
   const style = document.createElement("style");
   style.setAttribute("data-rigline-style", "rigline");
-  style.textContent = CSS + MENU_CSS + PILL_CSS + EDIT_CSS;
+  style.textContent = CSS + MENU_CSS + PILL_CSS + EDIT_CSS + OWN_CSS;
   document.head.appendChild(style);
   const root = createRoot(options.layer, {
     // A contribution's boundary reports through its plugin's error path, which logs it attributed.
@@ -203,3 +204,5 @@ export function startShell(options: ShellOptions): () => void {
     style.remove();
   };
 }
+
+export { riglineElements } from "./own.tsx";

@@ -404,7 +404,8 @@ where a compromised publish is usually caught; `--now` overrides it, and a withh
 rather than hidden.
 
 The package name and the plugin name need not match. The manifest owns the plugin's name, and that
-is what its directory, its entries in `config.yaml` and `sources.json` and every report call it.
+is what its directory, its entries in `config.yaml` and `sources.json` and every report call it. It
+cannot be `rigline`, which owns Rigline's own elements.
 
 ## When an update breaks something
 

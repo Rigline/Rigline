@@ -450,8 +450,13 @@ export default { setup(ctx) {
         expect(await focused()).toBe("Alpha one");
         await page.keyboard.press("ArrowDown");
         expect(await focused()).toContain("Beta sub");
+        // Rigline's own Layout entry, after every plugin's.
+        await page.keyboard.press("ArrowDown");
+        expect(await focused()).toContain("Layout");
         await page.keyboard.press("ArrowDown");
         expect(await focused()).toBe("Alpha one");
+        await page.keyboard.press("ArrowUp");
+        expect(await focused()).toContain("Layout");
         await page.keyboard.press("ArrowUp");
         expect(await focused()).toContain("Beta sub");
 

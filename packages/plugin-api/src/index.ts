@@ -55,6 +55,8 @@ export {
   elementGaps,
   placementGap,
   placementLabel,
+  RIGLINE,
+  RIGLINE_ELEMENTS,
   SLOT_POSITIONS,
   samePlacement,
   ZONE_NAMES,
@@ -88,6 +90,7 @@ export {
   sameLayout,
   withElementAt,
   withOrder,
+  withRigline,
 } from "./layout.ts";
 export type { DeclaredUses, HostPatch, Manifest, ValidManifest } from "./manifest.ts";
 export {

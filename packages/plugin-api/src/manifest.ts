@@ -17,7 +17,7 @@
 import type { AnchorName, Surface } from "./anchors.ts";
 import { CONTRACTS } from "./capabilities/index.ts";
 import type { Declarations, Uses } from "./capabilities/types.ts";
-import { type DeclaredElement, type Elements, elementsOf } from "./elements.ts";
+import { type DeclaredElement, type Elements, elementsOf, RIGLINE } from "./elements.ts";
 import type { MessageType, ModuleClasses, ModuleId, OutboundFields } from "./identifiers.ts";
 
 export type { Declarations, Uses, UsesKey } from "./capabilities/types.ts";
@@ -204,6 +204,8 @@ export function validateManifest(
   const name = value.name;
   if (typeof name !== "string" || !NAME.test(name)) {
     problems.push(`"name" must be a lowercase package-name segment, got ${JSON.stringify(name)}`);
+  } else if (name === RIGLINE) {
+    problems.push(`"name" cannot be "${RIGLINE}", which owns Rigline's own elements`);
   } else if (name !== dirName) {
     problems.push(
       `"name" is ${JSON.stringify(name)} but the directory is ${JSON.stringify(dirName)}`,

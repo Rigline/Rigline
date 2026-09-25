@@ -11,7 +11,12 @@ import type { Layout, SaveRecord } from "@rigline/plugin-api";
 import type { Page } from "playwright";
 import { describe, expect, it } from "vitest";
 import type { FixturePlugin } from "../src/payload.ts";
-import { harnessSkipReason, register, HARNESS_VERSION as VERSION } from "../src/suite.ts";
+import {
+  harnessSkipReason,
+  RIGLINE_OFF,
+  register,
+  HARNESS_VERSION as VERSION,
+} from "../src/suite.ts";
 
 const SPACER = { anchor: "footerSpacer", at: "before" } as const;
 const TOKEN = "ABCDEFGHIJKLMNOPQRSTUV";
@@ -93,7 +98,7 @@ describe.skipIf(skip !== null)(`the Layout submenu${skip ? ` (${skip})` : ""}`, 
   const boot = register(VERSION);
 
   it("moves an element live, and saves through a link that carries the copy", async () => {
-    const booted = await boot({ plugins: [deck], save: COMPANION });
+    const booted = await boot({ plugins: [deck], save: COMPANION, layout: RIGLINE_OFF });
     const { page } = booted;
     try {
       await openLayout(page);
@@ -119,7 +124,12 @@ describe.skipIf(skip !== null)(`the Layout submenu${skip ? ` (${skip})` : ""}`, 
       const payload = JSON.parse(
         Buffer.from(new URL(href).searchParams.get("p") ?? "", "base64url").toString("utf8"),
       );
-      expect(payload).toEqual({ v: 1, token: TOKEN, from: {}, to: { rigRow: ["deck/three"] } });
+      expect(payload).toEqual({
+        v: 1,
+        token: TOKEN,
+        from: RIGLINE_OFF,
+        to: { ...RIGLINE_OFF, rigRow: ["deck/three"] },
+      });
 
       // A scripted click is one VS Code never routes: without the guard it would navigate the
       // panel away. It still starts the confirmation, which the rewritten registry then settles.
@@ -132,7 +142,7 @@ describe.skipIf(skip !== null)(`the Layout submenu${skip ? ` (${skip})` : ""}`, 
       expect(outcome.prevented).toBe(true);
       expect(outcome.href).toBe(page.url());
       await page.getByText("Saving through the Rigline companion").waitFor();
-      saveToRegistry(booted.payloadDir, { rigRow: ["deck/three"] });
+      saveToRegistry(booted.payloadDir, { ...RIGLINE_OFF, rigRow: ["deck/three"] });
       await page.getByText("Saved.").waitFor({ timeout: 5000 });
       await expect(link.count()).resolves.toBe(0);
     } finally {
@@ -219,7 +229,7 @@ describe.skipIf(skip !== null)(`editing in place${skip ? ` (${skip})` : ""}`, ()
   const boot = register(VERSION);
 
   it("covers each element with a handle, holds rigRow open, and trays the rest", async () => {
-    const booted = await boot({ plugins: [deck], save: COMPANION });
+    const booted = await boot({ plugins: [deck], save: COMPANION, layout: RIGLINE_OFF });
     const { page } = booted;
     try {
       await enterEditing(page);
@@ -420,7 +430,7 @@ describe.skipIf(skip !== null)(`editing in place${skip ? ` (${skip})` : ""}`, ()
   }, 30000);
 
   it("changes nothing when Escape ends a drag", async () => {
-    const booted = await boot({ plugins: [deck], save: COMPANION });
+    const booted = await boot({ plugins: [deck], save: COMPANION, layout: RIGLINE_OFF });
     const { page } = booted;
     try {
       await enterEditing(page);
@@ -437,6 +447,35 @@ describe.skipIf(skip !== null)(`editing in place${skip ? ` (${skip})` : ""}`, ()
       expect(await page.locator('[data-rigline-slot="deck/one"] .deck-one').count()).toBe(1);
       expect(await page.locator(".rigline-edit-handle").count()).toBe(2);
       expect(await page.locator(".rigline-menu").count()).toBe(0);
+    } finally {
+      await booted.close();
+    }
+  }, 30000);
+});
+
+describe.skipIf(skip !== null)(`Rigline's own elements${skip ? ` (${skip})` : ""}`, () => {
+  const boot = register(VERSION);
+
+  it("sit in rigRow by default, and edit in place and reload from there", async () => {
+    const booted = await boot({ plugins: [deck] });
+    const { page } = booted;
+    try {
+      const own = '[data-rigline-zone="rigRow"] [data-rigline-element^="rigline/"]';
+      await page.locator(own).nth(1).waitFor();
+      expect(
+        await page
+          .locator(own)
+          .evaluateAll((all) => all.map((e) => e.getAttribute("data-rigline-element"))),
+      ).toEqual(["rigline/edit", "rigline/reload"]);
+
+      await page.click('[data-rigline-element="rigline/edit"] button');
+      await page.waitForSelector(".rigline-edit-handle");
+      await page.locator(".rigline-edit-bar").getByRole("button", { name: "Done" }).click();
+      await page.waitForSelector(".rigline-edit-handle", { state: "detached" });
+
+      saveToRegistry(booted.payloadDir, { off: ["deck/one"] });
+      await page.click('[data-rigline-element="rigline/reload"] button');
+      await page.waitForSelector(".deck-one", { state: "detached" });
     } finally {
       await booted.close();
     }

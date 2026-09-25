@@ -12,9 +12,12 @@ import {
   parsePlace,
   placementLabel,
   placeName,
+  RIGLINE,
+  RIGLINE_ELEMENTS,
   samePlacement,
   type ViewElement,
   type ViewPlace,
+  withRigline,
 } from "@rigline/plugin-api";
 import { type Document, isMap, isScalar, isSeq } from "yaml";
 import { UserError } from "../errors.ts";
@@ -40,7 +43,7 @@ export function viewLayout(
     path: config.path,
     places: layoutView(
       config.layout,
-      enabled.map((p) => ({ name: p.name, elements: p.manifest.elements })),
+      withRigline(enabled.map((p) => ({ name: p.name, elements: p.manifest.elements }))),
     ),
     problems: layoutNotes(config, enabled),
   };
@@ -92,13 +95,15 @@ function findElement(
   if (!plugin || !id || rest.length > 0) {
     throw new UserError(`"${name}" is not plugin/element; \`rigline layout\` names every element`);
   }
-  const found = discovered.find((p) => p.name === plugin);
-  if (!found) {
+  const elements =
+    plugin === RIGLINE
+      ? RIGLINE_ELEMENTS
+      : discovered.find((p) => p.name === plugin)?.manifest.elements;
+  if (!elements) {
     throw new UserError(
       `no plugin called "${plugin}" is installed; \`rigline layout\` names every element`,
     );
   }
-  const elements = found.manifest.elements;
   const spec = Object.hasOwn(elements, id) ? elements[id] : undefined;
   if (!spec) {
     const ids = Object.keys(elements);

@@ -2145,3 +2145,31 @@ slot is called depends on its position as well as its anchor: before the footer'
 footer, after it is beside the send button. A slot nobody has titled shows its spelling.
 
 Rejected: a title on the anchor, which cannot say which side of it a place is.
+
+**D97. Rigline's own controls are elements, owned by `rigline` (2026-09-25, Leo).** Edit in place
+and Reload saved layout were reachable only through the RIG menu, and Edit is the one that most
+needs finding. They are now two elements, `rigline/edit` and `rigline/reload`, placed by the same
+layout as a plugin's: moved, ordered and switched off in the panel, in `config.yaml` or with
+`rigline layout`. Each is a small pill, an R and an icon, with the action's name as its tooltip, and
+both default to the Rigline row, so a fresh install shows them.
+
+They are declared in `plugin-api` as `RIGLINE_ELEMENTS`, since the engine has to know them to check
+a layout and to list them, and every list a layout resolves against — the panel's, `install`'s,
+`rigline layout`'s — ends with them, so by registry order they sit after every plugin's. `rigline`
+is a reserved plugin name: two owners of `rigline/edit` could not both be placed. The shell binds
+them once `shell.js` has loaded, since `post.js` has no React, through the same service a plugin's
+elements go through.
+
+In the mode, Edit has a handle like every element, so Done or Escape leaves; exempting it would make
+it the one element that cannot be moved in place. Reload is the menu's one action under two names,
+and discards unsaved edits on one click as the menu item does.
+
+Rejected:
+
+- A first-party plugin carrying them. No plugin can reach the layout editor, and a `ctx` capability
+  to drive it would widen the plugin API for Rigline's own use.
+- Off by default. The RIG menu reaches both, but a control nobody knows about is not found there
+  (Leo).
+
+Left out: the RIG pill as an element. The same machinery would place it, but a person could then
+switch off the one control that always reaches the menu.

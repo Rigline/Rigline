@@ -8,6 +8,8 @@ import {
   type Elements,
   type Placement,
   placementLabel,
+  RIGLINE,
+  RIGLINE_ELEMENTS,
   SLOT_POSITIONS,
   type SlotPosition,
   samePlacement,
@@ -132,6 +134,11 @@ export function describeElements(elements: Elements, plugin = "", layout: Layout
 export interface LayoutPlugin {
   readonly name: string;
   readonly elements: Elements;
+}
+
+/** `plugins` with Rigline's own elements after them: every list a layout resolves against (D97). */
+export function withRigline(plugins: readonly LayoutPlugin[]): LayoutPlugin[] {
+  return [...plugins, { name: RIGLINE, elements: RIGLINE_ELEMENTS }];
 }
 
 /** One element in a view of the layout. */

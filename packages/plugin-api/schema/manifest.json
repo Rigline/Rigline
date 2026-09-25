@@ -21,7 +21,10 @@
     "name": {
       "type": "string",
       "pattern": "^[a-z0-9][a-z0-9._-]{0,213}$",
-      "description": "Must match the plugin's directory name."
+      "not": {
+        "const": "rigline"
+      },
+      "description": "Must match the plugin's directory name. \"rigline\" is Rigline's own."
     },
     "description": {
       "type": "string"

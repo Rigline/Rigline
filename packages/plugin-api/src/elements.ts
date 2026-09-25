@@ -55,6 +55,17 @@ export interface ElementSpec {
 
 export type Elements = Readonly<Record<string, ElementSpec>>;
 
+/** The name Rigline's own elements are owned under, which no plugin may take (D97). */
+export const RIGLINE = "rigline";
+
+const FOOTER: AnchorSlot = { anchor: "footerSpacer", at: "before" };
+
+/** Rigline's own elements, placed by the layout as a plugin's are (D97). */
+export const RIGLINE_ELEMENTS: Elements = {
+  edit: { title: "Edit button", placements: ["rigRow", FOOTER], default: "rigRow" },
+  reload: { title: "Reload button", placements: ["rigRow", FOOTER], default: "rigRow" },
+};
+
 /** A placement as an author writes it, narrowed to the zones and anchors that exist. */
 export type DeclaredPlacement =
   | ZoneName

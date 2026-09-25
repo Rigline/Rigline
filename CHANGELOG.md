@@ -54,6 +54,10 @@ anything may change between releases.
   shows while you edit, even with nothing in it, and a tray lists the elements that are switched off
   or have nowhere to go in this panel; drag one out to put it somewhere. A bar above the composer
   holds Save, Revert changes and Done, and a save the panel sees land ends the editing.
+- **Two buttons of Rigline's own** in the Rigline row under the composer: one starts editing the
+  layout in place, the other reloads the saved layout. They are elements like any plugin's —
+  `rigline/edit` and `rigline/reload` — so you can move them, reorder them or switch them off the
+  same way.
 - `Pill` in `@rigline/plugin-api/ui`: a rounded label in the app's own pill colours, like the model
   picker's, and a button when given `onClick`.
 - The `composerBox` anchor: the composer's bordered box.
@@ -90,6 +94,7 @@ anything may change between releases.
 - `rigline install` and `rigline check` now name a plugin that imports a package it did not bundle
   as refused, since the panel cannot load it, rather than leaving you to find the error in the panel.
 - `rigline check` now names a switched-off plugin that is not installed, as `install` already did.
+- A plugin can no longer be called `rigline`, the name Rigline's own elements are listed under.
 - A plugin that calls `acquireVsCodeApi()` now gets the error VS Code itself gives a second call,
   since the app has already made the first. A plugin reaches the panel's messages through `ctx`.
 

@@ -19,6 +19,7 @@ import {
   type Uses,
   type ValidManifest,
   validateManifest,
+  withRigline,
 } from "@rigline/plugin-api";
 import { UserError } from "../errors.ts";
 import { type DeclaredPatch, type PatchOutcome, patchRefusal } from "../inject/hostpatch.ts";
@@ -202,7 +203,9 @@ export function enabledPlugins(
 
 /** Each entry of the layout that does not resolve against `enabled`, naming the file (D92). */
 export function layoutNotes(config: PluginsConfig, enabled: readonly DiscoveredPlugin[]): string[] {
-  const plugins = enabled.map((p) => ({ name: p.name, elements: p.manifest.elements }));
+  const plugins = withRigline(
+    enabled.map((p) => ({ name: p.name, elements: p.manifest.elements })),
+  );
   return layoutProblems(config.layout, plugins, config.disabled).map(
     (problem) => `${config.path}: ${problem}`,
   );

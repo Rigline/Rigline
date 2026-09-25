@@ -15,7 +15,7 @@
  */
 import { ANCHOR_NAMES, ANCHORS } from "./anchors.ts";
 import { CONTRACTS } from "./capabilities/index.ts";
-import { ELEMENT_ID_PATTERN, SLOT_POSITIONS, ZONE_NAMES } from "./elements.ts";
+import { ELEMENT_ID_PATTERN, RIGLINE, SLOT_POSITIONS, ZONE_NAMES } from "./elements.ts";
 import { NAME_PATTERN, SURFACES } from "./manifest.ts";
 
 type JsonObject = Record<string, unknown>;
@@ -57,7 +57,8 @@ export function manifestSchema(): JsonObject {
       name: {
         type: "string",
         pattern: NAME_PATTERN,
-        description: "Must match the plugin's directory name.",
+        not: { const: RIGLINE },
+        description: `Must match the plugin's directory name. "${RIGLINE}" is Rigline's own.`,
       },
       description: { type: "string" },
       entry: {

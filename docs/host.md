@@ -168,6 +168,10 @@ Nothing can push into a panel, so everything it learns about the file it pulls, 
 `registry.js` under a fresh query: after a Save click, until the baked layout equals the copy; when
 the menu opens, to say a newer layout is saved; and for Reload, which shows that layout in place.
 
+Rigline's own elements, `rigline/edit` and `rigline/reload`, are bound once `shell.js` has loaded,
+from the components it exports as `riglineElements`, at a registry order after every plugin's (D97).
+They go through the same `element` service as a plugin's, reporting to the shell's error path.
+
 Edit in place, a checkbox at the top of the submenu, sets the editor's `editing` store (D95). While
 it is set, the kernel holds every zone a bound element offers in place, empty or not, marked
 `data-rigline-editing` so its CSS shows the zone with its name. The shell's `edit.tsx` draws on the

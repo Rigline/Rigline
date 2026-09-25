@@ -30,7 +30,9 @@ typo.
 
 Some plugins put things in the panel: a pill in the composer's footer, a line in the row under the
 composer's controls. Each of those is an *element*. Its plugin decides where it goes, and whether it
-starts switched off. `layout` is where you overrule that:
+starts switched off. Rigline has two of its own, named like any other: `rigline/edit`, which starts
+editing the layout in place, and `rigline/reload`, which picks up the saved layout; both start in
+`rigRow`. `layout` is where you overrule that:
 
     layout:
       rigRow:

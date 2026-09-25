@@ -22,6 +22,7 @@ import {
   type RiglinePlugin,
   type SaveRecord,
   type Teardown,
+  withRigline,
 } from "@rigline/plugin-api";
 import { MODULES } from "./capabilities/index.ts";
 import { type Bridge, bridge as findBridge, type PluginStatus } from "./kernel/bridge.ts";
@@ -241,7 +242,7 @@ async function main(): Promise<void> {
   const mounts = createMountService(message, react, diagnostics.mounts, meter);
   const editor = createLayoutEditor({
     baked: layout,
-    plugins: entries.map((p) => ({ name: p.name, elements: p.elements })),
+    plugins: withRigline(entries.map((p) => ({ name: p.name, elements: p.elements }))),
     save,
     readSaved: readSavedLayout,
   });
@@ -314,7 +315,7 @@ async function main(): Promise<void> {
     bus.sealBuffer();
   }
   // After the seal, so the pill's first count is not taken while checks still cannot be true.
-  await kernel.shell.start();
+  await kernel.shell.start(entries.length);
 }
 
 main().catch((e) => console.error("[rigline] post-hook", e));
