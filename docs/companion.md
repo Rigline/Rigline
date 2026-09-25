@@ -54,7 +54,9 @@ checkout's on every extension-host start, and how engine work reached through th
 before a release. Point it at `packages/core/dist/engine/bin.js`; `vscode-setup` run from a checkout
 prints the line. Then `pnpm build` and a reload is the whole loop.
 
-It is machine-scoped, so Settings Sync does not carry it. A path that is not there is *Rigline:
+It is machine-scoped, so Settings Sync does not carry it, but a profile's settings are its own: it
+has to be set in every profile the companion is installed in, since each of those companions writes
+the same Claude Code directories. A path that is not there is *Rigline:
 failed*, naming the setting, never a quiet fall back to the acquired engine. Every status carries
 *(dev)* while it is set, with the entry in the tooltip and on the output channel's `engine:` line.
 Clear it to read against the released engine.

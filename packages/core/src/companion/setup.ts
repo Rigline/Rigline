@@ -266,7 +266,8 @@ export function checkoutEngineNote(entry: string): string {
   return [
     "",
     "This engine is a checkout. For the companion to run it rather than the released engine, add",
-    "this to VS Code's user settings, in the profile you develop in:",
+    "this to VS Code's user settings in every profile the companion is in, since each one writes",
+    "the same Claude Code directories:",
     `  "rigline.enginePath": ${JSON.stringify(entry)}`,
   ].join("\n");
 }
