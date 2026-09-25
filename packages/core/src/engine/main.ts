@@ -17,6 +17,7 @@
 import { spawn } from "node:child_process";
 import { existsSync, watch as fsWatch, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { placementLabel, placeName } from "@rigline/plugin-api";
 import {
@@ -26,6 +27,7 @@ import {
   bundledPluginsDir,
   CORE_VERSION,
   check,
+  checkoutEngineNote,
   checkoutPluginsDir,
   collect,
   companionVsix,
@@ -581,6 +583,9 @@ async function vscodeSetupCommand(args: string[]): Promise<number> {
       values.profile,
     ),
   );
+  if (!values.remove && outcomes.some((o) => o.code === 0) && checkoutPluginsDir() !== null) {
+    console.log(checkoutEngineNote(fileURLToPath(new URL("bin.js", import.meta.url))));
+  }
   const failed = outcomes.some((o) => o.code !== 0) ? 1 : 0;
 
   // And inject, on `add`'s rule (D55, D56): a command that changes what is installed re-injects, so

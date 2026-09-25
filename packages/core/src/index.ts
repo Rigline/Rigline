@@ -27,6 +27,7 @@ export type { Generated } from "./codegen/generate.ts";
 export { generate } from "./codegen/generate.ts";
 export type { FoundEditor, SetupOptions, SetupOutcome } from "./companion/setup.ts";
 export {
+  checkoutEngineNote,
   companionVsix,
   EDITOR_CLIS,
   editorSpawn,

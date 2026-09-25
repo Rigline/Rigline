@@ -7,9 +7,9 @@ to D85 in [decisions.md](decisions.md); what the milestone that built it turned 
 ## What it is
 
 A second retrieval layer (D80). It acquires `@rigline/core` into `<RIGLINE_HOME>/engine` exactly as
-`rigline` does, and spawns that engine for every piece of work. It never harvests, injects or reads
-a manifest, and it never carries a copy of the engine: one engine owns bytes, and everything else
-acquires it. So the companion cannot disagree with the CLI, and the VSIX needs a new release only
+`rigline` does, and spawns that engine for every piece of work, unless `rigline.enginePath` names
+another (D94, below). It never harvests, injects or reads a manifest, and it never carries a copy of
+the engine: one engine owns bytes, and everything else acquires it. So the companion cannot disagree with the CLI, and the VSIX needs a new release only
 when the *scheduling* changes. New engines, anchor tables and plugins arrive underneath it.
 
 It is optional. `rigline install` after each update is the whole of Rigline, and declining the
@@ -44,6 +44,20 @@ The extension host's `process.execPath` is Electron, with no npm beside it. So `
 Node. That is D73's rule, with a different starting point. With no Node, the status reads
 *Rigline: no Node* and the message names the setting. `ELECTRON_RUN_AS_NODE` supplies an
 interpreter, not an npm, and does not help.
+
+## Running a checkout's engine
+
+`rigline.enginePath` names an engine entry, and while it is set the companion spawns that for every
+run, Show Plugins and Save, and never calls `updateEngine` or `ensureEngine` (D94). It is how a
+machine developing Rigline stops the companion re-injecting the released engine's payload over the
+checkout's on every extension-host start, and how engine work reached through the companion is tried
+before a release. Point it at `packages/core/dist/engine/bin.js`; `vscode-setup` run from a checkout
+prints the line. Then `pnpm build` and a reload is the whole loop.
+
+It is machine-scoped, so Settings Sync does not carry it. A path that is not there is *Rigline:
+failed*, naming the setting, never a quiet fall back to the acquired engine. Every status carries
+*(dev)* while it is set, with the entry in the tooltip and on the output channel's `engine:` line.
+Clear it to read against the released engine.
 
 ## The home lock
 
@@ -163,8 +177,8 @@ and these reproduce the cases on demand:
   already present reuses its path and nothing arrives, which looks exactly like the designed
   silence. Find the `installed:` line in the output channel before reading anything into what
   follows ([verification.md](verification.md)).
-- **The engine is a released one**, a day behind this checkout at most (D48). Read against it
-  rather than working around it (D80).
+- **The engine is a released one**, a day behind this checkout at most (D48), unless
+  `rigline.enginePath` is set. Clear it to read what a user gets.
 - **A panel that stops accepting prompts** after a write under a live window was seen twice and has
   not recurred in three retests. If it does, open *Developer: Open Webview Developer Tools* before
   reloading: a reload destroys the only evidence.

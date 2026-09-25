@@ -12,6 +12,7 @@ import {
   type AcquireOptions,
   acquireAndInject,
   LABEL,
+  marked,
   saveLayout,
   showPlugins,
 } from "./acquire.ts";
@@ -27,9 +28,9 @@ const NODE = join(NODE_DIR, process.platform === "win32" ? "node.exe" : "node");
 const CLAUDE_DIR = abs("ext", "anthropic.claude-code-2.1.278");
 
 /** Claude Code present by default: the tests below are about acquisition, not about its absence. */
-function editor(setting?: string, claudeCode: string | null = CLAUDE_DIR) {
+function editor(settings: Record<string, string> = {}, claudeCode: string | null = CLAUDE_DIR) {
   return stubEditor({
-    setting: () => setting,
+    setting: (key) => settings[key],
     extensionPath: () => claudeCode ?? undefined,
   });
 }
@@ -62,18 +63,27 @@ function acquisition(
   run: { code?: number; lines?: readonly string[]; onRun?: () => void } = {},
 ) {
   const calls: string[][] = [];
+  const entries: string[] = [];
+  const acquiring: string[] = [];
   const base: AcquireOptions["acquisition"] = {
-    updateEngine: async () => ({ outcome: "current" }),
-    ensureEngine: async () => ({ version: "1.0.0-alpha.7", entry: ENTRY }),
+    updateEngine: async () => {
+      acquiring.push("update");
+      return { outcome: "current" };
+    },
+    ensureEngine: async () => {
+      acquiring.push("ensure");
+      return { version: "1.0.0-alpha.7", entry: ENTRY };
+    },
     ...over,
   };
-  const runEngine: AcquireOptions["runEngine"] = async (_node, _entry, argv, onLine) => {
+  const runEngine: AcquireOptions["runEngine"] = async (_node, entry, argv, onLine) => {
     calls.push([...argv]);
+    entries.push(entry);
     run.onRun?.();
     for (const line of run.lines ?? []) onLine(line);
     return run.code ?? 0;
   };
-  return { acquisition: base, calls, runEngine };
+  return { acquisition: base, calls, entries, acquiring, runEngine };
 }
 
 describe("acquireAndInject", () => {
@@ -91,6 +101,7 @@ describe("acquireAndInject", () => {
     });
 
     expect(result).toEqual({ kind: "injected", engine: "1.0.0-alpha.7", reload: null });
+    expect(a.acquiring).toEqual(["update", "ensure"]);
     expect(a.calls).toEqual([["install"]]);
     expect(e.statuses.at(-1)).toMatchObject({ health: "ok", text: "Rigline" });
   });
@@ -295,7 +306,7 @@ describe("acquireAndInject", () => {
 
   it("takes the setting over PATH, which is the macOS repair", async () => {
     const chosen = abs("opt", "homebrew", "bin", "node");
-    const e = editor(chosen);
+    const e = editor({ nodePath: chosen });
     const a = acquisition();
     await acquireAndInject({
       editor: e.editor,
@@ -313,7 +324,7 @@ describe("acquireAndInject", () => {
     // Leo's laptop: `vscode-setup` run before Claude Code was installed. The engine's `install`
     // exits 0 having done nothing, so reading the exit code alone painted a green badge over an
     // absent feature — and a green badge that means nothing is the failure P8 exists against.
-    const e = editor(undefined, null);
+    const e = editor({}, null);
     const a = acquisition();
     const result = await acquireAndInject({
       editor: e.editor,
@@ -403,6 +414,81 @@ describe("acquireAndInject", () => {
     });
 
     expect(e.statuses.at(-1)).toMatchObject({ health: "ready", text: "Rigline: ready to restart" });
+  });
+});
+
+describe("an engine named by rigline.enginePath (D94)", () => {
+  const DEV_ENTRY = abs("dev", "rigline", "packages", "core", "dist", "engine", "bin.js");
+  const withDev = (p: string) => p === NODE || p === DEV_ENTRY;
+
+  it("spawns the entry it names, and never reaches acquisition", async () => {
+    const e = editor({ enginePath: DEV_ENTRY });
+    const a = acquisition();
+    const result = await acquireAndInject({
+      editor: e.editor,
+      acquisition: a.acquisition,
+      ...runner(a),
+      ...QUIET,
+      version: "1.0.0-alpha.10",
+      exists: withDev,
+      env: { PATH: NODE_DIR },
+    });
+
+    expect(result).toEqual({ kind: "injected", engine: DEV_ENTRY, reload: null });
+    expect(a.acquiring).toEqual([]);
+    expect(a.entries).toEqual([DEV_ENTRY]);
+    expect(e.lines.join("\n")).toContain(`engine: ${DEV_ENTRY}`);
+  });
+
+  it("fails naming the setting when the entry is not there, and runs nothing else", async () => {
+    const e = editor({ enginePath: DEV_ENTRY });
+    const a = acquisition();
+    const result = await acquireAndInject({
+      editor: e.editor,
+      acquisition: a.acquisition,
+      ...runner(a),
+      ...QUIET,
+      version: "1.0.0-alpha.10",
+      exists: (p) => p === NODE,
+      env: { PATH: NODE_DIR },
+    });
+
+    expect(result).toMatchObject({
+      kind: "failed",
+      message: expect.stringContaining("rigline.enginePath"),
+    });
+    expect(a.acquiring).toEqual([]);
+    expect(a.calls).toEqual([]);
+    expect(e.statuses.at(-1)?.health).toBe("attention");
+  });
+
+  it("runs Show Plugins and a Save through it too", async () => {
+    const e = editor({ enginePath: DEV_ENTRY });
+    const a = acquisition();
+    const common = {
+      editor: e.editor,
+      ensureEngine: a.acquisition.ensureEngine,
+      runEngine: a.runEngine,
+      version: "1.0.0-alpha.10",
+      exists: withDev,
+      env: { PATH: NODE_DIR },
+    };
+    await showPlugins(common);
+    await saveLayout({ ...common, payload: "eyJ2IjoxfQ" });
+
+    expect(a.acquiring).toEqual([]);
+    expect(a.entries).toEqual([DEV_ENTRY, DEV_ENTRY]);
+  });
+
+  it("marks a status line while it is set, and leaves one alone otherwise", () => {
+    expect(marked("Rigline", "Injected", DEV_ENTRY)).toEqual({
+      text: "Rigline (dev)",
+      tooltip: `Injected\n\nEngine: ${DEV_ENTRY}, from \`rigline.enginePath\``,
+    });
+    expect(marked("Rigline: needs you", "Read the output", undefined)).toEqual({
+      text: "Rigline: needs you",
+      tooltip: "Read the output",
+    });
   });
 });
 

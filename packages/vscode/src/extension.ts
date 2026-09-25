@@ -9,7 +9,7 @@ import { spawn } from "node:child_process";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import * as vscode from "vscode";
-import { acquireAndInject, saveLayout, showPlugins } from "./acquire.ts";
+import { acquireAndInject, ENGINE_SETTING, marked, saveLayout, showPlugins } from "./acquire.ts";
 import { CLAUDE_CODE, type Editor, type Health } from "./editor.ts";
 import { type ReloadOffer, reloadOffer } from "./reload.ts";
 import { type Stamps, startingReason, type WatchReason, watchExtension } from "./watch.ts";
@@ -34,18 +34,21 @@ export function activate(context: vscode.ExtensionContext): void {
   const item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
   context.subscriptions.push(output, item);
 
+  const setting = (key: string): string | undefined => {
+    const value = vscode.workspace.getConfiguration("rigline").get<string>(key);
+    return value === undefined || value.trim() === "" ? undefined : value;
+  };
+
   const editor: Editor = {
-    setting: (key) => {
-      const value = vscode.workspace.getConfiguration("rigline").get<string>(key);
-      return value === undefined || value.trim() === "" ? undefined : value;
-    },
+    setting,
     extensionPath: (id) => vscode.extensions.getExtension(id)?.extensionUri.fsPath,
     extensionActive: (id) => vscode.extensions.getExtension(id)?.isActive === true,
     onExtensionsChanged: (listener) => vscode.extensions.onDidChange(() => listener()),
     status: (health, text, tooltip) => {
       const look = HEALTH[health];
-      item.text = `${look.icon} ${text}`;
-      item.tooltip = tooltip;
+      const shown = marked(text, tooltip, setting(ENGINE_SETTING));
+      item.text = `${look.icon} ${shown.text}`;
+      item.tooltip = shown.tooltip;
       item.backgroundColor =
         look.background === undefined ? undefined : new vscode.ThemeColor(look.background);
       // Cleared on every other health, so a green item is not quietly clickable.
@@ -166,7 +169,7 @@ async function run(
 /**
  * Every installed Claude Code directory, by name, sorted.
  *
- * The root is this extension'''s own parent, which is the directory this host installs user
+ * The root is this extension's own parent, which is the directory this host installs user
  * extensions into — we are in it, and it is there whether or not Claude Code is. Read from disk
  * rather than asked of VS Code, because `extensionUri` is fixed at what this host loaded and so
  * cannot report an install that happened since (D82).

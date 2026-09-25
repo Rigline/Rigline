@@ -53,6 +53,10 @@ anything may change between releases.
   `storeFrom(ctx.onSessionId, null)` in `@rigline/plugin-api`, and `useStore` to read one from React
   in `@rigline/plugin-api/ui`. A store made in `setup` catches what the panel replays from boot,
   which an effect in a component runs too late for.
+- `rigline.enginePath`, a companion setting for developing Rigline itself. It names an engine for the
+  companion to run in place of the released one, so the companion stops putting the released payload
+  back over your build every time VS Code starts, and Save runs your code. `rigline vscode-setup` run
+  from a checkout prints the line to set, and the status bar reads *Rigline (dev)* while it is set.
 
 ### Changed
 

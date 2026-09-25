@@ -8,6 +8,7 @@ import { delimiter, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { UserError } from "../errors.ts";
 import {
+  checkoutEngineNote,
   EDITOR_CLIS,
   editorSpawn,
   type FoundEditor,
@@ -230,6 +231,17 @@ describe("formatSetup", () => {
     expect(report).not.toMatch(/--profile NAME/);
     // And it stops promising two of them, which is what listing one after "two causes" did.
     expect(report).not.toMatch(/Two causes/);
+  });
+});
+
+describe("checkoutEngineNote", () => {
+  // Pasted into settings.json, a Windows path with bare backslashes is not JSON.
+  it("prints a settings line that parses back to the entry it names (D94)", () => {
+    const entry = join(abs("dev", "rigline"), "packages", "core", "dist", "engine", "bin.js");
+    const line = checkoutEngineNote(entry)
+      .split("\n")
+      .find((l) => l.includes("rigline.enginePath"));
+    expect(JSON.parse(`{${line}}`)).toEqual({ "rigline.enginePath": entry });
   });
 });
 

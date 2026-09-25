@@ -172,5 +172,9 @@ describe("the packed extension", () => {
       command: "rigline.showPlugins",
       title: "Rigline: Show Plugins",
     });
+    // Synced, a checkout's path would reach a machine where it names nothing (D94).
+    expect(manifest.contributes?.configuration?.properties?.["rigline.enginePath"]?.scope).toBe(
+      "machine",
+    );
   });
 });

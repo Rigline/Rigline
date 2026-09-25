@@ -63,6 +63,16 @@ const manifest = {
             "Leave blank to search `PATH`. Needed where a GUI-launched VS Code does not inherit " +
             "a login shell's `PATH`, which is common on macOS.",
         },
+        // Machine scope, so Settings Sync leaves behind a path that means nothing elsewhere (D94).
+        "rigline.enginePath": {
+          type: "string",
+          default: "",
+          scope: "machine",
+          markdownDescription:
+            "For developing Rigline. An engine entry to run in place of the one Rigline installs, " +
+            "and never updated: `packages/core/dist/engine/bin.js` in a checkout, whose " +
+            "`rigline vscode-setup` prints the line to set. Leave blank to run the released engine.",
+        },
       },
     },
   },

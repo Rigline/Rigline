@@ -2067,3 +2067,33 @@ layout equals the copy. A receipt file was proposed and dropped, since `registry
 the answer (Leo). Opening the menu and Reload do the same read, so a panel picks up a layout saved
 from another panel or a terminal without a webview reload. The outcome's detail, a save over a
 change or a refusal and why, is the companion's notification, since only the engine knows it.
+
+**D94. On a machine developing Rigline, the companion runs the engine a setting names (2026-09-25,
+Leo).** Two engines claim the bytes there. `pnpm rigline` runs the checkout's; the companion runs the
+one acquired into `<RIGLINE_HOME>/engine`, and re-injects with it on every extension-host start.
+Nothing can tell the two apart, since the checkout carries the released version and `updateEngine`
+compares for equality. And everything the companion does for the panel runs through the acquired
+engine, so engine work reached through the companion, Save's `layout save` first, cannot be tried
+until it is released. Removing the companion answers the first half and makes the second impossible.
+
+`rigline.enginePath`, a companion setting, names an engine entry. Set, the companion calls neither
+`updateEngine` nor `ensureEngine` and spawns that entry for every run, Show Plugins and Save. It
+amends D73 and D80 for a machine that sets it. Acquisition does not change, and the wrapper is not
+told: it is never run in a checkout (D69).
+
+It is machine-scoped, so Settings Sync leaves it behind. A path that is not there fails, naming the
+setting, rather than falling back to the acquired engine, which would be the silent swap this
+removes. While it is set every status carries *(dev)* and names the entry in its tooltip: a stale
+build is refused by `bundledDir()` already, but a checkout left behind a release would otherwise look
+exactly like a current install. `vscode-setup` run from a checkout prints the line to set, and does
+not write VS Code's settings itself.
+
+Rejected:
+
+- A record under `RIGLINE_HOME` that acquisition honours, so the wrapper obeys it too. It puts a
+  precedence rule into code whose premise is that there is none, has the wrapper read a file under
+  the home (D70), and changes every future VSIX's acquisition, for a need only a developer has.
+- Installing the checkout as the acquired engine, packed or linked. A pack is stale at the next
+  build, and either is replaced whenever the tag differs, by an older release too: between
+  `pnpm release` bumping the checkout and `release:finish`. A link puts the checkout under npm's
+  reify and under the `rm -rf` D73 gives as the recovery.

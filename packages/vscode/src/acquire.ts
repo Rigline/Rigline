@@ -67,6 +67,42 @@ export interface AcquireOptions {
 /** How this process names itself in the home lock, for whoever is waiting on it (D80). */
 export const LABEL = "the Rigline companion extension";
 
+/** An engine entry spawned in place of the acquired one, for developing Rigline (D94). */
+export const ENGINE_SETTING = "enginePath";
+
+type Runnable = { readonly version: string; readonly entry: string };
+
+/**
+ * The engine `rigline.enginePath` names, or undefined when it is unset. Its path stands where a
+ * version would, since nothing here reads its manifest. A path that is not there throws: falling
+ * back to the acquired engine is the silent swap D94 removes.
+ */
+function namedEngine(editor: Editor, exists: (path: string) => boolean): Runnable | undefined {
+  const entry = editor.setting(ENGINE_SETTING)?.trim();
+  if (entry === undefined) return undefined;
+  if (!exists(entry)) {
+    throw new Error(
+      `\`rigline.${ENGINE_SETTING}\` names ${entry}, which does not exist. Build it, or clear ` +
+        "the setting to run the released engine.",
+    );
+  }
+  editor.log(`engine: ${entry}, from \`rigline.${ENGINE_SETTING}\`, which is never updated`);
+  return { version: entry, entry };
+}
+
+/** A status line as shown: marked while a named engine runs, which otherwise looks released (D94). */
+export function marked(
+  text: string,
+  tooltip: string,
+  named: string | undefined,
+): { readonly text: string; readonly tooltip: string } {
+  if (named === undefined) return { text, tooltip };
+  return {
+    text: `${text} (dev)`,
+    tooltip: `${tooltip}\n\nEngine: ${named}, from \`rigline.${ENGINE_SETTING}\``,
+  };
+}
+
 export type AcquireResult =
   /** `reload` is what this window needs to show it, which is usually nothing (D82). */
   | { readonly kind: "injected"; readonly engine: string; readonly reload: Reload | null }
@@ -108,17 +144,10 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
     return { kind: "no-node", message };
   }
 
-  editor.status("working", "Rigline: updating", "Checking for a newer Rigline engine");
   try {
-    const update = await acquisition.updateEngine({ nodePath, label: LABEL, version });
-    editor.log(`engine: ${update.outcome}${update.to === undefined ? "" : ` ${update.to}`}`);
-    if (update.outcome === "failed") {
-      // Reported, not thrown, and not fatal: a contended lock lands here, and the right answer is
-      // to carry on with the engine already present rather than to give up on this update (D80).
-      editor.log(`engine update did not happen: ${update.reason ?? "no reason given"}`);
-    }
-
-    const engine = await acquisition.ensureEngine({ nodePath, label: LABEL, version });
+    const engine =
+      namedEngine(editor, exists) ??
+      (await acquired(editor, acquisition, { nodePath, label: LABEL, version }));
     editor.status("working", "Rigline: injecting", `Running ${engine.version}`);
     const before = stamps(editor.extensionPath(CLAUDE_CODE));
     const code = await runEngine(nodePath, engine.entry, ["install"], (line) => editor.log(line));
@@ -175,6 +204,23 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
     editor.log(message);
     return { kind: "failed", message };
   }
+}
+
+/** The acquired engine, moved first if its tag has. */
+async function acquired(
+  editor: Editor,
+  acquisition: Acquisition,
+  options: Parameters<Acquisition["ensureEngine"]>[0],
+): Promise<Runnable> {
+  editor.status("working", "Rigline: updating", "Checking for a newer Rigline engine");
+  const update = await acquisition.updateEngine(options);
+  editor.log(`engine: ${update.outcome}${update.to === undefined ? "" : ` ${update.to}`}`);
+  if (update.outcome === "failed") {
+    // Reported, not thrown, and not fatal: a contended lock lands here, and the right answer is
+    // to carry on with the engine already present rather than to give up on this update (D80).
+    editor.log(`engine update did not happen: ${update.reason ?? "no reason given"}`);
+  }
+  return await acquisition.ensureEngine(options);
 }
 
 export interface ShowPluginsOptions {
@@ -255,7 +301,8 @@ async function onDisk(
   }
 
   try {
-    const engine = await ensureEngine({ nodePath, label: LABEL, version });
+    const engine =
+      namedEngine(editor, exists) ?? (await ensureEngine({ nodePath, label: LABEL, version }));
     const lines: string[] = [];
     await runEngine(nodePath, engine.entry, argv, (line) => {
       lines.push(line);

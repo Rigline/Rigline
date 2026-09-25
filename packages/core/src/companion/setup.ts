@@ -258,6 +258,19 @@ function whyNotVisible(vsix: string, profile?: string): readonly string[] {
   ];
 }
 
+/**
+ * What `vscode-setup` adds when this engine is a checkout: the setting that has the companion run
+ * it rather than the released engine (D94). Printed, since VS Code's settings are not ours to write.
+ */
+export function checkoutEngineNote(entry: string): string {
+  return [
+    "",
+    "This engine is a checkout. For the companion to run it rather than the released engine, add",
+    "this to VS Code's user settings, in the profile you develop in:",
+    `  "rigline.enginePath": ${JSON.stringify(entry)}`,
+  ].join("\n");
+}
+
 function indent(text: string): string {
   return text
     .split("\n")

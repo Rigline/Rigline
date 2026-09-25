@@ -25,7 +25,7 @@ no new plans. Update the plan before writing code; log status there, not here.
   `Atomics.wait` rather than making `install` async. Carries a negative result worth not
   re-proposing: a content check on the bundle's tail was evidenced against the corpus and rejected,
   because a rule that fits today's bundler refuses every install the day it changes.
-- [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D93.
+- [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D94.
 
 The internals, for a contributor to Rigline itself. The shape, not the argument — the argument is in
 decisions.md, and each doc cites the decisions it rests on.
@@ -178,14 +178,15 @@ The four first-party plugins are bundled inside `@rigline/core` and discovered i
 checkout's `plugins/` shadows them and `disable` is the only way to decline one (D71, D72). In a
 published install they are the only root that has them; here they are found twice, quietly.
 
-**Remove the companion while working on the payload or plugins** (`pnpm rigline vscode-setup
---remove`; run it without `--remove` to put it back when working on the companion itself). On every
-extension-host start — *Reload Window*, *Restart Extensions*, opening VS Code — it runs `install`
-with the released engine, and a checkout build carries the same version, so the release's payload
-silently replaces this checkout's and the panel runs old code while every check passes. That is the
-companion doing its job, restoring the bytes its engine owns (D80), not a bug to fix. The tell is
-a probe report without what you just built; compare the installed `post.js` with
-`packages/core/dist/bundled/post.js`. The durable fix is an open question in plan.md.
+**Point the companion at this checkout's engine.** Install it from here with `pnpm rigline
+vscode-setup`, which prints the line to add to VS Code's user settings, in the profile you work in:
+`rigline.enginePath`, naming this checkout's `packages/core/dist/engine/bin.js` (D94). Unset, every
+extension-host start — *Reload Window*, *Restart Extensions*, opening VS Code — has the companion run
+`install` with the released engine, whose payload silently replaces this checkout's while every
+check passes, and everything it runs for the panel, Save included, is released code. Set, the status
+item reads *Rigline (dev)*. The tell that it is not working is a probe report without what you just
+built; compare the installed `post.js` with `packages/core/dist/bundled/post.js`. Re-run
+`vscode-setup` after changing the companion itself.
 
 An update installs a new versioned directory and deletes the old one, so it silently reverts the
 injection. A window that was open keeps running the old directory until *Developer: Reload Window*.

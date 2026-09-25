@@ -316,13 +316,6 @@ built. The first two change what a plugin is written against.
 - **Whether macOS has to be run before 1.0.** Nothing has run there: CI is Linux and one Windows row
   ([ci.md](ci.md)), and every live read has been on Windows.
 - **What 1.0 needs.** This plan names milestones, not the bar a 1.0 release has to clear.
-- **Which engine owns the bytes on a development machine.** The companion is right to put its
-  engine's payload back on every extension-host start: one engine owns bytes (D80), and a dev install
-  is bytes that engine did not write. A checkout is a second engine claiming the same directories,
-  and it carries the released version, so D75's stamp cannot tell the two apart. The machine could
-  name which engine owns it, for the companion to spawn instead of the released one. Until something
-  like that ships in a release, CLAUDE.md says to remove the companion while working on the payload
-  or plugins.
 - **The React layer does not survive the app moving to React 19.** React 19's devtools injection no
   longer passes `findFiberByHostInstance`, and the React layer asserts that literal (D11), so the day
   Claude Code ships React 19 the harvest fails and `install` refuses that version outright — every
@@ -420,3 +413,4 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
 - 2026-09-23: `rigline update` moved a published `alpha.8` engine to `alpha.10` and re-injected;
   milestone 7 done.
 - 2026-09-23: 8c's *Rigline: Show Plugins* read live.
+- 2026-09-25: `rigline.enginePath`: the companion runs a checkout's engine (D94).
