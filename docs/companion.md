@@ -132,9 +132,10 @@ enable and disable stay in the CLI (D84).
 The panel's Save is a link, `vscode://rigline.rigline/layout?p=…`, and VS Code hands a person's
 click on it to the companion's URI handler (D93). The handler answers one path, `/layout`, and hands
 the payload to the engine's `layout save` unread, through the engine already on disk and never an
-update, as Show Plugins does. Saves run one at a time. The engine prints the outcome first, and that
-line is the notification: a warning when it saved over a change or refused, since a person needs to
-know either. Everything after it goes to the output channel. Only the link's path is logged, because
+update, as Show Plugins does. Saves run one at a time, so a save never waits on its notification:
+one left standing in the notification centre would hold every later save, which then never runs and
+says nothing. The engine prints the outcome first, and that line is the notification: a warning when
+it saved over a change or refused, since a person needs to know either. Everything after it goes to the output channel. Only the link's path is logged, because
 its query carries the token.
 
 `onUri` is among the activation events, so a click before startup finishes still reaches the

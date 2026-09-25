@@ -254,7 +254,8 @@ const ENGINE_PROBLEM = "rigline: ";
 /**
  * A Save link from the panel: run `layout save` with its payload, and say how it went in a
  * notification. The engine prints the outcome first; a refusal and a save over a change are
- * warnings, since a person needs to know either (D92).
+ * warnings, since a person needs to know either (D92). Never awaits a notification: one stands until
+ * it is dismissed, and every save after this one waits for this one to finish.
  */
 export async function saveLayout(options: SaveLayoutOptions): Promise<void> {
   const lines = await onDisk(options, ["layout", "save", options.payload]);
@@ -262,14 +263,14 @@ export async function saveLayout(options: SaveLayoutOptions): Promise<void> {
   const outcome = lines.find((line) => line.trim() !== "") ?? "";
   if (outcome === "" || outcome.startsWith(ENGINE_PROBLEM)) {
     const reason = outcome.slice(ENGINE_PROBLEM.length).replace(/^not saved: /, "");
-    await options.editor.ask(
+    void options.editor.ask(
       "warn",
       `The layout was not saved: ${reason || "the engine said nothing; the Rigline output has the rest"}`,
     );
     return;
   }
   const sentence = outcome.charAt(0).toUpperCase() + outcome.slice(1);
-  await options.editor.ask(outcome.includes("over a change") ? "warn" : "info", sentence);
+  void options.editor.ask(outcome.includes("over a change") ? "warn" : "info", sentence);
 }
 
 /**
@@ -296,7 +297,7 @@ async function onDisk(
   } catch (error) {
     const message = error instanceof NoNodeError ? error.message : String(error);
     editor.log(message);
-    await editor.ask("warn", message);
+    void editor.ask("warn", message);
     return null;
   }
 
@@ -312,7 +313,7 @@ async function onDisk(
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     editor.log(message);
-    await editor.ask("warn", message);
+    void editor.ask("warn", message);
     return null;
   }
 }

@@ -625,6 +625,25 @@ describe("saveLayout", () => {
     });
   });
 
+  it("finishes while its notification is still unanswered, so the next save is not held up", async () => {
+    const a = acquisition({}, { lines: ["saved the panel's layout to /c.yaml"], code: 0 });
+    const e = stubEditor({ ask: () => new Promise(() => {}) });
+    let finished = false;
+    const saving = saveLayout({
+      editor: e.editor,
+      ensureEngine: a.acquisition.ensureEngine,
+      runEngine: a.runEngine,
+      version: "1.0.0-alpha.11",
+      exists: (p) => p === NODE,
+      env: { PATH: NODE_DIR },
+      payload: PAYLOAD,
+    }).then(() => {
+      finished = true;
+    });
+    await Promise.race([saving, new Promise((r) => setTimeout(r, 200))]);
+    expect(finished).toBe(true);
+  });
+
   it("warns with the engine's reason when it refuses", async () => {
     const { e } = await save(
       ["rigline: not saved: the Save link's token is not this machine's; reload the panel"],
