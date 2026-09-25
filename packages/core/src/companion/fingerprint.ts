@@ -93,7 +93,7 @@ export function carriedCompanion(bundled: string = bundledDir()): CarriedCompani
   return { version, fingerprint, vsix };
 }
 
-/** What `companion-status` prints. `v` because every future engine owes this to every companion. */
+/** What `companion-status` prints. `v`, so a companion can tell an answer it does not understand. */
 export interface CompanionStatus {
   readonly v: 1;
   /** Whether the companion in the directory asked about is the one this engine carries. */

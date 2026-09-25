@@ -327,6 +327,10 @@ built. The first two change what a plugin is written against.
 - **Whether macOS has to be run before 1.0.** Nothing has run there: CI is Linux and one Windows row
   ([ci.md](ci.md)), and every live read has been on Windows.
 - **What 1.0 needs.** This plan names milestones, not the bar a 1.0 release has to clear.
+- **The protocol between the wrapper, the companion and the engine.** It was never designed: verbs
+  and exit codes, `RIGLINE_DEFER_INJECT` (D98), `companion-status` (D99) and the Save link (D93),
+  each added where one was needed. The aim is that everything runs current versions, which `update`
+  and the companion's self-update keep it at, not two-way compatibility paid for in flexibility.
 - **The React layer does not survive the app moving to React 19.** React 19's devtools injection no
   longer passes `findFiberByHostInstance`, and the React layer asserts that literal (D11), so the day
   Claude Code ships React 19 the harvest fails and `install` refuses that version outright — every

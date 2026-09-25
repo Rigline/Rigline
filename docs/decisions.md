@@ -2234,7 +2234,7 @@ or VS Code's `__metadata`. The source map embeds sources with the checkout's lin
 the only difference between a Windows build and a Linux one. `companion-status PATH`, a verb kept out
 of the usage like `layout save`, fingerprints the companion at `PATH` alone, since every profile
 shares the extensions directory and a newer directory beside it can be another profile's, and
-answers JSON carrying `v`, a shape every future engine owes every installed companion. The rule
+answers JSON carrying `v`, so a companion can tell an answer it does not understand. The rule
 lives in the engine, so changing it is an engine release. The version keeps tracking releases,
 because the wrapper's major gate reads it.
 
