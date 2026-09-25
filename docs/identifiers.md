@@ -38,7 +38,7 @@ directory name), `webview` (`webview/index.js`), `host` (`extension.js`), and `c
 **A harvest either succeeds or throws.** `HarvestError` names the layer and what it could not find.
 There is no partial result, because the failure mode of one is specific and terrible: gutted tables
 regenerate, and every plugin is then refused with a confident-looking "unknown class" that points at
-the extension when the fault is our regex.
+the extension when the fault is our regex. The React layer is the exception, below.
 
 **Floors are smoke alarms for the regex, not judgements about the extension.** Each layer carries
 minimums well under anything a real bundle has ever held — 30 modules and 300 classes against a real
@@ -141,10 +141,15 @@ The transcript capability rests on react-dom's devtools integration: the global 
 
 None of those is a class or a message type, so nothing else in the system could notice one moving,
 and every one of them fails *silently* — a capability that quietly resolves no rows. So this layer
-asserts each literal against the bundle and fails the harvest outright when one is absent, naming
-what breaks (D11). It also reads react-dom's version, anchored beside
-`rendererPackageName:"react-dom"` rather than searched for alone, because `version:"…"` is not a
-safe anchor in a bundle this size.
+asserts each literal against the bundle and names what breaks when one is absent (D11). It also
+reads react-dom's version, anchored beside `rendererPackageName:"react-dom"` rather than searched for
+alone, because `version:"…"` is not a safe anchor in a bundle this size.
+
+It never throws. What is missing goes into the tables as `react.missing`, and the transcript's
+contract turns each entry into a refusal of the plugins that require it. Every other plugin loads,
+because nothing else rests on react-dom's internals (D102). What makes the other layers throw
+doesn't apply here: this is a list of named assertions, not a pattern that could quietly match less.
+The corpus tests are what fail loudly when one of them stops holding.
 
 `__REACT_DEVTOOLS_GLOBAL_HOOK__` is spelled literally twice — here and in `pre.ts`, which is
 statically imported and so cannot read a generated table — and a test holds the two spellings to

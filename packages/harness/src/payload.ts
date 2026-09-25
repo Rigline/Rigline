@@ -9,6 +9,7 @@ import {
   bundledDir,
   generate,
   harvestAll,
+  harvestReact,
   missingAnchorReason,
   resolveRuntimeImports,
 } from "@rigline/core";
@@ -49,6 +50,8 @@ export interface RemovedIdentifiers {
   readonly anchors?: readonly string[];
   readonly modules?: readonly string[];
   readonly messages?: readonly string[];
+  /** Literals the React layer asserts, reported missing exactly as its harvest would report them. */
+  readonly react?: readonly string[];
 }
 
 export interface PreparePayloadOptions {
@@ -75,8 +78,12 @@ export function preparePayload(dir: string, options: PreparePayloadOptions): voi
   }
   cpSync(join(bundled, "runtime"), join(dir, "runtime"), { recursive: true });
 
-  const generated = generate(harvestAll(corpusBundles(options.version)));
-  writeFileSync(join(dir, "generated.js"), withoutIdentifiers(generated.runtime, options.remove));
+  const bundles = corpusBundles(options.version);
+  const generated = generate(harvestAll(bundles));
+  writeFileSync(
+    join(dir, "generated.js"),
+    withoutIdentifiers(generated.runtime, bundles.webview, options.remove),
+  );
 
   const plugins = options.plugins.map((plugin) => ({
     name: plugin.name,
@@ -107,7 +114,7 @@ export const save = ${JSON.stringify(options.save ?? null)};
  * `runtime` with the named identifiers gone. Rewritten as data rather than regenerated, because the
  * point is a table that disagrees with the bundle beside it, which no harvest would ever produce.
  */
-function withoutIdentifiers(runtime: string, remove?: RemovedIdentifiers): string {
+function withoutIdentifiers(runtime: string, webview: string, remove?: RemovedIdentifiers): string {
   if (!remove) return runtime;
   const prefix = runtime.slice(0, runtime.indexOf("{"));
   const tables = JSON.parse(runtime.slice(runtime.indexOf("{"), runtime.lastIndexOf("}") + 1)) as {
@@ -116,7 +123,13 @@ function withoutIdentifiers(runtime: string, remove?: RemovedIdentifiers): strin
     unresolvedAnchors: Record<string, string>;
     moduleClasses: Record<string, unknown>;
     messageTypes: string[];
+    react: unknown;
   };
+  if (remove.react) {
+    tables.react = harvestReact(
+      remove.react.reduce((js, text) => js.replaceAll(text, ""), webview),
+    );
+  }
   for (const anchor of remove.anchors ?? []) {
     // All three, because an anchor that resolved to a class and still to a selector is a state no
     // harvest produces: `watch` would go on finding the element the test says has gone.

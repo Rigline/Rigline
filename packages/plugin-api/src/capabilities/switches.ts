@@ -54,14 +54,16 @@ export const sessionContract = switchContract({
 });
 
 /**
- * One entry per transcript row, with the real time of each. Expands over both layers: the two
- * message types that carry times, and the anchor the host finds rows by. A renamed row class
- * would otherwise leave the taps working, the times collected, and nothing on screen.
+ * One entry per transcript row, with the real time of each. Expands over three layers: the two
+ * message types that carry times, the anchor the host finds rows by, and the react-dom internals it
+ * identifies them with. A renamed row class would otherwise leave the taps working, the times
+ * collected, and nothing on screen.
  */
 export const transcriptContract = switchContract({
   key: "transcript",
   grants: ["decorateTranscript"],
   messages: ["get_session_response", "io_message"],
   anchors: ["transcriptRow"],
+  react: true,
   summary: "reads every transcript entry's identity and time, and draws on transcript rows",
 });

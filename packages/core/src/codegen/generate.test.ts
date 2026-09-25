@@ -29,7 +29,7 @@ const harvest = (overrides: Partial<Harvest> = {}): Harvest => ({
     partial: ["update_session_state"],
   },
   replies: { responses: ["rename_tab_response", "asset_uris_response"], unanswered: [] },
-  react: { hook: "__REACT_DEVTOOLS_GLOBAL_HOOK__", version: "18.3.1" },
+  react: { hook: "__REACT_DEVTOOLS_GLOBAL_HOOK__", version: "18.3.1", missing: [] },
   css: ".tab_OOQiHg{}.tab_yumWmQ{}.taskRow_oblbPg{}.modelPill_gGYT1w{}",
   ...overrides,
 });
@@ -55,6 +55,15 @@ describe("generate", () => {
     expect(tables.anchors.modelPill).toBe("modelPill_gGYT1w");
     expect(tables.anchors.transcriptRow).toBeNull();
     expect(tables.react.version).toBe("18.3.1");
+  });
+
+  it("carries what react-dom lacks into the tables, and names it in the counts", () => {
+    const gap = { needs: '"memoizedProps"', breaks: "no row's message can be read" };
+    const react = { hook: "__REACT_DEVTOOLS_GLOBAL_HOOK__", version: "19.9.9", missing: [gap] };
+    const generated = generate(harvest({ react }));
+    expect(generated.tables.react.missing).toEqual([gap]);
+    expect(generated.counts).toContain('react-dom lacks "memoizedProps"');
+    expect(generate(harvest()).counts).not.toContain("react-dom");
   });
 
   it("reports whole unreachable modules and refuses a partially harvested one", () => {

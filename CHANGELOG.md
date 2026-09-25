@@ -59,6 +59,12 @@ anything may change between releases.
   copies commands until it is deleted.
 - `rigline install` keeps working if Claude Code's build starts writing strings with single quotes
   or backticks. Before, every version would have been refused.
+- When Claude Code's React changes in a way Rigline cannot read, only plugins that decorate the
+  transcript are refused, each saying what is missing. Every other plugin keeps working. Before,
+  `rigline install` stopped at that version of Claude Code, and no plugin loaded there.
+- A plugin that declares `transcript` under `uses.optional` now loads and goes without it where this
+  version of Claude Code cannot serve it. Before, calling `decorateTranscript` disabled the plugin.
+- `@rigline/plugin-api`: `IdentifierTables.react` carries `missing`, and its `version` may be null.
 
 ## 1.0.0-alpha.11 — 2026-09-25
 

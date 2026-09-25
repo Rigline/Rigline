@@ -115,10 +115,15 @@ screen.
 
 ## Refusing early rather than resolving nothing
 
+A plugin requiring `transcript` is refused at load when this version's tables cannot serve it. That
+happens when one of the two message types has gone, when `transcriptRow` does not resolve, or when
+react-dom lacks something the React layer asserts (D102). The refusal names which, and no other
+plugin is affected. A plugin declaring it under `uses.optional` loads, and its `decorateTranscript`
+registers nothing.
+
 `decorateTranscript` throws at the moment it is called when no React renderer ever injected into the
-hook. Every other way this capability can go wrong is a refusal at load — a declaration checked
-against the tables, an anchor that did not resolve — and this would otherwise be the silent hole
-among them: a decorator registered, a sweep that finds nothing, and no line anywhere saying why.
+hook. That is the one failure the tables cannot foresee, and it would otherwise be the silent hole:
+a decorator registered, a sweep that finds nothing, and no line anywhere saying why.
 
 `available()` is the two conditions together: a renderer has injected, and `transcriptRow` resolved
 to a selector in this version.

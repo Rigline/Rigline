@@ -621,6 +621,61 @@ export default { setup() {} };`,
       }
     }, 20000);
 
+    it("refuses only the transcript's plugins when react-dom lacks what the host reads rows with", async () => {
+      // D102 at the DOM tier: the tables say react-dom has lost something, and a plugin requiring the
+      // transcript is refused by that reason while one taking it optionally, and one never asking,
+      // both load.
+      const needy: FixturePlugin = {
+        name: "needy",
+        manifest: { uses: { transcript: true } },
+        source: `window.__staleImported = true;
+export default { setup() {} };`,
+      };
+      const hopeful: FixturePlugin = {
+        name: "hopeful",
+        manifest: { uses: { optional: { ...EMPTY_DECLARATIONS, transcript: true } } },
+        source: `window.__hopeful = { threw: null };
+export default { setup(ctx) {
+    try { ctx.decorateTranscript(() => null); }
+    catch (e) { window.__hopeful.threw = String(e && e.message || e); }
+  } };`,
+      };
+      const booted = await boot({
+        plugins: [needy, hopeful, mounterPlugin],
+        remove: { react: ["memoizedProps"] },
+      });
+      try {
+        await booted.page.waitForSelector(".harness-badge");
+        const reason =
+          `"transcript" needs react-dom's "memoizedProps", which is gone: ` +
+          "the host could reach a fiber but not read which message it shows";
+
+        const d = await booted.diagnostics();
+        expect(d.plugins.find((p) => p.name === "needy")).toEqual({
+          name: "needy",
+          status: "refused",
+          reason,
+        });
+        const imported = await booted.page.evaluate(
+          () => (window as unknown as FixtureWindow).__staleImported,
+        );
+        expect(imported).toBeUndefined();
+
+        const hoped = d.plugins.find((p) => p.name === "hopeful");
+        expect(hoped?.status).toBe("loaded");
+        expect(hoped?.missingOptional).toEqual([reason]);
+        const threw = await booted.page.evaluate(
+          () => (globalThis as { __hopeful?: { threw: string | null } }).__hopeful?.threw,
+        );
+        expect(threw).toBeNull();
+        expect(d.transcript.sweeps).toBe(0);
+
+        expect(d.plugins).toContainEqual({ name: "mounter", status: "loaded" });
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
     it("grants a switch declared only under optional, and re-places a mount without rebuilding it", async () => {
       // Two properties of the capability layer that a plugin can only find out about the hard way.
       // A switch under `uses.optional` is still declared: optional changes the verdict when what it

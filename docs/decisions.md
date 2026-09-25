@@ -196,7 +196,8 @@ visibly as `undefined`; a missing write does not.
 
 **D11. Build-time React anchors are asserted, not collected.** The devtools hook name, the fiber
 props and the renderer descriptor fail the harvest outright when missing, so a build that would
-leave the transcript capability silently empty cannot produce generated tables at all.
+leave the transcript capability silently empty cannot produce generated tables at all. Amended by
+D102: a missing one now refuses the transcript's plugins, not the install.
 
 ### Plugins and the manifest
 
@@ -2392,3 +2393,28 @@ through the full minifier.
 Rejected: normalising the bundle's strings before harvesting. Doing that safely needs a tokeniser
 that understands template interpolation and regex literals, and all it would buy is what a character
 class already does.
+
+**D102. A React literal gone from the bundle refuses the transcript's plugins, not the install
+(2026-09-25, Leo).** This amends D11. Before, a missing literal failed the harvest, which stopped
+`install` at that version and left Claude Code there with no Rigline at all. That fits a layer whose
+regex has drifted, where every table built from it would be wrong. It does not fit a React change,
+where the extension has moved and only one capability rests on what moved. The host reads nothing
+from `tables.react`, the mount service falls back to a document observer when no renderer injects,
+and Rigline's own UI runs on its own React (D88).
+
+So the rule D27 applies to every other identifier applies here too. `harvestReact` returns what is
+missing as `react.missing`, one `{ needs, breaks }` each. The transcript's switch contract turns each
+into a gap, so a plugin requiring `transcript` is refused by name, at install and at load, and one
+declaring it under `uses.optional` goes without (D41). D11's purpose is kept: the transcript is never
+silently empty, because the refusal says what is gone.
+
+`decorateTranscript` on a declaration the tables cannot serve now registers nothing, rather than
+throwing. Only an optional declaration reaches it, and throwing disabled a plugin that D41 says should
+go without. It did the same, with a message blaming the renderer, when `transcriptRow` did not
+resolve. The throw stays for the one case the tables cannot foresee, which is no renderer injecting.
+
+The corpus tests assert that `missing` is empty on every version, so a literal that stops holding
+still fails loudly here, where it can be fixed, rather than in a user's install.
+
+Rejected: keeping the block, and shipping a fix in each release in which React moves something.
+Until that release ships, every plugin on that version is lost for the sake of one.

@@ -80,7 +80,11 @@ export function generate(harvest: Harvest, anchorTable?: AnchorTable): Generated
     anchors: anchors.classes,
     anchorSelectors: anchors.selectors,
     unresolvedAnchors: anchors.reasons,
-    react: { hook: harvest.react.hook, version: harvest.react.version },
+    react: {
+      hook: harvest.react.hook,
+      version: harvest.react.version,
+      missing: harvest.react.missing,
+    },
   };
 
   const classes = Object.values(tables.moduleClasses).reduce(
@@ -93,7 +97,7 @@ export function generate(harvest: Harvest, anchorTable?: AnchorTable): Generated
     `${harvest.protocol.outboundRequests.length}+${harvest.protocol.outboundNotifications.length} outbound / ` +
     `${harvest.protocol.inboundPushes.length}+${harvest.protocol.inboundRequests.length} inbound messages, ` +
     `${tables.inboundResponses.length} replies, ${fieldCount} payload fields, ` +
-    `${anchorSummary(anchors)}`;
+    `${anchorSummary(anchors)}${reactSummary(tables.react.missing)}`;
 
   const scan = scanOf(harvest);
   return {
@@ -130,6 +134,13 @@ function anchorSummary(anchors: ResolvedAnchors): string {
   if (anchors.ambiguous.length > 0) parts.push(`${anchors.ambiguous.length} anchors ambiguous`);
   if (anchors.unverified.length > 0) parts.push(`${anchors.unverified.length} anchors unverified`);
   return parts.length === 0 ? "every anchor resolved" : parts.join(", ");
+}
+
+/** Only when something is missing, since that is the one state of this layer worth a word. */
+function reactSummary(missing: IdentifierTables["react"]["missing"]): string {
+  return missing.length === 0
+    ? ""
+    : `, react-dom lacks ${missing.map((gap) => gap.needs).join(", ")}`;
 }
 
 function sortedClassMap(map: ClassMap): IdentifierTables["moduleClasses"] {

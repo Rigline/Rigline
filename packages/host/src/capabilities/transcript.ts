@@ -29,15 +29,20 @@ function rendersRows(surface: Surface): boolean {
  * decorator that can never fire: every other way this can go wrong is a refusal at load, and
  * this would otherwise be the silent hole among them.
  *
+ * A declaration the tables cannot serve registers nothing, because only an optional one gets this
+ * far: a required one was refused at load, and optional means going without (D41).
+ *
  * On a surface with no rows it registers nothing instead, which is not the same case and not a
  * fault. It is also not free to get wrong: the sweep runs on the React commit signal, so a decorator
  * registered on the session list queried for rows once per commit — twenty-seven thousand times in
  * one measured run — to find what could not be there.
  */
+const contract = CONTRACTS.find(
+  (c) => c.key === "transcript",
+) as CapabilityModule<"transcript">["contract"];
+
 export const transcriptModule: CapabilityModule<"transcript"> = {
-  contract: CONTRACTS.find(
-    (c) => c.key === "transcript",
-  ) as CapabilityModule<"transcript">["contract"],
+  contract,
   grant({ plugin, kernel, own, disable }) {
     if (!declaredSwitch(plugin, "transcript")) {
       return { decorateTranscript: undeclared("decorateTranscript", "transcript") };
@@ -45,6 +50,7 @@ export const transcriptModule: CapabilityModule<"transcript"> = {
     return {
       decorateTranscript(build) {
         if (!rendersRows(kernel.surface)) return () => {};
+        if (contract.gaps(true, kernel.tables).length > 0) return () => {};
         if (!kernel.transcript.available()) {
           throw new Error(
             "decorateTranscript() has no React renderer: the devtools hook the pre hook installed was never injected, so no row can be identified",
@@ -69,6 +75,8 @@ export const transcriptModule: CapabilityModule<"transcript"> = {
               detail: `the ${kernel.surface} surface renders no transcript`,
             };
           }
+          const gaps = contract.gaps(true, kernel.tables);
+          if (gaps.length > 0) return { verdict: "n/a", detail: gaps.join("; ") };
           const { entries, timed } = kernel.diagnostics.transcript;
           if (entries === 0 || timed > 0) untimedSince = null;
           else if (untimedSince === null) untimedSince = performance.now();

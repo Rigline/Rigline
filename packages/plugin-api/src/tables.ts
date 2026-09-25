@@ -36,5 +36,17 @@ export interface IdentifierTables {
    */
   readonly unresolvedAnchors: Readonly<Record<string, string>>;
   /** The react-dom integration points the transcript capability rests on. */
-  readonly react: { readonly hook: string; readonly version: string };
+  readonly react: {
+    readonly hook: string;
+    /** react-dom's version, or null when the bundle does not say. */
+    readonly version: string | null;
+    /** What the transcript capability needs and this version lacks, which refuses only it (D102). */
+    readonly missing: readonly ReactGap[];
+  };
+}
+
+/** One thing react-dom no longer has, and what that breaks. */
+export interface ReactGap {
+  readonly needs: string;
+  readonly breaks: string;
 }

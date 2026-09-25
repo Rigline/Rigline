@@ -477,3 +477,5 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   missing (D100); read end to end against a scratch VS Code.
 - 2026-09-25: The harvest reads strings in any quote, held to the same result under Rolldown's
   minifier over every corpus version (D101).
+- 2026-09-25: A React literal gone from the bundle refuses the transcript's plugins, not the install
+  (D102).

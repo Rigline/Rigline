@@ -37,7 +37,7 @@ const tables: IdentifierTables = {
   unresolvedAnchors: {
     worktreePill: 'anchor "worktreePill" (OOQiHg.worktreePill) is not in this extension',
   },
-  react: { hook: "__REACT_DEVTOOLS_GLOBAL_HOOK__", version: "18.3.1" },
+  react: { hook: "__REACT_DEVTOOLS_GLOBAL_HOOK__", version: "18.3.1", missing: [] },
 };
 
 const uses = (partial: Partial<Uses>): Uses => ({ ...EMPTY_USES, ...partial });
@@ -116,6 +116,29 @@ describe("capabilityViolation", () => {
     expect(capabilityViolation(uses({ tools: true }), noIo)).toMatch(
       /"tools" needs message type "io_message"/,
     );
+  });
+
+  it("refuses the transcript, and only the transcript, when react-dom lacks what it rests on", () => {
+    const noProps: IdentifierTables = {
+      ...tables,
+      react: {
+        ...tables.react,
+        missing: [{ needs: '"memoizedProps"', breaks: "no row's message can be read" }],
+      },
+    };
+    expect(capabilityViolation(uses({ transcript: true }), noProps)).toBe(
+      `"transcript" needs react-dom's "memoizedProps", which is gone: no row's message can be read`,
+    );
+    const everythingElse = uses({
+      anchors: ["modelPill"],
+      messages: ["rename_tab"],
+      mount: true,
+      tools: true,
+      session: true,
+    });
+    expect(capabilityViolation(everythingElse, tables)).toBeNull();
+    expect(capabilityViolation(everythingElse, noProps)).toBeNull();
+    expect(optionalGaps(optionally({ transcript: true }), noProps)).toHaveLength(1);
   });
 });
 

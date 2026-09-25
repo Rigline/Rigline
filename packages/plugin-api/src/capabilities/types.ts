@@ -92,12 +92,16 @@ export function booleanShape(value: unknown): string | null {
   return typeof value === "boolean" ? null : `must be true or false, got ${JSON.stringify(value)}`;
 }
 
-/** A contract for a switch that expands to fixed message types and anchors the host taps for it. */
+/**
+ * A contract for a switch that expands to fixed message types and anchors the host taps for it, and
+ * with `react`, to what react-dom must still have.
+ */
 export function switchContract<K extends "tools" | "session" | "transcript">(spec: {
   readonly key: K;
   readonly grants: readonly string[];
   readonly messages: readonly string[];
   readonly anchors: readonly string[];
+  readonly react?: boolean;
   readonly summary: string;
 }): CapabilityContract<K> {
   const grant = spec.grants[0] ?? spec.key;
@@ -121,6 +125,11 @@ export function switchContract<K extends "tools" | "session" | "transcript">(spe
           gaps.push(
             `"${spec.key}" needs anchor "${anchor}", which is gone: ${grant}() would find nothing`,
           );
+        }
+      }
+      if (spec.react) {
+        for (const { needs, breaks } of tables.react.missing) {
+          gaps.push(`"${spec.key}" needs react-dom's ${needs}, which is gone: ${breaks}`);
         }
       }
       return gaps;

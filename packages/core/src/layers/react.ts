@@ -9,11 +9,11 @@
  *
  * None of that is a CSS class or a message type, so nothing else in the system can notice one of
  * them moving, and every one of them fails silently: a capability that quietly resolves no rows.
- * So this layer asserts them at harvest time (P1, D11) and fails the harvest outright when one is
- * missing, which stops the generated tables being written at all rather than shipping a transcript
- * capability that does nothing.
+ * So this layer asserts them at harvest time (P1, D11). One that is missing refuses the transcript
+ * capability by name and nothing else, since nothing else rests on it (D102).
  */
-import { type Bundles, defineLayer, HarvestError } from "./types.ts";
+import type { ReactGap } from "@rigline/plugin-api";
+import { type Bundles, defineLayer } from "./types.ts";
 
 /**
  * Spelled literally here and, again, literally in the pre hook, which is statically imported and
@@ -22,10 +22,11 @@ import { type Bundles, defineLayer, HarvestError } from "./types.ts";
  */
 export const DEVTOOLS_HOOK = "__REACT_DEVTOOLS_GLOBAL_HOOK__";
 
-/** What the React layer resolves: the devtools hook name and the react-dom version installed. */
+/** What the React layer resolves: the devtools hook name, the react-dom version, and what is missing. */
 export interface ReactAnchors {
   readonly hook: string;
-  readonly version: string;
+  readonly version: string | null;
+  readonly missing: readonly ReactGap[];
 }
 
 interface RequiredAnchor {
@@ -84,32 +85,21 @@ const RENDERER = /rendererPackageName:["'`]react-dom["'`]/;
 const VERSION_NEAR_RENDERER =
   /version:["'`](\d+\.\d+\.\d+)["'`][^{}]{0,200}rendererPackageName:["'`]react-dom["'`]/;
 
-/**
- * Reads the React anchors out of the webview bundle, or throws `HarvestError` naming the literal
- * that is missing and what it breaks. Never returns a partial result: a build that would leave the
- * transcript capability silently empty cannot produce generated tables at all (D11).
- */
+/** What a descriptor this layer cannot read leaves unvouched for. */
+const RESHAPED = "its devtools integration has changed shape, so nothing here can vouch for it";
+
+/** Reads the React anchors out of the webview bundle, with one gap per thing that is not there. */
 export function harvestReact(js: string): ReactAnchors {
-  for (const { text, breaks } of REQUIRED) {
-    if (!js.includes(text)) {
-      throw new HarvestError("react", `"${text}" is not in this bundle: ${breaks}.`);
-    }
-  }
+  const missing: ReactGap[] = REQUIRED.filter(({ text }) => !js.includes(text)).map(
+    ({ text, breaks }) => ({ needs: `"${text}"`, breaks }),
+  );
+  const version = VERSION_NEAR_RENDERER.exec(js)?.[1] ?? null;
   if (!RENDERER.test(js)) {
-    throw new HarvestError(
-      "react",
-      "the renderer descriptor has moved: no 'rendererPackageName:\"react-dom\"' in this bundle.",
-    );
+    missing.push({ needs: "renderer descriptor", breaks: RESHAPED });
+  } else if (version === null) {
+    missing.push({ needs: "version beside its renderer descriptor", breaks: RESHAPED });
   }
-  const match = VERSION_NEAR_RENDERER.exec(js);
-  const version = match?.[1];
-  if (version === undefined) {
-    throw new HarvestError(
-      "react",
-      "found the react-dom renderer descriptor but no version sits beside it.",
-    );
-  }
-  return { hook: DEVTOOLS_HOOK, version };
+  return { hook: DEVTOOLS_HOOK, version, missing };
 }
 
 export const reactLayer = defineLayer({
