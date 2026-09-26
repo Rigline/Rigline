@@ -123,9 +123,20 @@ export function usedOnSurface(kernel: Kernel, key: UsesKey): boolean {
   return kernel.plugins.some((p) => p.surfaces.includes(kernel.surface) && declaredSwitch(p, key));
 }
 
-/** A method the plugin did not declare for: it throws, and the kernel's guard turns that into a disable. */
+/**
+ * A plugin reaching for what it did not declare, or for an identifier this version has not got.
+ * The kernel disables the plugin wherever one is thrown, caught or not (D15). Any other throw from
+ * `ctx`, such as a missing React renderer, is the plugin's to catch.
+ */
+export class CapabilityViolation extends Error {
+  override readonly name = "CapabilityViolation";
+}
+
+/** A method the plugin did not declare for. */
 export function undeclared(method: string, key: UsesKey, detail = ""): () => never {
   return () => {
-    throw new Error(`${method}() needs "${key}" in this plugin's rigline.json${detail}`);
+    throw new CapabilityViolation(
+      `${method}() needs "${key}" in this plugin's rigline.json${detail}`,
+    );
   };
 }

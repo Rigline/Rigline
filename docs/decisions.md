@@ -228,6 +228,14 @@ warning implies `cls()` returns something, and whatever it returns renders as mi
 runtime violation of something the compiler would have caught means the plugin was built against a
 different extension version, and is reported as that.
 
+**The disable does not depend on the throw escaping (amended 2026-09-26).** A throw disabled a plugin
+only inside `setup()` or a callback the host wrapped, so a plugin that caught its own violation, or
+made one from a timer of its own, stayed `loaded` and silent, and whatever it registered after the
+host's teardown outlived it. A violation is now a `CapabilityViolation`, which the kernel turns into
+a disable before it leaves `ctx`, and `own()` on a disabled plugin tears down at once. Any other
+throw from `ctx` stays the plugin's to catch: probe catches a missing React renderer on purpose, so
+the panel that reports it survives it.
+
 **D16. Capability switches expand to the identifier-layer dependencies the host taps for them, and
 the gate checks the expansion.** A boolean that grants a capability is still a dependency
 declaration. The mapping lives in exactly one table read by both the Node gate and the load-time
@@ -535,6 +543,52 @@ immediately: the sweep runs on the React commit signal, so a decorator registere
 `transcriptRow` cannot render queried for rows once per commit for the life of the window — 27,000
 times in the run that found it. A missing React renderer remains a throw, because that is a fault
 and this is not.
+
+**D107. A stylesheet may not name, by any selector, a class in this extension's class table that the
+plugin did not declare (2026-09-26, Leo).** Refusing is only possible before 1.0: refusing later
+would break plugins that load today, while relaxing a refusal breaks nobody (P2). A plugin reaching
+the extension's classes through `ctx.style` without declaring them is the one hand-written class
+the host can see, and without this it styles nothing the week the hash moves, with nothing said.
+
+What it means:
+
+- **The class table is `moduleClasses`.** Nothing else the harvest learns widens it: 2.1.282 carries
+  hashed `@keyframes` names in no class map, and a layer that harvests them later does not change
+  what `style()` refuses.
+- **Declared** is every class the manifest resolves to on this version: the pairs under
+  `uses.classes` and `uses.optional.classes`, and the classes the anchors under `uses.anchors` and
+  `uses.optional.anchors` resolve to.
+- **A selector on the `class` attribute is refused in every form**, since `[class*="modelPill"]` is
+  written to survive the hash changing, which is to say to escape the declaration.
+- **The check runs in the `style()` call**, because nothing earlier sees the CSS: time-marks builds
+  its selector from `ctx.anchor()` at runtime. It is a violation, so it disables the plugin even
+  where the plugin catches it (D15). It fires on the path that runs, so `check` cannot predict it.
+
+This is the intent, and the scanner implements it: a form the scanner misses is a bug, and fixing
+it is a 1.x change ([stability.md](stability.md)).
+
+Two things pass, each with a cost recorded so it is not re-derived:
+
+- **A declared anchor's bare class.** Refusing it would refuse time-marks, which scopes its one rule
+  to `transcriptRow`'s class. So the authoring guide's rule against scoping a stylesheet to an
+  anchor's bare class can never be enforced for stylesheets within 1.x; `ctx.selector` is its only
+  remedy. A resolved selector with a `within` also carries its ancestor's class, which this
+  definition of declared does not cover, so a `ctx.selector` result passed to `style()` would be
+  refused until declared is widened to every class in `anchorSelectors[name]`, which loosens the
+  rule and can land in any 1.x.
+- **A hash-shaped class this version has not got.** It is how a class hand-written against an older
+  extension looks, and it styles nothing. Absent beats wrong (P8): styling nothing is a milder failure
+  than disabling the plugin over it. A known module hash with an unknown local is a narrow enough
+  test to warn on without false positives, and a warning can land in any 1.x.
+
+Not a boundary. A plugin can append a `<style>` of its own, render one in JSX, or put a
+hand-written class on its own markup, and the check sees none of them. It makes the sanctioned path
+honest and guarantees nothing, so it is not in [plugin-policy.md](plugin-policy.md)'s list of what
+the host makes impossible.
+
+Rejected: an install-time scan of the shipped source, which would see a template literal where
+time-marks builds its selector. It is still worth having as a note for a hand-written `className`,
+which the runtime check never sees, and `capabilityUseNotes` is where it would go.
 
 ### Host patches
 

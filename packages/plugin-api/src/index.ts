@@ -117,6 +117,8 @@ export type { Store } from "./store.ts";
 export { store, storeFrom } from "./store.ts";
 export type { ToolResult, ToolUse } from "./stream.ts";
 export { PENDING_TOOL_LIMIT, toolResults, toolUses } from "./stream.ts";
+export type { StylesheetNames } from "./stylesheet.ts";
+export { stylesheetNames } from "./stylesheet.ts";
 export type { IdentifierTables, ReactGap } from "./tables.ts";
 export type { FiberLike, MessageTime, TranscriptEntry } from "./transcript.ts";
 export { entriesDiffer, messageTimes, rowIdentity } from "./transcript.ts";

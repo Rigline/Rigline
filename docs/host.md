@@ -92,8 +92,9 @@ Dynamically imported after boot. In order:
       with status `inactive`, which is not a failure.
    d. Dynamically import the entry in its own try/catch.
    e. Build the plugin's `ctx` by asking every capability module for its slice, each scoped to
-      what this plugin declared. A method the plugin did not declare for throws when called, and
-      the throw disables the plugin.
+      what this plugin declared. A method called for something undeclared, or for an identifier
+      this version lacks, throws a `CapabilityViolation`, and the kernel disables the plugin before
+      it leaves `ctx`, so catching it changes nothing (D15). Any other throw is the plugin's.
    f. Call `setup(ctx)` in its own try/catch; keep its teardown.
 6. Seal the replay buffer, in a `finally`.
 7. Start the shell (D88): place the RIG pill beside the footer spacer, or in a corner where there is
@@ -238,7 +239,9 @@ interface CapabilityModule<K extends UsesKey> {
 `Grant` is what a module is handed for one plugin: its `PluginRecord` (name, entry, surfaces,
 `uses`, patch verdict, registry order), the `Kernel`, `own(teardown)` to register what the disable
 path must undo, `disable(reason)` for the plugin in hand, and `guard(what, fn)` to wrap a plugin
-callback so a throw disables rather than escapes.
+callback so a throw disables rather than escapes. `own` on a plugin already disabled runs the
+teardown at once. A module refuses a violation by throwing `CapabilityViolation` from
+`kernel/types.ts`, never a plain `Error`, which the kernel would leave to the plugin.
 
 `grantOptional` is a second method rather than a nested key in `grant`'s return, so the kernel's
 merge stays a flat `Object.assign` and one capability's slice cannot clobber another's. Only the
@@ -310,8 +313,9 @@ mount or the watch is abandoned by name in `diagnostics.mounts.abandoned`, its n
 the plugin is disabled through its own error path — a decoration is never worth a panel flickering
 at frame rate.
 
-`style(css)`: a host-managed `<style>` element, removed on teardown, its text checked by the
-install-time scan for a raw six-character hash outside a resolved class (advisory).
+`style(css)`: a host-managed `<style>` element, removed on teardown. Before it is placed, the text
+is scanned (`stylesheetNames` in plugin-api), and a class from this version's class table the
+plugin did not declare, or any selector on the `class` attribute, is a violation (D107).
 
 `rewrite` and `resend` together, for anything the app sends at boot: `rename_tab` fires from a
 reactive effect at session creation, before any dynamically imported plugin can have registered a

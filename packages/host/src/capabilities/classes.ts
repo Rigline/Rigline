@@ -1,5 +1,5 @@
 import { CONTRACTS } from "@rigline/plugin-api";
-import type { CapabilityModule } from "../kernel/types.ts";
+import { type CapabilityModule, CapabilityViolation } from "../kernel/types.ts";
 
 /** `ctx.cls(module, local)`: a raw module-scoped class, for UI the anchor table does not curate. */
 export const classesModule: CapabilityModule<"classes"> = {
@@ -9,12 +9,13 @@ export const classesModule: CapabilityModule<"classes"> = {
     return {
       cls(module, local) {
         if (!declared.has(`${module}:${local}`)) {
-          throw new Error(
+          throw new CapabilityViolation(
             `cls("${module}", "${local}") was never declared under uses.classes in this plugin's rigline.json`,
           );
         }
         const resolved = kernel.tables.moduleClasses[module]?.[local];
-        if (!resolved) throw new Error(`class ${module}.${local} is not in this extension`);
+        if (!resolved)
+          throw new CapabilityViolation(`class ${module}.${local} is not in this extension`);
         return resolved;
       },
     };
@@ -27,7 +28,7 @@ export const classesModule: CapabilityModule<"classes"> = {
     return {
       cls(module, local) {
         if (!declared.has(`${module}:${local}`)) {
-          throw new Error(
+          throw new CapabilityViolation(
             `optional.cls("${module}", "${local}") was never declared under uses.optional.classes in this plugin's rigline.json`,
           );
         }

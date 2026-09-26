@@ -36,10 +36,30 @@ import { createShellService } from "./kernel/shell.ts";
 import { detectSurface } from "./kernel/surface.ts";
 import { createToolService } from "./kernel/tools.ts";
 import { createTranscriptService } from "./kernel/transcript.ts";
-import type { Grant, Kernel, PluginRecord } from "./kernel/types.ts";
+import { CapabilityViolation, type Grant, type Kernel, type PluginRecord } from "./kernel/types.ts";
 
 function message(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
+}
+
+/**
+ * `members` with every method disabling its plugin before a violation leaves it, so a plugin that
+ * catches its own, or makes it in a callback of its own, is still disabled (D15).
+ */
+function disablingOnViolation<T extends object>(members: T, disable: (reason: string) => void): T {
+  const record = members as Record<string, unknown>;
+  for (const [key, member] of Object.entries(record)) {
+    if (typeof member !== "function") continue;
+    record[key] = (...args: unknown[]) => {
+      try {
+        return member(...args);
+      } catch (e) {
+        if (e instanceof CapabilityViolation) disable(e.message);
+        throw e;
+      }
+    };
+  }
+  return members;
 }
 
 interface RegistryModule {
@@ -110,24 +130,28 @@ async function loadPlugin(plugin: PluginRecord, kernel: Kernel): Promise<PluginS
   }
 
   const teardowns: Teardown[] = [];
+  const runQuietly = (teardown: Teardown): void => {
+    try {
+      teardown();
+    } catch {
+      // Already disabling; a teardown failing too is not actionable.
+    }
+  };
   const disable = (reason: string): void => {
     if (status.status === "error") return;
     status.status = "error";
     status.reason = reason;
-    for (const teardown of teardowns.splice(0)) {
-      try {
-        teardown();
-      } catch {
-        // Already disabling; a teardown failing too is not actionable.
-      }
-    }
+    for (const teardown of teardowns.splice(0)) runQuietly(teardown);
     console.error(`[rigline] plugin "${plugin.name}" disabled: ${reason}`);
   };
   const grant: Grant = {
     plugin,
     kernel,
+    // Undone at once for a plugin already disabled, which a plugin that caught its own violation
+    // and carried on still is.
     own(teardown) {
-      teardowns.push(teardown);
+      if (status.status === "error") runQuietly(teardown);
+      else teardowns.push(teardown);
       return teardown;
     },
     disable,
@@ -148,7 +172,7 @@ async function loadPlugin(plugin: PluginRecord, kernel: Kernel): Promise<PluginS
   for (const module of MODULES) Object.assign(optional, module.grantOptional?.(grant));
   const ctx = {
     surface: kernel.surface,
-    optional: Object.freeze(optional),
+    optional: Object.freeze(disablingOnViolation(optional, disable)),
     // Undeclared, like `surface`, because it widens nothing: the plugin hands the host a function
     // and gets nothing back, so there is no identifier for a manifest to name and no gap a
     // declaration could ever report. Through `own` so a disabled plugin's lines go with it — a
@@ -160,7 +184,7 @@ async function loadPlugin(plugin: PluginRecord, kernel: Kernel): Promise<PluginS
       const ids = Object.keys(plugin.elements);
       const spec = Object.hasOwn(plugin.elements, id) ? plugin.elements[id] : undefined;
       if (!spec) {
-        throw new Error(
+        throw new CapabilityViolation(
           `element("${id}") needs "${id}" under elements in this plugin's rigline.json`,
         );
       }
@@ -181,11 +205,11 @@ async function loadPlugin(plugin: PluginRecord, kernel: Kernel): Promise<PluginS
     },
   } as PluginContext;
   for (const module of MODULES) Object.assign(ctx, module.grant(grant));
-  Object.freeze(ctx);
+  Object.freeze(disablingOnViolation(ctx, disable));
 
   try {
     const teardown = exported.setup(ctx);
-    if (typeof teardown === "function") teardowns.push(teardown);
+    if (typeof teardown === "function") grant.own(teardown);
   } catch (e) {
     disable(`setup() threw: ${message(e)}`);
   }

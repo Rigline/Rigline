@@ -27,6 +27,13 @@ anything may change between releases.
   when the engine or a plugin had moved. An install that changes nothing writes nothing.
 - `rigline add NAME` takes a directory called `NAME` holding a `rigline.json` when there is one
   where you run it, and goes to npm otherwise. Before, a bare name always went to npm.
+- **For plugin authors:** `ctx.style(css)` disables the plugin when the stylesheet names one of
+  Claude Code's classes the manifest does not declare, or selects on the `class` attribute at all.
+  Build the selector from `ctx.anchor()` or `ctx.cls()` and declare what you use; your own class
+  names are unaffected. The error names the class and what to declare.
+- **For plugin authors:** using something the manifest does not declare disables the plugin even
+  when the plugin catches the error, and anything it registers afterwards is undone at once. Before,
+  a caught error left the plugin running without what it had asked for, and nothing said so.
 
 - A `rigline.json` key that this version of Rigline does not know now refuses the plugin, naming the
   key, where before a key at the top level was ignored. A plugin written for a later Rigline is

@@ -319,9 +319,10 @@ The bar a 1.0 release clears, agreed 2026-09-26; the working plan is `.local/pla
   did, and no longer does).
 - The reads under **Next session**, on the last alpha before 1.0.
 
-Done: the statement, what the wrapper and the companion rely on, the wrapper change, VS Code alone,
-no console window, the macOS row, unknown manifest keys refused, and the reused-row read with its
-fix. `ctx.style` is next, and its plan is waiting on Leo.
+Done: the statement, what the wrapper and the companion rely on, the wrapper change, `ctx.style`'s
+refusal, VS Code alone, no console window, the macOS row, unknown manifest keys refused, and the
+reused-row read with its fix. What is left is Leo's: a remote window, the run on a Mac, and the
+reads on the last alpha.
 
 ## Open questions
 
@@ -334,7 +335,9 @@ what a plugin is written against.
   which can only be scoped to the class and so lands on every control wearing the look. Recommended
   but not taken, because it is the first plugin-facing API that hands over something version-derived
   and composable. Until it is settled the authoring guide says: scope a rule to something you
-  placed, never to an anchor's bare class.
+  placed, never to an anchor's bare class. Taking it means widening what `ctx.style` counts as
+  declared to every class in the anchor's resolved selector, since one with a `within` carries its
+  ancestor's class and would otherwise be refused (D107).
 - **Anchor governance** (D44): who may add to the table, and what evidence an entry needs. Half of
   the promotion path exists already: an override whose anchor this version resolves without it is
   reported as changing nothing, which is the signal that the shipped table has caught up and the
@@ -526,3 +529,5 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   wrapper and the companion rely on is written down in [architecture.md](architecture.md).
 - 2026-09-26: A row React reused for another message reported the old one, read in the harness; the
   host now takes the current fiber of the pair (D103).
+- 2026-09-26: `ctx.style` refuses a class of the extension the plugin did not declare (D107), and a
+  violation disables its plugin even where the plugin catches it (D15).

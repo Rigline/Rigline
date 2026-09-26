@@ -1,5 +1,5 @@
 import { CONTRACTS, type Payload } from "@rigline/plugin-api";
-import type { CapabilityModule } from "../kernel/types.ts";
+import { type CapabilityModule, CapabilityViolation } from "../kernel/types.ts";
 
 /** `ctx.onMessage(type, handler)`: a read tap, replayed from the startup exchange, frozen. */
 export const messagesModule: CapabilityModule<"messages"> = {
@@ -13,7 +13,7 @@ export const messagesModule: CapabilityModule<"messages"> = {
     return {
       onMessage(type, handler) {
         if (!declared.has(type)) {
-          throw new Error(
+          throw new CapabilityViolation(
             `onMessage("${type}") was never declared under uses.messages in this plugin's rigline.json`,
           );
         }

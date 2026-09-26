@@ -321,6 +321,13 @@ filter, and it says so.
 **Never name a class from the bundle by hand.** They are minifier output — `modelPill_gGYT1w` —
 and the hash changes on every upstream build. Use `ctx.anchor("footerSpacer")` for a curated name,
 or `ctx.cls(module, local)` for UI that has none yet. Both are declared, so both are checked.
+`ctx.style` enforces it: a stylesheet naming one of the extension's classes you did not declare, or
+selecting on the `class` attribute at all, disables your plugin, even if you catch the error. Build
+the stylesheet in `setup` from declared names, so it fails on the first reload rather than one day
+mid-session; put a cosmetic restyle of the app's own element under `uses.optional.classes` and
+handle the `null`; and for an element `watch` hands you, add a class of your own to it rather than
+reading its `className` back. Nothing checks a `<style>` you render yourself, in JSX or otherwise,
+or a class you write onto your own markup — the rule still holds there, on your honour.
 
 **Never scope a stylesheet rule to an anchor's bare class.** A class names a look, and the
 extension applies a look wherever it wants one: `modelPill_gGYT1w` is on the model picker *and* on

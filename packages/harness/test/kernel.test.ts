@@ -182,6 +182,120 @@ export default { setup() {} };`,
       }
     }, 20000);
 
+    it("places a plugin's stylesheet, stamped with its name, and takes it away on teardown", async () => {
+      const styler: FixturePlugin = {
+        name: "styler",
+        manifest: { uses: { style: true } },
+        source: `export default { setup(ctx) {
+    window.__styleOff = ctx.style(".harness-mine{color:red}");
+  } };`,
+      };
+      const booted = await boot({ plugins: [styler] });
+      const sheets = () =>
+        booted.page.evaluate(
+          () => document.querySelectorAll('style[data-rigline-style="styler"]').length,
+        );
+      try {
+        expect(await sheets()).toBe(1);
+        await booted.page.evaluate(() =>
+          (window as unknown as { __styleOff: () => void }).__styleOff(),
+        );
+        expect(await sheets()).toBe(0);
+        const d = await booted.diagnostics();
+        expect(d.plugins).toContainEqual({ name: "styler", status: "loaded" });
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
+    it("disables a plugin whose stylesheet names a class it did not declare, and places nothing", async () => {
+      const sneaky: FixturePlugin = {
+        name: "sneaky",
+        manifest: { uses: { style: true } },
+        source: `export default { setup(ctx) { ctx.style(".modelPill_gGYT1w{outline:1px solid red}"); } };`,
+      };
+      const attribute: FixturePlugin = {
+        name: "attribute",
+        manifest: { uses: { style: true } },
+        source: `export default { setup(ctx) { ctx.style('[class*="modelPill"]{outline:0}'); } };`,
+      };
+      const booted = await boot({ plugins: [sneaky, attribute, mounterPlugin] });
+      try {
+        await booted.page.waitForSelector(".harness-badge");
+        const d = await booted.diagnostics();
+        const status = (name: string) => d.plugins.find((p) => p.name === name);
+        expect(status("sneaky")?.status).toBe("error");
+        expect(status("sneaky")?.reason).toContain(".modelPill_gGYT1w");
+        expect(status("sneaky")?.reason).toContain('anchor "modelPill"');
+        expect(status("attribute")?.status).toBe("error");
+        expect(status("attribute")?.reason).toContain('[class*="modelPill"]');
+        expect(status("mounter")?.status).toBe("loaded");
+        const placed = await booted.page.evaluate(
+          () => document.querySelectorAll("style[data-rigline-style]").length,
+        );
+        expect(placed).toBe(0);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
+    it("disables a plugin that catches its own refusal, and undoes what it registers after", async () => {
+      // The throw alone would leave it loaded and silent, and whatever it went on to mount would
+      // outlive the disable (D15).
+      const catcher: FixturePlugin = {
+        name: "catcher",
+        manifest: { uses: { style: true, mount: true, anchors: ["modelPill"] } },
+        source: `export default { setup(ctx) {
+    try { ctx.style(".message_07S1Yg{}"); } catch {}
+    ctx.watch("modelPill", (el) => ctx.mountAfter(el, () => {
+      const s = document.createElement("span");
+      s.className = "harness-leak";
+      return s;
+    }));
+  } };`,
+      };
+      const booted = await boot({ plugins: [catcher, mounterPlugin] });
+      try {
+        await booted.page.waitForSelector(".harness-badge");
+        const d = await booted.diagnostics();
+        const status = d.plugins.find((p) => p.name === "catcher");
+        expect(status?.status).toBe("error");
+        expect(status?.reason).toContain(".message_07S1Yg");
+        const leaked = await booted.page.evaluate(
+          () => document.getElementsByClassName("harness-leak").length,
+        );
+        expect(leaked).toBe(0);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
+    it("places a stylesheet naming only classes the plugin declared", async () => {
+      const raw: FixturePlugin = {
+        name: "raw",
+        manifest: { uses: { style: true, classes: { gGYT1w: ["modelPill"] } } },
+        source: `export default { setup(ctx) {
+    ctx.style("." + ctx.cls("gGYT1w", "modelPill") + " .harness-mine{color:red}");
+  } };`,
+      };
+      // The shape time-marks uses: a declared anchor's class, scoped to the plugin's own node.
+      const scoped: FixturePlugin = {
+        name: "scoped",
+        manifest: { uses: { style: true, anchors: ["transcriptRow"] } },
+        source: `export default { setup(ctx) {
+    ctx.style("." + ctx.anchor("transcriptRow") + ":has(> .harness-mine){padding-top:4px}");
+  } };`,
+      };
+      const booted = await boot({ plugins: [raw, scoped] });
+      try {
+        const d = await booted.diagnostics();
+        expect(d.plugins).toContainEqual({ name: "raw", status: "loaded" });
+        expect(d.plugins).toContainEqual({ name: "scoped", status: "loaded" });
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
     it("decorates transcript rows with a real time once the pushed messages land", async () => {
       const timerPlugin: FixturePlugin = {
         name: "timer",

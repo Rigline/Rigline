@@ -1,5 +1,10 @@
 import { ANCHORS, type AnchorName, type AnchorSpec, CONTRACTS } from "@rigline/plugin-api";
-import { type CapabilityModule, declaredSwitch, undeclared } from "../kernel/types.ts";
+import {
+  type CapabilityModule,
+  CapabilityViolation,
+  declaredSwitch,
+  undeclared,
+} from "../kernel/types.ts";
 import {
   anchorUniqueVerdict,
   mountReplacementVerdict,
@@ -61,7 +66,7 @@ export const mountModule: CapabilityModule<"mount"> = {
       },
       watch(name, onFound) {
         if (!declaredAnchors.has(name) && !optionalAnchors.has(name)) {
-          throw new Error(
+          throw new CapabilityViolation(
             `watch("${name}") needs the anchor under uses.anchors in this plugin's rigline.json`,
           );
         }
@@ -75,10 +80,12 @@ export const mountModule: CapabilityModule<"mount"> = {
           // its module was imported. Optional and absent is the case this exists for — watching
           // nothing, which is what every other optional dependency does when it is not there (D41).
           if (kernel.tables.anchors[name]) {
-            throw new Error(`anchor "${name}" is a borrowed style, which has no element to watch`);
+            throw new CapabilityViolation(
+              `anchor "${name}" is a borrowed style, which has no element to watch`,
+            );
           }
           if (declaredAnchors.has(name)) {
-            throw new Error(
+            throw new CapabilityViolation(
               kernel.tables.unresolvedAnchors?.[name] ??
                 `anchor "${name}" is not in this extension`,
             );
