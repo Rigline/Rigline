@@ -41,8 +41,11 @@ afterEach(() => {
  * its own rather than running it from wherever it was built.
  */
 function stubbedHost(): string {
-  const dir = mkdtempSync(join(tmpdir(), "rigline-vsix-"));
-  made.push(dir);
+  // Under a home of its own, in VS Code's extensions directory, which is the one place the
+  // companion does anything more than say it is in the wrong editor.
+  const home = mkdtempSync(join(tmpdir(), "rigline-vsix-"));
+  made.push(home);
+  const dir = join(home, ".vscode", "extensions", "rigline.rigline-0.0.0-test");
   mkdirSync(join(dir, "node_modules", "vscode"), { recursive: true });
   writeFileSync(
     join(dir, "node_modules", "vscode", "index.js"),
@@ -50,7 +53,8 @@ function stubbedHost(): string {
      module.exports = {
        window: {
          createOutputChannel: () => ({ appendLine() {}, dispose() {} }),
-         createStatusBarItem: () => ({ show() {}, dispose() {}, text: "", tooltip: "" }),
+         createStatusBarItem: () =>
+           (module.exports.window.item = { show() {}, dispose() {}, text: "", tooltip: "" }),
          showWarningMessage: async () => undefined,
          showInformationMessage: async () => undefined,
          uriHandlers: [],
@@ -75,6 +79,13 @@ function stubbedHost(): string {
 /** The copied bundle, absolute: `node -e` does not resolve a relative require from the cwd. */
 const copied = (dir: string) => join(dir, "extension.cjs");
 
+/** The child's environment, with the home `stubbedHost` made, or another. */
+const homed = (dir: string, home = dirname(dirname(dirname(dir)))) => ({
+  cwd: dir,
+  encoding: "utf8" as const,
+  env: { ...process.env, HOME: home, USERPROFILE: home },
+});
+
 const built = existsSync(BUNDLE) ? false : "packages/vscode is not built — run `pnpm build`";
 
 describe("the packed extension", () => {
@@ -87,7 +98,7 @@ describe("the packed extension", () => {
         `const m = require(${JSON.stringify(copied(dir))});
          process.stdout.write(Object.keys(m).sort().join(","));`,
       ],
-      { cwd: dir, encoding: "utf8" },
+      homed(dir),
     );
     expect(out).toBe("activate,deactivate");
   });
@@ -105,7 +116,7 @@ describe("the packed extension", () => {
          process.stdout.write(String(ctx.subscriptions.length));
          process.exit(0);`,
       ],
-      { cwd: dir, encoding: "utf8" },
+      homed(dir),
     );
     // The output channel, the status item, the watcher, the reload command, the show-plugins
     // command and the URI handler: everything that outlives activation and would otherwise leak a
@@ -129,7 +140,7 @@ describe("the packed extension", () => {
          process.stdout.write(String(vscode.window.uriHandlers.length));
          process.exit(0);`,
       ],
-      { cwd: dir, encoding: "utf8" },
+      homed(dir),
     );
     expect(out).toBe("1");
   });
@@ -148,10 +159,45 @@ describe("the packed extension", () => {
          process.stdout.write(vscode.commands.registered.join(","));
          process.exit(0);`,
       ],
-      { cwd: dir, encoding: "utf8" },
+      homed(dir),
     );
     expect(out).toBe("rigline.reload,rigline.showPlugins");
   });
+
+  // Anywhere else it would inject VS Code's Claude Code and report green over a panel it never
+  // touched, so it says where it is and stops.
+  it.skipIf(built)(
+    "says it is not in this editor, and does nothing else, outside VS Code's",
+    () => {
+      const dir = stubbedHost();
+      const elsewhere = mkdtempSync(join(tmpdir(), "rigline-home-"));
+      made.push(elsewhere);
+      const out = execFileSync(
+        process.execPath,
+        [
+          "-e",
+          `const vscode = require("vscode");
+         const m = require(${JSON.stringify(copied(dir))});
+         const ctx = { subscriptions: [], extension: { packageJSON: { version: "0.0.0-test" }, extensionUri: { fsPath: ${JSON.stringify(dir)} } } };
+         m.activate(ctx);
+         process.stdout.write(JSON.stringify({
+           text: vscode.window.item.text,
+           commands: vscode.commands.registered,
+           handlers: vscode.window.uriHandlers.length,
+           subscriptions: ctx.subscriptions.length,
+         }));
+         process.exit(0);`,
+        ],
+        homed(dir, elsewhere),
+      );
+      expect(JSON.parse(out)).toEqual({
+        text: "$(circle-outline) Rigline: not in this editor",
+        commands: ["rigline.showPlugins"],
+        handlers: 0,
+        subscriptions: 3,
+      });
+    },
+  );
 
   it.skipIf(built)("declares a manifest VS Code will actually run", () => {
     const manifest = JSON.parse(

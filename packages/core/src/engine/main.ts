@@ -180,9 +180,8 @@ const USAGE = `rigline ${CORE_VERSION}
       it is switched off, and what its manifest says it can do. --json emits the same as data.
 
   rigline vscode-setup [--profile NAME] [--remove]
-      Optional. Install the companion extension into every VS Code found on PATH — including
-      Insiders, VSCodium, Cursor and Windsurf — from the VSIX bundled in this engine, and
-      inject. Nothing is downloaded, and the companion moves when the engine does. From then
+      Optional. Install the companion extension into VS Code, found on PATH, from the VSIX
+      bundled in this engine, and inject. Nothing is downloaded, and the companion moves when the engine does. From then
       on it re-injects after every extension update without you running anything, so it is a
       step instead of install rather than after it. Declining it costs nothing: install is
       complete on its own. --remove takes the companion out and leaves the injection alone.

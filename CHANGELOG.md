@@ -15,6 +15,12 @@ anything may change between releases.
 - A `rigline.json` key that this version of Rigline does not know now refuses the plugin, naming the
   key, where before a key at the top level was ignored. A plugin written for a later Rigline is
   refused rather than loaded without what it needs. `$schema` is still allowed.
+- `rigline vscode-setup` and `rigline update` install the companion into VS Code alone, since VS
+  Code's own extensions are the only ones Rigline injects. A companion already in another editor —
+  Insiders, VSCodium, Cursor or Windsurf — or in a portable VS Code or a remote window now reads
+  *Rigline: not in this editor* and does nothing. Before, it injected VS Code's Claude Code from
+  there and could show green over a panel it never touched. Uninstall it from those whenever you
+  like.
 
 ### Fixed
 

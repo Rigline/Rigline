@@ -9,6 +9,10 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { UserError } from "../errors.ts";
 
+/**
+ * VS Code's own, and the only one injected. The companion's copy is `injectedDir` in
+ * `packages/vscode/src/scope.ts`.
+ */
 export const EXTENSIONS_DIR = join(homedir(), ".vscode", "extensions");
 /** The URL scheme of the product whose extensions `EXTENSIONS_DIR` holds. */
 export const URL_SCHEME = "vscode";

@@ -68,14 +68,14 @@ function recorder(...failing: string[]) {
 }
 
 describe("findEditors", () => {
-  it("finds every editor on PATH, in the order the table lists them", () => {
+  it("finds VS Code and passes over an editor whose extensions the engine does not inject", () => {
     const bin = abs("bin");
     const found = findEditors({
       env: { PATH: bin },
       platform: "win32",
       exists: only(join(bin, "cursor.cmd"), join(bin, "code.cmd")),
     });
-    expect(found.map((e) => e.cli)).toEqual(["code", "cursor"]);
+    expect(found.map((e) => e.cli)).toEqual(["code"]);
   });
 
   it("carries the names each editor's directories are derived from", () => {
@@ -129,9 +129,8 @@ describe("findEditors", () => {
     expect(found).toEqual([]);
   });
 
-  it("knows the forks people actually run Claude Code in", () => {
-    expect(EDITOR_CLIS.map((e) => e.cli)).toContain("cursor");
-    expect(EDITOR_CLIS.map((e) => e.cli)).toContain("windsurf");
+  it("lists VS Code alone, the one editor whose extensions directory the engine injects", () => {
+    expect(EDITOR_CLIS.map((e) => e.cli)).toEqual(["code"]);
   });
 });
 

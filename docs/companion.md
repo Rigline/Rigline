@@ -218,15 +218,21 @@ handler, and `install` reads it from the manifest to decide that an installed co
 
 ## `rigline vscode-setup`
 
-An engine verb, forwarded by the wrapper. It installs the bundled VSIX into every editor whose CLI
-is on `PATH` (`code`, `code-insiders`, `codium`, `cursor`, `windsurf`), and then injects, so the
-first reload after it already works.
+An engine verb, forwarded by the wrapper. It installs the bundled VSIX into VS Code, whose CLI is
+`code` on `PATH`, and then injects, so the first reload after it already works. VS Code alone,
+because its extensions directory is the only one the engine injects; `EDITOR_CLIS` is a table so
+that other editors are an entry each once the engine takes a directory (plan.md).
 
-In each editor it installs into every profile that has Claude Code or the companion, less
-`skipProfiles`. It uses the default profile alone when no profile has either, or under
-`everyProfile: false`. It finds each editor's directories from a table in `EDITOR_CLIS`, in the order
-VS Code itself resolves them (`VSCODE_PORTABLE`, then `VSCODE_APPDATA` and `VSCODE_EXTENSIONS`, then
-the platform's default). Only VS Code's entries have been read on a machine.
+It installs into every profile that has Claude Code or the companion, less `skipProfiles`. It uses
+the default profile alone when no profile has either, or under `everyProfile: false`. It finds the
+directories from `EDITOR_CLIS`, in the order VS Code itself resolves them (`VSCODE_PORTABLE`, then
+`VSCODE_APPDATA` and `VSCODE_EXTENSIONS`, then the platform's default).
+
+**A companion somewhere the engine does not inject says so and does nothing else.** It compares its
+own extensions directory with `~/.vscode/extensions`, and anywhere else — another editor, a portable
+VS Code, a custom `--extensions-dir`, a remote host — it reads *Rigline: not in this editor* and
+neither acquires an engine nor injects. It would otherwise inject VS Code's Claude Code from another
+editor and report green over a panel it never touched.
 
 `--profile NAME` acts on that profile alone, and refuses a name no editor has, listing the ones
 there are. With `--remove` it also adds the name to `skipProfiles`; without it, it takes the name off.

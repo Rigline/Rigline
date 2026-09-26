@@ -13,6 +13,7 @@ import { acquireAndInject, ENGINE_SETTING, marked, saveLayout, showPlugins } fro
 import { CLAUDE_CODE, type Editor, type Health } from "./editor.ts";
 import { addToProfiles } from "./profiles.ts";
 import { type ReloadOffer, reloadOffer } from "./reload.ts";
+import { injectedDir, injectsHere } from "./scope.ts";
 import { selfUpdate } from "./selfupdate.ts";
 import { type Stamps, startingReason, type WatchReason, watchExtension } from "./watch.ts";
 
@@ -86,8 +87,20 @@ export function activate(context: vscode.ExtensionContext): void {
   // resolves to the extensions directory, where there is no manifest to find.
   const version = String(context.extension.packageJSON.version ?? "0.0.0");
 
-  const offer = reloadOffer(editor);
   const own = context.extension.extensionUri.fsPath;
+  if (!injectsHere(dirname(own))) {
+    const why =
+      `Rigline injects the Claude Code in ${injectedDir()}, which is VS Code's own, and this ` +
+      `editor keeps its extensions in ${dirname(own)}. There is nothing for it to do here.`;
+    editor.status("idle", "Rigline: not in this editor", why);
+    editor.log(why);
+    context.subscriptions.push(
+      vscode.commands.registerCommand(SHOW_PLUGINS_COMMAND, () => output.show()),
+    );
+    return;
+  }
+
+  const offer = reloadOffer(editor);
   const here = () => profilesArgs(context, own);
 
   const watcher = watchExtension({

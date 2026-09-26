@@ -5,9 +5,9 @@
  * version this engine was built with and moves when the engine moves — a companion and an engine
  * that came from one package cannot disagree about what they are.
  *
- * Every editor found rather than one. A machine may have VS Code, Insiders, VSCodium, Cursor and
- * Windsurf, each with its own CLI and its own extensions directory, and somebody running Claude
- * Code in two of them wants the companion in both.
+ * Written for several editors, each with its own CLI and extensions directory, and given one: the
+ * engine injects VS Code's extensions directory alone, so a companion anywhere else would have
+ * nothing to do. Other editors are deferred in plan.md.
  */
 import { existsSync } from "node:fs";
 import { delimiter, isAbsolute, join } from "node:path";
@@ -30,21 +30,12 @@ import {
 export const COMPANION_VSIX = "rigline.vsix";
 
 /**
- * The editor CLIs worth looking for, as names rather than paths, with the names each derives its
- * directories from. Only VS Code's have been read on a machine; a wrong one reads as no profiles,
- * and `vscode-setup` then uses the default profile.
+ * The editor CLIs to look for, as names rather than paths, with the names each derives its
+ * directories from. VS Code's alone, since its extensions directory is the one the engine injects
+ * (`EXTENSIONS_DIR`).
  */
 export const EDITOR_CLIS = [
   { cli: "code", label: "VS Code", product: "Code", dataFolder: ".vscode" },
-  {
-    cli: "code-insiders",
-    label: "VS Code Insiders",
-    product: "Code - Insiders",
-    dataFolder: ".vscode-insiders",
-  },
-  { cli: "codium", label: "VSCodium", product: "VSCodium", dataFolder: ".vscode-oss" },
-  { cli: "cursor", label: "Cursor", product: "Cursor", dataFolder: ".cursor" },
-  { cli: "windsurf", label: "Windsurf", product: "Windsurf", dataFolder: ".windsurf" },
 ] as const;
 
 export interface FoundEditor extends ProductDirs {
