@@ -312,11 +312,15 @@ The bar a 1.0 release clears, agreed 2026-09-26; the working plan is `.local/pla
 - The wrapper installs the engine and forwards everything else, `update` and `add` included, so its
   contract with an engine is the package, the bin and argv. It says when it is behind, offline.
 - `ctx.style` refuses a selector naming a class the plugin did not declare.
+- A manifest key the engine does not know refuses the plugin, and only that plugin.
 - VS Code alone: the companion goes only where the engine injects, and says so anywhere else.
 - No console window when the companion runs Rigline.
 - One macOS row in CI, and a live run on a Mac.
 - Reads: what a remote window does, and whether a reused row reports its previous message.
 - The reads under **Next session**, on the last alpha before 1.0.
+
+Done: the statement, VS Code alone, no console window, the macOS row, and unknown manifest keys
+refused. The wrapper change is next.
 
 ## Open questions
 
@@ -518,3 +522,8 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
 - 2026-09-26: The companion adding itself to a profile (D100) read live through a released engine.
 - 2026-09-26: The 1.0 bar agreed; VS Code renames an extension into place, so the stability sample's
   blind spot is deferred (D81, D83).
+- 2026-09-26: No console window when the companion runs Rigline; one macOS row in CI (D59).
+- 2026-09-26: What 1.x keeps stable, in [stability.md](stability.md).
+- 2026-09-26: A manifest that does not hold refuses its plugin and only that plugin, and an unknown
+  key refuses it (D12).
+- 2026-09-26: VS Code alone: the companion goes only where the engine injects.
