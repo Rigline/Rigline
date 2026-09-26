@@ -129,6 +129,9 @@ Written for somebody else, so don't rewrite them for us:
   `bundledDir()` checks the whole chain and refuses with the build command — so this costs you a
   re-run rather than a green result about code that is not loaded, but the rebuild is still yours to
   do.
+- **Code kept twice names its other copy, in both copies.** The wrapper depends on no Rigline
+  package (D69), so a rule both sides need is written twice, and changing one copy without the
+  other fails silently. Each copy's comment gives the other's path.
 - **A plugin's problem never blocks the install.** Report it by name, inject around it, refuse it
   at load. A collapsed harvest refuses its one version and leaves it as it was (D104); only
   Rigline's own build failure stops the run.

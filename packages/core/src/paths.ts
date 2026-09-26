@@ -10,7 +10,9 @@ import { join } from "node:path";
 
 export const RIGLINE_HOME_VARIABLE = "RIGLINE_HOME";
 
-/** `$RIGLINE_HOME`, else `~/.rigline`. */
+/**
+ * `$RIGLINE_HOME`, else `~/.rigline`. The wrapper's copy is in `packages/cli/src/engine.ts` (D69).
+ */
 export function riglineHome(env: NodeJS.ProcessEnv = process.env): string {
   const override = env[RIGLINE_HOME_VARIABLE];
   return override && override.length > 0 ? override : join(homedir(), ".rigline");
