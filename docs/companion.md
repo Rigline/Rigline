@@ -33,7 +33,7 @@ with and fetches nothing.
   unqualified and `rigline` is already the CLI's, so the extension manifest cannot be this package's
   own `package.json`; its version comes from the workspace manifest and cannot drift.
 - **Acquisition is the wrapper's code, bundled.** The package takes `rigline` as `workspace:*` and
-  imports `rigline/engine`, the one subpath the wrapper exports. It is the only project allowed to
+  imports `rigline/engine`, which its own build resolves to the wrapper's source. It is the only project allowed to
   declare `rigline` (D80 amends D69). The VSIX therefore freezes a snapshot of acquisition until it
   next updates itself, and a companion whose acquisition fails never gets that far, which is why
   acquisition is the one part of Rigline to keep small (D99). It passes its version from the manifest
@@ -77,8 +77,8 @@ The CLI and the companion both write `<RIGLINE_HOME>/engine`, so `withHomeLock`
 the holder's pid, start time and name into it. A lock is stolen only when its process is gone *and*
 it is old, and one whose file cannot be read is judged by the file's age. It wraps `installEngine`
 rather than any command, held across the npm run, because a first run installs an engine whatever
-verb was typed. It covers the whole home, because `update` moves plugins in the same run. A
-contended lock is a reported outcome, and the companion carries on with the engine already there.
+verb was typed. A contended lock is a reported outcome, and the companion carries on with the
+engine already there.
 
 Injection has a lock of its own, `<RIGLINE_HOME>/inject.lock`, which the engine holds across every
 run that injects, checks or restores (D105). Two open windows mean two companions running the engine

@@ -119,11 +119,8 @@ load-bearing at three points:
 2. **Harvest before anything is written**, and generate. A version this Rigline cannot read is
    refused here, so one an earlier run injected keeps that injection whole (D104).
 3. **Write the payload before the bundle is patched.** A static import pointing at a file that is
-   not there yet blanks the panel on the next reload. Superseded payload directory names are removed
-   here too — an orphaned one is not inert, because a webview opened before the rollback goes on
-   running a whole second loader generation until the window reloads. Then `generated.js`, from the
-   merged anchor table, so a local override reaches the loader and not just the report about it
-   (D44).
+   not there yet blanks the panel on the next reload. Then `generated.js`, from the merged anchor
+   table, so a local override reaches the loader and not just the report about it (D44).
 4. Discover plugins, read `config.yaml`, and take the enabled set.
 5. Rebuild `extension.js` from `extension.js.orig` plus every enabled plugin's declared patches, and
    write it only if the bytes changed. See [patches.md](patches.md).

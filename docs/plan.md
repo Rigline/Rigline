@@ -322,7 +322,8 @@ The bar a 1.0 release clears, agreed 2026-09-26; the working plan is `.local/pla
 Done: the statement, what the wrapper and the companion rely on, the wrapper change, `ctx.style`'s
 refusal, VS Code alone, no console window, the macOS row, unknown manifest keys refused, and the
 reused-row read with its fix. What is left is Leo's: a remote window, the run on a Mac, and the
-reads on the last alpha.
+reads on the last alpha. Checking stability.md against the code proposed seventeen more, in the
+working plan, awaiting his decision.
 
 ## Open questions
 
@@ -531,3 +532,4 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   host now takes the current fiber of the pair (D103).
 - 2026-09-26: `ctx.style` refuses a class of the extension the plugin did not declare (D107), and a
   violation disables its plugin even where the plugin catches it (D15).
+- 2026-09-27: stability.md checked against the code; the proposals are in the working plan.
