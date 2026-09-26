@@ -3,7 +3,7 @@
  *
  * Nothing here spawns a process or reaches a registry. What it asserts is the part of D73 a test can
  * hold: where the engine is looked for, what argv installs it, that a major mismatch refuses rather
- * than runs, and that `update` reports the engine before anything is fetched for a plugin.
+ * than runs, and when a newer wrapper is out.
  *
  * The first test is the one that earns the duplication D69 accepts: the wrapper reimplements core's
  * `riglineHome()` because it depends on no Rigline package, so the two are compared here. The import
@@ -14,22 +14,23 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { riglineHome as coreRiglineHome } from "../../core/src/paths.ts";
+import { core, fakeChild, npm, writeEngine } from "../test/engine.ts";
 import {
-  ENGINE_BIN,
+  compareVersions,
   ENGINE_PACKAGE,
   type EngineUpdate,
   engineDir,
   engineInstallArgv,
-  ensureEngine,
   findNpmCli,
   formatEngineUpdate,
+  handOffProblem,
   majorProblem,
+  newerWrapper,
   readEngineState,
   riglineHome,
   updateEngine,
 } from "./engine.ts";
 import { lockPath } from "./lock.ts";
-import type { FetchLike, RegistryOptions } from "./registry.ts";
 
 const made: string[] = [];
 
@@ -42,48 +43,6 @@ function temp(): string {
 afterEach(() => {
   for (const dir of made.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
-
-/** An engine prefix as npm would have left it, or as an older core would have. */
-function writeEngine(
-  prefix: string,
-  manifest: Record<string, unknown>,
-  entry: string | null = "dist/engine/bin.js",
-): string {
-  const dir = join(prefix, "node_modules", ENGINE_PACKAGE);
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, "package.json"), JSON.stringify(manifest));
-  if (entry !== null) {
-    mkdirSync(join(dir, "dist", "engine"), { recursive: true });
-    writeFileSync(join(dir, entry), "");
-  }
-  return dir;
-}
-
-function core(version: string): Record<string, unknown> {
-  return { name: ENGINE_PACKAGE, version, bin: { [ENGINE_BIN]: "./dist/engine/bin.js" } };
-}
-
-/** A registry serving one version of `@rigline/core`, with no network anywhere. */
-function npm(version: string, publishedAt = "2026-09-01T12:00:00.000Z"): RegistryOptions {
-  const packument = {
-    "dist-tags": { latest: version },
-    time: { [version]: publishedAt },
-    versions: {
-      [version]: { dist: { tarball: "https://example/core.tgz", integrity: "sha512-x" } },
-    },
-  };
-  const fetchImpl: FetchLike = async () => ({
-    ok: true,
-    status: 200,
-    json: async () => packument,
-    arrayBuffer: async () => new ArrayBuffer(0),
-  });
-  return {
-    registry: "https://registry.example",
-    fetchImpl,
-    clock: () => Date.parse("2026-09-21T12:00:00.000Z"),
-  };
-}
 
 describe("riglineHome", () => {
   it("agrees with core's, which is the price D69 accepts for the split", () => {
@@ -144,6 +103,64 @@ describe("majorProblem", () => {
 
   it("says nothing about a version it cannot read, rather than guessing", () => {
     expect(majorProblem("1.0.0", "unreadable")).toBeNull();
+  });
+});
+
+describe("compareVersions", () => {
+  it("orders by semver precedence, prereleases included", () => {
+    const ascending = [
+      "1.0.0-alpha.2",
+      "1.0.0-alpha.12",
+      "1.0.0-alpha.beta",
+      "1.0.0-beta",
+      "1.0.0-beta.2",
+      "1.0.0-rc.1",
+      "1.0.0",
+      "1.0.1",
+      "1.2.0",
+      "10.0.0",
+    ];
+    for (let i = 1; i < ascending.length; i++) {
+      const [lower, higher] = [ascending[i - 1] as string, ascending[i] as string];
+      expect(compareVersions(lower, higher)).toBeLessThan(0);
+      expect(compareVersions(higher, lower)).toBeGreaterThan(0);
+    }
+    expect(compareVersions("1.0.0+build.1", "1.0.0")).toBe(0);
+  });
+
+  it("reads nothing it cannot parse", () => {
+    expect(compareVersions("unreadable", "1.0.0")).toBeNull();
+    expect(compareVersions("1.0", "1.0.0")).toBeNull();
+  });
+});
+
+describe("newerWrapper", () => {
+  it("names the version to install when the engine is ahead, on either side of a prerelease", () => {
+    expect(newerWrapper("1.0.1", "1.0.3")).toBe(
+      "rigline 1.0.3 is out, and this is 1.0.1: npm i -g rigline@1.0.3",
+    );
+    expect(newerWrapper("1.0.0-alpha.12", "1.0.0-alpha.13")).toContain("rigline@1.0.0-alpha.13");
+    expect(newerWrapper("1.0.0-rc.1", "1.0.0")).toContain("rigline@1.0.0");
+  });
+
+  it("says nothing when the engine is level or behind, or unreadable", () => {
+    expect(newerWrapper("1.0.1", "1.0.1")).toBeNull();
+    expect(newerWrapper("1.0.1", "1.0.0")).toBeNull();
+    expect(newerWrapper("1.0.0", "1.0.0-rc.1")).toBeNull();
+    expect(newerWrapper("1.0.0", "unreadable")).toBeNull();
+  });
+});
+
+describe("handOffProblem", () => {
+  it("refuses an engine behind this wrapper whose update refuses, and passes any after it", () => {
+    expect(handOffProblem("1.0.0-alpha.13", "1.0.0-alpha.12")).toContain("no plugin was updated");
+    expect(handOffProblem("1.0.0", "1.0.0-alpha.6")).not.toBeNull();
+    expect(handOffProblem("1.0.0", "1.0.0-alpha.13")).toBeNull();
+    expect(handOffProblem("1.0.1", "1.0.0")).toBeNull();
+  });
+
+  it("passes an engine level with the wrapper, which a build between releases is", () => {
+    expect(handOffProblem("1.0.0-alpha.12", "1.0.0-alpha.12")).toBeNull();
   });
 });
 
@@ -379,84 +396,5 @@ describe("formatEngineUpdate", () => {
     const line = formatEngineUpdate(moved, join("C:", "home", ".rigline"));
     expect(line).toContain("1.0.0-alpha.6 -> 1.0.0-alpha.7");
     expect(line).toContain(`${ENGINE_PACKAGE}@1.0.0-alpha.6`);
-  });
-});
-
-/** A child process that has already finished. Enough of one for `close` and for no stdio. */
-function fakeChild(code: number) {
-  const handlers = new Map<string, (value: number) => void>();
-  queueMicrotask(() => handlers.get("close")?.(code));
-  return {
-    stdout: null,
-    stderr: null,
-    on(event: string, handler: (value: number) => void) {
-      handlers.set(event, handler);
-      return this;
-    },
-  } as unknown as ReturnType<typeof import("node:child_process").spawn>;
-}
-
-/** A finished child whose stdout said `text`, before it closed. */
-function speaking(text: string) {
-  const handlers = new Map<string, (value: number) => void>();
-  queueMicrotask(() => queueMicrotask(() => handlers.get("close")?.(0)));
-  return {
-    stdout: {
-      setEncoding() {},
-      on(event: string, handler: (chunk: string) => void) {
-        if (event === "data") queueMicrotask(() => handler(text));
-        return this;
-      },
-    },
-    stderr: null,
-    on(event: string, handler: (value: number) => void) {
-      handlers.set(event, handler);
-      return this;
-    },
-  } as unknown as ReturnType<typeof import("node:child_process").spawn>;
-}
-
-describe("Engine.json", () => {
-  it("drops stderr when quiet, where an engine too old for a verb prints its usage (D100)", async () => {
-    const prefix = temp();
-    writeEngine(engineDir(prefix), core("1.0.0-alpha.7"));
-    const stderr: unknown[] = [];
-    const engine = await ensureEngine({
-      home: prefix,
-      version: "1.0.0-alpha.7",
-      spawnImpl: (_command, _args, options) => {
-        stderr.push(options.stdio[2]);
-        return speaking('{"v":1}');
-      },
-    });
-
-    expect(await engine.json(["companion-profiles"], { quiet: true })).toEqual({ v: 1 });
-    await engine.json(["list", "--json"]);
-
-    expect(stderr).toEqual(["ignore", "inherit"]);
-  });
-});
-
-describe("Engine.run", () => {
-  it("adds what it is given to this process's environment, which is how update defers (D98)", async () => {
-    const prefix = temp();
-    writeEngine(engineDir(prefix), core("1.0.0-alpha.7"));
-    const envs: (NodeJS.ProcessEnv | undefined)[] = [];
-    const engine = await ensureEngine({
-      home: prefix,
-      version: "1.0.0-alpha.7",
-      spawnImpl: (_command, _args, options) => {
-        envs.push(options.env);
-        return fakeChild(0);
-      },
-    });
-
-    await engine.run(["add", "staged"], { RIGLINE_DEFER_INJECT: "1" });
-    await engine.run(["install"]);
-
-    expect(envs[0]?.RIGLINE_DEFER_INJECT).toBe("1");
-    expect(Object.keys(envs[0] ?? {})).toEqual(expect.arrayContaining(Object.keys(process.env)));
-    // Absent rather than copied, so a plain run inherits exactly as it always did.
-    expect(envs[1]).toBeUndefined();
   });
 });

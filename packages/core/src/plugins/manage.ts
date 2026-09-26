@@ -19,7 +19,6 @@ import { UserError } from "../errors.ts";
 import {
   addToList,
   editConfig,
-  isPluginSource,
   type PluginSource,
   readConfig,
   removeFromList,
@@ -48,12 +47,8 @@ export interface AddOptions {
    */
   readonly bundledRoot?: string;
   /**
-   * Where this plugin came from, when somebody other than `add` established it (D74).
-   *
-   * The wrapper resolves, fetches and vets a remote plugin, stages it into a directory and hands
-   * that directory here — so the bytes arrive as a path like any other and the provenance arrives
-   * beside them, because a copy cannot say where it was copied from. Absent means what it says: a
-   * person pointed `add` at a directory, and that is recorded as a `path` source.
+   * Where the bytes in `from` really came from, since a staging directory cannot say (D74). Absent,
+   * `from` is recorded as a `path` source.
    */
   readonly source?: PluginSource;
   /** For a test that asserts on the recorded instant. */
@@ -66,6 +61,8 @@ export interface AddResult {
   readonly dir: string;
   /** Where it was copied from, absolute. */
   readonly from: string;
+  /** What was recorded in `sources.json`, which names an npm plugin where `from` cannot. */
+  readonly source: PluginSource;
   /** Whether a plugin of this name was already in `~/.rigline/plugins` and has been replaced. */
   readonly replaced: boolean;
   /** Whether it takes its name from a bundled plugin, which now loads only if this one goes (D71). */
@@ -194,6 +191,7 @@ function place(placement: Placement): AddResult {
     name,
     dir,
     from: placement.from,
+    source: placement.source,
     replaced,
     overridesBundled,
     disabled,
@@ -207,36 +205,6 @@ function place(placement: Placement): AddResult {
 
 function stamp(now?: () => Date): string {
   return (now?.() ?? new Date()).toISOString();
-}
-
-const KNOWN_SOURCE_KINDS = ["path", "npm"] as const;
-
-/**
- * A source record handed in from outside, checked before it is written (D74).
- *
- * Refuses where `readSources` skips: recording a kind this engine cannot read back would leave the
- * plugin looking hand-placed to the install that just added it.
- */
-export function parseSource(json: string): PluginSource {
-  let value: unknown;
-  try {
-    value = JSON.parse(json);
-  } catch (error) {
-    throw new UserError(`the source record is not valid JSON: ${(error as Error).message}`);
-  }
-  const kind = (value as { kind?: unknown } | null)?.kind;
-  if (typeof kind !== "string") {
-    throw new UserError("the source record has no `kind`, so nothing can be recorded from it");
-  }
-  if (!isPluginSource(value)) {
-    throw new UserError(
-      KNOWN_SOURCE_KINDS.includes(kind as (typeof KNOWN_SOURCE_KINDS)[number])
-        ? `the source record of kind "${kind}" is missing fields this needs`
-        : `this engine does not know source kind "${kind}"; a newer @rigline/core may. ` +
-            "Run `rigline update` to move the engine on, or add the plugin from a directory.",
-    );
-  }
-  return value;
 }
 
 export interface SwitchOptions {

@@ -165,8 +165,8 @@ failure, only over green, and is forgotten after a look that succeeds.
 
 An open window of the profile added to starts the companion at once, with no restart, and its own
 `start` run finds nothing to add. The companion skips its look in a remote window, whose paths are
-the remote host's, and while `rigline.enginePath` is set. `rigline update` runs the same verb,
-without arguments, for every editor on `PATH`.
+the remote host's, and while `rigline.enginePath` is set. `rigline update` does the same work in
+the engine's own `update`, for every editor on `PATH` (D106).
 
 A VSIX install re-extracts the shared directory every time, so adding the companion to one profile
 rewrites the directory another profile's running companion was loaded from. With identical bytes

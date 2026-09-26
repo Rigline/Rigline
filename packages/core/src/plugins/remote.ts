@@ -1,16 +1,17 @@
 /**
- * The wrapper's half of `add`, and all of `update`: turning a spec into a directory the engine can
- * take (D69, D70).
+ * Plugins from npm: `add <spec>`, and the plugin half of `update` (D47, D48, D49, D106).
  *
- * The wrapper vets the container and the engine vets the content. Everything here is about bytes —
- * resolving a version, the release-age gate, the integrity hash, the tar reader's refusals — and
- * nothing here opens a manifest, places a plugin or writes `sources.json`. What it produces is a
- * staging directory and a source record, both handed to `rigline add <dir> --source <json>`.
+ * Everything here is about the container — resolving a version, the release-age gate, the integrity
+ * hash, the tar reader's refusals — and the content is `addPlugin`'s, which checks a staged tarball
+ * exactly as it checks a directory somebody pointed at (D70).
  */
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { UserError } from "./errors.ts";
+import { UserError } from "../errors.ts";
+import type { NpmSource } from "./config.ts";
+import type { PluginListing } from "./list.ts";
+import { type AddOptions, type AddResult, addPlugin } from "./manage.ts";
 import {
   fetchTarball,
   parsePluginSpec,
@@ -18,53 +19,34 @@ import {
   type ResolvedVersion,
   releaseAgeProblem,
   resolveVersion,
-} from "./registry.ts";
+} from "./npm.ts";
 import { readPackageTarball } from "./tarball.ts";
 
-/** How a staged plugin reaches the engine: the argv the wrapper would have run, and its exit code. */
-export type RunEngine = (argv: readonly string[]) => Promise<number>;
+/** Where a fetched plugin goes: `addPlugin`'s options, less what the fetch supplies. */
+export type Placement = Omit<AddOptions, "from" | "source" | "now">;
 
-/** What `add` recorded, as the engine will read it back (D49). */
-export interface NpmSourceRecord {
-  readonly kind: "npm";
-  readonly name: string;
-  readonly version: string;
-  readonly tag: string | null;
-  readonly integrity: string;
-  readonly addedAt: string;
-}
-
-export interface AddFromNpmOptions {
-  /** `clock`, `clock@1.2.0`, `clock@next`, `@scope/clock` (D58). */
-  readonly spec: string;
-  readonly engine: RunEngine;
+export interface RemoteOptions {
+  readonly add: Placement;
   readonly registry?: RegistryOptions;
   readonly now?: () => Date;
 }
 
 /**
- * Resolve, fetch, check the bytes, unpack, and hand the engine a directory (D47, D48, D49).
+ * Resolve, fetch, check the bytes, unpack, and add (D47, D48, D49).
  *
  * The order is the point: nothing is staged until the version has cleared the age gate, the bytes
  * have matched their integrity hash, and the archive has been read by a reader that refuses
- * everything but plain files (D57). A tarball that fails any of those never reaches the engine.
+ * everything but plain files (D57).
  */
-export async function addFromNpm(options: AddFromNpmOptions): Promise<number> {
-  const resolved = await resolveVersion(parsePluginSpec(options.spec), options.registry);
+export async function addFromNpm(spec: string, options: RemoteOptions): Promise<AddResult> {
+  const resolved = await resolveVersion(parsePluginSpec(spec), options.registry);
   const withheld = releaseAgeProblem(resolved, options.registry);
   if (withheld !== null) throw new UserError(withheld);
-  return await stageAndAdd(resolved, options);
+  return await fetchAndAdd(resolved, options);
 }
 
 /** The shared tail of `add <spec>` and one plugin's `update`, which differ only in the age gate. */
-async function stageAndAdd(
-  resolved: ResolvedVersion,
-  options: {
-    readonly engine: RunEngine;
-    readonly registry?: RegistryOptions;
-    readonly now?: () => Date;
-  },
-): Promise<number> {
+async function fetchAndAdd(resolved: ResolvedVersion, options: RemoteOptions): Promise<AddResult> {
   const label = `${resolved.name}@${resolved.version}`;
   const files = readPackageTarball(await fetchTarball(resolved, options.registry), label);
 
@@ -75,7 +57,7 @@ async function stageAndAdd(
       mkdirSync(dirname(target), { recursive: true });
       writeFileSync(target, file.bytes);
     }
-    const source: NpmSourceRecord = {
+    const source: NpmSource = {
       kind: "npm",
       name: resolved.name,
       version: resolved.version,
@@ -83,7 +65,7 @@ async function stageAndAdd(
       integrity: resolved.integrity,
       addedAt: (options.now?.() ?? new Date()).toISOString(),
     };
-    return await options.engine(["add", staged, "--source", JSON.stringify(source)]);
+    return addPlugin({ ...options.add, from: staged, source });
   } finally {
     rmSync(staged, { recursive: true, force: true });
   }
@@ -108,34 +90,13 @@ export interface PluginUpdate {
   readonly reason?: string;
 }
 
-/**
- * One plugin as `rigline-engine list --json` reports it: the engine owns `sources.json` (D74).
- *
- * Only the fields `update` reads, structurally typed rather than imported, because the wrapper
- * depends on no Rigline package (D69) and this arrives as parsed JSON from another process.
- */
-export interface ListedSource {
-  readonly kind: string;
-  /** A `path` source's directory, and an `npm` source's package, version and tag (D49). */
-  readonly from?: string;
-  readonly name?: string;
-  readonly version?: string;
-  readonly tag?: string | null;
-}
-
-export interface ListedPlugin {
-  readonly name: string;
-  readonly managed: boolean;
-  readonly source: ListedSource | null;
-}
-
-export interface UpdatePluginsOptions {
-  readonly listed: readonly ListedPlugin[];
-  readonly engine: RunEngine;
-  readonly registry?: RegistryOptions;
-  /** Only these plugins. Absent means every one the engine listed. */
+export interface UpdatePluginsOptions extends RemoteOptions {
+  /** What `list` reports, which is where `sources.json` is read (D74). */
+  readonly listed: readonly PluginListing[];
+  /** Only these plugins. Absent means every one `add` installed. */
   readonly names?: readonly string[];
-  readonly now?: () => Date;
+  /** Each plugin as it is placed, for the report `add` prints. */
+  readonly onAdded?: (result: AddResult) => void;
 }
 
 /**
@@ -154,50 +115,25 @@ export async function updatePlugins(options: UpdatePluginsOptions): Promise<Plug
   const updates: PluginUpdate[] = [];
 
   for (const name of names) {
-    const plugin = byName.get(name);
-    if (plugin === undefined) {
+    const source = byName.get(name)?.source;
+    if (source === undefined) {
       updates.push({ name, outcome: "failed", reason: "not installed by rigline" });
-      continue;
-    }
-    const source = plugin.source;
-    if (source === null) {
+    } else if (source === null) {
       updates.push({ name, outcome: "unmanaged" });
-      continue;
-    }
-    if (source.kind === "path") {
-      updates.push({
-        name,
-        outcome: "local",
-        reason: typeof source.from === "string" ? source.from : "a directory",
-      });
-      continue;
-    }
-    if (source.kind !== "npm") {
-      updates.push({ name, outcome: "unmanaged", reason: `source kind "${source.kind}"` });
-      continue;
-    }
-    if (source.name === undefined || source.version === undefined) {
-      updates.push({ name, outcome: "failed", reason: "its npm source is incomplete" });
-      continue;
-    }
-    if (source.tag === null || source.tag === undefined) {
+    } else if (source.kind === "path") {
+      updates.push({ name, outcome: "local", reason: source.from });
+    } else if (source.tag === null) {
       updates.push({ name, outcome: "pinned", from: source.version });
-      continue;
+    } else {
+      updates.push(await updateOne(name, source, options));
     }
-    updates.push(
-      await updateOne(
-        name,
-        { name: source.name, version: source.version, tag: source.tag },
-        options,
-      ),
-    );
   }
   return updates;
 }
 
 async function updateOne(
   name: string,
-  source: { readonly name: string; readonly version: string; readonly tag: string },
+  source: NpmSource,
   options: UpdatePluginsOptions,
 ): Promise<PluginUpdate> {
   try {
@@ -218,12 +154,9 @@ async function updateOne(
         reason: withheld,
       };
     }
-    // `resolved.tag` is the tag being followed, so the record the engine writes keeps it — where
-    // `add <name>@<version>` records none, which is how a person pins one (D58).
-    const code = await stageAndAdd(resolved, options);
-    if (code !== 0) {
-      return { name, outcome: "failed", from: source.version, reason: `the engine exited ${code}` };
-    }
+    // `resolved.tag` is the tag being followed, so the new record keeps it — where `add
+    // <name>@<version>` records none, which is how a person pins one (D58).
+    options.onAdded?.(await fetchAndAdd(resolved, options));
     return { name, outcome: "updated", from: source.version, to: resolved.version };
   } catch (error) {
     return {

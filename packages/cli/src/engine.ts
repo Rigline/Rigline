@@ -101,6 +101,71 @@ export function majorProblem(wrapper: string, engine: string): string | null {
 }
 
 /**
+ * Semver precedence, prerelease included, or null for a version it cannot read. It says whether a
+ * newer wrapper exists and never which version to install, so it is not the ordering D58 refuses.
+ */
+export function compareVersions(a: string, b: string): number | null {
+  const x = parseVersion(a);
+  const y = parseVersion(b);
+  if (x === null || y === null) return null;
+  for (let i = 0; i < 3; i++) {
+    const diff = (x.release[i] as number) - (y.release[i] as number);
+    if (diff !== 0) return diff;
+  }
+  // A release outranks every prerelease of it.
+  if (x.pre.length === 0 || y.pre.length === 0) return y.pre.length - x.pre.length;
+  for (let i = 0; i < Math.max(x.pre.length, y.pre.length); i++) {
+    const p = x.pre[i];
+    const q = y.pre[i];
+    if (p === undefined) return -1;
+    if (q === undefined) return 1;
+    if (p === q) continue;
+    const pNumeric = /^\d+$/.test(p);
+    const qNumeric = /^\d+$/.test(q);
+    if (pNumeric && qNumeric) return Number(p) - Number(q);
+    if (pNumeric !== qNumeric) return pNumeric ? -1 : 1;
+    return p < q ? -1 : 1;
+  }
+  return 0;
+}
+
+function parseVersion(version: string): { release: number[]; pre: string[] } | null {
+  const match = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/.exec(version);
+  if (match === null) return null;
+  return {
+    release: [Number(match[1]), Number(match[2]), Number(match[3])],
+    pre: match[4] === undefined ? [] : match[4].split("."),
+  };
+}
+
+/**
+ * The line saying a newer wrapper is out, or null (D106). All four packages release at one version
+ * (D60), so an installed engine ahead of this wrapper means a wrapper at its version exists.
+ */
+export function newerWrapper(wrapper: string, engine: string): string | null {
+  const order = compareVersions(engine, wrapper);
+  if (order === null || order <= 0) return null;
+  return `rigline ${engine} is out, and this is ${wrapper}: npm i -g rigline@${engine}`;
+}
+
+/** The last engine whose `update` refuses rather than runs, so a hand-off to it says nothing useful. */
+const LAST_WITHOUT_UPDATE = "1.0.0-alpha.12";
+
+/**
+ * Why `update` cannot hand off to this engine, or null (D106). Only an engine older than the wrapper
+ * can lack it: a build between releases carries the last release's version, as tier 4's does.
+ */
+export function handOffProblem(wrapper: string, engine: string): string | null {
+  const behind = compareVersions(engine, wrapper);
+  const old = compareVersions(engine, LAST_WITHOUT_UPDATE);
+  if (behind === null || old === null || behind >= 0 || old > 0) return null;
+  return (
+    `${ENGINE_PACKAGE} ${engine} does no update of its own, so no plugin was updated. ` +
+    `Run rigline update again once the engine has moved past ${LAST_WITHOUT_UPDATE}.`
+  );
+}
+
+/**
  * npm's own entry, beside the running Node.
  *
  * Never the shim on PATH: under corepack, volta or fnm that is not necessarily the npm beside this
@@ -158,10 +223,7 @@ export function engineInstallArgv(options: {
 export type SpawnLike = (
   command: string,
   args: readonly string[],
-  options: {
-    readonly stdio: readonly ("inherit" | "ignore" | "pipe")[];
-    readonly env?: NodeJS.ProcessEnv;
-  },
+  options: { readonly stdio: readonly ("inherit" | "ignore" | "pipe")[] },
 ) => ChildProcess;
 
 /**
@@ -169,11 +231,7 @@ export type SpawnLike = (
  * Windows opens a window for a console program started from there; in a terminal it changes nothing.
  */
 const nodeSpawn: SpawnLike = (command, args, options) =>
-  spawn(command, [...args], {
-    stdio: [...options.stdio],
-    windowsHide: true,
-    ...(options.env === undefined ? {} : { env: options.env }),
-  });
+  spawn(command, [...args], { stdio: [...options.stdio], windowsHide: true });
 
 export interface EngineOptions {
   readonly home?: string;
@@ -197,17 +255,12 @@ export interface EngineOptions {
   readonly lock?: Omit<LockOptions, "home" | "what">;
 }
 
-/** A located engine, and the two ways the wrapper runs it. */
+/** A located engine, and how the wrapper runs it. */
 export interface Engine {
   readonly version: string;
   readonly entry: string;
-  /** Run a verb with our stdio, and answer with the child's exit code. `env` adds to ours. */
-  run(argv: readonly string[], env?: Readonly<Record<string, string>>): Promise<number>;
-  /**
-   * Run a verb and parse its stdout, which is how `sources.json` is read without reading it (D74).
-   * `quiet` drops stderr, where an engine too old for the verb prints its usage.
-   */
-  json(argv: readonly string[], options?: { readonly quiet?: boolean }): Promise<unknown>;
+  /** Run a verb with our stdio, and answer with the child's exit code. */
+  run(argv: readonly string[]): Promise<number>;
 }
 
 /**
@@ -291,41 +344,25 @@ function engineAt(state: { version: string; entry: string }, options: EngineOpti
   return {
     version: state.version,
     entry: state.entry,
-    run: (argv, env) =>
+    run: (argv) =>
       new Promise((done, fail) => {
         const child = spawnImpl(node, [state.entry, ...argv], {
           stdio: ["inherit", "inherit", "inherit"],
-          ...(env === undefined ? {} : { env: { ...process.env, ...env } }),
         });
         child.on("error", fail);
         child.on("close", (code) => done(code ?? 1));
       }),
-    json: async (argv, options) => {
-      const stderr = options?.quiet ? "ignore" : "inherit";
-      const run = await capture(node, [state.entry, ...argv], spawnImpl, stderr);
-      if (run.code !== 0) {
-        throw new UserError(`the engine exited ${run.code} for \`${argv.join(" ")}\``);
-      }
-      try {
-        return JSON.parse(run.output);
-      } catch {
-        throw new UserError(
-          `the engine answered \`${argv.join(" ")}\` with something that is not JSON`,
-        );
-      }
-    },
   };
 }
 
-/** Run a command with its stdout collected. `stderr` goes where the caller says. */
+/** Run a command with its output collected. */
 async function capture(
   command: string,
   argv: readonly string[],
   spawnImpl: SpawnLike = nodeSpawn,
-  stderr: "inherit" | "pipe" | "ignore" = "pipe",
 ): Promise<{ readonly code: number; readonly output: string }> {
   return await new Promise((done, fail) => {
-    const child = spawnImpl(command, argv, { stdio: ["ignore", "pipe", stderr] });
+    const child = spawnImpl(command, argv, { stdio: ["ignore", "pipe", "pipe"] });
     let output = "";
     child.stdout?.setEncoding("utf8");
     child.stdout?.on("data", (chunk: string) => {

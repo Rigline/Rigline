@@ -181,7 +181,20 @@ export type {
   SwitchOptions,
   SwitchResult,
 } from "./plugins/manage.ts";
-export { addPlugin, parseSource, removePlugin, setPluginEnabled } from "./plugins/manage.ts";
+export { addPlugin, removePlugin, setPluginEnabled } from "./plugins/manage.ts";
+export type { FetchLike, RegistryOptions, ResolvedVersion } from "./plugins/npm.ts";
+export {
+  parsePluginSpec,
+  releaseAgeProblem,
+  resolveVersion,
+} from "./plugins/npm.ts";
+export type {
+  Placement,
+  PluginUpdate,
+  RemoteOptions,
+  UpdatePluginsOptions,
+} from "./plugins/remote.ts";
+export { addFromNpm, formatUpdates, updatePlugins } from "./plugins/remote.ts";
 export type { PanelSave } from "./plugins/save.ts";
 export {
   companionHandlesSave,

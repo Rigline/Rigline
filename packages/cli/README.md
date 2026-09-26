@@ -39,9 +39,9 @@ directory until *Developer: Reload Window*.
     rigline vscode-setup
 
 If running `install` after every update is a chore, this installs a companion extension that does it
-for you — into every VS Code found on your `PATH`, Insiders, VSCodium, Cursor and Windsurf included,
-from a VSIX that ships inside the engine. Nothing is downloaded, and the companion moves when the
-engine does. It injects as it goes, so it is a step *instead of* `install` rather than after it.
+for you — into VS Code, found on your `PATH`, from a VSIX that ships inside the engine. Nothing is
+downloaded, and the companion moves when the engine does. It injects as it goes, so it is a step
+*instead of* `install` rather than after it.
 
 From then on it watches for the extension update and re-injects behind it, so there is nothing to
 remember after one. It goes into every VS Code profile that has Claude Code, and into any profile
@@ -86,10 +86,11 @@ going back is one command.
 
 ## How it is put together
 
-`rigline` is a small retrieval layer. It fetches bytes — a plugin tarball, the engine — checks them,
-and hands them over; `@rigline/core` does everything else and answers every verb above. The split is
-not decoration: a process cannot replace the package it is running out of, so whatever performs an
-update has to sit above the thing being updated.
+`rigline` is a small retrieval layer. It installs the engine and runs it, and `@rigline/core` answers
+every verb above, fetching plugins included. The split is not decoration: a process cannot replace
+the package it is running out of, so `update` moves the engine from here and then hands the rest to
+it. Nothing updates `rigline` itself, so when the engine you have is newer, `rigline` says so and
+names the command.
 
 **It belongs in no project's dependencies.** If you are writing plugins, your workspace declares
 `@rigline/core` and runs `rigline-engine`; `npm create rigline-plugin` scaffolds it that way. A

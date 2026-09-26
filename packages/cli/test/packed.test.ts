@@ -17,14 +17,18 @@
  * a dependency npm cannot resolve. pnpm substitutes the exact version, which is also what makes the
  * tarballs resolve each other with no registry (D46).
  */
-import { execFileSync } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { bundledDir } from "../../core/src/assets.ts";
 import { writeFixtureExtension } from "../../core/test/fixtures.ts";
+import { packageTarball } from "../../core/test/tar.ts";
 import { engineDir, engineInstallArgv, findNpmCli, readEngineState } from "../src/engine.ts";
 
 const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
@@ -292,5 +296,168 @@ describe("the published tarballs, installed and run", () => {
       env: { ...process.env, RIGLINE_HOME: home },
     });
     expect(out).toContain("rigline install");
+  });
+});
+
+/** Long enough ago that the release-age gate passes on any clock this runs under (D48). */
+const PUBLISHED = "2020-01-01T00:00:00.000Z";
+
+/**
+ * A registry in this process: the engine at the version installed above, so `update` finds it
+ * current, and one plugin whose `latest` a test moves.
+ */
+interface Registry {
+  readonly url: string;
+  latest: string;
+  /** Every path asked for, so a run that reached another registry fails rather than passing. */
+  readonly asked: string[];
+  close(): Promise<void>;
+}
+
+async function serveRegistry(engine: string): Promise<Registry> {
+  const tarballs = new Map(
+    ["1.0.0", "1.1.0"].map((version) => [
+      version,
+      packageTarball({
+        "rigline.json": JSON.stringify({ api: 1, name: "clock", entry: "dist/index.js", uses: {} }),
+        "dist/index.js": `export default { setup() {} }; // ${version}`,
+      }),
+    ]),
+  );
+  const state = { latest: "1.0.0" };
+  const asked: string[] = [];
+  let url = "";
+  const packument = (name: string, tags: Record<string, string>, versions: string[]) => ({
+    name,
+    "dist-tags": tags,
+    time: Object.fromEntries(versions.map((v) => [v, PUBLISHED])),
+    versions: Object.fromEntries(
+      versions.map((v) => {
+        const bytes = tarballs.get(v);
+        const integrity = `sha512-${createHash("sha512")
+          .update(bytes ?? "")
+          .digest("base64")}`;
+        return [v, { dist: { tarball: `${url}/${name}/-/${v}.tgz`, integrity } }];
+      }),
+    ),
+  });
+
+  const server: Server = createServer((request, response) => {
+    const path = decodeURIComponent(request.url ?? "");
+    asked.push(path);
+    const body =
+      path === "/@rigline/core"
+        ? packument("@rigline/core", { latest: engine }, [engine])
+        : path === "/clock"
+          ? packument("clock", { latest: state.latest }, [...tarballs.keys()])
+          : (tarballs.get(/^\/clock\/-\/(.+)\.tgz$/.exec(path)?.[1] ?? "") ?? null);
+    if (body === null) {
+      response.writeHead(404).end();
+      return;
+    }
+    response.writeHead(200).end(Buffer.isBuffer(body) ? body : JSON.stringify(body));
+  });
+  await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
+  url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  return {
+    url,
+    asked,
+    get latest() {
+      return state.latest;
+    },
+    set latest(version: string) {
+      state.latest = version;
+    },
+    close: () => new Promise((done) => server.close(() => done())),
+  };
+}
+
+/**
+ * The environment for a run that re-injects with no `--ext`, as `add` and `update` do: a home with
+ * no extensions in it, and a `PATH` with no editor on it, so nothing reaches the live extension or
+ * an editor's profiles (D39). Asynchronous, because the registry answering it is in this process.
+ *
+ * Every `npm_` variable goes, matched without case: under `pnpm test` the environment carries
+ * `NPM_CONFIG_REGISTRY`, which Windows reads as the same name as ours and may prefer.
+ */
+function sandboxed(registry: string): NodeJS.ProcessEnv {
+  const user = join(work, "user");
+  mkdirSync(user, { recursive: true });
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(([key]) => !/^(path|vscode_.*|npm_.*)$/i.test(key)),
+  );
+  return {
+    ...env,
+    PATH: dirname(process.execPath),
+    HOME: user,
+    USERPROFILE: user,
+    APPDATA: join(user, "AppData", "Roaming"),
+    XDG_CONFIG_HOME: join(user, ".config"),
+    RIGLINE_HOME: home,
+    npm_config_registry: registry,
+  };
+}
+
+function riglineIn(
+  env: NodeJS.ProcessEnv,
+  args: readonly string[],
+): Promise<{ readonly code: number; readonly stdout: string; readonly stderr: string }> {
+  const cli = join(modules, "rigline", "dist", "index.js");
+  return new Promise((done) => {
+    execFile(process.execPath, [cli, ...args], { env, encoding: "utf8" }, (error, stdout, stderr) =>
+      done({ code: error === null ? 0 : Number(error.code ?? 1), stdout, stderr }),
+    );
+  });
+}
+
+function recorded(name: string): Record<string, unknown> | undefined {
+  const sources = JSON.parse(readFileSync(join(home, "sources.json"), "utf8")) as Record<
+    string,
+    Record<string, unknown>
+  >;
+  return sources[name];
+}
+
+describe("plugins from npm, through the packed wrapper and engine", () => {
+  let registry: Registry;
+  let env: NodeJS.ProcessEnv;
+
+  beforeAll(async () => {
+    const engine = readEngineState(engineDir(home));
+    if (engine.kind !== "ready") throw new Error("the packed engine is not installed");
+    registry = await serveRegistry(engine.version);
+    env = sandboxed(registry.url);
+  });
+
+  afterAll(async () => {
+    await registry?.close();
+  });
+
+  it("forwards add, and the engine fetches, checks and places the plugin", async () => {
+    const run = await riglineIn(env, ["add", "clock"]);
+
+    expect(registry.asked).toEqual(["/clock", "/clock/-/1.0.0.tgz"]);
+    expect(run.stderr).toBe("");
+    expect(run.code).toBe(0);
+    expect(run.stdout).toContain("added clock");
+    expect(run.stdout).toContain("from clock@1.0.0 on npm, following latest");
+    // The sandbox held: the re-inject found no extension, rather than the one on this machine.
+    expect(run.stdout).toContain("No Claude Code extension is installed");
+    expect(recorded("clock")).toMatchObject({ kind: "npm", version: "1.0.0", tag: "latest" });
+  });
+
+  it("moves the engine, then hands update to it, which moves the plugin", async () => {
+    registry.latest = "1.1.0";
+    registry.asked.length = 0;
+    const run = await riglineIn(env, ["update"]);
+
+    expect(registry.asked).toEqual(["/@rigline/core", "/clock", "/clock/-/1.1.0.tgz"]);
+    expect(run.stderr).toBe("");
+    expect(run.code).toBe(0);
+    const lines = run.stdout.split(/\r?\n/);
+    expect(lines[0]).toMatch(/^engine: .+, which is what its tag resolves to$/);
+    expect(lines).toContain("clock: 1.0.0 -> 1.1.0");
+    expect(run.stdout).toContain("No Claude Code extension is installed");
+    expect(recorded("clock")).toMatchObject({ version: "1.1.0", tag: "latest" });
   });
 });

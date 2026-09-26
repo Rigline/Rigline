@@ -10,7 +10,23 @@ anything may change between releases.
 
 ## Unreleased
 
+### Added
+
+- `rigline` says when a newer `rigline` is out. Nothing updates the command itself, so when the
+  engine it installed is newer, every command starts with one line on stderr — `rigline 1.0.3 is out,
+  and this is 1.0.1: npm i -g rigline@1.0.3` — and `rigline --version` says it too. It asks nothing
+  of the registry to know.
+
 ### Changed
+
+- **Install the new `rigline` before using this engine**: `npm i -g rigline@latest`. Fetching
+  plugins moved from `rigline` into the engine, so fixes to `add` and `update` now arrive with an
+  engine update rather than a new `rigline`. An older `rigline` cannot `add` from npm, or update a
+  plugin from npm, with this engine.
+- `rigline update` always ends with an install, and its report, where before it installed only
+  when the engine or a plugin had moved. An install that changes nothing writes nothing.
+- `rigline add NAME` takes a directory called `NAME` holding a `rigline.json` when there is one
+  where you run it, and goes to npm otherwise. Before, a bare name always went to npm.
 
 - A `rigline.json` key that this version of Rigline does not know now refuses the plugin, naming the
   key, where before a key at the top level was ignored. A plugin written for a later Rigline is
@@ -28,6 +44,8 @@ anything may change between releases.
   Rigline: when a window starts, when Claude Code updates, and on *Show Plugins* and Save.
 - A plugin whose `rigline.json` does not hold up no longer stops `rigline install`, `check` or `list`
   for every other plugin. It is left unloaded and named under what needs you, and the rest load.
+- `rigline add` from npm, and `rigline update`, say which package and version a plugin came from,
+  where they named a temporary directory.
 
 ## 1.0.0-alpha.12 — 2026-09-26
 

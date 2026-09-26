@@ -25,7 +25,7 @@ no new plans. Update the plan before writing code; log status there, not here.
   `Atomics.wait` rather than making `install` async. Carries a negative result worth not
   re-proposing: a content check on the bundle's tail was evidenced against the corpus and rejected,
   because a rule that fits today's bundler refuses every install the day it changes.
-- [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D105.
+- [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D106.
 
 The internals, for a contributor to Rigline itself. The shape, not the argument — the argument is in
 decisions.md, and each doc cites the decisions it rests on.
@@ -161,15 +161,17 @@ Written for somebody else, so don't rewrite them for us:
 root's `@rigline/core` devDependency. **This checkout does not use the `rigline` package**, and must
 not: that is the retrieval layer a user installs, and running it here would fetch an engine from npm
 (D69). Every verb below is the engine's and reads the same either way — `rigline check` is what a
-user types, `pnpm rigline check` is what you type — and `update` is the one verb only the wrapper
-has, so it does not work here.
+user types, `pnpm rigline check` is what you type. `update` is the engine's too, but only its second
+half: here `pnpm rigline update` moves plugins from npm and re-injects, and never moves the engine,
+which is the wrapper's first half (D106).
 
 **An argument containing a space cannot go through `pnpm rigline`.** pnpm's shim loses the quoting
 and cmd.exe then splits the *Node interpreter path*, so `pnpm rigline vscode-setup --profile "Yarn
 PNP"` dies naming a directory that has nothing to do with what you typed and never reaches the
 engine — the missing `$ rigline-engine ...` echo is the tell. Call the bin directly:
-`node packages/core/dist/engine/bin.js vscode-setup --profile "Yarn PNP"`. The detail is in
-`c:\dev\knowledge\node-tooling.md`.
+`node packages/core/dist/engine/bin.js vscode-setup --profile "Yarn PNP"`. Any bin through pnpm has
+it, so `pnpm vitest -t "two words"` fails the same way; `node node_modules/vitest/vitest.mjs` does
+not. The detail is in `c:\dev\knowledge\node-tooling.md`.
 
 Rebuilding the payload or a plugin and running `install` again refreshes the files in place
 without rewriting the bundle. `restore` is the undo and the recovery from a blank panel; it needs

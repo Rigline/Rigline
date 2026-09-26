@@ -11,7 +11,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { UserError } from "../errors.ts";
 import { readConfig, readSources } from "./config.ts";
-import { addPlugin, parseSource, removePlugin, setPluginEnabled } from "./manage.ts";
+import { addPlugin, removePlugin, setPluginEnabled } from "./manage.ts";
 
 const dirs: string[] = [];
 
@@ -68,10 +68,6 @@ function home(): { pluginsDir: string; configPath: string; sourcesPath: string }
 
 const AT = new Date("2026-09-18T11:00:00.000Z");
 
-/**
- * A registry serving one package, built from these tarballs. The `fetch` is the whole of the
- * network: no test in this file reaches one.
- */
 describe("addPlugin", () => {
   it("copies the plugin in, records where it came from, and says what it can do", () => {
     const paths = home();
@@ -368,37 +364,5 @@ describe("setPluginEnabled", () => {
       ),
     ).toThrow(UserError);
     expect(readConfig(paths.configPath).disabled).toEqual([]);
-  });
-});
-
-describe("parseSource", () => {
-  it("takes a record this engine can read back", () => {
-    const source = {
-      kind: "npm",
-      name: "clock",
-      version: "1.0.0",
-      tag: "latest",
-      integrity: "sha512-x",
-      addedAt: "2026-09-18T11:00:00.000Z",
-    };
-    expect(parseSource(JSON.stringify(source))).toEqual(source);
-  });
-
-  it("refuses a kind it does not know, naming it and the way out (D74)", () => {
-    // Refuses where `readSources` skips: recording this would leave the plugin looking hand-placed
-    // to the very install that just added it.
-    expect(() => parseSource(JSON.stringify({ kind: "git", url: "x" }))).toThrow(/"git"/);
-    expect(() => parseSource(JSON.stringify({ kind: "git", url: "x" }))).toThrow(/rigline update/);
-  });
-
-  it("refuses a known kind that is missing fields, and says which problem it is", () => {
-    expect(() => parseSource(JSON.stringify({ kind: "npm", name: "clock" }))).toThrow(
-      /missing fields/,
-    );
-  });
-
-  it("refuses something that is not a record at all", () => {
-    expect(() => parseSource("not json")).toThrow(/not valid JSON/);
-    expect(() => parseSource(JSON.stringify({ from: "/x" }))).toThrow(/no `kind`/);
   });
 });

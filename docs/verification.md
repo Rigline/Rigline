@@ -266,13 +266,20 @@ report, from files we wrote. VS Code's own logs are deliberately out of scope (D
 
 `packages/cli/test/packed.test.ts` packs what a release would publish, installs those tarballs into
 **two** temporary prefixes with nothing else on the machine, and runs `install` out of them against
-a fixture extension directory.
+a fixture extension directory. Then it runs `add` from npm and `update` through the packed wrapper,
+which is where a split between the wrapper and the engine goes wrong (D106).
 
 Two prefixes because that is what a user has (D73): `rigline` on its own, and `@rigline/core` with
 its dependency under a temporary `RIGLINE_HOME/engine`. The engine goes in through
 `engineInstallArgv`, the construction the wrapper itself hands npm, so what runs here is the real
-invocation rather than a copy that can drift from it. Resolving a version against a registry is the
-one step of the path that cannot happen here, and tier 1 fakes it.
+invocation rather than a copy that can drift from it.
+
+`add` and `update` resolve against a registry the test serves itself, with the engine at the version
+installed and one plugin whose tag the test moves, and they assert which paths it was asked for, so
+a run that reached another registry fails. Both re-inject with no `--ext`, so they run with a home
+holding no extension and a `PATH` holding no editor, and without any `npm_` variable: under `pnpm
+test` the environment carries `NPM_CONFIG_REGISTRY`, which on Windows is the same name as the one
+the test sets.
 
 It exists because of a failure the other three could not see. Every one of them drives this
 workspace, where a relative path from a package's `dist` happens to reach the files beside it.

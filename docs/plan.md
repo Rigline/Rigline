@@ -57,7 +57,7 @@ pnpm workspace, TypeScript throughout, every package a real package with its own
 | path | package | what it is |
 | --- | --- | --- |
 | `packages/core` | `@rigline/core` | Node library: locate installed extensions, harvest identifier layers, generate types and runtime tables, inject and restore, discover plugins and bake the registry, run the install flow, watch for updates, hold the curated anchor table. Ships `dist/bundled` — the payload and the four first-party plugins (D71) — so it is what a published install injects from. The CLI and the companion both run it as a child process (D69, D80). |
-| `packages/cli` | `rigline` | The retrieval layer (D69): installs `@rigline/core` under `<RIGLINE_HOME>/engine`, spawns its `rigline-engine` bin, and forwards every verb but the two that are about acquiring bytes — `update` and the remote half of `add`. Answers `--version` itself. Depends on no Rigline package, and belongs in no project's dependencies. |
+| `packages/cli` | `rigline` | The retrieval layer (D69, D106): installs `@rigline/core` under `<RIGLINE_HOME>/engine`, spawns its `rigline-engine` bin, and forwards every verb; `update` moves the engine first. Answers `--version` itself, and says when a newer wrapper is out. Depends on no Rigline package, and belongs in no project's dependencies. |
 | `packages/host` | `@rigline/host` (private) | The injected runtime: `pre.js` (bus tap, buffer, rewrite chain, React devtools hook, meters) and `post.js` (kernel plus capability modules), and `runtime/`, the React plugins import (D87). |
 | `packages/plugin-api` | `@rigline/plugin-api` | What a plugin is written against: `PluginContext`, the manifest type and JSON schema, `definePlugin`, the anchor names, and the pure helpers shared by host and core (capability contracts, session rule, stream shape, transcript derivations). |
 | `packages/create-plugin` | `create-rigline-plugin` | The scaffold: `template/` as real files, copied and substituted. Published, and the only package here whose payload is not code. |
@@ -215,10 +215,9 @@ an update to them. Installing your own of the same name shadows one, which is th
 
 `add` resolves the version, refuses anything younger than the minimum release age unless `--now` is
 passed, fetches and integrity-checks the tarball, and extracts it — no package manager runs, because
-a plugin is one bundled ES module and a manifest (D47, D48). That half is the wrapper's: it vets the
-container and hands the engine a directory, and the engine vets the content and writes the source
-record into `sources.json` by kind, pinned version and integrity, which is what lets `update` fetch a
-newer one later (D49, D70, D74).
+a plugin is one bundled ES module and a manifest (D47, D48). The engine does all of it: it vets the
+container and the content, and writes the source record into `sources.json` by kind, pinned version
+and integrity, which is what lets `update` fetch a newer one later (D49, D70, D74, D106).
 
 Our own packages publish from CI: OIDC to npm so no credential sits in the repo, `npm stage publish`
 into a queue, a human approving with 2FA (D46). That is release hygiene for our packages and the
@@ -319,8 +318,9 @@ The bar a 1.0 release clears, agreed 2026-09-26; the working plan is `.local/pla
 - Reads: what a remote window does, and whether a reused row reports its previous message.
 - The reads under **Next session**, on the last alpha before 1.0.
 
-Done: the statement, VS Code alone, no console window, the macOS row, and unknown manifest keys
-refused. The wrapper change is next.
+Done: the statement, what the wrapper and the companion rely on, the wrapper change, VS Code alone,
+no console window, the macOS row, and unknown manifest keys refused. `ctx.style` is next, and its
+plan is waiting on Leo.
 
 ## Open questions
 
@@ -417,7 +417,9 @@ before a release does.
 `rigline.enginePath` unset, edit the layout in the panel and Save: the notification should say it
 saved, the panel should leave editing, and `~/.rigline/config.yaml` should hold the layout.
 
-**`rigline update`, then `rigline vscode-setup` once, on each machine.** The companions installed
+**`npm i -g rigline@latest`, `rigline update`, then `rigline vscode-setup` once, on each
+machine.** The new wrapper first, since an `alpha.12` wrapper's `add` from npm fails against a later
+engine (D106); its `update` should print the engine line and then hand off. The companions installed
 now predate self-update (D99) and sync; the one run makes them machine-scoped and able to follow the
 engine from then on, and puts one in every profile with Claude Code (D100).
 
@@ -527,3 +529,5 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
 - 2026-09-26: A manifest that does not hold refuses its plugin and only that plugin, and an unknown
   key refuses it (D12).
 - 2026-09-26: VS Code alone: the companion goes only where the engine injects.
+- 2026-09-26: The wrapper installs the engine and hands everything else to it (D106), and what the
+  wrapper and the companion rely on is written down in [architecture.md](architecture.md).

@@ -729,6 +729,9 @@ treating the shell as the substance. The price is duplication — `UserError` an
 rule are two files rather than one, each with a test holding the copies together — and it is
 cheaper than the dependency that would undo the split.
 
+**Amended by D106:** the wrapper owns installing the engine and nothing else. Its `update` moves the
+engine and hands the rest to the engine's own `update`, and `add` is forwarded whole.
+
 **D70. The wrapper vets the container; the engine vets the content (2026-09-21).** There is exactly
 one `add`, in the engine, and it takes a path. The wrapper's remote handling is a prefix that turns
 a spec into one: resolve, fetch, check integrity, apply the release-age gate, read the archive
@@ -744,6 +747,9 @@ without blocking the install (D27, D43).
 
 It is also what keeps an author's loop working with no wrapper anywhere: `add <path>` is an engine
 command, reachable from a workspace that depends only on `@rigline/core`.
+
+**Amended by D106:** the engine vets the container too. The split of judgement above stands; the
+remote half moved into the engine because the wrapper is the one that goes stale.
 
 **D73. The engine installs into `<RIGLINE_HOME>/engine` through npm, never globally, and is the only
 engine on the machine (2026-09-21).** `npm install --prefix <RIGLINE_HOME>/engine --save-exact
@@ -902,6 +908,10 @@ unrecognised entry with a line and carries on, where it used to throw. The wrapp
 newer than the engine — that is what an acquisition layer is for — so the first wrapper to write a
 new kind must not break `list` on every engine that predates it.
 
+**Amended by D106:** the premise reversed, since the companion keeps the engine current and nothing
+updates the wrapper. The engine writes every record itself, so nothing hands one in. The skip stays:
+an engine rolled back must still read what a newer one wrote.
+
 **D74. A plugin spec names its source; the manifest's `name` remains the identity; the engine owns
 `config.json` (2026-09-21).** `add` accepts a path, `npm:<name>[@<version|tag>]` and, when the
 deferred git work lands, a URL with an optional `#ref`. A bare name still means npm, as it always
@@ -914,6 +924,9 @@ one plugin, and D56's collision rule has one thing to compare.
 That is what makes `rigline-engine list --json` load-bearing rather than a convenience: `update`
 needs to know what it may move, and the wrapper asks instead of reading, because a second reader of
 that file is a second opinion about what is installed.
+
+**Amended by D106:** `update` is the engine's, which reads its own listing, so `list --json` is a
+person's again and nothing of Rigline's parses it.
 
 **D56. A plugin name is unique across discovery roots, first root wins, and `add` refuses to make a
 collision it cannot undo.** Discovery flattens its roots into one ordered list, so two directories
@@ -2233,10 +2246,9 @@ plugin, and an optional one is a gap. So an optional patch whose anchor Claude C
 companion reading *needs you* until an engine release repairs it, as a missing optional dependency
 already does. An unreadable token file joins *Needs you*, since a person has to delete it.
 
-`rigline update` injects once, at the end: it runs each plugin's `add` with `RIGLINE_DEFER_INJECT=1`,
-prints what moved, then runs `install` when anything did. An environment variable rather than a
-flag, because an engine that predates it ignores it and re-injects as before, where a flag would be
-refused by its strict `parseArgs`.
+`rigline update` injects once, at the end, after every plugin has moved and the moves are printed.
+It is the engine's own `update` since D106, which places each plugin in-process and needs no signal;
+before, the wrapper ran each plugin's `add` with `RIGLINE_DEFER_INJECT=1`.
 
 Rejected:
 
@@ -2568,3 +2580,61 @@ Rejected:
   `webview/index.js`, the two whose half-written state D81 exists to catch.
 - Electing one companion to react. That is a lock by another name, at a layer that covers only
   companions.
+
+**D106. The wrapper installs the engine and hands everything else to it (2026-09-26, Leo).** D70 put
+the remote half of `add` and all of `update` in the wrapper on D49's premise that "the wrapper is
+routinely newer than the engine". The companion reversed that. It moves the engine at every window
+start, so the engine is the one that stays current, while nothing updates the wrapper: `npm i -g
+rigline` puts one on disk and it stays, so a wrapper can be as old as the major. A wrapper can fall
+behind only in the verbs it does itself, where it was the engine's client — parsing `list --json`,
+handing `add` a source record, setting `RIGLINE_DEFER_INJECT` — and those were also where a new
+feature, such as a git source, would have needed a new wrapper. So it keeps none but installing the
+engine.
+
+- **`update`** moves the engine, prints what it did, and runs the engine's own `update` with every
+  other argument as typed. `--tag` is the wrapper's, and `--now` is read by both. The engine moves
+  each plugin from npm, adds the companion where it is missing (D100), and runs one install whether
+  or not anything moved: the wrapper may just have moved it, and an install that changes nothing
+  writes nothing. The exit code is the engine's, or 1 when the engine could not move.
+- **`add`** is forwarded whole. The engine resolves, applies the age gate, fetches, checks the
+  integrity hash, reads the archive through the reader that refuses (D57), stages it and adds it.
+- **The contract** between a wrapper and an engine is the package name, the `rigline-engine` bin in
+  its manifest, and argv. None of it needs to change within a major, so the 1.0.0 wrapper is the
+  shape for the whole of 1.x ([architecture.md](architecture.md)).
+- **The notice.** All four packages release together at one version (D60) and the engine on disk is
+  kept current, so an installed engine newer than the wrapper means a wrapper at the engine's version
+  exists. The wrapper already reads that manifest, so the check is a comparison: one line on stderr
+  before the engine starts, so the report's tail stays last (D98), and in `--version`. It is printed
+  and never run, and nothing asks the registry, since D69 keeps `--version` offline and D73 declines
+  background checks.
+- **An engine from before this** runs `update` as a refusal. A wrapper moves the engine first, so it
+  meets one only when that failed or `--tag` named an older line, and then it says so and exits 1.
+  The test is a version: older than the wrapper, and at or below `1.0.0-alpha.12`. The first half is
+  there because a build between releases carries the last release's version.
+- **Removed:** `add --source` and `RIGLINE_DEFER_INJECT`, which existed only for a wrapper that
+  fetches, so an alpha wrapper's `update` and its `add` from npm fail on `--source`.
+  `companion-profiles` stays, for the companion, and `list --json` stays as a person's.
+
+Costs. The registry resolve and the age gate exist twice, the engine's for plugins in
+`packages/core/src/plugins/npm.ts` and the wrapper's for the engine in `packages/cli/src/registry.ts`,
+held together by a test that feeds both the same packuments. The engine reaches the network on `add`
+and `update`, both of which a person asked for. A change to plugin fetching ships on the engine's
+cadence, which the companion applies at the next window start once the release is a day old, so
+fixes arrive sooner and so do regressions — the trade the engine already makes for injection, which
+is the riskier code. Not a cost: the split was never a privilege boundary. Both run as the same user,
+and what protects a machine from a hostile tarball is the reader's refusals, which moved intact.
+
+This amends D69, whose wrapper owned `update` and the remote half of `add`; D70, whose container is
+now the engine's to vet too; D49's amendment, whose premise this reverses; D74, where `list --json`
+is no longer load-bearing; and D98, whose `RIGLINE_DEFER_INJECT` is gone.
+
+Rejected:
+
+- A minimum wrapper version in the engine's manifest, which `update` would read before downloading.
+  Sound, and unneeded once the wrapper is nobody's client; it is the answer only if the wrapper grows
+  work of its own again. The companion must never apply one: it would compare its own version, which
+  moves only by self-update from the engine it would be refusing (D99).
+- The companion updating the wrapper. The global prefix is the person's, and every reason D73 put the
+  engine under `RIGLINE_HOME` returns: rights to write there, which package manager installed it,
+  and a volta or pnpm shim shadowing a second copy on `PATH`. It would also be the one write the
+  companion makes outside Rigline's home and its own directory.

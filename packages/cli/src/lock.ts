@@ -6,10 +6,10 @@
  * acquire, and two npm installs interleaving into one prefix is how `engine` ends up in the state
  * the wrapper's README already tells people to delete.
  *
- * The whole home rather than the engine directory, because `update` moves plugins in the same run
- * and those collide the same way. Injection takes a lock of its own in the engine, `inject.lock`,
- * with these rules copied into `packages/core/src/inject/lock.ts` (D105): sharing this one would
- * make an injection wait on a download.
+ * At the home's root, and there for good: every wrapper and companion of a major must find the same
+ * file (D106). Injection takes a lock of its own in the engine, `inject.lock`, with these rules
+ * copied into `packages/core/src/inject/lock.ts` (D105): sharing this one would make an injection
+ * wait on a download.
  *
  * `wx` is the primitive. Exclusive create is atomic on both platforms and needs no dependency, and
  * it is what decides a stolen lock too: a stealer unlinks and then races for `wx` like everybody

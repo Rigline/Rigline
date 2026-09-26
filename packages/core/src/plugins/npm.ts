@@ -1,14 +1,22 @@
 /**
- * Resolving the engine's version against an npm registry, and the release-age gate that decides
- * whether `update` takes it (decisions.md, D48, D58, D73).
+ * Talking to an npm registry: resolve a version, fetch its tarball, check the bytes are the ones
+ * the registry said (decisions.md, D47, D48, D49, D58).
  *
- * The engine keeps its own copy for plugins, with the fetch and the integrity check besides, in
- * `packages/core/src/plugins/npm.ts`, because the wrapper depends on no Rigline package (D69, D106).
+ * It resolves and it fetches, and that is all. No package manager runs, no dependency is resolved,
+ * no lifecycle script exists to be declined, because a plugin is one bundled ES module and a
+ * manifest with nothing left to install (D47). What this module is careful about is the two things
+ * that are actually at stake: that the version taken is one the maintainer is recommending and has
+ * been long enough to have been noticed (D48), and that the bytes unpacked are the bytes the
+ * registry served.
  *
  * `fetchImpl` is injected because no test here touches the network. The default is the platform's
  * own `fetch`.
+ *
+ * The wrapper resolves the engine with its own copy of `resolveVersion` and `releaseAgeProblem`, in
+ * `packages/cli/src/registry.ts`, because it depends on no Rigline package (D69, D106).
  */
-import { UserError } from "./errors.ts";
+import { createHash } from "node:crypto";
+import { UserError } from "../errors.ts";
 
 export const DEFAULT_REGISTRY = "https://registry.npmjs.org";
 
@@ -66,6 +74,27 @@ export interface ResolvedVersion {
   readonly ageMinutes: number | null;
 }
 
+/**
+ * `clock`, `@scope/clock`, `clock@1.2.0`, `clock@next`.
+ *
+ * A version is told from a tag by looking like one, which is the whole of the rule because there
+ * are no ranges to disambiguate from (D58). Anything that is not `1.2.3`-shaped is a tag, and a tag
+ * the registry has not got is a refusal naming the tags it has.
+ */
+export function parsePluginSpec(spec: string): PluginSpec {
+  const at = spec.lastIndexOf("@");
+  const scoped = spec.startsWith("@");
+  if (at <= 0 || (scoped && at === 0)) {
+    return { name: spec, version: null, tag: null };
+  }
+  const name = spec.slice(0, at);
+  const rest = spec.slice(at + 1);
+  if (rest.length === 0) return { name, version: null, tag: null };
+  return /^\d+\.\d+\.\d+(?:[-+].*)?$/.test(rest)
+    ? { name, version: rest, tag: null }
+    : { name, version: null, tag: rest };
+}
+
 /** The version this spec names today, and where to get it. Consults the registry; writes nothing. */
 export async function resolveVersion(
   spec: PluginSpec,
@@ -98,6 +127,46 @@ export async function resolveVersion(
     integrity: integrityOf(release, `${spec.name}@${version}`),
     ageMinutes,
   };
+}
+
+/**
+ * The tarball's bytes, having checked them against `integrity`.
+ *
+ * The check says the bytes are the ones the registry served and nothing more (D49). It is hygiene,
+ * not a judgement about the plugin: what a plugin may do is what its manifest declares, and
+ * installing it is the act that says yes to that (D26).
+ */
+export async function fetchTarball(
+  resolved: ResolvedVersion,
+  options: RegistryOptions = {},
+): Promise<Buffer> {
+  const response = await request(resolved.tarball, options);
+  const bytes = Buffer.from(await response.arrayBuffer());
+  const problem = integrityProblem(bytes, resolved.integrity);
+  if (problem !== null) {
+    throw new UserError(
+      `${resolved.name}@${resolved.version} from ${resolved.tarball} ${problem}. ` +
+        "Nothing was written.",
+    );
+  }
+  return bytes;
+}
+
+/** Why `bytes` are not what `integrity` describes, or null. Accepts any digest node supports. */
+export function integrityProblem(bytes: Buffer, integrity: string): string | null {
+  const dash = integrity.indexOf("-");
+  if (dash <= 0) return `has an integrity string this cannot read ("${integrity}")`;
+  const algorithm = integrity.slice(0, dash);
+  const expected = integrity.slice(dash + 1);
+  let actual: string;
+  try {
+    actual = createHash(algorithm).update(bytes).digest("base64");
+  } catch {
+    return `names a digest this cannot compute ("${algorithm}")`;
+  }
+  return actual === expected
+    ? null
+    : `does not match its recorded integrity (${algorithm}-${actual} against ${integrity})`;
 }
 
 /**

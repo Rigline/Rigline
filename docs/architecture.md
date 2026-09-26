@@ -47,8 +47,8 @@ each host patch is carried into `registry.js` rather than derived: nothing in a 
 | path | package | what it is |
 | --- | --- | --- |
 | `packages/plugin-api` | `@rigline/plugin-api` | The shared vocabulary: `PluginContext`, the manifest type and its JSON schema, the anchor names and specs, the capability *contracts*, and the pure derivations (session rule, stream shape, transcript join). Pure data and pure functions, so both machines import it. Its `/ui` subpath is the React half, which the panel serves and core never imports (D87). |
-| `packages/core` | `@rigline/core` | The engine. Node: locate, harvest, codegen, inject, restore, discover, bake, the install flow, the anchor table, the plugin manager, and every command but `update`, behind the bin `rigline-engine`. Also ships the assets — see below. |
-| `packages/cli` | `rigline` | The retrieval layer (D69). It installs the engine under `~/.rigline/engine`, spawns it, owns `update` and the remote half of `add`, and forwards the rest. Depends on no Rigline package. |
+| `packages/core` | `@rigline/core` | The engine. Node: locate, harvest, codegen, inject, restore, discover, bake, the install flow, the anchor table, the plugin manager with its npm fetch, and every command, behind the bin `rigline-engine`. Also ships the assets — see below. |
+| `packages/cli` | `rigline` | The retrieval layer (D69, D106). It installs the engine under `~/.rigline/engine` and runs it: `update` moves the engine and hands the rest to it, and every other verb is forwarded. Depends on no Rigline package. |
 | `packages/host` | `@rigline/host` (private) | The injected runtime: `pre.js`, `post.js`, and `runtime/` (D87). |
 | `packages/create-plugin` | `create-rigline-plugin` | The scaffold, as real files under `template/`. |
 | `packages/vscode` | `@rigline/vscode` (private) | The companion extension: a second retrieval layer that acquires the engine and spawns it when an extension update lands (D80). Built to `rigline.vsix`. |
@@ -150,29 +150,60 @@ working extension.
 
 ## The update pipeline
 
-`rigline update` is the wrapper's (D69), and its order is the engine first, so the new engine does
-the placing and the injecting:
+`rigline update` is two halves in two processes, the engine first, so the new engine does the
+placing and the injecting (D106). The wrapper's half:
 
 1. Resolve `@rigline/core`'s tag and install it into `<RIGLINE_HOME>/engine` only if the version
    differs. The release-age gate applies unless no engine is installed yet (D48), and a failed
    resolution is reported while the run carries on with the engine it has.
-2. Resolve each recorded plugin source, and fetch, vet and stage the ones that moved; the engine
-   `add`s each without injecting, under `RIGLINE_DEFER_INJECT` (D70, D98).
-3. Add the companion to every VS Code profile that has Claude Code without it, through the engine's
-   `companion-profiles` (D100).
-4. If the engine or any plugin moved, run one `install`, or the payload on disk stays the previous
-   engine's (D75).
+2. Run that engine's `update` with every argument but `--tag`.
+
+The engine's half, which is all `pnpm rigline update` does in a checkout:
+
+3. Resolve each recorded plugin source, and fetch, vet and place the ones that moved (D70).
+4. Add the companion to every VS Code profile that has Claude Code without it (D100).
+5. Run one `install`, whether or not anything moved, so the payload on disk is this engine's (D75).
 
 The companion does step 1 and then an `install` on every activation and every arriving Claude Code
 version. It then updates itself from the VSIX that engine carries (D99), and adds itself to its own
 editor's profiles that lack it (D100) ([companion.md](companion.md)).
 
-**There is no designed protocol between the wrapper, the companion and the engine yet.** They talk
-through the engine's verbs and exit codes, `RIGLINE_DEFER_INJECT` (D98), and JSON answers
-(`companion-status`, D99; `companion-profiles`, D100; and the Save link's payload, D93), each added
-where one was needed. The aim
-is that everything runs current versions, which `update` and the companion's self-update keep it at,
-not that each side tolerates the other's age. Designing it is an open question in [plan.md](plan.md).
+## What the retrieval layers rely on
+
+The wrapper and the companion run engines of other ages. Nothing updates the wrapper, and the
+companion carries its acquisition frozen in a VSIX until it next updates itself (D99). So what each
+relies on in an engine holds for a whole major, and [stability.md](stability.md) promises it to a
+user; changing any of it is a 2.0. Everything else between them may change in any release.
+
+**The wrapper** relies on:
+
+- the package name `@rigline/core`, installed with npm into `<RIGLINE_HOME>/engine` (D73);
+- `bin["rigline-engine"]` in that package's manifest for the entry, and its `version` for the major
+  gate and the notice that a newer wrapper is out;
+- argv, passed as typed, and the exit code passed back;
+- `update` meaning the rest of an update once the engine has moved, taking every argument the
+  wrapper's does but `--tag`.
+
+It reads nothing the engine prints and holds no verb list, so a verb an engine adds reaches a 1.0
+wrapper with no wrapper release.
+
+**The companion** relies on the same acquisition, since it bundles the wrapper's `engine.ts` (D80),
+and on:
+
+- `install`, whose exit code says only whether a person is wanted: what the window needs is decided
+  from the bytes (D82);
+- `companion-status PATH`, whose answer never changes within a major, since it is how an old
+  companion becomes a new one (D99);
+- `companion-profiles` and its four flags (D100). Its JSON carries `v: 1`, and a companion ignores a
+  `v` it does not know, so a new shape costs an old companion one look before it updates itself;
+- `list`, piped to a person, and `layout save PAYLOAD`, whose first line is its outcome and begins
+  `rigline: ` when it refused (D93). The payload carries a version of its own, which the engine
+  checks and the companion never reads.
+
+**Between them**, every wrapper and companion of a major takes the lock at `<RIGLINE_HOME>/.lock`
+around an engine install (D80), and finds `RIGLINE_HOME` by the engine's rule, which the wrapper
+copies and the companion bundles (D69). Neither relies on the wording of a report, on `list --json`,
+or on any file under `RIGLINE_HOME` but the engine's manifest.
 
 ## The boot pipeline
 

@@ -6,10 +6,10 @@
  * forwards every verb it does not own; and as `rigline-engine`, the bin core carries, which is what
  * the wrapper spawns and is not a surface anybody is asked to type.
  *
- * So the usage documents the whole `rigline` command rather than this file's `switch`, `update`
- * included — a person reading it wants the verbs they can type, not the boundary between two
- * packages. `update` is the one verb here that refuses rather than runs: an engine cannot replace
- * the package it is running out of, which is the whole reason there is a wrapper (D69).
+ * So the usage documents the whole `rigline` command rather than this file's `switch` — a person
+ * reading it wants the verbs they can type, not the boundary between two packages. `update` is
+ * documented whole though this file does only its second half: an engine cannot replace the package
+ * it is running out of, so the wrapper moves the engine first and then runs this one (D69, D106).
  *
  * Every command throws `UserError` for a problem a person must fix and lets anything else propagate
  * with its stack, so a bug is never dressed up as advice.
@@ -23,6 +23,7 @@ import { placementLabel, placeName } from "@rigline/plugin-api";
 import {
   type Additions,
   type AddResult,
+  addFromNpm,
   addPlugin,
   addToList,
   addWhereMissing,
@@ -37,6 +38,7 @@ import {
   collect,
   companionStatus,
   companionVsix,
+  describeSource,
   diffScans,
   discoverPlugins,
   type EditorCli,
@@ -55,6 +57,7 @@ import {
   formatLayout,
   formatPlugins,
   formatSetup,
+  formatUpdates,
   type Generated,
   generate,
   harvestAll,
@@ -66,9 +69,11 @@ import {
   installedExtensions,
   listPlugins,
   orderInLayout,
-  parseSource,
+  type Placement,
+  type PluginListing,
   parseWhere,
   placeInLayout,
+  type RiglinePaths,
   readAnchorOverrides,
   readBundles,
   readCompanionSettings,
@@ -86,15 +91,13 @@ import {
   splitLegacyConfig,
   UserError,
   update,
+  updatePlugins,
   verdict,
   viewLayout,
   watch,
   withInjectionLock,
 } from "../index.ts";
 import { buildPlugin } from "./build.ts";
-
-/** Set by the wrapper's `update` on each `add`, so the plugins move first and inject once (D98). */
-const DEFER_INJECT = "RIGLINE_DEFER_INJECT";
 
 /** A wait on the injection lock goes to stderr, so stdout stays the report (D105). */
 const lockWait: InjectionLockOptions = {
@@ -309,47 +312,47 @@ function reinject(options: ReinjectOptions = {}): number {
 }
 
 /**
- * Installs a plugin from a directory. No network and no package manager (D47): a plugin is a
+ * Installs a plugin from a directory or from npm. No package manager runs (D47): a plugin is a
  * manifest and a built module, and everything `add` does is around the copy rather than inside it.
- *
- * What it can do is printed because this is the moment it means something (D26): installing a
- * plugin is the act that says yes, and nothing after it asks again, so the sentences belong here
- * rather than in a prompt nobody can answer usefully.
  */
-function addCommand(args: string[]): number {
+async function addCommand(args: string[]): Promise<number> {
   const { values, positionals } = parseArgs({
     args,
-    options: { source: { type: "string" } },
+    options: { now: { type: "boolean", default: false } },
     allowPositionals: true,
   });
-  if (positionals.length !== 1) throw new UserError("add needs exactly one plugin directory");
-
-  const from = positionals[0] as string;
-  if (!isPathSpec(from)) {
-    // Reached only by somebody running `rigline-engine` directly, because the wrapper turns a spec
-    // into a path before it gets here (D70). Saying which command owns the other half beats
-    // "no such directory" about a string that was never meant to be one.
-    throw new UserError(
-      `"${from}" is not a directory. The engine's \`add\` takes a path; \`rigline add ${from}\` ` +
-        "is what fetches, checks and stages a published plugin before handing it over.",
-    );
+  if (positionals.length !== 1) {
+    throw new UserError("add needs exactly one plugin directory or npm package");
   }
 
+  const spec = positionals[0] as string;
   const paths = riglinePaths();
-  const result: AddResult = addPlugin({
-    from,
+  const add = placement(paths);
+  const result = isPathSpec(spec)
+    ? addPlugin({ from: spec, ...add })
+    : await addFromNpm(spec, { add, registry: { ignoreReleaseAge: values.now } });
+  reportAdded(result, paths.config);
+  console.log("");
+  return reinject();
+}
+
+/** Where `add` puts a plugin, and the roots it must not take a name from (D56). */
+function placement(paths: RiglinePaths): Placement {
+  return {
     pluginsDir: paths.plugins,
     configPath: paths.config,
     sourcesPath: paths.sources,
     ...foreignRoots(),
-    // Where the bytes came from, when somebody other than this command established it (D74). The
-    // wrapper passes what it resolved; a person pointing at a directory passes nothing and gets a
-    // `path` source.
-    ...(values.source === undefined ? {} : { source: parseSource(values.source) }),
-  });
+  };
+}
 
+/**
+ * What a plugin just added can do, printed because this is the moment it means something (D26):
+ * installing a plugin is the act that says yes, and nothing after it asks again.
+ */
+function reportAdded(result: AddResult, configPath: string): void {
   console.log(`${result.replaced ? "replaced" : "added"} ${result.name} — ${result.dir}`);
-  console.log(`  from ${result.from}`);
+  console.log(`  from ${describeSource(result.source)}`);
   // The moment it means something. `~/.rigline/plugins` outranks the bundled set, so this plugin
   // has just taken a first-party name and the copy inside the engine will not load while it is
   // here — which is the point of being allowed to do it, and worth saying out loud once (D71).
@@ -365,7 +368,7 @@ function addCommand(args: string[]): number {
   }
   if (result.disabled) {
     console.log(
-      `  "${result.name}" is switched off in ${paths.config}, so it will not load until you remove it from "disabled"`,
+      `  "${result.name}" is switched off in ${configPath}, so it will not load until you remove it from "disabled"`,
     );
   }
   // `add` is the one command that installs somebody's judgement rather than ours, including the
@@ -376,10 +379,6 @@ function addCommand(args: string[]): number {
   console.log(
     "  apply to what it does — https://github.com/Rigline/Rigline/blob/main/docs/plugin-policy.md",
   );
-  // `rigline update` injects once, after every plugin has moved (D98).
-  if (process.env[DEFER_INJECT] === "1") return 0;
-  console.log("");
-  return reinject();
 }
 
 /**
@@ -396,16 +395,35 @@ function isPathSpec(spec: string): boolean {
 }
 
 /**
- * Refuses, and says which command owns it (D69).
+ * Everything `update` does after the wrapper has moved the engine (D106): each plugin from npm to
+ * what its tag resolves to, the companion wherever it is missing (D100), then one install (D98).
  *
- * A process cannot replace the package it is running out of, so `update` belongs to the wrapper
- * above this one. Reachable only by running `rigline-engine` directly.
+ * The install runs whether or not anything moved here, since the wrapper may just have moved this
+ * engine, and an install that changes nothing writes nothing (D75).
  */
-function updateCommand(): number {
-  throw new UserError(
-    "`update` belongs to the rigline command, not the engine: it replaces this engine, and a " +
-      "process cannot replace what it is running out of. Run `rigline update`.",
-  );
+async function updateCommand(args: string[]): Promise<number> {
+  const { values, positionals } = parseArgs({
+    args,
+    options: { now: { type: "boolean", default: false } },
+    allowPositionals: true,
+  });
+  const paths = riglinePaths();
+  const updates = await updatePlugins({
+    listed: listing(paths),
+    add: placement(paths),
+    registry: { ignoreReleaseAge: values.now },
+    ...(positionals.length > 0 ? { names: positionals } : {}),
+    onAdded: (result) => {
+      reportAdded(result, paths.config);
+      console.log("");
+    },
+  });
+  console.log(formatUpdates(updates));
+  for (const line of (await companionAdditions({})).lines) console.log(line);
+
+  console.log("");
+  const injected = reinject();
+  return updates.some((u) => u.outcome === "failed") || injected !== 0 ? 1 : 0;
 }
 
 /**
@@ -552,12 +570,9 @@ function installCommand(args: string[]): number {
 }
 
 /** The same roots `pluginOptions` discovers from, named for a report rather than for a loader. */
-function listCommand(args: string[]): number {
-  const { values } = parseArgs({ args, options: { json: { type: "boolean", default: false } } });
-  const paths = riglinePaths();
+function listing(paths: RiglinePaths, refuse?: (line: string) => void): PluginListing[] {
   const checkout = checkoutPluginsDir();
-  const unloaded: string[] = [];
-  const listings = listPlugins({
+  return listPlugins({
     roots: [
       ...(checkout === null ? [] : [{ label: "this checkout", path: checkout }]),
       { label: paths.plugins, path: paths.plugins, managed: true },
@@ -566,10 +581,14 @@ function listCommand(args: string[]): number {
     last: ["probe"],
     configPath: paths.config,
     sourcesPath: paths.sources,
-    refuse: (line) => unloaded.push(line),
+    ...(refuse === undefined ? {} : { refuse }),
   });
-  // `--json` is how the wrapper learns what `update` can move: `sources.json` is the engine's, so
-  // the wrapper asks rather than reads (D74).
+}
+
+function listCommand(args: string[]): number {
+  const { values } = parseArgs({ args, options: { json: { type: "boolean", default: false } } });
+  const unloaded: string[] = [];
+  const listings = listing(riglinePaths(), (line) => unloaded.push(line));
   console.log(values.json ? JSON.stringify(listings) : formatPlugins(listings));
   // On stderr, so `--json` stays data. `check` is what exits 1 for it.
   for (const line of unloaded) console.error(line);
@@ -670,8 +689,7 @@ async function runEditor(
 
 /**
  * `companion-profiles`: adds the companion wherever it is missing, as JSON on stdout (D100). Hidden,
- * like `companion-status`. The companion names its own editor exactly; with nothing named, every
- * editor on PATH, where `editorDirs` finds them.
+ * like `companion-status`. The companion names its own editor exactly.
  */
 async function companionProfilesCommand(args: string[]): Promise<number> {
   const { values } = parseArgs({
@@ -684,9 +702,21 @@ async function companionProfilesCommand(args: string[]): Promise<number> {
     },
     allowPositionals: false,
   });
-  let answer: Additions;
+  console.log(JSON.stringify(await companionAdditions(values)));
+  return 0;
+}
+
+interface EditorNamed {
+  "user-data-dir"?: string | undefined;
+  "extensions-dir"?: string | undefined;
+  "cli-node"?: string | undefined;
+  "cli-script"?: string | undefined;
+}
+
+/** The companion added wherever it is missing, in the editor named, or with none every one on PATH. */
+async function companionAdditions(values: EditorNamed): Promise<Additions> {
   try {
-    answer = await addWhereMissing({
+    return await addWhereMissing({
       contexts: additionContexts(values),
       settings: readCompanionSettings(riglinePaths().config),
       carried: carriedCompanion(),
@@ -694,18 +724,11 @@ async function companionProfilesCommand(args: string[]): Promise<number> {
     });
   } catch (error) {
     if (!(error instanceof UserError)) throw error;
-    answer = { v: 1, lines: [`added the companion to no profile: ${error.message}`], failed: true };
+    return { v: 1, lines: [`added the companion to no profile: ${error.message}`], failed: true };
   }
-  console.log(JSON.stringify(answer));
-  return 0;
 }
 
-function additionContexts(values: {
-  "user-data-dir"?: string | undefined;
-  "extensions-dir"?: string | undefined;
-  "cli-node"?: string | undefined;
-  "cli-script"?: string | undefined;
-}): EditorContext[] {
+function additionContexts(values: EditorNamed): EditorContext[] {
   const {
     "user-data-dir": userData,
     "extensions-dir": extensionsDir,
@@ -1099,6 +1122,7 @@ const SETTINGS_VERBS = new Set([
   "watch",
   "dev",
   "add",
+  "update",
   "remove",
   "disable",
   "enable",
@@ -1138,7 +1162,7 @@ async function main(argv: string[]): Promise<number> {
     case "add":
       return addCommand(rest);
     case "update":
-      return updateCommand();
+      return updateCommand(rest);
     case "remove":
       return removeCommand(rest);
     case "disable":
