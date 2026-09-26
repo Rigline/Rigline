@@ -1519,9 +1519,12 @@ Recording the new path before reacting would make the next poll see no change an
 silence, which is the failure the whole milestone is against; so the watcher commits the path it has
 seen only once the move has actually been dealt with.
 
-Whether VS Code writes to a temporary directory and renames it into place — which would make all of
-this unnecessary — is deliberately not assumed either way. The cost of defending is a few seconds on
-an event that happens weekly; the cost of being wrong is a backup nobody can trust.
+**VS Code renames an extension into place (amended 2026-09-26).** `extractUserExtension` in its
+`extensionManagementService.ts` extracts into `.<uuid>` beside the installed extensions and renames
+that to the final name, read on VS Code's `main`. Rigline reads only `anthropic.claude-code-*`
+directories, so it never sees VS Code's own write in progress. The defences stay, as a few seconds a
+week against a writer nobody has seen: another tool editing Claude Code's bundles in place, or an
+engine under another `RIGLINE_HOME` (D105).
 
 **The same exposure exists in the CLI's watcher and in `install` itself**, where a person can run
 either mid-update. `install` now refuses a directory that is not finished — every file present and
@@ -1833,6 +1836,12 @@ sampling a directory it has been told changed, where the write may not have star
 sampling one it is about to write into, where the only question is whether a write is in flight now.
 It is paid by every install, so `install` takes `wholeness` and the flow passes it down — the seam
 that keeps the test suite from paying it forty times over.
+
+**The sample can miss a write in flight on Windows (amended 2026-09-26).** Under Node 26, `statSync`
+by path has gone on reporting a file's previous size and mtime while another process rewrote it,
+where `fstatSync` on an open handle showed it truncated. It is kept as it is, because the writers it
+could miss are accounted for: VS Code renames into place (D81) and engines take a lock (D105).
+Sampling through a handle, or sampling the bytes themselves, is deferred in plan.md with its trigger.
 
 **D87. The panel serves one React to plugins, and `install` points a plugin's imports at it
 (2026-09-23).** `react`, `react/jsx-runtime`, `react-dom` and `@rigline/plugin-api/ui` are built
@@ -2508,7 +2517,7 @@ file's previous size and mtime while another process was part-way through rewrit
 sample can pass during the other engine's write. The first injection of a version rewrites
 `webview/index.js`, and an engine that reads it half-written after the other has made the backup
 takes D81's branch for a live bundle unrelated to its backup: the fragment becomes `index.js.orig`.
-The lock rules that out between engines. The lag itself is an open question in plan.md.
+The lock rules that out between engines. The lag itself is deferred in plan.md (D83).
 
 So the engine holds `<RIGLINE_HOME>/inject.lock` across every run that injects, checks or restores.
 

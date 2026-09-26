@@ -94,6 +94,12 @@ that blocking a thread is a thing one does not do. That objection is about a pro
 else to do. The engine is spawned per command, does one job and exits; the companion only ever sees
 it as a child that took a quarter of a second longer. There is no event loop here to starve.
 
+**It has a known blind spot on Windows** (D83): a stat by path can report a file's previous size and
+mtime while another process is rewriting it, so the sample can pass mid-write. It stands because the
+writers are accounted for: VS Code extracts into a temporary directory and renames it into place
+(D81), and Rigline's engines take a lock (D105). A handle-based sample waits in plan.md's deferred
+list for a writer somebody has actually seen.
+
 A quarter of a second, not the companion's two. The companion is sampling a directory it has been
 told changed, where the write may not have started; this is sampling one it is about to write into,
 where the question is only whether a write is in flight *now* — and a file being streamed onto disk

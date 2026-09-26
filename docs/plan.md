@@ -304,10 +304,24 @@ buttons (D97). [host.md](host.md) and [architecture.md](architecture.md) are the
 owed: a Save through a released engine, since every save so far ran this checkout's engine through
 `rigline.enginePath`.
 
+## 1.0 — in progress
+
+The bar a 1.0 release clears, agreed 2026-09-26; the working plan is `.local/plans/1.0-bar.md`.
+
+- A written statement of what 1.x holds stable, and of what the wrapper and the companion rely on.
+- The wrapper installs the engine and forwards everything else, `update` and `add` included, so its
+  contract with an engine is the package, the bin and argv. It says when it is behind, offline.
+- `ctx.style` refuses a selector naming a class the plugin did not declare.
+- VS Code alone: the companion goes only where the engine injects, and says so anywhere else.
+- No console window when the companion runs Rigline.
+- One macOS row in CI, and a live run on a Mac.
+- Reads: what a remote window does, and whether a reused row reports its previous message.
+- The reads under **Next session**, on the last alpha before 1.0.
+
 ## Open questions
 
-The work after milestone 8. None of it is planned yet, and each wants a decision before anything is
-built. The first two change what a plugin is written against.
+None of these is planned yet, and each wants a decision before anything is built. The first changes
+what a plugin is written against.
 
 - **Whether a plugin may have the resolved selector**, as `ctx.selector(name)`. `ctx.anchor()` hands
   back a bare class, which serves the two uses D7 names — borrowing a class for your own markup, and
@@ -316,21 +330,11 @@ built. The first two change what a plugin is written against.
   but not taken, because it is the first plugin-facing API that hands over something version-derived
   and composable. Until it is settled the authoring guide says: scope a rule to something you
   placed, never to an anchor's bare class.
-- **Whether `ctx.style` refuses a selector naming a class the plugin did not declare, or only
-  lints.**
 - **Anchor governance** (D44): who may add to the table, and what evidence an entry needs. Half of
   the promotion path exists already: an override whose anchor this version resolves without it is
   reported as changing nothing, which is the signal that the shipped table has caught up and the
   entry can go. What is missing is the other end — how an entry gets into the shipped table, and on
   whose say-so.
-- **Whether macOS has to be run before 1.0.** Nothing has run there: CI is Linux and one Windows row
-  ([ci.md](ci.md)), and every live read has been on Windows.
-- **What 1.0 needs.** This plan names milestones, not the bar a 1.0 release has to clear.
-- **The protocol between the wrapper, the companion and the engine.** It was never designed: verbs
-  and exit codes, `RIGLINE_DEFER_INJECT` (D98), `companion-status` (D99), `companion-profiles`
-  (D100) and the Save link (D93), each added where one was needed. The aim is that everything runs
-  current versions, which `update` and the companion's self-update keep it at, not two-way
-  compatibility paid for in flexibility.
 - **Whether a reused row can report its previous message.** React writes an element's
   `__reactFiber$` property when it creates the element, and never on update. It rewrites
   `__reactProps$` on every update. So after an update, the fiber there can be the alternate, whose
@@ -338,17 +342,24 @@ built. The first two change what a plugin is written against.
   (rows are keyed by index) could then report the old message's identity until the fiber flips
   back. `findFiberByHostInstance` returned the same object, so D103 neither caused this nor fixed
   it. This comes from reading the source, not from an observation. A harness case that splices the
-  list would show whether it is real.
-- **Whether the stability sample (D83) should stat through a handle.** Read on this Windows 11
-  machine under Node 26: while one process rewrote a 3 MB `.js` file, each rewrite taking about
-  270 ms (Defender scanning on close, it seems), `statSync` by path kept reporting the previous
-  size and mtime while `fstatSync` on an open handle showed the file truncated to 0. So the sample
-  can pass while a write is in flight, and the read after it then takes a fragment. D105's lock
-  keeps Rigline's own engines from racing, which is where it bit; VS Code's extraction still can.
-  The candidate is `openSync` and `fstatSync` in `stampOf`. First read whether libuv's by-path stat
-  is the lag, and whether a handle opened during VS Code's write is itself harmless.
+  list would show whether it is real. The read is on the 1.0 bar.
 
 ## Deferred, with triggers
+
+- **A stability sample that sees a write in flight** (D83). On Windows a stat by path can report a
+  file's previous size and mtime mid-rewrite, so the sample can pass during a write; the writers it
+  could miss are accounted for (D81, D105). Triggered by a backup reported as not whole, or a tool
+  found writing Claude Code's bundles in place. The candidates are `fstatSync` on a handle in
+  `stampOf`, or reading the bytes twice and handing those to the backup and the harvest. First read
+  which call libuv makes for a by-path stat on Windows, and whether a handle held during another
+  process's write, rename or delete is harmless to it.
+- **Editors other than VS Code.** 1.0 injects `~/.vscode/extensions` alone. The companion knows its
+  own extensions directory, so the engine taking one is where it starts; a baseline per editor is
+  the design.
+- **Adding and updating plugins through the companion**, which the wrapper handing plugin work to the
+  engine makes possible. A palette command runs the engine's `add` as Show Plugins runs `list`; it
+  moves D84. Never from the panel: any plugin can read the Save link's token (D93), so an add behind
+  it would let one plugin install another. Triggered by the first third-party plugin with users.
 
 - **Per-plugin settings.** time-marks keeps its toggle in `localStorage`, which is right for a value
   only the panel cares about. A `ctx.settings` API earns its place when a value must be editable from
@@ -387,10 +398,11 @@ built. The first two change what a plugin is written against.
 
 ## Next session
 
-`1.0.0-alpha.12` is the newest on `latest`, and `main` has nothing unreleased. The open questions
-above are the next work.
+`1.0.0-alpha.12` is the newest on `latest`. The next work is the 1.0 bar above, in the order its
+working plan gives.
 
-The reads below are owed and deferred: exercise each when it comes up, not as a gate.
+The reads below gate 1.0. Each is read on the last alpha before it, through a released engine,
+because the bar changes the paths they cover; exercise them earlier as they come up as well.
 
 **One engine injects at a time (D105)**, on the next Claude Code update with two windows open: both
 companions should reach *ready to restart*, and one output channel should show `rigline: waiting for
@@ -503,3 +515,6 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
 - 2026-09-25: One engine injects at a time: `inject.lock` (D105).
 - 2026-09-26: `1.0.0-alpha.12`: the report, the companion's self-update and profiles, and D101 to
   D105.
+- 2026-09-26: The companion adding itself to a profile (D100) read live through a released engine.
+- 2026-09-26: The 1.0 bar agreed; VS Code renames an extension into place, so the stability sample's
+  blind spot is deferred (D81, D83).
