@@ -27,10 +27,12 @@ jobs:
         # 22.12.0 exactly: it is the `engines` floor the published packages declare, and a floor
         # is a claim rather than a sample (D59). Moving it moves six manifests with it.
         node: ["22.12.0", "24", "26"]
-        # Windows at the Linux floor's own version, so one variable separates those two jobs
-        # (D59). Windows at 26 is what this is developed on and needs no runner.
+        # Windows and macOS at the Linux floor's own version, so one variable separates each from
+        # its Linux job (D59). Windows at 26 is what this is developed on and needs no runner.
         include:
           - os: windows-latest
+            node: "22.12.0"
+          - os: macos-latest
             node: "22.12.0"
     steps:
       - uses: actions/checkout@v7

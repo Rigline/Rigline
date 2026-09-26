@@ -341,9 +341,9 @@ it is one of the few things a CI run proves as fully as a local one.
 ## In CI, and what it cannot reach
 
 `.github/workflows/ci.yml` runs `lint`, `typecheck`, `build` and `test` on every push to `main` and
-every pull request, on Node 22.12.0, 24 and 26, and once more on Windows at 22.12.0 (D59). The
-release workflow runs the same four steps again before it stages anything, so nothing reaches npm
-that a pull request would not already have failed on.
+every pull request, on Node 22.12.0, 24 and 26, and once each on Windows and macOS at 22.12.0
+(D59). The release workflow runs the same four steps again before it stages anything, so nothing
+reaches npm that a pull request would not already have failed on.
 
 What CI cannot reach is the corpus, which lives outside the repository: tier 2 skips in full, and
 the corpus-backed half of tier 1 skips with it. So a green run there is the pure functions, the

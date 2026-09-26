@@ -134,7 +134,7 @@ writes where it should spend none.
 
 **`ci.yml`** runs `lint`, `typecheck`, `build` and `test` on every push to a release line — `main`
 or a `<major>.x` branch — and every pull request, over Node 22.12.0, 24 and 26 on Linux plus
-22.12.0 on Windows (D59). It cancels a superseded run, including on `main`, which is a deliberate
+22.12.0 on Windows and on macOS (D59). It cancels a superseded run, including on `main`, which is a deliberate
 trade: the newest commit is the one worth a verdict.
 
 **`release.yml`** triggers on a pushed `v*` tag, and keeps `workflow_dispatch` for dry runs against
@@ -155,7 +155,7 @@ than a local one. See [verification.md](verification.md).
 ## Outstanding
 
 The model above is implemented and has shipped every release since `1.0.0-alpha.4`. What is left
-is one capability that was deferred and one gap in the matrix.
+is one capability that was deferred.
 
 ### Deferred, with the reason
 
@@ -169,9 +169,11 @@ case in view, and until a second line exists there is nothing to maintain.
 It is also what *one preview line at a time* is standing in for. Two preview lines both want
 `next`, and a line tag is how the lower one stops needing it.
 
-**macOS is untested anywhere.** The matrix is Linux plus one Windows row.
-
 ### Settled, so nobody re-asks
+
+**macOS is one row, not a matrix** (Leo, 2026-09-26). It runs at the floor, as Windows does, so a red
+one means macOS rather than Node, and a full OS axis would triple the load for what the Linux rungs
+already cover (D59).
 
 The two questions only a real release could answer are answered, and [releasing.md](releasing.md)
 is written around them. Which stages a bare `stage approve` takes no longer matters, because

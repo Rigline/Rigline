@@ -28,7 +28,8 @@ here would fetch an engine from the registry rather than driving the one in fron
 reads the same either way; `update` is the one the wrapper alone has, so it has no meaning here.
 
 Every push to `main` and every pull request runs `lint`, `typecheck`, `build` and `test` on Node
-22.12.0, 24 and 26, and once more on Windows at 22.12.0. The corpus those tests read real bundles
+22.12.0, 24 and 26, and once each on Windows and macOS at 22.12.0. The corpus those tests read real
+bundles
 from lives outside the repository, so the browser tier and the corpus-backed tests skip in CI and
 run only here; [docs/verification.md](docs/verification.md) says which question belongs to which
 tier.

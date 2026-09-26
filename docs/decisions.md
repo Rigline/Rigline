@@ -1734,8 +1734,10 @@ the four published manifests, the workspace root, and the template the scaffolde
 26 and runs the whole suite there many times a day, so the pairing nothing covers is Windows on an
 older Node; a full OS axis would mostly buy CI coverage of what a maintainer already does by hand.
 Pinning the Windows row to the same 22.12.0 the Linux floor uses leaves exactly one variable
-between those two jobs, so a red one here means Windows rather than Node. macOS remains untested
-anywhere, which is the honest state rather than an oversight.
+between those two jobs, so a red one here means Windows rather than Node.
+
+**A fifth row is macOS, on the same terms** (2026-09-26, Leo): `macos-latest` on 22.12.0, one row
+and not a matrix. Nothing had run there, and the 1.0 bar asks for one row and one live run on a Mac.
 
 What that row is most likely to catch is line endings. `* text=auto` gives a Windows checkout
 CRLF, and the two files whose bytes we generate and then compare against disk — `generated.ts` and

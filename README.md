@@ -90,7 +90,7 @@ both files with the originals.
 
 ## Developing
 
-pnpm 12, and Node 22.12 or newer; CI runs 22.12.0, 24 and 26, plus Windows at 22.12.0.
+pnpm 12, and Node 22.12 or newer; CI runs 22.12.0, 24 and 26, plus Windows and macOS at 22.12.0.
 
     pnpm install
     pnpm build
