@@ -170,8 +170,10 @@ and cmd.exe then splits the *Node interpreter path*, so `pnpm rigline vscode-set
 PNP"` dies naming a directory that has nothing to do with what you typed and never reaches the
 engine — the missing `$ rigline-engine ...` echo is the tell. Call the bin directly:
 `node packages/core/dist/engine/bin.js vscode-setup --profile "Yarn PNP"`. Any bin through pnpm has
-it, so `pnpm vitest -t "two words"` fails the same way; `node node_modules/vitest/vitest.mjs` does
-not. The detail is in `c:\dev\knowledge\node-tooling.md`.
+it, so `pnpm vitest -t "two words"` fails the same way: filter on one word instead. Calling
+`node_modules/vitest/vitest.mjs` directly is no way round it for the harness, which resolves a
+second vitest copy and so finds no runner (`reading 'config'`). The detail is in
+`c:\dev\knowledge\node-tooling.md`.
 
 Rebuilding the payload or a plugin and running `install` again refreshes the files in place
 without rewriting the bundle. `restore` is the undo and the recovery from a blank panel; it needs
