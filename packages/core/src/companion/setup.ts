@@ -108,19 +108,29 @@ export function findEditors(options: FindEditorsOptions = {}): readonly FoundEdi
  *
  * Exported and pure so a test can assert the argv on either platform. The spawn itself belongs to
  * the caller; this only says what to spawn, which is the part that was wrong.
+ *
+ * Hidden, because the engine may be running under the companion, which has no console to lend.
  */
 export function editorSpawn(
   command: string,
   argv: readonly string[],
   platform: NodeJS.Platform = process.platform,
   comspec: string = process.env.ComSpec ?? "cmd.exe",
-): [string, string[], { stdio: ["ignore", "pipe", "pipe"]; windowsVerbatimArguments?: boolean }] {
+): [
+  string,
+  string[],
+  { stdio: ["ignore", "pipe", "pipe"]; windowsHide: true; windowsVerbatimArguments?: boolean },
+] {
   const stdio: ["ignore", "pipe", "pipe"] = ["ignore", "pipe", "pipe"];
   if (platform !== "win32" || !/\.(cmd|bat)$/i.test(command)) {
-    return [command, [...argv], { stdio }];
+    return [command, [...argv], { stdio, windowsHide: true }];
   }
   const line = [command, ...argv].map((part) => `"${part}"`).join(" ");
-  return [comspec, ["/d", "/s", "/c", `"${line}"`], { stdio, windowsVerbatimArguments: true }];
+  return [
+    comspec,
+    ["/d", "/s", "/c", `"${line}"`],
+    { stdio, windowsHide: true, windowsVerbatimArguments: true },
+  ];
 }
 
 export interface ProfileOutcome {

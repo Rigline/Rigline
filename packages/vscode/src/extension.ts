@@ -5,7 +5,7 @@
  * `acquire.ts`, which vitest drives. Keeping the boundary this thin is what lets 8a be tested at
  * all, since nothing here can run outside an extension host.
  */
-import { spawn } from "node:child_process";
+import { type ChildProcess, type StdioOptions, spawn } from "node:child_process";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import * as vscode from "vscode";
@@ -228,6 +228,19 @@ async function run(
   });
 }
 
+/**
+ * Every engine run starts here. Hidden, because the extension host has no console, and Windows would
+ * open a window for a console program started from it.
+ */
+function spawnEngine(
+  nodePath: string,
+  entry: string,
+  argv: readonly string[],
+  stdio: StdioOptions,
+): ChildProcess {
+  return spawn(nodePath, [entry, ...argv], { stdio, windowsHide: true });
+}
+
 /** The engine's stdout alone: stderr is where an engine too old for the verb prints its usage. */
 function captureEngine(
   nodePath: string,
@@ -235,7 +248,7 @@ function captureEngine(
   argv: readonly string[],
 ): Promise<{ code: number; stdout: string }> {
   return new Promise((done, fail) => {
-    const child = spawn(nodePath, [entry, ...argv], { stdio: ["ignore", "pipe", "ignore"] });
+    const child = spawnEngine(nodePath, entry, argv, ["ignore", "pipe", "ignore"]);
     let stdout = "";
     child.stdout?.setEncoding("utf8");
     child.stdout?.on("data", (chunk: string) => {
@@ -283,7 +296,7 @@ function runEngine(
   onLine: (line: string) => void,
 ): Promise<number> {
   return new Promise((done, fail) => {
-    const child = spawn(nodePath, [entry, ...argv], { stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawnEngine(nodePath, entry, argv, ["ignore", "pipe", "pipe"]);
     let rest = "";
     const take = (chunk: string) => {
       const lines = (rest + chunk).split(/\r?\n/);

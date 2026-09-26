@@ -367,6 +367,7 @@ describe("editorSpawn", () => {
     expect(argv.slice(0, 3)).toEqual(["/d", "/s", "/c"]);
     expect(argv[3]).toBe(`""${cmd}" "--install-extension" "${vsix}""`);
     expect(opts.windowsVerbatimArguments).toBe(true);
+    expect(opts.windowsHide).toBe(true);
   });
 
   it("spawns a real executable directly, even on Windows", () => {
@@ -375,6 +376,7 @@ describe("editorSpawn", () => {
     expect(file).toBe(exe);
     expect(argv).toEqual(["--version"]);
     expect(opts.windowsVerbatimArguments).toBeUndefined();
+    expect(opts.windowsHide).toBe(true);
   });
 
   it("leaves POSIX alone, where code is an ordinary script", () => {

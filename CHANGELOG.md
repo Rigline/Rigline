@@ -10,6 +10,11 @@ anything may change between releases.
 
 ## Unreleased
 
+### Fixed
+
+- On Windows, the companion no longer opens a terminal window for a few seconds each time it runs
+  Rigline: when a window starts, when Claude Code updates, and on *Show Plugins* and Save.
+
 ## 1.0.0-alpha.12 — 2026-09-26
 
 ### Added

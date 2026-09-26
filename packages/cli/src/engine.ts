@@ -164,10 +164,14 @@ export type SpawnLike = (
   },
 ) => ChildProcess;
 
-/** Node's own, narrowed to that shape. */
+/**
+ * Node's own, narrowed to that shape. Hidden, because the companion runs this with no console, and
+ * Windows opens a window for a console program started from there; in a terminal it changes nothing.
+ */
 const nodeSpawn: SpawnLike = (command, args, options) =>
   spawn(command, [...args], {
     stdio: [...options.stdio],
+    windowsHide: true,
     ...(options.env === undefined ? {} : { env: options.env }),
   });
 
