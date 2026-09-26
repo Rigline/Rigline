@@ -326,8 +326,10 @@ selecting on the `class` attribute at all, disables your plugin, even if you cat
 the stylesheet in `setup` from declared names, so it fails on the first reload rather than one day
 mid-session; put a cosmetic restyle of the app's own element under `uses.optional.classes` and
 handle the `null`; and for an element `watch` hands you, add a class of your own to it rather than
-reading its `className` back. Nothing checks a `<style>` you render yourself, in JSX or otherwise,
-or a class you write onto your own markup — the rule still holds there, on your honour.
+reading its `className` back. Nothing refuses a `<style>` you render yourself, in JSX or otherwise,
+or a class you write onto your own markup — the rule still holds there, on your honour — but
+`rigline install --verbose` names any of the extension's classes spelled out in a script or
+stylesheet your plugin ships.
 
 **Never scope a stylesheet rule to an anchor's bare class.** A class names a look, and the
 extension applies a look wherever it wants one: `modelPill_gGYT1w` is on the model picker *and* on

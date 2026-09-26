@@ -579,16 +579,19 @@ Two things pass, each with a cost recorded so it is not re-derived:
 - **A hash-shaped class this version has not got.** It is how a class hand-written against an older
   extension looks, and it styles nothing. Absent beats wrong (P8): styling nothing is a milder failure
   than disabling the plugin over it. A known module hash with an unknown local is a narrow enough
-  test to warn on without false positives, and a warning can land in any 1.x.
+  test to note without false positives, and `install` notes it where a plugin ships it (below).
 
 Not a boundary. A plugin can append a `<style>` of its own, render one in JSX, or put a
 hand-written class on its own markup, and the check sees none of them. It makes the sanctioned path
 honest and guarantees nothing, so it is not in [plugin-policy.md](plugin-policy.md)'s list of what
 the host makes impossible.
 
-Rejected: an install-time scan of the shipped source, which would see a template literal where
-time-marks builds its selector. It is still worth having as a note for a hand-written `className`,
-which the runtime check never sees, and `capabilityUseNotes` is where it would go.
+Rejected: an install-time scan of the shipped source as the check, since it would see a template
+literal where time-marks builds its selector. It is a note instead (2026-09-27): `install` names a
+class of the extension's spelled out in any script or stylesheet a plugin ships, whether this
+version has it or only its module, in the `--verbose` log beside `capabilityUseNotes`. It sees what
+the runtime check never does — a `className`, a `<style>` of the plugin's own, an `@import`ed sheet
+— and refuses nothing.
 
 ### Host patches
 

@@ -46,6 +46,7 @@ import {
   declaredPatches,
   discoverPlugins,
   enabledPlugins,
+  handWrittenClassNotes,
   isPluginOutput,
   layoutNotes,
 } from "../plugins/discover.ts";
@@ -528,6 +529,7 @@ export function install(ext: string, options: InstallOptions): InstallReport {
     }
 
     notes.push(...capabilityUseNotes(enabled));
+    notes.push(...handWrittenClassNotes(enabled, generated.tables));
     for (const shared of sharedFields(
       enabled.map((p) => ({ name: p.name, rewrites: p.manifest.uses.rewrites })),
     )) {

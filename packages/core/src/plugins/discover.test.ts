@@ -1,10 +1,13 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
-import { EMPTY_USES } from "@rigline/plugin-api";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { EMPTY_USES, type IdentifierTables } from "@rigline/plugin-api";
 import { afterEach, describe, expect, it } from "vitest";
+import { corpusBundles, missing } from "../../test/corpus.ts";
+import { generate } from "../codegen/generate.ts";
 import { UserError } from "../errors.ts";
+import { harvestAll } from "../layers/index.ts";
 import type { DiscoveredPlugin } from "./discover.ts";
 import {
   bakeRegistry,
@@ -12,6 +15,8 @@ import {
   declaredPatches,
   discoverPlugins,
   enabledPlugins,
+  handWrittenClasses,
+  handWrittenClassNotes,
   isPluginOutput,
   readManifest,
 } from "./discover.ts";
@@ -400,5 +405,110 @@ describe("capabilityUseNotes", () => {
     expect(capabilityUseNotes([p])).toEqual([
       'unused: declares "session" but never calls onSessionId()',
     ]);
+  });
+});
+
+describe("handWrittenClasses", () => {
+  const tables: IdentifierTables = {
+    version: "test",
+    moduleClasses: {
+      gGYT1w: { modelPill: "modelPill_gGYT1w", spacer: "spacer_gGYT1w" },
+      "07S1Yg": { message: "message_07S1Yg" },
+    },
+    messageTypes: [],
+    inboundResponses: [],
+    outboundFields: {},
+    partialFieldTypes: [],
+    anchors: { transcriptRow: "message_07S1Yg", footerSpacer: "spacer_gGYT1w" },
+    anchorSelectors: {},
+    unresolvedAnchors: {},
+    react: { hook: "__REACT_DEVTOOLS_GLOBAL_HOOK__", version: null, missing: [] },
+  };
+
+  it("finds a class of this version's table, once, wherever it is written", () => {
+    const source =
+      'el.className = "modelPill_gGYT1w"; css`.modelPill_gGYT1w > b {}`; x.add("modelPill_gGYT1w");';
+    expect(handWrittenClasses(source, tables)).toEqual([
+      { cls: "modelPill_gGYT1w", module: "gGYT1w", local: "modelPill" },
+    ]);
+  });
+
+  it("finds a local the module no longer has, which is a class from an older extension", () => {
+    expect(handWrittenClasses(".oldPill_gGYT1w { color: red }", tables)).toEqual([
+      { cls: "oldPill_gGYT1w", module: "gGYT1w", local: null },
+    ]);
+  });
+
+  it("passes a hash no module has, since it cannot be told from a plugin's own class", () => {
+    expect(handWrittenClasses(".clock_header .mine_abcdef {}", tables)).toEqual([]);
+  });
+
+  it("passes a class built from ctx at runtime, which is the sanctioned route", () => {
+    const source = `ctx.style(\`.\${ctx.anchor("transcriptRow")}:has(> .rigline-tm-lead) {}\`);`;
+    expect(handWrittenClasses(source, tables)).toEqual([]);
+  });
+
+  describe("as a note per plugin", () => {
+    function plugin(files: Record<string, string>): DiscoveredPlugin {
+      const root = tempDir();
+      const dir = join(root, "styled");
+      for (const [path, text] of Object.entries(files)) {
+        mkdirSync(dirname(join(dir, path)), { recursive: true });
+        writeFileSync(join(dir, path), text);
+      }
+      return {
+        name: "styled",
+        dir,
+        root,
+        overridesBundled: false,
+        manifest: {
+          api: 1,
+          name: "styled",
+          description: null,
+          entry: "index.js",
+          surfaces: ["editor", "sidebar", "sessionList"],
+          uses: EMPTY_USES as never,
+          elements: {},
+          patches: [],
+        },
+      };
+    }
+
+    it("reads a stylesheet the plugin ships, and says to reach an anchor's class by the anchor", () => {
+      const p = plugin({ "index.js": "export default {};", "theme/row.css": ".message_07S1Yg {}" });
+      expect(handWrittenClassNotes([p], tables)).toEqual([
+        'styled: writes the extension\'s class message_07S1Yg by hand, which changes when Claude Code rebuilds module 07S1Yg; reach it through ctx.anchor("transcriptRow"), declared under uses.anchors',
+      ]);
+    });
+
+    it("says to reach any other class through ctx.cls, and names a stale one", () => {
+      const p = plugin({ "index.js": '"modelPill_gGYT1w"; "oldPill_gGYT1w";' });
+      expect(handWrittenClassNotes([p], tables)).toEqual([
+        'styled: writes the extension\'s class modelPill_gGYT1w by hand, which changes when Claude Code rebuilds module gGYT1w; reach it through ctx.cls("gGYT1w", "modelPill"), declared under uses.classes',
+        "styled: writes oldPill_gGYT1w by hand, in module gGYT1w's naming, and this version has no such class, so whatever it styles or finds is gone",
+      ]);
+    });
+
+    it("ignores what the plugin does not ship", () => {
+      const p = plugin({
+        "index.js": "export default {};",
+        "index.test.js": '"modelPill_gGYT1w"',
+        "src/index.ts": '"modelPill_gGYT1w"',
+      });
+      expect(handWrittenClassNotes([p], tables)).toEqual([]);
+    });
+  });
+
+  it.skipIf(missing("2.1.282"))("finds nothing in the first-party plugins' own source", () => {
+    const real = generate(harvestAll(corpusBundles("2.1.282"))).tables;
+    const plugins = fileURLToPath(new URL("../../../../plugins", import.meta.url));
+    for (const name of readdirSync(plugins)) {
+      const src = join(plugins, name, "src");
+      const source = readdirSync(src)
+        .filter((file) => /\.tsx?$/.test(file) && !file.includes(".test."))
+        .map((file) => readFileSync(join(src, file), "utf8"))
+        .join("\n");
+      expect(handWrittenClasses(source, real), name).toEqual([]);
+    }
   });
 });

@@ -13,6 +13,7 @@ import { basename, join } from "node:path";
 import {
   capabilityDrift,
   capabilityUse,
+  type IdentifierTables,
   type Layout,
   layoutProblems,
   type SaveRecord,
@@ -317,16 +318,20 @@ export function isPluginOutput(relativePath: string): boolean {
   return true;
 }
 
-/** Every shipped `.js`/`.mjs` file's text, concatenated, for the advisory capability-use scan. */
-function shippedSource(dir: string): string {
+const SCRIPT = /\.m?js$/;
+const SCRIPT_OR_STYLE = /\.(?:m?js|css)$/;
+
+/** The text of every shipped file whose name `kind` matches, concatenated, for the advisory scans. */
+function shippedSource(dir: string, kind: RegExp): string {
   let source = "";
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (!isPluginOutput(entry.name)) continue;
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {
-      source += shippedSource(full);
-    } else if (/\.m?js$/.test(entry.name)) {
-      source += readFileSync(full, "utf8");
+      // Joined by a newline so the last token of one file never runs into the first of the next.
+      source += `${shippedSource(full, kind)}\n`;
+    } else if (kind.test(entry.name)) {
+      source += `${readFileSync(full, "utf8")}\n`;
     }
   }
   return source;
@@ -343,9 +348,86 @@ function shippedSource(dir: string): string {
 export function capabilityUseNotes(plugins: readonly DiscoveredPlugin[]): string[] {
   const notes: string[] = [];
   for (const p of plugins) {
-    const used = capabilityUse(shippedSource(p.dir));
+    const used = capabilityUse(shippedSource(p.dir, SCRIPT));
     for (const note of capabilityDrift(p.manifest.uses as Uses, used)) {
       notes.push(`${p.name}: ${note}`);
+    }
+  }
+  return notes;
+}
+
+/** A run of the characters a hashed class is made of, capped so a data URI stays a bounded read. */
+const CLASS_TOKEN = /[A-Za-z0-9_$-]{8,128}/g;
+/** How the class harvest's locals begin (`layers/classes.ts`). */
+const LOCAL_START = /^[A-Za-z_$]/;
+const HASH_LENGTH = 6;
+
+/** A class of the extension's that a plugin's shipped source spells out. */
+export interface HandWrittenClass {
+  readonly cls: string;
+  readonly module: string;
+  /** Its local name, or null where this version's module has no such class. */
+  readonly local: string | null;
+}
+
+/**
+ * Every token in `source` ending in `_` and a module hash this version has (D107). Only the hash is
+ * tested: a local the module lacks is a class written against an older extension, and a hash no
+ * module has cannot be told from a plugin's own class, so it passes.
+ */
+export function handWrittenClasses(source: string, tables: IdentifierTables): HandWrittenClass[] {
+  const found = new Map<string, HandWrittenClass>();
+  for (const [token] of source.matchAll(CLASS_TOKEN)) {
+    const split = token.length - HASH_LENGTH - 1;
+    if (found.has(token) || token[split] !== "_" || !LOCAL_START.test(token)) continue;
+    const module = token.slice(split + 1);
+    if (!Object.hasOwn(tables.moduleClasses, module)) continue;
+    const locals = tables.moduleClasses[module] ?? {};
+    const local = token.slice(0, split);
+    found.set(token, {
+      cls: token,
+      module,
+      local: Object.hasOwn(locals, local) && locals[local] === token ? local : null,
+    });
+  }
+  return [...found.values()];
+}
+
+/**
+ * Where a plugin's shipped scripts or stylesheets spell out a class of the extension's by hand,
+ * which no declaration covers and no runtime check sees: `ctx.style` reads only the text it is
+ * handed (D107). Advisory, like `capabilityUseNotes`.
+ */
+export function handWrittenClassNotes(
+  plugins: readonly DiscoveredPlugin[],
+  tables: IdentifierTables,
+): string[] {
+  const anchorOf = new Map<string, string>();
+  for (const [name, cls] of Object.entries(tables.anchors)) {
+    if (cls !== null && !anchorOf.has(cls)) anchorOf.set(cls, name);
+  }
+  const notes: string[] = [];
+  for (const p of plugins) {
+    for (const { cls, module, local } of handWrittenClasses(
+      shippedSource(p.dir, SCRIPT_OR_STYLE),
+      tables,
+    )) {
+      if (local === null) {
+        notes.push(
+          `${p.name}: writes ${cls} by hand, in module ${module}'s naming, and this version has ` +
+            "no such class, so whatever it styles or finds is gone",
+        );
+        continue;
+      }
+      const anchor = anchorOf.get(cls);
+      const instead =
+        anchor === undefined
+          ? `ctx.cls("${module}", "${local}"), declared under uses.classes`
+          : `ctx.anchor("${anchor}"), declared under uses.anchors`;
+      notes.push(
+        `${p.name}: writes the extension's class ${cls} by hand, which changes when Claude Code ` +
+          `rebuilds module ${module}; reach it through ${instead}`,
+      );
     }
   }
   return notes;

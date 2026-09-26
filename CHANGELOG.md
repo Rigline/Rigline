@@ -16,6 +16,10 @@ anything may change between releases.
   engine it installed is newer, every command starts with one line on stderr — `rigline 1.0.3 is out,
   and this is 1.0.1: npm i -g rigline@1.0.3` — and `rigline --version` says it too. It asks nothing
   of the registry to know.
+- **For plugin authors:** `rigline install --verbose` names any of Claude Code's classes spelled out
+  in a script or stylesheet your plugin ships, such as `modelPill_gGYT1w`, and says what to reach
+  it through instead. Such a name changes whenever Claude Code rebuilds, and outside the stylesheet
+  handed to `ctx.style` nothing else would tell you.
 
 ### Changed
 

@@ -533,3 +533,5 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
 - 2026-09-26: `ctx.style` refuses a class of the extension the plugin did not declare (D107), and a
   violation disables its plugin even where the plugin catches it (D15).
 - 2026-09-27: stability.md checked against the code; the proposals are in the working plan.
+- 2026-09-27: `install` notes a class of the extension's written by hand in a plugin's shipped
+  scripts or stylesheets (D107).
