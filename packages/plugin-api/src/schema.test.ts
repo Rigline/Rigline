@@ -6,7 +6,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { CONTRACTS } from "./capabilities/index.ts";
-import { validateManifest } from "./manifest.ts";
+import { MANIFEST_KEYS, validateManifest } from "./manifest.ts";
 import { manifestSchema, manifestSchemaJson } from "./schema.ts";
 
 const COMMITTED = fileURLToPath(new URL("../schema/manifest.json", import.meta.url));
@@ -54,7 +54,7 @@ describe("manifestSchema", () => {
         { api: 1, name: "demo", entry: "d.js", uses: { optional: { optional: {} } } },
         "demo",
       ).problems,
-    ).toEqual(['"uses.optional.optional" is not a capability']);
+    ).toEqual(['"uses.optional.optional" is not a capability this version of Rigline knows']);
   });
 
   it("enumerates the anchor names, so a misspelling is caught while typing", () => {
@@ -72,6 +72,11 @@ describe("manifestSchema", () => {
     expect(
       validateManifest({ api: 1, name: "Session-Id", entry: "d.js" }, "Session-Id").problems,
     ).toHaveLength(1);
+  });
+
+  it("names the same top-level keys the validator allows", () => {
+    expect(Object.keys(properties(manifestSchema())).sort()).toEqual([...MANIFEST_KEYS].sort());
+    expect(manifestSchema().additionalProperties).toBe(false);
   });
 
   it("allows $schema itself, since every manifest we ship carries one", () => {

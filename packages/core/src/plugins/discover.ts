@@ -21,7 +21,7 @@ import {
   validateManifest,
   withRigline,
 } from "@rigline/plugin-api";
-import { UserError } from "../errors.ts";
+import { ManifestError, UserError } from "../errors.ts";
 import { type DeclaredPatch, type PatchOutcome, patchRefusal } from "../inject/hostpatch.ts";
 import { CORE_VERSION } from "../version.ts";
 import type { PluginsConfig } from "./config.ts";
@@ -52,8 +52,8 @@ export interface DiscoveredPlugin {
 /**
  * Reads and validates `<dir>/rigline.json`. Every shape problem is collected into one throw, and a
  * `name`/directory mismatch or a missing capability is treated the same way as a missing entry
- * file: an authoring mistake, not version skew, so it fails the install loudly rather than being
- * silently dropped.
+ * file. `add` lets the throw refuse the plugin; discovery catches it, reports the plugin by name
+ * and loads the rest (P3).
  *
  * `expectedName` is the directory's own name everywhere a plugin is discovered, which is what makes
  * a directory's name and its plugin's name the same fact. `add` passes the manifest's own name
@@ -99,11 +99,7 @@ export function checkManifest(check: ManifestCheck): ValidManifest {
     throw new UserError(`${check.label} is not valid JSON: ${(error as Error).message}`);
   }
   const { manifest, problems } = validateManifest(value, check.expectedName);
-  if (manifest === null) {
-    throw new UserError(
-      `${check.label} is not a valid manifest:\n${problems.map((p) => `  - ${p}`).join("\n")}`,
-    );
-  }
+  if (manifest === null) throw new ManifestError(check.label, problems);
   if (!check.hasFile(manifest.entry)) {
     throw new UserError(`${check.label} names entry "${manifest.entry}", which does not exist`);
   }
@@ -127,6 +123,12 @@ export interface DiscoverOptions {
    */
   readonly bundledRoot?: string;
   readonly log?: (line: string) => void;
+  /**
+   * A plugin whose manifest does not hold, as one line naming it. It is not loaded, and it still
+   * holds its name, so a same-named plugin further down does not stand in for it unannounced. Goes
+   * to `log` when not given.
+   */
+  readonly refuse?: (line: string) => void;
 }
 
 export function discoverPlugins(
@@ -134,8 +136,10 @@ export function discoverPlugins(
   options?: DiscoverOptions,
 ): DiscoveredPlugin[] {
   const log = options?.log ?? (() => {});
+  const refuse = options?.refuse ?? log;
   const found: (DiscoveredPlugin & { overridesBundled: boolean })[] = [];
   const winner = new Map<string, (typeof found)[number]>();
+  const refused = new Map<string, string>();
   for (const root of roots) {
     if (!existsSync(root)) continue;
     const bundled = root === options?.bundledRoot;
@@ -146,6 +150,11 @@ export function discoverPlugins(
       .sort();
     for (const name of names) {
       const dir = join(root, name);
+      const refusedDir = refused.get(name);
+      if (refusedDir !== undefined) {
+        if (!bundled) log(`${dir} is shadowed by ${refusedDir}, which is not loaded`);
+        continue;
+      }
       const already = winner.get(name);
       if (already !== undefined) {
         // One name, one plugin (D56). Two of a name baked two registry entries, copied over each
@@ -164,7 +173,16 @@ export function discoverPlugins(
           );
         continue;
       }
-      const plugin = { name, dir, root, manifest: readManifest(dir), overridesBundled: false };
+      let manifest: ValidManifest;
+      try {
+        manifest = readManifest(dir);
+      } catch (error) {
+        if (!(error instanceof UserError)) throw error;
+        refused.set(name, dir);
+        refuse(`"${name}" is not loaded: ${unloadable(error)}`);
+        continue;
+      }
+      const plugin = { name, dir, root, manifest, overridesBundled: false };
       winner.set(name, plugin);
       found.push(plugin);
     }
@@ -179,6 +197,13 @@ export function discoverPlugins(
     if (plugin) ordered.push(plugin);
   }
   return ordered;
+}
+
+/** Why a plugin's manifest refused it, on one line, since a report gives each problem one. */
+function unloadable(error: UserError): string {
+  return error instanceof ManifestError
+    ? `${error.label} does not hold: ${error.problems.join("; ")}`
+    : error.message;
 }
 
 /**

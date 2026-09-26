@@ -557,6 +557,7 @@ function listCommand(args: string[]): number {
   const { values } = parseArgs({ args, options: { json: { type: "boolean", default: false } } });
   const paths = riglinePaths();
   const checkout = checkoutPluginsDir();
+  const unloaded: string[] = [];
   const listings = listPlugins({
     roots: [
       ...(checkout === null ? [] : [{ label: "this checkout", path: checkout }]),
@@ -566,10 +567,13 @@ function listCommand(args: string[]): number {
     last: ["probe"],
     configPath: paths.config,
     sourcesPath: paths.sources,
+    refuse: (line) => unloaded.push(line),
   });
   // `--json` is how the wrapper learns what `update` can move: `sources.json` is the engine's, so
   // the wrapper asks rather than reads (D74).
   console.log(values.json ? JSON.stringify(listings) : formatPlugins(listings));
+  // On stderr, so `--json` stays data. `check` is what exits 1 for it.
+  for (const line of unloaded) console.error(line);
   return 0;
 }
 

@@ -76,13 +76,15 @@ export interface ListOptions {
   readonly sourcesPath: string;
   /** Plugins pinned to the end of registry order, as `install` pins them. */
   readonly last?: readonly string[];
+  /** A plugin whose manifest does not hold, which is not listed, as the line naming it. */
+  readonly refuse?: (line: string) => void;
 }
 
 export function listPlugins(options: ListOptions): PluginListing[] {
   const bundledRoot = options.roots.find((r) => r.bundled)?.path;
   const discovered = discoverPlugins(
     options.roots.map((r) => r.path),
-    { last: options.last, bundledRoot },
+    { last: options.last, bundledRoot, ...(options.refuse ? { refuse: options.refuse } : {}) },
   );
   const config = readConfig(options.configPath);
   const disabled = new Set(config.disabled);

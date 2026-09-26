@@ -331,6 +331,8 @@ export interface InstallReport {
   readonly configNotes: readonly string[];
   /** Why the panel's Save copies commands instead, when the token file is unusable (D93). */
   readonly tokenProblem: string | null;
+  /** Plugins not loaded because their manifest does not hold, the same for every version (P3). */
+  readonly unloaded: readonly string[];
   /** Every enabled plugin, checked against this directory's tables before anything was written. */
   readonly verdicts: readonly PluginVerdict[];
   /** Each local anchor override, and what this version's class map makes of it (D44). */
@@ -435,6 +437,7 @@ export function install(ext: string, options: InstallOptions): InstallReport {
   const notes: string[] = [];
   const configNotes: string[] = [];
   let tokenProblem: string | null = null;
+  const unloaded: string[] = [];
   let verdicts: readonly PluginVerdict[] = [];
 
   if (options.plugins) {
@@ -442,7 +445,12 @@ export function install(ext: string, options: InstallOptions): InstallReport {
     const note = (line: string): void => {
       configNotes.push(line);
     };
-    const discovered = discoverPlugins(roots, { last, bundledRoot, log: note });
+    const discovered = discoverPlugins(roots, {
+      last,
+      bundledRoot,
+      log: note,
+      refuse: (line) => unloaded.push(line),
+    });
     const config = readConfig(configPath);
     const enabled = enabledPlugins(discovered, config, note);
     configNotes.push(...layoutNotes(config, enabled));
@@ -556,6 +564,7 @@ export function install(ext: string, options: InstallOptions): InstallReport {
     notes,
     configNotes,
     tokenProblem,
+    unloaded,
     verdicts,
     anchorOverrides: anchorOverrideOutcomes(harvest.classes, overrides),
   };

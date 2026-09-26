@@ -15,3 +15,15 @@ export class UserError extends Error {
  * so the flow can refuse that one version and carry on with the rest (D104).
  */
 export class UnfinishedExtensionError extends UserError {}
+
+/** A `rigline.json` that does not hold up, keeping each problem so a one-line report can join them. */
+export class ManifestError extends UserError {
+  readonly label: string;
+  readonly problems: readonly string[];
+
+  constructor(label: string, problems: readonly string[]) {
+    super(`${label} is not a valid manifest:\n${problems.map((p) => `  - ${p}`).join("\n")}`);
+    this.label = label;
+    this.problems = problems;
+  }
+}

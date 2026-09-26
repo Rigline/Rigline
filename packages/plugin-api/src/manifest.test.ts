@@ -65,7 +65,7 @@ describe("validateManifest", () => {
       '"name" must be a lowercase package-name segment, got "Demo"',
       '"entry" must be a non-empty relative path',
       '"surfaces" contains "popup"; expected editor, sidebar, sessionList',
-      '"uses.bogus" is not a capability',
+      '"uses.bogus" is not a capability this version of Rigline knows',
       '"uses.anchors" must be an array of anchor names',
       '"uses.tools" must be true or false, got "yes"',
       '"patches[0]" needs a non-empty string "why"',
@@ -87,6 +87,12 @@ describe("validateManifest", () => {
   it("keeps the name rigline for Rigline's own elements", () => {
     expect(validateManifest({ ...minimal, name: "rigline" }, "rigline").problems).toEqual([
       `"name" cannot be "rigline", which owns Rigline's own elements`,
+    ]);
+  });
+
+  it("refuses a top-level key it does not know, as a later 1.x's plugin would carry one", () => {
+    expect(validateManifest({ ...minimal, settings: {} }, "demo").problems).toEqual([
+      '"settings" is not a key this version of Rigline knows',
     ]);
   });
 
@@ -127,10 +133,10 @@ describe("validateManifest and uses.optional", () => {
 
   it("refuses an unknown key on either side, and refuses to nest optional inside itself", () => {
     expect(withOptional({ nonsense: [] }).problems).toEqual([
-      '"uses.optional.nonsense" is not a capability',
+      '"uses.optional.nonsense" is not a capability this version of Rigline knows',
     ]);
     expect(withOptional({ optional: {} }).problems).toEqual([
-      '"uses.optional.optional" is not a capability',
+      '"uses.optional.optional" is not a capability this version of Rigline knows',
     ]);
     expect(withOptional("no").problems).toEqual(['"uses.optional" must be an object']);
   });

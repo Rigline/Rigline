@@ -378,6 +378,27 @@ describe("the report a person reads", () => {
     expect(loadingLine(text)).toBe("loading: none");
   });
 
+  it("injects around a plugin whose manifest does not hold, and names it for a person (P3)", () => {
+    const root = pluginRoot("fine", { classes: { f00000: ["local1"] } });
+    addPlugin(root, "newer", {});
+    const manifest = join(root, "newer", "rigline.json");
+    writeFileSync(manifest, JSON.stringify({ api: 1, name: "newer", entry: "index.js", later: 1 }));
+
+    const report = update({
+      exts: [fixture()],
+      payloadDir: payload(),
+      dir: tempDir("rigline-cwd-"),
+      baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+      plugins: plugins(root),
+    });
+
+    expect(report.versions[0]?.action).toBe("injected");
+    expect(report.versions[0]?.enabled).toEqual(["fine"]);
+    expect(report.attention).toContainEqual(
+      `"newer" is not loaded: ${manifest} does not hold: "later" is not a key this version of Rigline knows`,
+    );
+  });
+
   it("ends with the reload, then what needs a person, last", () => {
     const text = formatFlow(
       update({

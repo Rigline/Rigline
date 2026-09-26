@@ -120,6 +120,19 @@ export const EMPTY_USES: Uses = Object.freeze({
  * copies of a pattern is two rules waiting to disagree.
  */
 export const NAME_PATTERN = "^[a-z0-9][a-z0-9._-]{0,213}$";
+
+/** Every top-level key a manifest may carry. The schema states the same list (`schema.test.ts`). */
+export const MANIFEST_KEYS = [
+  "$schema",
+  "api",
+  "name",
+  "description",
+  "entry",
+  "surfaces",
+  "uses",
+  "elements",
+  "patches",
+] as const;
 const NAME = new RegExp(NAME_PATTERN);
 
 /** One half of `uses`, shape-checked contract by contract, with every omitted key left empty. */
@@ -199,6 +212,14 @@ export function validateManifest(
     return { manifest: null, problems: ["rigline.json must be a JSON object"] };
   }
 
+  // Refused rather than ignored, so a plugin written for a later 1.x is refused by name here instead
+  // of loading without the key it relies on (docs/stability.md).
+  for (const key of Object.keys(value)) {
+    if (!(MANIFEST_KEYS as readonly string[]).includes(key)) {
+      problems.push(`"${key}" is not a key this version of Rigline knows`);
+    }
+  }
+
   if (value.api !== 1) problems.push(`"api" must be 1, got ${JSON.stringify(value.api)}`);
 
   const name = value.name;
@@ -252,7 +273,9 @@ export function validateManifest(
     // place, and the depth is fixed at one because `optional.optional` is not a capability either.
     const known = new Set<string>([...CONTRACTS.map((c) => c.key), "optional"]);
     for (const key of Object.keys(rawUses)) {
-      if (!known.has(key)) problems.push(`"uses.${key}" is not a capability`);
+      if (!known.has(key)) {
+        problems.push(`"uses.${key}" is not a capability this version of Rigline knows`);
+      }
     }
     required = declarationsOf(rawUses, "uses", problems);
 
@@ -262,7 +285,7 @@ export function validateManifest(
     } else if (rawOptional !== undefined) {
       for (const key of Object.keys(rawOptional)) {
         if (key === "optional" || !known.has(key)) {
-          problems.push(`"uses.optional.${key}" is not a capability`);
+          problems.push(`"uses.optional.${key}" is not a capability this version of Rigline knows`);
         }
       }
       optional = declarationsOf(rawOptional, "uses.optional", problems);

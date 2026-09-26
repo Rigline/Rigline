@@ -284,11 +284,13 @@ function checkHeld(options: FlowOptions): FlowReport {
   const note = (line: string): void => {
     configNotes.push(line);
   };
+  const unloaded: string[] = [];
   const discovered = options.plugins
     ? discoverPlugins(options.plugins.roots, {
         last: options.plugins.last,
         bundledRoot: options.plugins.bundledRoot,
         log: note,
+        refuse: (line) => unloaded.push(line),
       })
     : [];
   const config = options.plugins ? readConfig(options.plugins.configPath) : null;
@@ -341,6 +343,7 @@ function checkHeld(options: FlowOptions): FlowReport {
     kind: "check",
     configNotes,
     tokenProblem,
+    unloaded,
   });
 }
 
@@ -362,6 +365,7 @@ function updateHeld(options: UpdateOptions): FlowReport {
   const versions: VersionReport[] = [];
   let configNotes: readonly string[] = [];
   let tokenProblem: string | null = null;
+  let unloaded: readonly string[] = [];
 
   for (const ext of exts) {
     const log: string[] = [];
@@ -406,12 +410,14 @@ function updateHeld(options: UpdateOptions): FlowReport {
     // The same for every version, since they come from discovery and the config.
     configNotes = report.configNotes;
     tokenProblem = report.tokenProblem;
+    unloaded = report.unloaded;
   }
 
   return settle(options, overrides, harvested, versions, options, {
     kind: "install",
     configNotes,
     tokenProblem,
+    unloaded,
   });
 }
 
@@ -420,6 +426,7 @@ interface Settling {
   readonly kind: FlowReport["kind"];
   readonly configNotes: readonly string[];
   readonly tokenProblem: string | null;
+  readonly unloaded: readonly string[];
 }
 
 /** The half both commands share: diff against the baseline, decide who needs a person, write. */
@@ -433,7 +440,7 @@ function settle(
 ): FlowReport {
   const dir = options.dir ?? process.cwd();
   const baselinePath = options.baselinePath ?? riglinePaths().baseline;
-  const { kind, configNotes, tokenProblem } = settling;
+  const { kind, configNotes, tokenProblem, unloaded } = settling;
   if (versions.length === 0) {
     return {
       kind,
@@ -445,7 +452,7 @@ function settle(
       diffs: [],
       versions,
       wrote: [],
-      attention: ["no Claude Code extension is installed", ...overrides.problems],
+      attention: ["no Claude Code extension is installed", ...overrides.problems, ...unloaded],
     };
   }
 
@@ -459,7 +466,7 @@ function settle(
   let driftFile: string | null = null;
   // A malformed override is a person's mistake in a file only they can fix, and it never blocks:
   // the entries that parsed have already been applied and the rest are simply not there (D44).
-  const attention: string[] = [...overrides.problems];
+  const attention: string[] = [...overrides.problems, ...unloaded];
   if (tokenProblem !== null) attention.push(tokenProblem);
 
   for (const version of versions) {

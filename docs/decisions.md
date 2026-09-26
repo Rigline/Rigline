@@ -207,6 +207,14 @@ with every dependency under `uses` and host patches under `patches`. JSON rather
 so the host can report what an update broke without evaluating the plugin, module evaluation
 being exactly where a broken plugin throws.
 
+**A key the engine does not know refuses the plugin, and only that plugin (amended 2026-09-26).** A
+top-level key was ignored where a `uses` key was refused, so a plugin written for a later 1.x would
+have loaded without the key it relied on; both now refuse, `$schema` excepted. And a manifest that
+does not hold refused every plugin, because discovery threw: it is now named under *Needs you* and
+the rest load (P3). It keeps its name, so a same-named plugin further down the roots does not stand
+in for it. `add` still refuses outright, before anything is written. Tightening what refuses a
+plugin is only possible before 1.0 ([stability.md](stability.md)).
+
 **D13. Plugins are authored in TypeScript and built to one file by `rigline build`.** The output
 contract (P6) is unchanged; the preset is a convenience. First-party plugins are packages with
 `src/`, tests and a README.
@@ -673,7 +681,7 @@ checkout, and one machine's repair belongs in none of them.
 **The installed table is the authority on which anchor names exist, so the manifest's shape check
 stops asking `ANCHORS`.** A table that can be extended locally means plugin-api's compiled-in names
 are no longer the full set, and a shape check that says otherwise refuses a manifest this install
-can honour — at the loudest severity there is, since a shape problem fails the whole install. An
+can honour, and refuses it wholesale rather than naming the anchor (D12). An
 anchor name the installed table has not got is reported by the declaration check instead (D43),
 which refuses that one plugin and names the anchor. The JSON schema keeps its enum of curated
 names: a typo is made while authoring, which is where the schema is read and where the curated set

@@ -10,10 +10,18 @@ anything may change between releases.
 
 ## Unreleased
 
+### Changed
+
+- A `rigline.json` key that this version of Rigline does not know now refuses the plugin, naming the
+  key, where before a key at the top level was ignored. A plugin written for a later Rigline is
+  refused rather than loaded without what it needs. `$schema` is still allowed.
+
 ### Fixed
 
 - On Windows, the companion no longer opens a terminal window for a few seconds each time it runs
   Rigline: when a window starts, when Claude Code updates, and on *Show Plugins* and Save.
+- A plugin whose `rigline.json` does not hold up no longer stops `rigline install`, `check` or `list`
+  for every other plugin. It is left unloaded and named under what needs you, and the rest load.
 
 ## 1.0.0-alpha.12 — 2026-09-26
 

@@ -168,6 +168,39 @@ describe("discoverPlugins", () => {
     expect(found.map((p) => p.overridesBundled)).toEqual([true, false]);
   });
 
+  it("refuses a plugin whose manifest does not hold, by name, and finds the rest (P3)", () => {
+    const root = tempDir();
+    writePlugin(root, "alpha");
+    writePlugin(root, "newer", { settings: {} });
+    writePlugin(root, "zeta");
+    const refused: string[] = [];
+
+    const found = discoverPlugins([root], { refuse: (line) => refused.push(line) });
+
+    expect(found.map((p) => p.name)).toEqual(["alpha", "zeta"]);
+    expect(refused).toEqual([
+      `"newer" is not loaded: ${join(root, "newer", "rigline.json")} does not hold: "settings" is not a key this version of Rigline knows`,
+    ]);
+  });
+
+  it("keeps a refused plugin's name, so the bundled copy does not stand in for it", () => {
+    const mine = tempDir();
+    const bundled = tempDir();
+    writePlugin(mine, "session-id", { entry: "missing.js" });
+    writeFileSync(join(mine, "session-id", "rigline.json"), "{not json");
+    writePlugin(bundled, "session-id");
+    const refused: string[] = [];
+
+    const found = discoverPlugins([mine, bundled], {
+      bundledRoot: bundled,
+      refuse: (line) => refused.push(line),
+    });
+
+    expect(found).toEqual([]);
+    expect(refused).toHaveLength(1);
+    expect(refused[0]).toMatch(/^"session-id" is not loaded: .*is not valid JSON/);
+  });
+
   it("still reports a collision between two roots neither of which is the bundled one", () => {
     const first = tempDir();
     const second = tempDir();
