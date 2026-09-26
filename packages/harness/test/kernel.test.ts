@@ -222,6 +222,87 @@ export default { setup() {} };`,
       }
     }, 20000);
 
+    it("identifies a row React reused for a different message by the message it now shows", async () => {
+      // Rows are keyed by index, so an assistant record superseding the one at index 1 leaves the
+      // list two long and hands the same row element a different message. React writes an
+      // element's fiber only when it creates it, so a stale read reports the old message, and its
+      // time, on the new one (P5).
+      const identifier: FixturePlugin = {
+        name: "identifier",
+        manifest: { uses: { transcript: true } },
+        source: `export default { setup(ctx) {
+    ctx.decorateTranscript((entry) => {
+      const d = document.createElement("i");
+      d.className = "harness-id";
+      d.dataset.id = entry.id;
+      return d;
+    });
+  } };`,
+      };
+      const booted = await boot({ plugins: [identifier] });
+      const { page } = booted;
+      const shown = () =>
+        page.evaluate(() =>
+          [...document.getElementsByClassName("message_07S1Yg")].map((row) => ({
+            id: (row.getElementsByClassName("harness-id")[0] as HTMLElement | undefined)?.dataset
+              .id,
+            text: row.textContent ?? "",
+          })),
+        );
+      try {
+        await page.waitForFunction(
+          () => document.getElementsByClassName("harness-id").length === 2,
+        );
+        const [, before] = await shown();
+        const sweeps = (await booted.diagnostics()).transcript.sweeps;
+        const superseding = "20000000-2000-4000-8000-200000000002";
+        await page.evaluate(
+          ({ uuid, old }) => {
+            const w = window as unknown as {
+              __row?: Element;
+              __harness: { pushRecord(message: unknown): void };
+            };
+            w.__row = document.getElementsByClassName("message_07S1Yg")[1];
+            w.__harness.pushRecord({
+              type: "assistant",
+              uuid,
+              timestamp: new Date().toISOString(),
+              supersedes: [old],
+              message: { role: "assistant", content: [{ type: "text", text: "a later answer" }] },
+            });
+          },
+          { uuid: superseding, old: before?.id },
+        );
+        await page.waitForFunction(() =>
+          document
+            .getElementsByClassName("message_07S1Yg")[1]
+            ?.textContent?.includes("a later answer"),
+        );
+        // The splice's own commit and nothing after it: another render of the row flips React's
+        // fiber pair back and hides the stale read. Commits reach the sweep once per frame.
+        await page.evaluate(
+          () =>
+            new Promise<void>((done) =>
+              requestAnimationFrame(() => requestAnimationFrame(() => done())),
+            ),
+        );
+        expect((await booted.diagnostics()).transcript.sweeps).toBeGreaterThan(sweeps);
+
+        const reused = await page.evaluate(
+          () =>
+            (window as unknown as { __row?: Element }).__row ===
+            document.getElementsByClassName("message_07S1Yg")[1],
+        );
+        expect(reused).toBe(true);
+        const rows = await shown();
+        expect(rows[1]?.text).toContain("a later answer");
+        expect(rows[1]?.id).toBe(superseding);
+        expect(booted.consoleErrors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
     it("keeps the app's renderer when another injects after it", async () => {
       // What a second react-dom does to the hook: a plugin carrying its own React, or Rigline's
       // own shell. Its commits are not the app's re-renders, and its version is not the app's.

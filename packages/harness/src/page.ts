@@ -103,6 +103,10 @@ const FAKE_HOST = `
   window.__harness = {
     sent: [],
     push: sendFromExtension,
+    // One CLI record down the app's channel, as the relay would send it.
+    pushRecord(message) {
+      if (lastChannelId !== null) sendFromExtension({ type: "io_message", channelId: lastChannelId, message });
+    },
     // Make the app actually re-render, which is the only thing that detaches a host-placed mount in
     // practice and the signal the mount service re-places on (D52). Two more transcript rows is the
     // cheapest commit the real bundle will do on demand; a test that only needs *a* commit should

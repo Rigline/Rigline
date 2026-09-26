@@ -25,10 +25,13 @@
  * identifier changes every build.
  */
 
-/** The least of a React fiber this module needs: props, and the parent link. */
+/** The least of a React fiber this module needs: props, the parent link, and the other of its pair. */
 export interface FiberLike {
   readonly memoizedProps?: unknown;
   readonly return?: FiberLike | null;
+  readonly alternate?: FiberLike | null;
+  /** On a root fiber, the `FiberRoot`, whose `current` is the root of the tree on screen. */
+  readonly stateNode?: unknown;
 }
 
 /** One transcript row: what it is, and where it sits. */
@@ -79,16 +82,40 @@ function roleOf(type: unknown): TranscriptEntry["role"] | null {
  */
 const PROP_SEARCH_DEPTH = 4;
 
+/** Further than any React tree nests, so a walk to the root always gets there. */
+const ROOT_SEARCH_DEPTH = 10_000;
+
+type RowIdentity = Omit<TranscriptEntry, "at" | "index">;
+
 /**
  * Which transcript entry a fiber belongs to, or null if it is not a row's.
  *
  * A shape match, never a name match: what is recognised is props carrying a message with a
  * non-empty string uuid and a role we show. `index` is filled in by the caller, which is the only
  * thing here that knows the order.
+ *
+ * The fiber on an element can be the stale one of React's pair, parents and all, once the row has
+ * been reused for another message. Where the two disagree, the current one is the one whose root
+ * its `FiberRoot` calls current, and neither is taken when that does not settle it (D103, P5).
  */
-export function rowIdentity(
-  fiber: FiberLike | null | undefined,
-): Omit<TranscriptEntry, "at" | "index"> | null {
+export function rowIdentity(fiber: FiberLike | null | undefined): RowIdentity | null {
+  const own = propsIdentity(fiber);
+  const alternate = fiber?.alternate ?? null;
+  if (alternate === null) return own;
+  const other = propsIdentity(alternate);
+  if (own?.id === other?.id && own?.role === other?.role) return own;
+  const ownIsCurrent = rootIsCurrent(fiber);
+  if (ownIsCurrent === rootIsCurrent(alternate)) return null;
+  return ownIsCurrent ? own : other;
+}
+
+function rootIsCurrent(fiber: FiberLike | null | undefined): boolean {
+  let node = fiber ?? null;
+  for (let step = 0; node?.return && step < ROOT_SEARCH_DEPTH; step++) node = node.return;
+  return node !== null && asRecord(node.stateNode)?.current === node;
+}
+
+function propsIdentity(fiber: FiberLike | null | undefined): RowIdentity | null {
   let node: FiberLike | null = fiber ?? null;
   for (let step = 0; node !== null && step < PROP_SEARCH_DEPTH; step++) {
     const props = asRecord(node.memoizedProps);

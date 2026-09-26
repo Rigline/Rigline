@@ -64,6 +64,14 @@ slack for a wrapper. The bound matters in the failing direction: walking further
 reach an *ancestor row's* props and identify a row as its own parent, silently. A bounded walk turns
 that into "not a row", which is the safe answer.
 
+**The fiber on the element may be the stale one.** React keeps two fibers per element, current and
+alternate, and writes the element's property only when it creates the element. After a row is
+reused for another message, the one on the element can be the half still holding the old message,
+parents included, until the row next renders. So `rowIdentity` reads both, and where they disagree
+takes the one whose root fiber its `FiberRoot` calls `current`, or neither (D103). `__reactProps$`
+cannot settle it: React rewrites that only when the element's own props change, and a row's div can
+keep its props while the message above it changes.
+
 ## The sweep
 
 One pass, scheduled as a microtask, however many reasons arrive first. Two things schedule it: a

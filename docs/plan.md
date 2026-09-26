@@ -315,12 +315,13 @@ The bar a 1.0 release clears, agreed 2026-09-26; the working plan is `.local/pla
 - VS Code alone: the companion goes only where the engine injects, and says so anywhere else.
 - No console window when the companion runs Rigline.
 - One macOS row in CI, and a live run on a Mac.
-- Reads: what a remote window does, and whether a reused row reports its previous message.
+- Reads: what a remote window does, and whether a reused row reports its previous message (it
+  did, and no longer does).
 - The reads under **Next session**, on the last alpha before 1.0.
 
 Done: the statement, what the wrapper and the companion rely on, the wrapper change, VS Code alone,
-no console window, the macOS row, and unknown manifest keys refused. `ctx.style` is next, and its
-plan is waiting on Leo.
+no console window, the macOS row, unknown manifest keys refused, and the reused-row read with its
+fix. `ctx.style` is next, and its plan is waiting on Leo.
 
 ## Open questions
 
@@ -339,14 +340,6 @@ what a plugin is written against.
   reported as changing nothing, which is the signal that the shipped table has caught up and the
   entry can go. What is missing is the other end — how an entry gets into the shipped table, and on
   whose say-so.
-- **Whether a reused row can report its previous message.** React writes an element's
-  `__reactFiber$` property when it creates the element, and never on update. It rewrites
-  `__reactProps$` on every update. So after an update, the fiber there can be the alternate, whose
-  `.return` chain holds the previous render's props. A row React reuses for a different message
-  (rows are keyed by index) could then report the old message's identity until the fiber flips
-  back. `findFiberByHostInstance` returned the same object, so D103 neither caused this nor fixed
-  it. This comes from reading the source, not from an observation. A harness case that splices the
-  list would show whether it is real. The read is on the 1.0 bar.
 
 ## Deferred, with triggers
 
@@ -531,3 +524,5 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
 - 2026-09-26: VS Code alone: the companion goes only where the engine injects.
 - 2026-09-26: The wrapper installs the engine and hands everything else to it (D106), and what the
   wrapper and the companion rely on is written down in [architecture.md](architecture.md).
+- 2026-09-26: A row React reused for another message reported the old one, read in the harness; the
+  host now takes the current fiber of the pair (D103).

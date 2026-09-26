@@ -2491,6 +2491,18 @@ Rejected:
   prefix already finds the owning renderer, and binding asserts another internal.
 - An element-to-fiber map built by walking each commit. Commits fire once per streamed token.
 
+**The fiber on the element can be the stale one (amended 2026-09-26).** React keeps two fibers per
+element and writes `__reactFiber$` only when it creates the element. Rows are keyed by index, so a
+row reused for another message can hand back the stale half, whose `.return` parents still carry the
+old message. A harness case read it: an assistant record superseding the one at index 1 left the
+row showing the new message and the host reporting the old uuid, and so the old time (P5). It lasts
+until the row renders again, and by the bundle's code the 600-row cap evicts from the front, so a
+long session reuses every row on each new message. The element's `__reactProps$` does not tell the halves apart: the
+div's own props had not changed, so React never rewrote them. So `rowIdentity` reads `alternate`
+too, and where the halves disagree takes the one whose root its `FiberRoot` calls current, React's
+own test, or neither when that does not settle it. The React layer asserts `alternate` and
+`stateNode`, because without `alternate` the host would fall back to the stale read in silence.
+
 **D104. A refusal belongs to one version (2026-09-25, Leo).** `install` refuses a version in two
 ways: the directory is still being written (D81), or Rigline cannot read its bundle, which is a
 `HarvestError`. Both were throws, and nothing between them and the command caught them. `update`

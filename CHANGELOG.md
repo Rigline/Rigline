@@ -46,6 +46,10 @@ anything may change between releases.
   for every other plugin. It is left unloaded and named under what needs you, and the rest load.
 - `rigline add` from npm, and `rigline update`, say which package and version a plugin came from,
   where they named a temporary directory.
+- A transcript row the panel reuses for a different message — which happens to every row once a long
+  session passes 600 messages — no longer keeps the previous message's identity, so time-marks no
+  longer shows the old message's time on it. A plugin decorating rows sees the message the row
+  actually shows.
 
 ## 1.0.0-alpha.12 — 2026-09-26
 

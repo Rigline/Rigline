@@ -70,6 +70,14 @@ const REQUIRED: readonly RequiredAnchor[] = [
     text: "memoizedProps",
     breaks: "the host could reach a fiber but not read which message it shows",
   },
+  {
+    text: "alternate",
+    breaks: "a row reused for another message would go on reporting the old one (D103)",
+  },
+  {
+    text: "stateNode",
+    breaks: "the host could not tell which of a reused row's two fibers is on screen (D103)",
+  },
 ];
 
 /**

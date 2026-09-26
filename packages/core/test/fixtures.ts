@@ -10,17 +10,17 @@ import { RUNTIME_MODULES } from "@rigline/plugin-api";
  * A minified-looking snippet reproducing react-dom 18's own devtools hook integration closely
  * enough for `harvestReact` (`../src/layers/react.ts`) to succeed against it: the fiber key with its
  * per-load suffix, the hook check, the commit callback, the renderer descriptor beside its version,
- * and the fiber-props accessor.
+ * the fiber-props accessor, and the test for which of a fiber pair is current.
  */
 export const REACT_BODY =
-  'var k=Math.random().toString(36).slice(2),K="__reactFiber$"+k;function f(n){return n[K]||null}if(typeof __REACT_DEVTOOLS_GLOBAL_HOOK__<"u"){if(h=__REACT_DEVTOOLS_GLOBAL_HOOK__,!h.isDisabled&&h.supportsFiber)try{i=h.inject(R)}catch(e){}}function c(r){if(h&&typeof h.onCommitFiberRoot==="function")h.onCommitFiberRoot(i,r)}var R={findFiberByHostInstance:f,bundleType:0,version:"18.3.1",rendererPackageName:"react-dom"};function p(n){return n.memoizedProps}';
+  'var k=Math.random().toString(36).slice(2),K="__reactFiber$"+k;function f(n){return n[K]||null}if(typeof __REACT_DEVTOOLS_GLOBAL_HOOK__<"u"){if(h=__REACT_DEVTOOLS_GLOBAL_HOOK__,!h.isDisabled&&h.supportsFiber)try{i=h.inject(R)}catch(e){}}function c(r){if(h&&typeof h.onCommitFiberRoot==="function")h.onCommitFiberRoot(i,r)}var R={findFiberByHostInstance:f,bundleType:0,version:"18.3.1",rendererPackageName:"react-dom"};function p(n){return n.memoizedProps}function u(a){return a.stateNode.current===a?a:a.alternate}';
 
 /**
  * The same for react-dom 19, whose injected internals are copied from 19.3.0's own: no
  * `findFiberByHostInstance`, and a reconciler version beside the renderer's.
  */
 export const REACT_19_BODY =
-  'var k=Math.random().toString(36).slice(2),K="__reactFiber$"+k;var R={bundleType:0,version:"19.3.0",rendererPackageName:"react-dom",currentDispatcherRef:T,reconcilerVersion:"19.3.0"};if(typeof __REACT_DEVTOOLS_GLOBAL_HOOK__<"u"){var h=__REACT_DEVTOOLS_GLOBAL_HOOK__;if(!h.isDisabled&&h.supportsFiber)try{i=h.inject(R),s=h}catch{}}function c(r){if(s&&typeof s.onCommitFiberRoot=="function")try{s.onCommitFiberRoot(i,r,void 0,!1)}catch{}}function p(n){return n.memoizedProps}';
+  'var k=Math.random().toString(36).slice(2),K="__reactFiber$"+k;var R={bundleType:0,version:"19.3.0",rendererPackageName:"react-dom",currentDispatcherRef:T,reconcilerVersion:"19.3.0"};if(typeof __REACT_DEVTOOLS_GLOBAL_HOOK__<"u"){var h=__REACT_DEVTOOLS_GLOBAL_HOOK__;if(!h.isDisabled&&h.supportsFiber)try{i=h.inject(R),s=h}catch{}}function c(r){if(s&&typeof s.onCommitFiberRoot=="function")try{s.onCommitFiberRoot(i,r,void 0,!1)}catch{}}function p(n){return n.memoizedProps}function u(a){return a.stateNode.current===a?a:a.alternate}';
 
 /** A webview bundle body, and the stylesheet that matches it, produced by `harvestableWebview`. */
 export interface HarvestableWebview {

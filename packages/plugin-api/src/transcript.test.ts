@@ -148,6 +148,55 @@ describe("rowIdentity", () => {
   ])("returns null for non-fiber-shaped input (%s)", (_label, node) => {
     expect(rowIdentity(node)).toBeNull();
   });
+
+  describe("on a row React reused for another message", () => {
+    /**
+     * React's pair for one row element: `before` still showing A under the old root, `after`
+     * showing B under the new one, each the other's alternate. Unsettled, the new root's
+     * `FiberRoot` does not call it current either.
+     */
+    type Node = {
+      memoizedProps?: unknown;
+      return: Node | null;
+      alternate?: Node;
+      stateNode?: unknown;
+    };
+
+    function pair(settled = true): { before: Node; after: Node } {
+      const oldRoot: Node = { return: null };
+      const newRoot: Node = { return: null };
+      const fiberRoot = { current: newRoot };
+      oldRoot.stateNode = fiberRoot;
+      newRoot.stateNode = settled ? fiberRoot : { current: null };
+      const row = (uuid: string, root: Node): Node => ({
+        memoizedProps: { className: "message_07S1Yg" },
+        return: { memoizedProps: { message: { uuid, type: "assistant" } }, return: root },
+      });
+      const before = row(A, oldRoot);
+      const after = row(B, newRoot);
+      before.alternate = after;
+      after.alternate = before;
+      return { before, after };
+    }
+
+    it("takes the message the row shows now, from whichever half the element holds", () => {
+      const { before, after } = pair();
+      expect(rowIdentity(before)).toEqual({ id: B, role: "assistant" });
+      expect(rowIdentity(after)).toEqual({ id: B, role: "assistant" });
+    });
+
+    it("identifies nothing when neither root is the one on screen (P5)", () => {
+      expect(rowIdentity(pair(false).before)).toBeNull();
+    });
+
+    it("reads no root while the halves agree", () => {
+      const node = {
+        ...fiber({}, { message: { uuid: A, type: "user" } }),
+        alternate: fiber({}, { message: { uuid: A, type: "user" } }),
+      };
+      expect(rowIdentity(node)).toEqual({ id: A, role: "user" });
+    });
+  });
 });
 
 describe("entriesDiffer", () => {
