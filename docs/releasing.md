@@ -137,6 +137,24 @@ way. Check anyway, and check again whenever a token is issued for anything else.
 the limit: `Read and write (stage only)` on a granular token, stage-only permissions on a trusted
 publisher.
 
+**6. The companion's namespace, on both extension registries.** Outside the chain: it needs none of
+the steps above and nothing needs it. The companion is listed nowhere (D76), yet VS Code resolves
+`rigline.rigline` against a registry regardless — a `vscode://rigline.rigline/…` link when it is not
+installed, Settings Sync on another machine (D93) — so whoever holds the `rigline` namespace decides
+what that installs. Holding it covers every `rigline.*` id and lists nothing.
+
+The Visual Studio Marketplace, which VS Code asks: create a publisher with ID `rigline` at
+`marketplace.visualstudio.com/manage`, signed in with a Microsoft account. The ID is unique and
+permanent, and only the publisher's members can publish under it, so creating it is the whole claim.
+
+Open VSX, which VSCodium and most forks ask, is different: **creating a namespace is not a claim.**
+An unowned one accepts a publish from any account, marked unverified. Sign in at `open-vsx.org` with
+GitHub, link an Eclipse account and agree to the Publisher Agreement under the profile settings,
+generate an access token, and run `npx ovsx create-namespace rigline -p <token>`. Then file *Claim
+namespace ownership* at `github.com/EclipseFdn/open-vsx.org`. With the Marketplace publisher made
+first, the proof it asks for is Reader access on that publisher for the Open VSX administrator, whose
+ID the template gives.
+
 ## What you need on the machine
 
 **An npm session.** `npm whoami` should name your account. Both commands refuse without one —

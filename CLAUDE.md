@@ -52,7 +52,7 @@ decisions.md, and each doc cites the decisions it rests on.
   are derived rather than chosen, the three release commands, the two workflows, and what is still
   outstanding.
 - [docs/releasing.md](docs/releasing.md): the four published packages, the stage-then-approve split,
-  the one-time npm setup and why each step of it is a person's, and cutting a release.
+  the one-time setup on npm and the extension registries and why each step of it is a person's, and cutting a release.
 
 Written for somebody else, so don't rewrite them for us:
 
