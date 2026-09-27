@@ -20,7 +20,7 @@
  * bundle applies at more than one place, with nothing in the spec to tell them apart, does not
  * resolve at all. Absent beats wrong (P8), and the reason travels with the refusal.
  */
-import { ANCHORS, type AnchorName, type AnchorSpec } from "@rigline/plugin-api";
+import { ANCHORS, type AnchorName, type AnchorSpec } from "@rigline/plugin-api/internal";
 import { siteCount } from "../layers/classes.ts";
 import type { Classes } from "../layers/index.ts";
 

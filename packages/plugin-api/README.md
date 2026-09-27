@@ -1,7 +1,8 @@
 # @rigline/plugin-api
 
 What a [Rigline](https://github.com/Rigline/Rigline) plugin is written against: the plugin context,
-the manifest type and its JSON schema, `definePlugin`, and the anchor names.
+the manifest type and its JSON schema, `definePlugin`, and the anchor names. The `/internal`
+subpaths are how Rigline's own packages share code, and change in any release.
 
 A plugin is one browser ES module and a `rigline.json`. This package is a **devDependency** — the
 build bundles everything the entry imports but React and `@rigline/plugin-api/ui`, which the panel

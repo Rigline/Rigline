@@ -319,6 +319,15 @@ prophecy. Users take the extension update almost immediately, so backward spread
 machine (the D4 window) and narrow across users, and a user who pins is served correctly by D43's
 check with no mechanism of its own.
 
+**D108. `@rigline/plugin-api`'s root is what a plugin is written against, and nothing else
+(2026-09-27, Leo).** 1.x keeps every export of the root (stability.md), so an export is a promise.
+The root holds the context and what it hands out, the manifest as an author writes it, and the
+anchor and identifier vocabulary. What host and core share so that Node and the webview cannot
+disagree — the validators, the capability contracts, the layout and save machinery, the parsers,
+`ANCHORS` with this version's hashes — is `@rigline/plugin-api/internal`, a superset of the root,
+which stability.md names as not kept. No plugin needs it: core pins plugin-api to its own version,
+so only Rigline's packages import it.
+
 ### The context
 
 **D18. `ctx` is built per plugin, scoped to its manifest, by a registry of capability modules.**

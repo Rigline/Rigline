@@ -22,7 +22,7 @@ import {
   type ToolUse,
   toolResults,
   toolUses,
-} from "@rigline/plugin-api";
+} from "@rigline/plugin-api/internal";
 import type { Bus } from "./bridge.ts";
 
 export interface ToolService {

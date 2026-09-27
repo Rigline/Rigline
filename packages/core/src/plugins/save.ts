@@ -5,7 +5,7 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, linkSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { decodeSavePayload, type SaveRecord, sameLayout } from "@rigline/plugin-api";
+import { decodeSavePayload, type SaveRecord, sameLayout } from "@rigline/plugin-api/internal";
 import { companionDirs } from "../companion/fingerprint.ts";
 import { UserError } from "../errors.ts";
 import { URL_SCHEME } from "../extension/locate.ts";

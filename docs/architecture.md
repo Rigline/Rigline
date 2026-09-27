@@ -70,11 +70,13 @@ edge from core to the plugins would be a cycle. `bundledDir()` in
 refuses a bundle older than the builds it was copied from.
 
 `plugin-api` is the load-bearing one, and the rule that keeps it honest is that it may import
-nothing from core or host and its root must run in both — which is why the React half is a subpath
-that the root never imports. A capability's *contract* lives there — the manifest
-shape, what it depends on, what it says about itself — and its *grant* lives in host. That is what
-lets `rigline install` and the kernel ask the same question of a manifest and be unable to disagree:
-both call `capabilityViolation(uses, tables)`, from `plugin-api`.
+nothing from core or host and its root and `/internal` must run in both — which is why the React
+half is a subpath neither imports. The root is what a plugin is written against and 1.x keeps;
+`/internal` is the root plus what host and core share, and is not kept (D108). A capability's
+*contract* lives there — the manifest shape, what it depends on, what it says about itself — and
+its *grant* lives in host. That is what lets `rigline install` and the kernel ask the same question
+of a manifest and be unable to disagree: both call `capabilityViolation(uses, tables)`, from
+`@rigline/plugin-api/internal`.
 
 ## The three registries
 

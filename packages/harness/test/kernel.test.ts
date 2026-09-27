@@ -10,7 +10,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { bundledDir, harvestReact } from "@rigline/core";
-import { EMPTY_DECLARATIONS } from "@rigline/plugin-api";
+import { EMPTY_DECLARATIONS } from "@rigline/plugin-api/internal";
 import { describe, expect, it } from "vitest";
 import type { FixturePlugin } from "../src/payload.ts";
 import { harnessSkipReason, register, HARNESS_VERSION as VERSION } from "../src/suite.ts";

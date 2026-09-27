@@ -2,9 +2,9 @@
  * @rigline/plugin-api: what a Rigline plugin is written against.
  *
  * A plugin ships a rigline.json manifest and one browser-target ES module whose default export
- * has setup(ctx). This package holds the PluginContext type, the manifest type and schema, the
- * curated anchor table, and the pure helpers the host and core share so that a rule checked in
- * Node and a rule checked in the webview cannot drift apart.
+ * has setup(ctx). This root holds the context and what it hands out, the manifest as an author
+ * writes it, and the anchor and identifier vocabulary, and it is what 1.x keeps (stability.md).
+ * What host and core share is `@rigline/plugin-api/internal`, which is not kept (D108).
  *
  * What it deliberately does not hold is a single identifier harvested from the extension (D40).
  * The four types over that vocabulary are declared here as lookups into an empty interface, and
@@ -13,19 +13,8 @@
 
 export const API_VERSION = 1 as const;
 
-export type { AnchorName, AnchorSpec, Surface } from "./anchors.ts";
-export { ANCHOR_NAMES, ANCHORS } from "./anchors.ts";
-export type { CapabilityContract, Declarations, Uses, UsesKey } from "./capabilities/index.ts";
-export {
-  CONTRACTS,
-  capabilityDrift,
-  capabilityUse,
-  capabilityViolation,
-  describeUses,
-  optionalGaps,
-  patchViolation,
-  sharedFields,
-} from "./capabilities/index.ts";
+export type { AnchorName, Surface } from "./anchors.ts";
+export { ANCHOR_NAMES } from "./anchors.ts";
 export type { CheckVerdict, Verdict } from "./checks.ts";
 export type {
   ElementComponent,
@@ -39,29 +28,7 @@ export type {
   Teardown,
 } from "./context.ts";
 export { definePlugin } from "./context.ts";
-export type {
-  AnchorSlot,
-  DeclaredElement,
-  DeclaredPlacement,
-  ElementSpec,
-  Elements,
-  Placement,
-  SlotPosition,
-  ZoneName,
-  ZoneSpec,
-} from "./elements.ts";
-export {
-  ELEMENT_ID_PATTERN,
-  elementGaps,
-  placementGap,
-  placementLabel,
-  RIGLINE,
-  RIGLINE_ELEMENTS,
-  SLOT_POSITIONS,
-  samePlacement,
-  ZONE_NAMES,
-  ZONES,
-} from "./elements.ts";
+export type { DeclaredElement, DeclaredPlacement, SlotPosition, ZoneName } from "./elements.ts";
 export type {
   MessageType,
   ModuleClasses,
@@ -69,56 +36,8 @@ export type {
   OutboundFields,
   RiglineIdentifiers,
 } from "./identifiers.ts";
-export type {
-  ElementPlace,
-  Layout,
-  LayoutPlugin,
-  ViewElement,
-  ViewPlace,
-} from "./layout.ts";
-export {
-  describeElements,
-  elementRank,
-  layoutCommands,
-  layoutProblems,
-  layoutView,
-  OFF,
-  parsePlace,
-  placeElement,
-  placeName,
-  placeTitle,
-  sameLayout,
-  withElementAt,
-  withOrder,
-  withRigline,
-} from "./layout.ts";
-export type { DeclaredUses, HostPatch, Manifest, ValidManifest } from "./manifest.ts";
-export {
-  byteLength,
-  EMPTY_DECLARATIONS,
-  EMPTY_USES,
-  NAME_PATTERN,
-  patchShapeProblem,
-  SURFACES,
-  validateManifest,
-} from "./manifest.ts";
-export type { RuntimeSpecifier } from "./runtime.ts";
-export { isRuntimeSpecifier, RUNTIME_MODULES } from "./runtime.ts";
-export type { SavePayload, SaveRecord } from "./save.ts";
-export {
-  decodeSavePayload,
-  encodeSavePayload,
-  MAX_SAVE_PAYLOAD,
-  SAVE_PAYLOAD_VERSION,
-} from "./save.ts";
-export { manifestSchema, manifestSchemaJson } from "./schema.ts";
-export { nextSessionId } from "./session.ts";
+export type { DeclaredUses, HostPatch, Manifest } from "./manifest.ts";
 export type { Store } from "./store.ts";
 export { store, storeFrom } from "./store.ts";
 export type { ToolResult, ToolUse } from "./stream.ts";
-export { PENDING_TOOL_LIMIT, toolResults, toolUses } from "./stream.ts";
-export type { StylesheetNames } from "./stylesheet.ts";
-export { stylesheetNames } from "./stylesheet.ts";
-export type { IdentifierTables, ReactGap } from "./tables.ts";
-export type { FiberLike, MessageTime, TranscriptEntry } from "./transcript.ts";
-export { entriesDiffer, messageTimes, rowIdentity } from "./transcript.ts";
+export type { MessageTime, TranscriptEntry } from "./transcript.ts";

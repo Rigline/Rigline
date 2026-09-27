@@ -23,7 +23,7 @@ import {
   type SaveRecord,
   type Teardown,
   withRigline,
-} from "@rigline/plugin-api";
+} from "@rigline/plugin-api/internal";
 import { MODULES } from "./capabilities/index.ts";
 import { type Bridge, bridge as findBridge, type PluginStatus } from "./kernel/bridge.ts";
 import { CORE, createCheckService, kernelChecks } from "./kernel/checks.ts";

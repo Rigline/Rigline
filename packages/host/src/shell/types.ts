@@ -2,7 +2,7 @@
  * What the kernel hands the shell. Types only: post.js loads `runtime/shell.js` and never bundles
  * it, so the shell shares React and `@rigline/plugin-api/ui` with the plugins it renders (D88).
  */
-import type { ElementComponent, MenuComponent, Store } from "@rigline/plugin-api";
+import type { ElementComponent, MenuComponent, Store } from "@rigline/plugin-api/internal";
 import type { LayoutEditor } from "../kernel/layout.ts";
 import type { ElementReading } from "../kernel/shell.ts";
 

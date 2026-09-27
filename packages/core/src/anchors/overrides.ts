@@ -20,7 +20,7 @@
  * and a file people paste into from an issue thread will be malformed sooner than most.
  */
 import { existsSync, readFileSync } from "node:fs";
-import { ANCHORS, type AnchorSpec, SURFACES } from "@rigline/plugin-api";
+import { ANCHORS, type AnchorSpec, SURFACES } from "@rigline/plugin-api/internal";
 import type { Classes } from "../layers/index.ts";
 import { riglinePaths } from "../paths.ts";
 import { type AnchorTable, resolveAnchors } from "./resolve.ts";

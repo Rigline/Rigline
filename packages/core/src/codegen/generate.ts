@@ -22,7 +22,7 @@
  * Every union is emitted one member per line, so a class or message added upstream shows up in a
  * diff as one added line rather than a reflowed block.
  */
-import type { IdentifierTables } from "@rigline/plugin-api";
+import type { IdentifierTables } from "@rigline/plugin-api/internal";
 import { type AnchorTable, type ResolvedAnchors, resolveAnchors } from "../anchors/resolve.ts";
 import { type ClassMap, collidingLocalNames, unreachableCssClasses } from "../layers/classes.ts";
 import { type Scan, scanToJson } from "../layers/diff.ts";

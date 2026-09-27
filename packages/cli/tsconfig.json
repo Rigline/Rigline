@@ -8,7 +8,8 @@
     // No `@rigline/core`: the wrapper depends on no Rigline package (D69), and a mapping here
     // would let a `src/` import typecheck, build and fail only for whoever installed the tarball.
     "paths": {
-      "@rigline/plugin-api": ["../plugin-api/src/index.ts"]
+      "@rigline/plugin-api": ["../plugin-api/src/index.ts"],
+      "@rigline/plugin-api/internal": ["../plugin-api/src/internal.ts"]
     }
   },
   "include": ["src/**/*.ts", "test/**/*.ts"]

@@ -10,7 +10,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { validateManifest } from "@rigline/plugin-api";
+import { validateManifest } from "@rigline/plugin-api/internal";
 import { afterEach, describe, expect, it } from "vitest";
 import { defaultTemplateDir, riglineRange, ScaffoldError, scaffold } from "./index.ts";
 

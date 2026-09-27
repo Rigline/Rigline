@@ -12,7 +12,7 @@ import {
   type Store,
   sameLayout,
   type ViewPlace,
-} from "@rigline/plugin-api";
+} from "@rigline/plugin-api/internal";
 import { useStore } from "@rigline/plugin-api/ui";
 import { type MenuEntry, MenuPanel } from "@rigline/plugin-api/ui/internal";
 import {

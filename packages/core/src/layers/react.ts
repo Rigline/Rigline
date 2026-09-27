@@ -12,7 +12,7 @@
  * So this layer asserts them at harvest time (P1, D11). One that is missing refuses the transcript
  * capability by name and nothing else, since nothing else rests on it (D102).
  */
-import type { ReactGap } from "@rigline/plugin-api";
+import type { ReactGap } from "@rigline/plugin-api/internal";
 import { type Bundles, defineLayer } from "./types.ts";
 
 /**

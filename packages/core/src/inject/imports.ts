@@ -7,7 +7,7 @@
  * string literal is exactly what a pattern would also rewrite.
  */
 import { posix } from "node:path";
-import { isRuntimeSpecifier, RUNTIME_MODULES } from "@rigline/plugin-api";
+import { isRuntimeSpecifier, RUNTIME_MODULES } from "@rigline/plugin-api/internal";
 import { initSync, parse } from "es-module-lexer";
 
 export interface ResolvedImports {

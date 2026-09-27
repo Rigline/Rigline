@@ -16,7 +16,7 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { validateManifest } from "@rigline/plugin-api";
+import { validateManifest } from "@rigline/plugin-api/internal";
 import { describe, expect, it } from "vitest";
 import type { FixturePlugin } from "../src/payload.ts";
 import { harnessSkipReason, register, HARNESS_VERSION as VERSION } from "../src/suite.ts";

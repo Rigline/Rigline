@@ -20,7 +20,7 @@ import {
   rowIdentity,
   type Teardown,
   type TranscriptEntry,
-} from "@rigline/plugin-api";
+} from "@rigline/plugin-api/internal";
 import type { Bus, Diagnostics, ReactBridge } from "./bridge.ts";
 import type { MountService } from "./mounts.ts";
 

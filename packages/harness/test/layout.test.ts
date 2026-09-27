@@ -7,7 +7,7 @@
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { Layout, SaveRecord } from "@rigline/plugin-api";
+import type { Layout, SaveRecord } from "@rigline/plugin-api/internal";
 import type { Page } from "playwright";
 import { describe, expect, it } from "vitest";
 import type { FixturePlugin } from "../src/payload.ts";

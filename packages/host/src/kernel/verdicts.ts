@@ -10,7 +10,7 @@
  * about the kernel belongs to the kernel and a check about a capability belongs to that capability,
  * so that a plugin's failure and the host's failure are attributable to different lines.
  */
-import type { CheckVerdict } from "@rigline/plugin-api";
+import type { CheckVerdict } from "@rigline/plugin-api/internal";
 
 /** One plugin's status, as far as the plugin check needs it. */
 export interface PluginStatusLike {

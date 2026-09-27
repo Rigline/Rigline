@@ -17,7 +17,7 @@ import {
   optionalGaps,
   RUNTIME_MODULES,
   sharedFields,
-} from "@rigline/plugin-api";
+} from "@rigline/plugin-api/internal";
 import {
   type AnchorOverrideOutcome,
   type AnchorOverrides,

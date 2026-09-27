@@ -11,7 +11,7 @@
  * naturally renames its tab once a session exists" from a dead branch into something a rewrite test
  * can observe.
  */
-import type { Surface } from "@rigline/plugin-api";
+import type { Surface } from "@rigline/plugin-api/internal";
 
 export interface FixturePageOptions {
   readonly surface: Surface;

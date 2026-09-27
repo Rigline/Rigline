@@ -3,7 +3,7 @@
  * Reload, the menu opening and a save's confirmation share. The re-read and the wait are injected,
  * so the twenty seconds a confirmation may take cost nothing here.
  */
-import type { Layout, LayoutPlugin } from "@rigline/plugin-api";
+import type { Layout, LayoutPlugin } from "@rigline/plugin-api/internal";
 import { describe, expect, it } from "vitest";
 import { createLayoutEditor } from "../src/kernel/layout.ts";
 

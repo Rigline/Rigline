@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { type Elements, EMPTY_USES } from "@rigline/plugin-api";
+import { type Elements, EMPTY_USES } from "@rigline/plugin-api/internal";
 import { afterEach, describe, expect, it } from "vitest";
 import { readConfig } from "./config.ts";
 import type { DiscoveredPlugin } from "./discover.ts";

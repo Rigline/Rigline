@@ -22,7 +22,7 @@ import {
   SURFACES,
   type Surface,
   type Uses,
-} from "@rigline/plugin-api";
+} from "@rigline/plugin-api/internal";
 import { corpusBundles } from "../../core/test/corpus.ts";
 
 /** The two files the host builds to, which are the two this copies. */

@@ -19,7 +19,7 @@ import { existsSync, watch as fsWatch, readdirSync, readFileSync, writeFileSync 
 import { basename, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { placementLabel, placeName } from "@rigline/plugin-api";
+import { placementLabel, placeName } from "@rigline/plugin-api/internal";
 import {
   type Additions,
   type AddResult,

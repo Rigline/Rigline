@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { EMPTY_USES, type IdentifierTables } from "@rigline/plugin-api";
+import { EMPTY_USES, type IdentifierTables } from "@rigline/plugin-api/internal";
 import { afterEach, describe, expect, it } from "vitest";
 import { corpusBundles, missing } from "../../test/corpus.ts";
 import { generate } from "../codegen/generate.ts";

@@ -1,4 +1,4 @@
-import { CONTRACTS, type Payload } from "@rigline/plugin-api";
+import { CONTRACTS, type Payload } from "@rigline/plugin-api/internal";
 import { type CapabilityModule, CapabilityViolation } from "../kernel/types.ts";
 
 /** `ctx.onMessage(type, handler)`: a read tap, replayed from the startup exchange, frozen. */

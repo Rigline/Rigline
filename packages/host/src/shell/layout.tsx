@@ -13,7 +13,7 @@ import {
   type Store,
   sameLayout,
   type ViewElement,
-} from "@rigline/plugin-api";
+} from "@rigline/plugin-api/internal";
 import {
   MenuItem,
   MenuNote,

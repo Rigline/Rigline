@@ -14,7 +14,12 @@
  */
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { basename, join, relative, resolve } from "node:path";
-import { describeElements, describeUses, type Uses, type ValidManifest } from "@rigline/plugin-api";
+import {
+  describeElements,
+  describeUses,
+  type Uses,
+  type ValidManifest,
+} from "@rigline/plugin-api/internal";
 import { UserError } from "../errors.ts";
 import {
   addToList,

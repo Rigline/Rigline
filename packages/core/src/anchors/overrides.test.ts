@@ -9,7 +9,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ANCHORS } from "@rigline/plugin-api";
+import { ANCHORS } from "@rigline/plugin-api/internal";
 import { afterEach, describe, expect, it } from "vitest";
 import type { Classes } from "../layers/classes.ts";
 import {

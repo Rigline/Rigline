@@ -18,6 +18,12 @@ export default defineConfig({
     // Anchored, so the root's alias does not also rewrite `@rigline/plugin-api/ui`.
     alias: [
       {
+        find: /^@rigline\/plugin-api\/internal$/,
+        replacement: fileURLToPath(
+          new URL("./packages/plugin-api/src/internal.ts", import.meta.url),
+        ),
+      },
+      {
         find: /^@rigline\/plugin-api\/ui$/,
         replacement: fileURLToPath(
           new URL("./packages/plugin-api/src/ui/index.ts", import.meta.url),

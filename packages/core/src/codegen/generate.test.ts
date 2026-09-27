@@ -1,4 +1,4 @@
-import { ANCHORS } from "@rigline/plugin-api";
+import { ANCHORS } from "@rigline/plugin-api/internal";
 import { describe, expect, it } from "vitest";
 import type { Harvest } from "../layers/index.ts";
 import { generate } from "./generate.ts";

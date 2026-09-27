@@ -4,7 +4,7 @@
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { RUNTIME_MODULES } from "@rigline/plugin-api";
+import { RUNTIME_MODULES } from "@rigline/plugin-api/internal";
 
 /**
  * A minified-looking snippet reproducing react-dom 18's own devtools hook integration closely

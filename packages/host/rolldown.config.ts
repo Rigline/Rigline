@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 import { basename } from "node:path";
-import { RUNTIME_MODULES } from "@rigline/plugin-api";
+import { RUNTIME_MODULES } from "@rigline/plugin-api/internal";
 import { defineConfig } from "rolldown";
 
 /**

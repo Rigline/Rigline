@@ -1,4 +1,4 @@
-import { ANCHORS, type AnchorName, type AnchorSpec, CONTRACTS } from "@rigline/plugin-api";
+import { ANCHORS, type AnchorName, type AnchorSpec, CONTRACTS } from "@rigline/plugin-api/internal";
 import {
   type CapabilityModule,
   CapabilityViolation,

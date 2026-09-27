@@ -1,4 +1,4 @@
-import { CONTRACTS, type Payload, patchViolation } from "@rigline/plugin-api";
+import { CONTRACTS, type Payload, patchViolation } from "@rigline/plugin-api/internal";
 import type { RewriteRecord } from "../kernel/bridge.ts";
 import { type CapabilityModule, CapabilityViolation } from "../kernel/types.ts";
 

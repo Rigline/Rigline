@@ -15,7 +15,7 @@ import {
   type ViewPlace,
   withElementAt,
   withOrder,
-} from "@rigline/plugin-api";
+} from "@rigline/plugin-api/internal";
 
 /** Where a save from this panel stands. */
 export type SaveState = "idle" | "saving" | "saved" | "unconfirmed";

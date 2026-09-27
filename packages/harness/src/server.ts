@@ -7,7 +7,7 @@
 import { readFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { extname, join, normalize, sep } from "node:path";
-import type { Surface } from "@rigline/plugin-api";
+import type { Surface } from "@rigline/plugin-api/internal";
 import { fixturePage } from "./page.ts";
 
 /** The exact two lines docs/host.md records the injector adding around the bundle's bytes. */

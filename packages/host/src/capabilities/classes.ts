@@ -1,4 +1,4 @@
-import { CONTRACTS } from "@rigline/plugin-api";
+import { CONTRACTS } from "@rigline/plugin-api/internal";
 import { type CapabilityModule, CapabilityViolation } from "../kernel/types.ts";
 
 /** `ctx.cls(module, local)`: a raw module-scoped class, for UI the anchor table does not curate. */

@@ -2,7 +2,7 @@
  * Rigline's own elements (D97): Edit in place and Reload saved layout as buttons a person places like
  * any plugin's element, each a small R and an icon, with the action's name as its tooltip.
  */
-import { sameLayout } from "@rigline/plugin-api";
+import { sameLayout } from "@rigline/plugin-api/internal";
 import { Pill, useStore } from "@rigline/plugin-api/ui";
 import type { ReactNode } from "react";
 import type { RiglineElements } from "./types.ts";

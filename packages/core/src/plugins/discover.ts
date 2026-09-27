@@ -21,7 +21,7 @@ import {
   type ValidManifest,
   validateManifest,
   withRigline,
-} from "@rigline/plugin-api";
+} from "@rigline/plugin-api/internal";
 import { ManifestError, UserError } from "../errors.ts";
 import { type DeclaredPatch, type PatchOutcome, patchRefusal } from "../inject/hostpatch.ts";
 import { CORE_VERSION } from "../version.ts";

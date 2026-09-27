@@ -1,4 +1,4 @@
-import { CONTRACTS } from "@rigline/plugin-api";
+import { CONTRACTS } from "@rigline/plugin-api/internal";
 import { type CapabilityModule, CapabilityViolation } from "../kernel/types.ts";
 import { anchorsResolveVerdict } from "../kernel/verdicts.ts";
 

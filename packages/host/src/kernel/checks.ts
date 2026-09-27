@@ -16,7 +16,7 @@
  * The renderer owns the cadence. The host owns the registry and the running, so that every reader
  * gets the same answers and a throw is attributed the same way wherever it is read from.
  */
-import type { CheckVerdict, Teardown, Verdict } from "@rigline/plugin-api";
+import type { CheckVerdict, Teardown, Verdict } from "@rigline/plugin-api/internal";
 import type { Diagnostics } from "./bridge.ts";
 import type { Kernel } from "./types.ts";
 import {

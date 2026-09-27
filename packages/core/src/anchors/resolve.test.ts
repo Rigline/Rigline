@@ -1,4 +1,9 @@
-import { ANCHOR_NAMES, ANCHORS, type AnchorName, type AnchorSpec } from "@rigline/plugin-api";
+import {
+  ANCHOR_NAMES,
+  ANCHORS,
+  type AnchorName,
+  type AnchorSpec,
+} from "@rigline/plugin-api/internal";
 import { describe, expect, it } from "vitest";
 import { CORPUS_VERSIONS, corpusBundles, missing } from "../../test/corpus.ts";
 import { type Classes, harvestClasses } from "../layers/classes.ts";

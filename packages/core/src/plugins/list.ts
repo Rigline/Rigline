@@ -10,7 +10,7 @@
  * rest on. Whether a plugin's declarations hold against an installed version is a different
  * question, and `check` owns it; nothing here reads an extension directory.
  */
-import { describeElements, describeUses, type Uses } from "@rigline/plugin-api";
+import { describeElements, describeUses, type Uses } from "@rigline/plugin-api/internal";
 import { CORE_VERSION } from "../version.ts";
 import { describeSource, type PluginSource, readConfig, readSources } from "./config.ts";
 import { type DiscoveredPlugin, discoverPlugins } from "./discover.ts";

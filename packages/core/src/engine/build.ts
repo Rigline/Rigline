@@ -12,7 +12,7 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
-import { RUNTIME_MODULES } from "@rigline/plugin-api";
+import { RUNTIME_MODULES } from "@rigline/plugin-api/internal";
 import type { build as bundle } from "rolldown";
 import { UserError } from "../errors.ts";
 

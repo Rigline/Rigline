@@ -39,6 +39,11 @@ anything may change between releases.
   when the plugin catches the error, and anything it registers afterwards is undone at once. Before,
   a caught error left the plugin running without what it had asked for, and nothing said so.
 
+- **For plugin authors:** `@rigline/plugin-api` exports only what a plugin is written against: the
+  context and the types it hands you, `definePlugin`, `store` and `storeFrom`, the manifest types, and
+  the anchor names. What Rigline's own packages share — the manifest validator, the capability
+  contracts, `ANCHORS`, the parsers — moved to `@rigline/plugin-api/internal`, which may change in
+  any release.
 - A `rigline.json` key that this version of Rigline does not know now refuses the plugin, naming the
   key, where before a key at the top level was ignored. A plugin written for a later Rigline is
   refused rather than loaded without what it needs. `$schema` is still allowed.

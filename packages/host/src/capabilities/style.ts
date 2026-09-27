@@ -1,4 +1,4 @@
-import { CONTRACTS, type IdentifierTables, stylesheetNames } from "@rigline/plugin-api";
+import { CONTRACTS, type IdentifierTables, stylesheetNames } from "@rigline/plugin-api/internal";
 import {
   type CapabilityModule,
   CapabilityViolation,

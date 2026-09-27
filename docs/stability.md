@@ -50,6 +50,9 @@ Code removed is refused by name, never left half-working. Every other plugin kee
 - **What `create-rigline-plugin` generates.** A workspace you already generated is yours; a later
   release scaffolds new ones differently.
 
+**Not kept, because they are Rigline's own:** `@rigline/plugin-api/internal` and
+`@rigline/plugin-api/ui/internal`, which is how Rigline's packages share code with each other.
+
 ## For your machine
 
 **Kept within 1.x:**

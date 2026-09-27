@@ -33,7 +33,7 @@
  * and the world keeps not staying as it left it, so `abandon` is what it does about a run of
  * corrections that never settles: stop, take the node out, name the plugin and the anchor.
  */
-import type { Teardown } from "@rigline/plugin-api";
+import type { Teardown } from "@rigline/plugin-api/internal";
 import type { Diagnostics, ReactBridge } from "./bridge.ts";
 
 /**

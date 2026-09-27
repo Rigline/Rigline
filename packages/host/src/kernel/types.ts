@@ -16,7 +16,7 @@ import type {
   Teardown,
   Uses,
   UsesKey,
-} from "@rigline/plugin-api";
+} from "@rigline/plugin-api/internal";
 import type { Bus, Diagnostics, ReactBridge } from "./bridge.ts";
 import type { Check, CheckService } from "./checks.ts";
 import type { MountService } from "./mounts.ts";

@@ -15,7 +15,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Layout, SaveRecord } from "@rigline/plugin-api";
+import type { Layout, SaveRecord } from "@rigline/plugin-api/internal";
 import { type Browser, type ConsoleMessage, chromium, type Page } from "playwright";
 import { afterAll, beforeAll } from "vitest";
 import { missing, versionDir } from "../../core/test/corpus.ts";

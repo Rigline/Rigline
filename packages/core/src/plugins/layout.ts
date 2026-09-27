@@ -18,7 +18,7 @@ import {
   type ViewElement,
   type ViewPlace,
   withRigline,
-} from "@rigline/plugin-api";
+} from "@rigline/plugin-api/internal";
 import { type Document, isMap, isScalar, isSeq } from "yaml";
 import { UserError } from "../errors.ts";
 import { addToList, editConfig, type PluginsConfig, removeFromList } from "./config.ts";

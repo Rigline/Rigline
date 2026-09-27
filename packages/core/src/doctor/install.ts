@@ -14,7 +14,7 @@
  */
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { RUNTIME_MODULES } from "@rigline/plugin-api";
+import { RUNTIME_MODULES } from "@rigline/plugin-api/internal";
 import { HOST_BACKUP, WEBVIEW_BACKUP } from "../extension/bundles.ts";
 import { extensionVersion } from "../extension/locate.ts";
 import type { PatchOutcome } from "../inject/hostpatch.ts";

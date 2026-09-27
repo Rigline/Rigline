@@ -1,4 +1,4 @@
-import { ANCHORS, CONTRACTS, type Surface } from "@rigline/plugin-api";
+import { ANCHORS, CONTRACTS, type Surface } from "@rigline/plugin-api/internal";
 import {
   type CapabilityModule,
   declaredSwitch,

@@ -9,7 +9,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { encodeSavePayload, type Layout, SAVE_PAYLOAD_VERSION } from "@rigline/plugin-api";
+import { encodeSavePayload, type Layout, SAVE_PAYLOAD_VERSION } from "@rigline/plugin-api/internal";
 import { afterEach, describe, expect, it } from "vitest";
 import { readConfig } from "./config.ts";
 import { companionHandlesSave, ensureToken, readToken, saveFromPanel, saveRecord } from "./save.ts";

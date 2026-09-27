@@ -6,7 +6,7 @@
  * keeps everything a person wrote there, comments included. The second only the engine writes (D74).
  */
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import type { Layout } from "@rigline/plugin-api";
+import type { Layout } from "@rigline/plugin-api/internal";
 import { Document, isMap, isScalar, isSeq, parseDocument } from "yaml";
 import { UserError } from "../errors.ts";
 
