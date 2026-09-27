@@ -174,7 +174,10 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
     const runner: Runner = { nodePath, entry: engine.entry };
     editor.status("working", "Rigline: injecting", `Running ${engine.version}`);
     const before = stamps(editor.extensionPath(CLAUDE_CODE));
-    const code = await runEngine(nodePath, engine.entry, ["install"], (line) => editor.log(line));
+    // `--companion`, so a `restore` holds until a person puts Rigline back (D111).
+    const code = await runEngine(nodePath, engine.entry, ["install", "--companion"], (line) =>
+      editor.log(line),
+    );
 
     // Asked of the editor, never the exit code: `install` answers an absent Claude Code with 1, and
     // engines have answered it with 0, so the code would say either a person or green (P8).

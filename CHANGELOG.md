@@ -67,6 +67,10 @@ anything may change between releases.
   command does. Before, they ignored it.
 - A key in `~/.rigline/config.yaml` that Rigline does not know is named under what needs you,
   where before it was ignored. It is a typo, or a setting from a later Rigline.
+- After `rigline restore`, Rigline stays out until you put it back, and the companion reads *needs
+  you* meanwhile. Before, the companion injected again at the next window reload, so the recovery
+  from a blank panel lasted one reload. Any command you run that injects puts it back: `rigline
+  install`, or `rigline disable NAME` to leave out the plugin at fault.
 - `rigline vscode-setup` and `rigline update` install the companion into VS Code alone, since VS
   Code's own extensions are the only ones Rigline injects. A companion already in another editor —
   Insiders, VSCodium, Cursor or Windsurf — or in a portable VS Code or a remote window now reads
@@ -98,6 +102,12 @@ anything may change between releases.
 - The first `rigline list --json` on a machine is JSON: the line saying the engine is being
   installed goes to stderr.
 - A mistyped flag prints one line saying so, where it printed a stack trace.
+- `rigline restore` goes on past a Claude Code directory VS Code did not finish deleting, and names
+  it. Before, it stopped there and left every version after it patched.
+- `rigline restore` no longer blanks a working panel when a version's backup is missing. It takes
+  Rigline's two lines out of the bundle itself, and leaves Rigline's files wherever the bundle still
+  loads them. `rigline install` no longer records a bundle that carries Rigline as the extension's
+  own bytes when the backup is missing.
 
 ## 1.0.0-alpha.12 — 2026-09-26
 

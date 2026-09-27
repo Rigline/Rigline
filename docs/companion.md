@@ -96,8 +96,9 @@ What is watched is the **set of `anthropic.claude-code-*` directories on disk**,
 the companion itself is installed in. It is polled every thirty seconds, with
 `extensions.onDidChange` as a hint that shortens the wait and is never relied on. It is never
 `extensionUri`, which is where *this* host loaded the extension from and stays fixed until the host
-restarts (D76, amended). A reinstall of a version already there, or a `restore`, changes no name and
-is picked up at the next `start`.
+restarts (D76, amended). A reinstall of a version already there changes no name and is picked up at
+the next `start`. A `restore` is not undone there: the next `start` stays out until a person injects
+(D111).
 
 Reactions are serialised: a run in flight drops its follower, because the work is idempotent. A new
 directory is left alone until it has stopped moving (D81): sizes and modification times of three
@@ -273,9 +274,13 @@ creates nothing; only opening a window with an unknown `--profile` creates one.
 Tier 1 covers the watcher, the run and the reload decision table. Everything else is a live read,
 and these reproduce the cases on demand:
 
-- **The offer:** `rigline restore`, then *Developer: Reload Window*, brings a window up over an
-  unpatched directory. `rigline disable worktree-prefix` first for the webview offer; with it
-  enabled an install from vanilla always changes `extension.js`, and the window offer appears.
+- **The offer:** `rigline restore`, then delete `~/.rigline/restored`, then *Developer: Reload
+  Window*, brings a window up over an unpatched directory. Without the delete the companion stays
+  out, which is what `restore` is for (D111). `rigline disable worktree-prefix` first for the
+  webview offer; with it enabled an install from vanilla always changes `extension.js`, and the
+  window offer appears.
+- **Staying out after a restore:** `rigline restore`, then a reload. The panel is vanilla, the status
+  reads *needs you*, and the output channel names the restore. `rigline install` puts it back.
 - **An arrival:** `code --install-extension anthropic.claude-code@<version> --force` for a version
   whose directory is **not** already on the machine, into the profile the window uses. A version
   already present reuses its path and nothing arrives, which looks exactly like the designed

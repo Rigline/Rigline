@@ -543,3 +543,5 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   plugin (D12); an unknown `config.yaml` key is named, and the file is read before anything is
   written; every verb parses strictly; `list --json` is versioned, on a stdout that is JSON alone
   (D110).
+- 2026-09-27: `restore` holds until a person puts Rigline back, takes the loader out without a
+  backup, and goes on past a half-deleted directory (D111). Its live read is owed.

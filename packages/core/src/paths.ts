@@ -38,6 +38,8 @@ export interface RiglinePaths {
   readonly token: string;
   /** Held while an engine injects, checks or restores (D105). */
   readonly injectLock: string;
+  /** Left by `restore`, and holding the companion out until a person injects again (D111). */
+  readonly restored: string;
 }
 
 export function riglinePaths(home = riglineHome()): RiglinePaths {
@@ -52,5 +54,6 @@ export function riglinePaths(home = riglineHome()): RiglinePaths {
     drift: join(home, "drift.txt"),
     token: join(home, "token"),
     injectLock: join(home, "inject.lock"),
+    restored: join(home, "restored"),
   };
 }

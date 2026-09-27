@@ -1773,7 +1773,8 @@ schema are pinned `eol=lf`, and codegen normalises its own output, because other
 
 **D38. The backup file, not the marker comment, is the authority on whether a bundle is patched.**
 Keying on the marker breaks the moment the marker string changes: the installer stops recognising
-its own work and stacks a second loader on the first.
+its own work and stacks a second loader on the first. **Amended by D111:** where there is no
+backup, or one that carries the loader, the original is the bundle less Rigline's own two lines.
 
 **D39. Never point a test at the live extension directory.** A failing assertion mid-test leaves a
 real install half-patched, and the panel renders blank when the static import is broken.
@@ -2785,3 +2786,31 @@ it: the older engine names it and carries on. This amends D74, whose `list --jso
 itself, and D91.
 
 Rejected: ignoring an unknown key in silence, which is also what a typo gets.
+
+**D111. `restore` holds until a person puts Rigline back, and needs no backup to take the loader
+out (2026-09-27, Leo).** `restore` is the recovery from a blank panel and the whole of D77's
+standing offer, and it failed to recover three ways.
+
+- **The companion put Rigline back.** `restore` ends by asking for a reload, and the reload starts
+  the companion, whose `install` re-injected whatever had blanked the panel. Since D100 the
+  companion is in every profile with Claude Code, so the recovery lasted one reload. Now `restore`
+  leaves `<RIGLINE_HOME>/restored`, and the companion runs `install --companion`, which injects
+  nothing while the mark is there, says why, and exits 1: to the companion that means only that a
+  person is wanted (D82). `layout save`, which only the companion runs, saves and does not inject.
+  Every injection a person runs takes the mark away and says so: `install`, each command that
+  re-injects, `watch` and `dev`. The mark is written and read under the injection lock, so a
+  companion install that waited on a `restore` finds it. `--companion` is part of what the
+  companion relies on, for the major.
+- **No backup blanked a working panel.** An injection is exactly `PRE + original + POST`, so the
+  original is the live bytes less Rigline's two lines. `install` with no backup took the live bytes
+  as pristine even when they carried the loader, and injected over them. `restore` with no backup
+  deleted `webview/rigline` while the bundle still imported it. Now both take Rigline's lines out
+  wherever a backup is missing or carries them, and `restore` removes the payload only when the
+  bundle it leaves no longer imports it. With no backup and nothing of Rigline's in the bundle,
+  `restore` calls the version restored, which it is for every version Rigline never injected.
+- **One directory stopped the rest.** A directory that is not an extension, such as one VS Code did
+  not finish deleting, is now reported as not restored, and the rest are restored, as `install`
+  does (D104).
+
+This amends D38. Rejected: `restore` uninstalling the companion, which is heavier, and makes putting
+Rigline back two commands.

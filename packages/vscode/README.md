@@ -15,7 +15,8 @@ It does no work itself. It finds a Node, fetches or updates the Rigline engine
 **This modifies files belonging to Anthropic's extension, on your machine, and that is your call to
 make.** [Anthropic compliance](https://github.com/Rigline/Rigline/blob/main/docs/anthropic-compliance.md)
 is a straight account of what Rigline does and does not do. `rigline restore` puts every install
-back to Anthropic's own bytes and needs nothing but Node.
+back to Anthropic's own bytes and needs nothing but Node, and this extension leaves it that way
+until you run `rigline install`.
 
 ## Installing
 

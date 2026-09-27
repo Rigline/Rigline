@@ -82,6 +82,36 @@ const POST_BYTES = Buffer.from(POST_LINE, "utf8");
 /** The exact number of bytes one injection adds. Quoted in docs; changing either line changes it. */
 export const PATCH_BYTES = PRE_BYTES.byteLength + POST_BYTES.byteLength;
 
+/**
+ * `bytes` less Rigline's two lines, however many times they wrap it, or null when they do not. An
+ * injection is exactly `PRE + original + POST`, so this is the original without a backup (D111).
+ */
+export function withoutLoader(bytes: Buffer): Buffer | null {
+  let inner = bytes;
+  while (
+    inner.byteLength >= PATCH_BYTES &&
+    inner.subarray(0, PRE_BYTES.byteLength).equals(PRE_BYTES) &&
+    inner.subarray(inner.byteLength - POST_BYTES.byteLength).equals(POST_BYTES)
+  ) {
+    inner = inner.subarray(PRE_BYTES.byteLength, inner.byteLength - POST_BYTES.byteLength);
+  }
+  return inner === bytes ? null : Buffer.from(inner);
+}
+
+/** Whether a bundle still loads the payload, which removing would then blank the panel (D111). */
+function importsPayload(bundle: Buffer): boolean {
+  return bundle.includes(`./${DIRNAME}/pre.js`) || bundle.includes(`./${DIRNAME}/post.js`);
+}
+
+/** `importsPayload` of the file at `path`, and yes when it cannot be read. */
+function stillImported(path: string): boolean {
+  try {
+    return importsPayload(readFileSync(path));
+  } catch {
+    return true;
+  }
+}
+
 const PAYLOAD_FILES = ["pre.js", "post.js"];
 
 /** The modules plugins import, copied whole: its shared chunks are named by content hash. */
@@ -159,14 +189,23 @@ export function hostVerdict(state: Injection): Verdict {
  * payload directory unreferenced rather than deleted on the strength of bytes nobody here wrote;
  * otherwise the two share no relation at all, meaning the extension was replaced in place, and the
  * live bytes become the new pristine baseline. Answers whether it rolled a patch back.
+ *
+ * Whatever becomes the backup is taken without Rigline's own loader, and a backup found carrying it
+ * is rewritten without (D111).
  */
 function settleWebviewBackup(state: Injection, log: (line: string) => void): boolean {
   const live = readFileSync(state.bundle);
   if (!state.backupExists) {
-    writeFileSync(state.backup, live);
+    writeFileSync(state.backup, withoutLoader(live) ?? live);
     return false;
   }
-  const backup = readFileSync(state.backup);
+  let backup: Buffer = readFileSync(state.backup);
+  const unwrapped = withoutLoader(backup);
+  if (unwrapped !== null) {
+    backup = unwrapped;
+    writeFileSync(state.backup, backup);
+    log(`${state.backup} carried Rigline's loader; took it out`);
+  }
   if (live.equals(backup)) {
     return false;
   }
@@ -181,7 +220,7 @@ function settleWebviewBackup(state: Injection, log: (line: string) => void): boo
     );
     return true;
   }
-  writeFileSync(state.backup, live);
+  writeFileSync(state.backup, withoutLoader(live) ?? live);
   return false;
 }
 
@@ -586,6 +625,8 @@ export interface RestoreResult {
   /** The webview side: whether the panel is back on the extension's own bytes. */
   readonly restored: boolean;
   readonly reason?: string;
+  /** How a restore without a trustworthy backup got there, which is worth a person knowing (D111). */
+  readonly note?: string;
   /**
    * Why `extension.js` could not be put back, when it had a backup and the revert failed.
    *
@@ -607,25 +648,75 @@ export interface RestoreResult {
  * way through, stranding every directory after the one that failed, which is the opposite of what
  * that function promises.
  */
-function revert(
-  target: string,
-  backupPath: string,
-): { readonly ok: boolean; readonly reason?: string } {
+function revert(target: string, backupPath: string): Reverted {
   if (!existsSync(backupPath)) {
     return { ok: false, reason: `no backup at ${backupPath}` };
   }
   try {
-    const backup = readFileSync(backupPath);
-    writeFileSync(target, backup);
-    const after = readFileSync(target);
-    if (!after.equals(backup)) {
-      return { ok: false, reason: `${target} did not match ${backupPath} after restoring` };
+    return writeConfirmed(target, readFileSync(backupPath), backupPath);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    return { ok: false, reason: `could not read ${backupPath}: ${detail}` };
+  }
+}
+
+interface Reverted {
+  readonly ok: boolean;
+  readonly reason?: string;
+  readonly note?: string;
+}
+
+/** Writes `bytes` over `target` and confirms them, returning an I/O failure as `revert` does. */
+function writeConfirmed(target: string, bytes: Buffer, from: string): Reverted {
+  try {
+    writeFileSync(target, bytes);
+    if (!readFileSync(target).equals(bytes)) {
+      return { ok: false, reason: `${target} did not match ${from} after restoring` };
     }
     return { ok: true };
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    return { ok: false, reason: `could not write ${target} from ${backupPath}: ${detail}` };
+    return { ok: false, reason: `could not write ${target} from ${from}: ${detail}` };
   }
+}
+
+/**
+ * The webview bundle back to the extension's bytes: the backup, less Rigline's loader if it
+ * recorded that too, or with no backup the live bytes less the loader (D111). A backup that carried
+ * the loader is corrected with the bundle, so `status` agrees afterwards.
+ */
+function restoreWebview(state: Injection): Reverted {
+  try {
+    return restoreWebviewBytes(state);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    return { ok: false, reason: `could not restore ${state.bundle}: ${detail}` };
+  }
+}
+
+function restoreWebviewBytes(state: Injection): Reverted {
+  if (state.backupExists) {
+    const original = withoutLoader(readFileSync(state.backup));
+    if (original === null) return revert(state.bundle, state.backup);
+    const backup = writeConfirmed(state.backup, original, "its own bytes less Rigline's loader");
+    if (!backup.ok) return backup;
+    return revert(state.bundle, state.backup);
+  }
+  const live = readFileSync(state.bundle);
+  const original = withoutLoader(live);
+  if (original !== null) {
+    const written = writeConfirmed(state.bundle, original, "its own bytes less Rigline's loader");
+    return written.ok
+      ? { ok: true, note: "no backup, so Rigline's two lines were taken out" }
+      : written;
+  }
+  if (!live.includes(MARKER) && !importsPayload(live)) {
+    return { ok: true, note: "nothing of Rigline's was in it" };
+  }
+  return {
+    ok: false,
+    reason: `no backup at ${state.backup}, and Rigline's lines in it are not the ones this engine writes`,
+  };
 }
 
 /**
@@ -642,15 +733,17 @@ function revert(
  */
 export function restore(ext: string): RestoreResult {
   const state = inspect(ext);
-  const webview = revert(state.bundle, state.backup);
+  const webview = restoreWebview(state);
   const host = state.hostBackupExists
     ? revert(state.host, state.hostBackup)
     : { ok: true as const };
-  rmSync(state.payloadDir, { recursive: true, force: true });
+  // Removing a payload the bundle still loads is what turns a failed revert into a blank panel.
+  if (!stillImported(state.bundle)) rmSync(state.payloadDir, { recursive: true, force: true });
   return {
     ext,
     restored: webview.ok,
     ...(webview.ok ? {} : { reason: webview.reason }),
+    ...(webview.note === undefined ? {} : { note: webview.note }),
     ...(host.ok ? {} : { hostReason: host.reason }),
   };
 }
@@ -658,8 +751,17 @@ export function restore(ext: string): RestoreResult {
 /**
  * Restores every extension directory given, never stopping at the first failure: discovery orders
  * these oldest first, and the version most likely still open in a window is usually the one that
- * lost its backup, so aborting early would strand exactly the one most worth recovering.
+ * lost its backup, so aborting early would strand exactly the one most worth recovering. A
+ * directory that is not an extension, such as one VS Code did not finish deleting, is one of those
+ * failures (D104).
  */
 export function restoreAll(exts: readonly string[]): RestoreResult[] {
-  return exts.map((ext) => restore(ext));
+  return exts.map((ext) => {
+    try {
+      return restore(ext);
+    } catch (error) {
+      if (!(error instanceof UserError)) throw error;
+      return { ext, restored: false, reason: error.message };
+    }
+  });
 }

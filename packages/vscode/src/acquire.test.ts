@@ -107,7 +107,7 @@ describe("acquireAndInject", () => {
       runner: { nodePath: NODE, entry: ENTRY },
     });
     expect(a.acquiring).toEqual(["update", "ensure"]);
-    expect(a.calls).toEqual([["install"]]);
+    expect(a.calls).toEqual([["install", "--companion"]]);
     expect(e.statuses.at(-1)).toMatchObject({ health: "ok", text: "Rigline" });
   });
 
@@ -208,7 +208,7 @@ describe("acquireAndInject", () => {
     });
 
     expect(result).toMatchObject({ kind: "injected", engine: "1.0.0-alpha.7", reload: null });
-    expect(a.calls).toEqual([["install"]]);
+    expect(a.calls).toEqual([["install", "--companion"]]);
     expect(e.lines.join("\n")).toMatch(/pid 4/);
   });
 

@@ -403,26 +403,105 @@ describe("restore", () => {
     expect(existsSync(payloadOutDir(ext))).toBe(false);
   });
 
-  it("reports the reason rather than throwing when there is no backup", () => {
+  it("calls a version Rigline never touched restored, since nothing of Rigline's is in it", () => {
     const ext = fixture();
+    const original = readFileSync(bundlePath(ext));
+    expect(restore(ext)).toEqual({ ext, restored: true, note: "nothing of Rigline's was in it" });
+    expect(readFileSync(bundlePath(ext))).toEqual(original);
+  });
+
+  it("takes the loader out of the live bundle when the backup is gone (D111)", () => {
+    const ext = fixture();
+    const original = readFileSync(bundlePath(ext));
+    install(ext, { payloadDir: payload() });
+    rmSync(backupPath(ext));
+
     const result = restore(ext);
+
+    expect(result).toMatchObject({ restored: true, note: expect.stringMatching(/two lines/) });
+    expect(readFileSync(bundlePath(ext))).toEqual(original);
+    expect(existsSync(payloadOutDir(ext))).toBe(false);
+  });
+
+  it("corrects a backup that recorded the loader as the extension's own bytes", () => {
+    const ext = fixture();
+    const original = readFileSync(bundlePath(ext));
+    install(ext, { payloadDir: payload() });
+    writeFileSync(backupPath(ext), readFileSync(bundlePath(ext)));
+
+    expect(restore(ext).restored).toBe(true);
+    expect(readFileSync(bundlePath(ext))).toEqual(original);
+    expect(readFileSync(backupPath(ext))).toEqual(original);
+    expect(verdict(inspect(ext))).toBe("vanilla");
+  });
+
+  it("keeps the payload a bundle it could not restore still loads, rather than blanking it", () => {
+    const ext = fixture();
+    install(ext, { payloadDir: payload() });
+    rmSync(backupPath(ext));
+    // An older engine's line, which this one cannot take out as its own.
+    const older = readFileSync(bundlePath(ext))
+      .toString("latin1")
+      .replace("/*RIGLINE-PRE*/", "/*RIGLINE-PRE v0*/");
+    writeFileSync(bundlePath(ext), Buffer.from(older, "latin1"));
+
+    const result = restore(ext);
+
     expect(result.restored).toBe(false);
-    expect(result.reason).toMatch(/index\.js\.orig/);
+    expect(result.reason).toMatch(/not the ones this engine writes/);
+    expect(existsSync(join(payloadOutDir(ext), "pre.js"))).toBe(true);
   });
 });
 
 describe("restoreAll", () => {
-  it("continues past a failure, restoring every recoverable directory", () => {
-    const unrecoverable = fixture();
+  it("continues past a directory that is not an extension, restoring every one after it", () => {
+    const halfDeleted = fixture({ version: "2.1.260" });
     const recoverable = fixture();
     const original = readFileSync(bundlePath(recoverable));
+    install(halfDeleted, { payloadDir: payload() });
     install(recoverable, { payloadDir: payload() });
+    rmSync(bundlePath(halfDeleted));
 
-    const results = restoreAll([unrecoverable, recoverable]);
+    const results = restoreAll([halfDeleted, recoverable]);
 
-    expect(results[0]).toMatchObject({ ext: unrecoverable, restored: false });
+    expect(results[0]).toMatchObject({
+      ext: halfDeleted,
+      restored: false,
+      reason: expect.stringMatching(/is not a Claude Code extension directory/),
+    });
     expect(results[1]).toMatchObject({ ext: recoverable, restored: true });
     expect(readFileSync(bundlePath(recoverable))).toEqual(original);
+  });
+});
+
+describe("install without a backup it can trust (D111)", () => {
+  it("records the bytes under its own loader as pristine, and injects once", () => {
+    const ext = fixture();
+    const original = readFileSync(bundlePath(ext));
+    install(ext, { payloadDir: payload() });
+    const injected = readFileSync(bundlePath(ext));
+    rmSync(backupPath(ext));
+
+    const report = install(ext, { payloadDir: payload() });
+
+    expect(readFileSync(backupPath(ext))).toEqual(original);
+    expect(readFileSync(bundlePath(ext))).toEqual(injected);
+    expect(report.action).toBe("refreshed");
+  });
+
+  it("takes its loader out of a backup that recorded it", () => {
+    const ext = fixture();
+    const original = readFileSync(bundlePath(ext));
+    install(ext, { payloadDir: payload() });
+    const injected = readFileSync(bundlePath(ext));
+    writeFileSync(backupPath(ext), injected);
+    const log: string[] = [];
+
+    install(ext, { payloadDir: payload(), log: (line) => log.push(line) });
+
+    expect(readFileSync(backupPath(ext))).toEqual(original);
+    expect(readFileSync(bundlePath(ext))).toEqual(injected);
+    expect(log).toContain(`${backupPath(ext)} carried Rigline's loader; took it out`);
   });
 });
 
@@ -813,6 +892,7 @@ describe("host patches", () => {
 
   it("recovers the host bundle even when the webview backup is gone", () => {
     const ext = fixture();
+    const original = readFileSync(bundlePath(ext));
     const originalHost = readFileSync(hostPath(ext));
     const root = tempDir("rigline-plugins-");
     patchPlugin(root, "worktree-toggle");
@@ -821,7 +901,8 @@ describe("host patches", () => {
 
     const result = restore(ext);
 
-    expect(result.restored).toBe(false);
+    expect(result.restored).toBe(true);
+    expect(readFileSync(bundlePath(ext))).toEqual(original);
     expect(readFileSync(hostPath(ext))).toEqual(originalHost);
   });
 

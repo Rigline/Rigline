@@ -141,6 +141,10 @@ first while an engine is being installed, the second while one is injecting. A c
 one waits for it, and says who holds it if it gives up. One left behind by a command that was
 killed is taken over once it is old.
 
+`~/.rigline/restored` is left by `rigline restore`, and keeps the companion from putting Rigline
+back. The next command you run that injects removes it: `install`, or any of the commands that
+change your plugins or layout.
+
 Before `sources.json` and `config.yaml` there was `~/.rigline/config.json`. The first command that needs it splits it
 into them and removes it. If one turns up again beside them, an older Rigline wrote it: it is not
 read, the commands say so, and it can be deleted.

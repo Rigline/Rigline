@@ -26,7 +26,7 @@ import {
   readAnchorOverrides,
 } from "../anchors/overrides.ts";
 import { type Generated, generate } from "../codegen/generate.ts";
-import { UnfinishedExtensionError } from "../errors.ts";
+import { UnfinishedExtensionError, UserError } from "../errors.ts";
 import { readBundles } from "../extension/bundles.ts";
 import { extensionVersion, installedExtensions } from "../extension/locate.ts";
 import {
@@ -40,6 +40,7 @@ import {
   pluginVerdicts,
 } from "../inject/inject.ts";
 import { type InjectionLockOptions, withInjectionLock } from "../inject/lock.ts";
+import { restoredSince } from "../inject/restored.ts";
 import { diffScans, formatDiff, type Scan, scansDiffer, type ViewDiff } from "../layers/diff.ts";
 import { type Harvest, harvestAll } from "../layers/index.ts";
 import { HarvestError } from "../layers/types.ts";
@@ -172,6 +173,11 @@ export interface UpdateOptions extends FlowOptions {
    * its artefacts and tells you to commit them; it never commits.
    */
   readonly codegen?: boolean;
+  /**
+   * The mark `restore` leaves, given by the companion's installs: while it is there the run injects
+   * nothing. Read under the lock, so a `restore` that finishes first is honoured (D111).
+   */
+  readonly restoredMark?: string;
 }
 
 /** One version, harvested once: every consumer below reads this rather than harvesting again. */
@@ -360,6 +366,13 @@ export function update(options: UpdateOptions): FlowReport {
 }
 
 function updateHeld(options: UpdateOptions): FlowReport {
+  const since = options.restoredMark === undefined ? null : restoredSince(options.restoredMark);
+  if (since !== null) {
+    throw new UserError(
+      `nothing injected: \`rigline restore\` took Rigline out at ${since}, and it stays out ` +
+        "until you run `rigline install`",
+    );
+  }
   const exts = options.exts ?? installedExtensions();
   const overrides = readAnchorOverrides(options.anchorsPath ?? riglinePaths().anchors);
   // Once, before any version is touched, so every version bakes the same settings (D110).

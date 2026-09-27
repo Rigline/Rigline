@@ -35,6 +35,7 @@ import {
   check,
   checkoutEngineNote,
   checkoutPluginsDir,
+  clearRestored,
   collect,
   companionStatus,
   companionVsix,
@@ -69,6 +70,7 @@ import {
   installedExtensions,
   listJson,
   listPlugins,
+  markRestored,
   orderInLayout,
   type Placement,
   type PluginListing,
@@ -201,7 +203,8 @@ const USAGE = `rigline ${CORE_VERSION}
 
   rigline restore
       Every installed version back to the extension's own bytes. Needs neither VS Code nor
-      the extension to be working.
+      the extension to be working. Rigline then stays out, and the companion does not put it
+      back, until you run install or another command that injects.
 
   rigline doctor [--out FILE] [--ext DIR]
       A markdown diagnostic to paste into a bug report: per installed version, whether it is
@@ -272,6 +275,15 @@ interface ReinjectOptions {
   readonly verbose?: boolean;
   /** The reload line, when the command has a reason of its own for one. */
   readonly reload?: string;
+  /** Run by the companion, which a `restore` keeps out until a person injects (D111). */
+  readonly companion?: boolean;
+}
+
+/** A person's injection puts Rigline back after a `restore`, and says so (D111). */
+function putBack(): void {
+  if (clearRestored(riglinePaths().restored)) {
+    console.log("Rigline was out since `rigline restore`; this puts it back.");
+  }
 }
 
 /**
@@ -286,6 +298,7 @@ interface ReinjectOptions {
  * about to create by installing the extension.
  */
 function reinject(options: ReinjectOptions = {}): number {
+  if (!options.companion) putBack();
   const targets = options.exts ?? installedExtensions();
   if (targets.length === 0) {
     if (options.required) throw new UserError("no Claude Code extension is installed");
@@ -302,6 +315,7 @@ function reinject(options: ReinjectOptions = {}): number {
     // not asked for one, and it never commits what it rewrites (D30).
     codegen: true,
     lock: lockWait,
+    ...(options.companion ? { restoredMark: riglinePaths().restored } : {}),
   });
   console.log(
     formatFlow(report, {
@@ -526,7 +540,7 @@ function layoutCommand(args: string[]): number {
     throw new UserError(`unknown layout command "${verb}": place, order or reset`);
   }
   console.log("");
-  return reinject();
+  return reinject({ companion: verb === "save" });
 }
 
 function removeCommand(args: string[]): number {
@@ -559,6 +573,8 @@ function installCommand(args: string[]): number {
       ext: { type: "string" },
       payload: { type: "string" },
       verbose: { type: "boolean", default: false },
+      // The companion's, so the usage leaves it out (D111).
+      companion: { type: "boolean", default: false },
     },
     allowPositionals: false,
   });
@@ -567,6 +583,7 @@ function installCommand(args: string[]): number {
     payloadDir: values.payload,
     required: true,
     verbose: values.verbose,
+    companion: values.companion,
   });
 }
 
@@ -833,15 +850,18 @@ function doctorCommand(args: string[]): number {
 function restoreCommand(args: string[]): number {
   // Strict, so a flag a later 1.x gives `restore` is refused here rather than restoring everything.
   parseArgs({ args, options: {}, allowPositionals: false });
-  const results = withInjectionLock({ ...lockWait, what: "rigline restore" }, () =>
-    restoreAll(installedExtensions()),
-  );
-  let noBackup = 0;
+  const results = withInjectionLock({ ...lockWait, what: "rigline restore" }, () => {
+    // Under the lock, so a companion install waiting on it finds the mark (D111).
+    markRestored(riglinePaths().restored);
+    return restoreAll(installedExtensions());
+  });
+  let notRestored = 0;
   let hostFailed = 0;
   for (const result of results) {
-    if (result.restored) console.log(`restored: ${result.ext}`);
-    else {
-      noBackup++;
+    if (result.restored) {
+      console.log(`restored: ${result.ext}${result.note === undefined ? "" : ` (${result.note})`}`);
+    } else {
+      notRestored++;
       console.log(`NOT restored: ${result.ext} (${result.reason})`);
     }
     // Reported whichever way the webview side went: an extension host still carrying a
@@ -851,9 +871,9 @@ function restoreCommand(args: string[]): number {
       console.log(`  extension.js NOT restored: ${result.hostReason}`);
     }
   }
-  if (noBackup > 0) {
+  if (notRestored > 0) {
     console.log(
-      "\nA version without a backup is recovered by uninstalling and reinstalling Claude Code from the Extensions view.",
+      "\nA version not restored is recovered by uninstalling and reinstalling Claude Code from the Extensions view.",
     );
   }
   if (hostFailed > 0) {
@@ -861,8 +881,9 @@ function restoreCommand(args: string[]): number {
       "\nAn extension.js left patched still runs the substitution a plugin declared. Reinstalling Claude Code from the Extensions view replaces it.",
     );
   }
+  console.log("Rigline stays out, whatever reloads or updates, until you run `rigline install`.");
   console.log("Reload the window afterwards.");
-  return noBackup + hostFailed > 0 ? 1 : 0;
+  return notRestored + hostFailed > 0 ? 1 : 0;
 }
 
 /**
@@ -992,6 +1013,7 @@ function watchCommand(args: string[]): Promise<number> {
   if (!Number.isFinite(seconds) || seconds < 1) {
     throw new UserError(`--interval needs a number of seconds, got ${values.interval}`);
   }
+  putBack();
 
   return new Promise((resolveWith) => {
     let code = 0;
@@ -1040,6 +1062,7 @@ async function dev(args: string[]): Promise<number> {
 
   const exts = installedExtensions();
   if (exts.length === 0) throw new UserError("no Claude Code extension is installed");
+  putBack();
 
   // `install`, `check` and `watch` read `~/.rigline/anchors.json` through the flow, which owns user
   // state. `dev` drives the installer directly, so it reads the file here: a development loop

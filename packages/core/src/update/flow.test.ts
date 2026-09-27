@@ -483,6 +483,30 @@ describe("the report a person reads", () => {
   });
 });
 
+describe("the mark restore leaves (D111)", () => {
+  it("keeps the companion's install out of every version, and releases the lock", () => {
+    const ext = fixture();
+    const before = readFileSync(join(ext, "webview", "index.js"));
+    const restoredMark = join(home, "restored");
+    writeFileSync(restoredMark, "2026-09-27T00:00:00.000Z\n");
+    const options = {
+      exts: [ext],
+      payloadDir: payload(),
+      dir: tempDir("rigline-cwd-"),
+      baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+    };
+
+    expect(() => update({ ...options, restoredMark })).toThrow(
+      "nothing injected: `rigline restore` took Rigline out at 2026-09-27T00:00:00.000Z",
+    );
+    expect(readFileSync(join(ext, "webview", "index.js")).equals(before)).toBe(true);
+    expect(existsSync(join(ext, "webview", "rigline"))).toBe(false);
+
+    rmSync(restoredMark);
+    expect(update({ ...options, restoredMark }).versions[0]?.action).toBe("injected");
+  });
+});
+
 describe("config.yaml (D110)", () => {
   function configText(text: string): string {
     const path = join(tempDir("rigline-config-"), "config.yaml");

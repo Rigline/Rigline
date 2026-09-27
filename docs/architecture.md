@@ -145,8 +145,10 @@ The report is written for whoever ran the command: a line per state, then what t
 since the baseline goes to `~/.rigline/drift.txt`, since the next install moves the baseline.
 
 `restore` is the inverse and the recovery path: copy both backups back, re-read to confirm the bytes
-match, remove the payload directory. It needs only Node and the engine — not VS Code, and not a
-working extension.
+match, remove the payload directory. With no backup, or one that recorded the loader, the original
+is the bundle less Rigline's two lines, and the payload stays wherever the bundle still imports it.
+It leaves `restored` in `RIGLINE_HOME`, which keeps the companion from injecting until a person does
+(D111). It needs only Node and the engine — not VS Code, and not a working extension.
 
 ## The update pipeline
 
@@ -190,8 +192,8 @@ wrapper with no wrapper release.
 **The companion** relies on the same acquisition, since it bundles the wrapper's `engine.ts` (D80),
 and on:
 
-- `install`, whose exit code says only whether a person is wanted: what the window needs is decided
-  from the bytes (D82);
+- `install --companion`, whose exit code says only whether a person is wanted: what the window
+  needs is decided from the bytes (D82). The flag keeps it out after a `restore` (D111);
 - `companion-status PATH`, whose answer never changes within a major, since it is how an old
   companion becomes a new one (D99);
 - `companion-profiles` and its four flags (D100). Its JSON carries `v: 1`, and a companion ignores a
@@ -259,7 +261,8 @@ the anchor table), `baseline.json` (the last harvest), `drift.txt` (what moved a
 that found drift, since the next moves the baseline, D98), and `engine/` (the npm prefix the wrapper
 installs `@rigline/core` into, D73 — the one directory here that `rm -rf` is the documented repair
 for), `.lock`, held while an engine installs so the CLI and the companion cannot install over
-each other, and `inject.lock`, held while an engine injects, checks or restores (D105). A clone of
+each other, `inject.lock`, held while an engine injects, checks or restores (D105), and `restored`,
+left by `restore` until a person injects again (D111). A clone of
 this repo is for developing Rigline, not for using it.
 
 **In the extension directory**, everything under `webview/rigline/` plus the two `.orig` backups.

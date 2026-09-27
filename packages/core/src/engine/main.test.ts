@@ -2,7 +2,8 @@
  * The engine's argument handling. `homedir()` is a temporary directory, so a verb that failed to
  * refuse would find no extension to act on rather than the live one (D39).
  */
-import { rmSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
+import { join } from "node:path";
 import {
   afterAll,
   afterEach,
@@ -67,5 +68,35 @@ describe("runEngine", () => {
   it("answers a mistyped flag on any verb with a line, not a stack", async () => {
     expect(await runEngine(["check", "--verbos"])).toBe(1);
     expect(error.mock.calls[0]?.[0]).toMatch(/^rigline: Unknown option '--verbos'/);
+  });
+});
+
+describe("the mark restore leaves (D111)", () => {
+  const mark = (): string => join(home, ".rigline", "restored");
+
+  afterEach(() => {
+    rmSync(mark(), { force: true });
+  });
+
+  it("is left by restore, which says Rigline stays out", async () => {
+    expect(await runEngine(["restore"])).toBe(0);
+    expect(existsSync(mark())).toBe(true);
+    expect(log.mock.calls.flat()).toContain(
+      "Rigline stays out, whatever reloads or updates, until you run `rigline install`.",
+    );
+  });
+
+  it("stays through the companion's install, and goes with a person's", async () => {
+    await runEngine(["restore"]);
+
+    // No extension is installed here, so both stop there; what differs is the mark.
+    expect(await runEngine(["install", "--companion"])).toBe(1);
+    expect(error.mock.calls.flat()).toEqual(["rigline: no Claude Code extension is installed"]);
+    expect(existsSync(mark())).toBe(true);
+    expect(await runEngine(["install"])).toBe(1);
+    expect(existsSync(mark())).toBe(false);
+    expect(log.mock.calls.flat()).toContain(
+      "Rigline was out since `rigline restore`; this puts it back.",
+    );
   });
 });

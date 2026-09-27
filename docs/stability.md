@@ -14,7 +14,8 @@ release. Nor is closing a hole: if a plugin can reach something `ctx` was never 
 What Rigline cannot promise is Claude Code. It updates about weekly and owes us nothing. What we
 promise instead is how Rigline behaves when it changes. A plugin that depends on something Claude
 Code removed is refused by name, never left half-working. Every other plugin keeps loading. And
-`rigline restore` puts the extension back to its own bytes.
+`rigline restore` puts the extension back to its own bytes, and keeps Rigline out until you put it
+back.
 
 ## For a plugin
 
@@ -92,11 +93,11 @@ Code removed is refused by name, never left half-working. Every other plugin kee
 
 - **The wording of any report.** It is written for a person, and reworded when it could say
   something better. Script against the exit status and `--json`.
-- **The rest of `~/.rigline`**: `sources.json`, `baseline.json`, `drift.txt`, `token`, the locks and
-  `engine/`. They are Rigline's own bookkeeping.
+- **The rest of `~/.rigline`**: `sources.json`, `baseline.json`, `drift.txt`, `token`, `restored`,
+  the locks and `engine/`. They are Rigline's own bookkeeping.
 - **What Rigline puts inside Claude Code's directory, and where.**
-- **The commands the usage leaves out**, such as `layout save`, `companion-status` and
-  `companion-profiles`. They are how Rigline's own pieces talk to each other.
+- **The commands and flags the usage leaves out**, such as `layout save`, `install --companion`,
+  `companion-status` and `companion-profiles`. They are how Rigline's own pieces talk to each other.
 
 ## Between Rigline's own pieces
 

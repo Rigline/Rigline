@@ -23,6 +23,7 @@ describe("riglineHome", () => {
       drift: join("/g", "drift.txt"),
       token: join("/g", "token"),
       injectLock: join("/g", "inject.lock"),
+      restored: join("/g", "restored"),
     });
   });
 });
