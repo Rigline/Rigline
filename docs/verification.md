@@ -61,6 +61,11 @@ codegen's byte-stability, the injector, discovery and registry baking, every cap
 `violation` and `summary`, the manifest reader and the JSON schema, the anchor resolver and the
 override merge, the tarball reader, the registry client with its fetch injected.
 
+The engine's verbs are driven through `runEngine` in `engine/main.test.ts`, with `homedir()` mocked
+to a temporary directory, so both `EXTENSIONS_DIR` and `RIGLINE_HOME` are scratch. The file refuses
+to run if the mock missed (D39). What needs an installed extension belongs in the flow's tests
+instead, since `pluginOptions` asserts the build is current.
+
 The built `pre.js` is tested here too, against a stubbed `acquireVsCodeApi` in the same process:
 immutability, envelope unwrapping, the buffer, the chain, resend, the counts. It needs no DOM, so it
 does not need a browser.
