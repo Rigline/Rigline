@@ -8,6 +8,11 @@ out from the source.
 This page is written for Anthropic first. It is not legal advice and it is not a claim of
 permission; it is our reasoning, stated plainly so it can be checked or corrected.
 
+It covers what Rigline puts into Claude Code's extension, and the engine that puts it there.
+Rigline's other parts never touch the extension: the `rigline` command and the companion extension,
+which fetch the engine and run it, and the downloads from npm that bring it and any plugins a person
+adds. They are outside this page.
+
 ## For users
 
 Rigline modifies software you licensed from Anthropic, on your machine. We believe that is your
@@ -41,10 +46,11 @@ about whose product it is.
 Rigline runs entirely on one person's machine, on an installation they made, and changes nothing
 anywhere else.
 
-It writes to exactly three files inside the installed extension directory: `webview/index.js`,
-`webview/index.css`, and — only when a plugin asks for it — `extension.js`. It keeps a
-byte-faithful backup of each bundle it touches, as `index.js.orig` and `extension.js.orig`, and
-`rigline restore` puts every installed version back to the extension's own bytes using them. The
+Inside the installed extension's directory it changes two files: `webview/index.js`, and — only
+when a plugin asks for it — `extension.js`. Beside each it keeps a byte-faithful backup of the
+original, `index.js.orig` and `extension.js.orig`, and it adds one directory of its own,
+`webview/rigline/`, holding the loader and the plugins. `rigline restore` puts every installed
+version back to the extension's own bytes from the backups, and removes that directory. The
 uninstall path is the same code as the recovery path, so it is exercised constantly rather than
 being a promise.
 

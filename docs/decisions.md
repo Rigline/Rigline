@@ -1479,6 +1479,11 @@ approval: if somebody later writes that Anthropic were fine with this, the hones
 they were asked and did not answer. What a reply would change is recorded where it lands — D78's
 trigger if they object, D76's channel decision if they would rather it were listed.
 
+**The page covers what touches the extension (amended 2026-09-27, Leo):** what Rigline puts into
+Claude Code's extension, and the engine that puts it there. The `rigline` command, the companion and
+the downloads from npm never touch the extension, so they are outside it, and the page says so. Its
+network claim is about what runs in the panel.
+
 **D78. Install-time-only signature verification is a premise, not a guarantee (2026-09-21).** VS
 Code verifies an extension's signature when it installs it and not afterwards, which is the fact the
 entire project rests on — CLI and companion alike. It is not a commitment Microsoft has made, it is

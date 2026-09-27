@@ -408,11 +408,8 @@ what a plugin is written against.
 
 - a WSL window, for what a remote window does;
 - a live run on his Mac;
-- *Restart Extensions* on this machine, where no console window should flash up;
 - `restore`'s live read: `rigline restore`, then *Developer: Reload Window*, and the panel stays
-  vanilla while the companion reads *needs you*;
-- anthropic-compliance.md's wording (D77), proposed in `.local/plans/promise.md`: what Rigline writes
-  in the extension's directory, and that outside the panel it reaches npm's registry.
+  vanilla while the companion reads *needs you*.
 
 Then the last alpha with all of it, the reads below on that alpha, and `pnpm release major`.
 
@@ -562,5 +559,6 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
 - 2026-09-27: The companion's id is held: publisher `rigline` on the Marketplace; on Open VSX the
   namespace is made and its ownership claim deferred.
 - 2026-09-27: stability.md says what the code keeps, and reads as one page; `install --payload` is
-  gone, and the companion's VS Code floor follows its types (D112). The compliance page's wording is
-  proposed, and Leo's.
+  gone, and the companion's VS Code floor follows its types (D112).
+- 2026-09-27: The compliance page covers what touches the extension, and lists what Rigline writes
+  there correctly (D77). No console window, read live.
