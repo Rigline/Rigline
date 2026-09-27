@@ -404,24 +404,25 @@ what a plugin is written against.
 
 ## Next session
 
-`1.0.0-alpha.12` is the newest on `latest`. The 1.0 bar above is built, bar what is Leo's:
+`1.0.0-alpha.13` is the newest on `latest`, and carries the 1.0 bar. What is left is Leo's: the
+reads below, which gate 1.0, each through a released engine with `rigline.enginePath` unset in every
+profile, since a dev companion neither updates itself nor adds itself anywhere (D99, D100). Then
+`pnpm release major`, or another alpha if a read finds something.
 
-- a WSL window, for what a remote window does;
-- a live run on his Mac;
-- `restore`'s live read: `rigline restore`, then *Developer: Reload Window*, and the panel stays
-  vanilla while the companion reads *needs you*.
+**A WSL window**, for what a remote window does.
 
-Then the last alpha with all of it, the reads below on that alpha, and `pnpm release major`.
+**A live run on a Mac**, where nothing has yet exercised the companion finding Node or the profile
+table's directories.
 
-The reads below gate 1.0. Each is read on the last alpha before it, through a released engine,
-because the bar changes the paths they cover; exercise them earlier as they come up as well.
+**`restore`** (D111): `rigline restore`, then *Developer: Reload Window*. The panel stays vanilla and
+the companion reads *needs you*, naming the restore. `rigline install` and a reload put it back.
 
 **One engine injects at a time (D105)**, on the next Claude Code update with two windows open: both
 companions should reach *ready to restart*, and one output channel should show `rigline: waiting for
 rigline install (pid N) to finish`. A window whose companion runs this checkout's engine reads it
 before a release does.
 
-**A Save through a released engine.** On a machine with `alpha.12` installed and
+**A Save through a released engine.** On a machine with `alpha.13` installed and
 `rigline.enginePath` unset, edit the layout in the panel and Save: the notification should say it
 saved, the panel should leave editing, and `~/.rigline/config.yaml` should hold the layout.
 
@@ -442,7 +443,7 @@ companion adds nothing:
    stays disabled.
 4. `rigline update` should print the line when it adds the companion.
 
-Still unread: a remote window, and the directory names of the VS Code forks.
+Still unread, and no gate: the directory names of the VS Code forks.
 
 ## Status log
 
@@ -562,3 +563,4 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   gone, and the companion's VS Code floor follows its types (D112).
 - 2026-09-27: The compliance page covers what touches the extension, and lists what Rigline writes
   there correctly (D77). No console window, read live.
+- 2026-09-27: `1.0.0-alpha.13`: the 1.0 bar, D106 to D112. Its reads gate 1.0.
