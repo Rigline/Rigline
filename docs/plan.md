@@ -537,3 +537,5 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   scripts or stylesheets (D107).
 - 2026-09-27: plugin-api's root is what a plugin is written against, and the rest is `/internal`
   (D108); three anchors retired and one renamed; an element goes only at a marked slot (D90).
+- 2026-09-27: A plugin written for a later 1.x is switched off by what this one lacks, and `setup`
+  is synchronous (D109); `ctx.style` refuses an `@import` (D107).
