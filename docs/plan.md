@@ -539,3 +539,7 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   (D108); three anchors retired and one renamed; an element goes only at a marked slot (D90).
 - 2026-09-27: A plugin written for a later 1.x is switched off by what this one lacks, and `setup`
   is synchronous (D109); `ctx.style` refuses an `@import` (D107).
+- 2026-09-27: The engine's surface is fixed for 1.x: a `patches` key it does not know refuses the
+  plugin (D12); an unknown `config.yaml` key is named, and the file is read before anything is
+  written; every verb parses strictly; `list --json` is versioned, on a stdout that is JSON alone
+  (D110).

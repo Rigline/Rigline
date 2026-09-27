@@ -3,7 +3,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { CORE_VERSION } from "../version.ts";
-import { formatPlugins, listPlugins, type PluginListing } from "./list.ts";
+import {
+  formatPlugins,
+  type ListJson,
+  type ListOptions,
+  listJson,
+  listPlugins,
+  type PluginListing,
+} from "./list.ts";
 
 const dirs: string[] = [];
 
@@ -49,16 +56,18 @@ describe("listPlugins", () => {
 
     const listed = listPlugins({
       roots: [
-        { label: "this checkout", path: mine },
-        { label: "~/.rigline/plugins", path: theirs },
+        { role: "checkout", path: mine },
+        { role: "home", path: theirs },
       ],
       configPath: configWith([]),
       sourcesPath: sourcesWith(),
     });
     expect(listed.map((p) => [p.name, p.origin])).toEqual([
-      ["ours", "this checkout"],
-      ["somebody-elses", "~/.rigline/plugins"],
+      ["ours", "checkout"],
+      ["somebody-elses", "home"],
     ]);
+    expect(formatPlugins(listed)).toContain("ours — this checkout");
+    expect(formatPlugins(listed)).toContain(`somebody-elses — ${theirs}`);
   });
 
   it("says where add brought a plugin from, and says when nothing knows", () => {
@@ -70,8 +79,8 @@ describe("listPlugins", () => {
 
     const listed = listPlugins({
       roots: [
-        { label: "this checkout", path: checkout },
-        { label: "~/.rigline/plugins", path: managed, managed: true },
+        { role: "checkout", path: checkout },
+        { role: "home", path: managed },
       ],
       configPath: configWith([]),
       sourcesPath: sourcesWith({
@@ -83,10 +92,10 @@ describe("listPlugins", () => {
     expect(text).toContain("added from /src/added");
     // Only a plugin in the directory `add` owns can have been placed there by hand; a first-party
     // plugin in a checkout was never added and has nothing to be updated from (D49).
-    expect(listed.map((p) => [p.name, p.managed, p.source !== null])).toEqual([
-      ["first-party", false, false],
-      ["added", true, true],
-      ["by-hand", true, false],
+    expect(listed.map((p) => [p.name, p.origin, p.source !== null])).toEqual([
+      ["first-party", "checkout", false],
+      ["added", "home", true],
+      ["by-hand", "home", false],
     ]);
     expect(text.split("placed here by hand")).toHaveLength(2);
   });
@@ -98,7 +107,7 @@ describe("listPlugins", () => {
     writePlugin(root, "zulu");
 
     const listed = listPlugins({
-      roots: [{ label: "root", path: root }],
+      roots: [{ role: "checkout", path: root }],
       last: ["probe"],
       configPath: configWith([]),
       sourcesPath: sourcesWith(),
@@ -112,7 +121,7 @@ describe("listPlugins", () => {
     writePlugin(root, "off");
 
     const listed = listPlugins({
-      roots: [{ label: "root", path: root }],
+      roots: [{ role: "checkout", path: root }],
       configPath: configWith(["off"]),
       sourcesPath: sourcesWith(),
     });
@@ -130,7 +139,7 @@ describe("listPlugins", () => {
     });
 
     const listed = listPlugins({
-      roots: [{ label: "root", path: root }],
+      roots: [{ role: "checkout", path: root }],
       configPath: configWith([]),
       sourcesPath: sourcesWith(),
     });
@@ -149,7 +158,7 @@ describe("listPlugins", () => {
     writeFileSync(configPath, "layout:\n  rigRow: [clock/face]\n");
 
     const [listing] = listPlugins({
-      roots: [{ label: "root", path: root }],
+      roots: [{ role: "checkout", path: root }],
       configPath,
       sourcesPath: sourcesWith(),
     });
@@ -163,7 +172,7 @@ describe("listPlugins", () => {
     });
 
     const listed = listPlugins({
-      roots: [{ label: "root", path: root }],
+      roots: [{ role: "checkout", path: root }],
       configPath: configWith([]),
       sourcesPath: sourcesWith(),
     });
@@ -183,7 +192,7 @@ describe("formatPlugins", () => {
 
     const text = formatPlugins(
       listPlugins({
-        roots: [{ label: "this checkout", path: root }],
+        roots: [{ role: "checkout", path: root }],
         configPath: configWith(["quiet"]),
         sourcesPath: sourcesWith(),
       }),
@@ -208,7 +217,7 @@ describe("the bundled set", () => {
     writePlugin(bundled, "probe");
 
     const [listing] = listPlugins({
-      roots: [{ label: "bundled", path: bundled, bundled: true }],
+      roots: [{ role: "bundled", path: bundled }],
       configPath: configWith([]),
       sourcesPath: sourcesWith(),
     });
@@ -227,14 +236,14 @@ describe("the bundled set", () => {
 
     const listings = listPlugins({
       roots: [
-        { label: "this checkout", path: checkout },
-        { label: "bundled", path: bundled, bundled: true },
+        { role: "checkout", path: checkout },
+        { role: "bundled", path: bundled },
       ],
       configPath: configWith([]),
       sourcesPath: sourcesWith(),
     });
     expect(listings).toHaveLength(1);
-    expect(listings[0]?.origin).toBe("this checkout");
+    expect(listings[0]?.origin).toBe("checkout");
     expect(listings[0]?.overridesBundled).toBe(true);
     // Not the engine's, because this one is not the engine's: a checkout plugin has no version at
     // all, and inventing one would say the two copies are the same when that is the open question.
@@ -247,7 +256,7 @@ describe("the bundled set", () => {
     writePlugin(plugins, "clock");
 
     const [listing] = listPlugins({
-      roots: [{ label: plugins, path: plugins, managed: true }],
+      roots: [{ role: "home", path: plugins }],
       configPath: configWith([]),
       sourcesPath: sourcesWith({
         clock: {
@@ -265,44 +274,85 @@ describe("the bundled set", () => {
   });
 });
 
-describe("the shape `rigline list --json` emits", () => {
-  it("carries the fields the wrapper's `update` reads (D74)", () => {
-    // The wrapper cannot read `sources.json`, so this listing is how it learns what it can move.
-    const plugins = tempDir();
-    writePlugin(plugins, "clock");
-    const source = {
-      kind: "npm",
-      name: "clock",
-      version: "2.1.0",
-      tag: "latest",
-      integrity: "sha512-x",
-      addedAt: "2026-09-21T00:00:00.000Z",
-    };
+describe("listJson, which is `rigline list --json`", () => {
+  const npmSource = {
+    kind: "npm",
+    name: "@someone/clock",
+    version: "2.1.0",
+    tag: "latest",
+    integrity: "sha512-x",
+    addedAt: "2026-09-21T00:00:00.000Z",
+  };
 
-    const [listing] = JSON.parse(
+  function listedAsJson(roots: ListOptions["roots"], sources: Record<string, unknown> = {}) {
+    return JSON.parse(
       JSON.stringify(
-        listPlugins({
-          roots: [{ label: plugins, path: plugins, managed: true }],
-          configPath: configWith([]),
-          sourcesPath: sourcesWith({ clock: source }),
-        }),
+        listJson(
+          listPlugins({ roots, configPath: configWith([]), sourcesPath: sourcesWith(sources) }),
+        ),
       ),
-    ) as { name: string; managed: boolean; source: Record<string, unknown> | null }[];
+    ) as ListJson;
+  }
 
-    expect(listing?.name).toBe("clock");
-    expect(listing?.managed).toBe(true);
-    expect(listing?.source).toEqual(source);
+  it("is versioned at the top, with every field a person reads and nothing else", () => {
+    const plugins = tempDir();
+    writePlugin(plugins, "clock", {
+      description: "A clock.",
+      patches: [{ find: "a:!1", replace: "a:!0", why: "Turns it on." }],
+    });
+
+    const json = listedAsJson([{ role: "home", path: plugins }], { clock: npmSource });
+    expect(json).toEqual({
+      v: 1,
+      plugins: [
+        {
+          name: "clock",
+          version: "2.1.0",
+          origin: "home",
+          dir: join(plugins, "clock"),
+          enabled: true,
+          overridesBundled: false,
+          source: { kind: "npm", name: "@someone/clock", version: "2.1.0", tag: "latest" },
+          description: "A clock.",
+          can: expect.any(Array),
+          patches: [{ why: "Turns it on.", required: false }],
+        },
+      ],
+    });
   });
 
-  it("reports a plugin with no record as managed with a null source", () => {
-    const plugins = tempDir();
-    writePlugin(plugins, "dropped");
-    const [listing] = listPlugins({
-      roots: [{ label: plugins, path: plugins, managed: true }],
-      configPath: configWith([]),
-      sourcesPath: sourcesWith(),
+  it("names each origin by its role, never by a label or a path", () => {
+    const checkout = tempDir();
+    const home = tempDir();
+    const bundled = tempDir();
+    writePlugin(checkout, "mine");
+    writePlugin(home, "dropped");
+    writePlugin(bundled, "probe");
+
+    const json = listedAsJson([
+      { role: "checkout", path: checkout },
+      { role: "home", path: home },
+      { role: "bundled", path: bundled },
+    ]);
+    expect(json.plugins.map((p) => [p.name, p.origin, p.source])).toEqual([
+      ["mine", "checkout", null],
+      ["dropped", "home", null],
+      ["probe", "bundled", null],
+    ]);
+  });
+
+  it("keeps where a directory was added from, and a pinned plugin's null tag", () => {
+    const home = tempDir();
+    writePlugin(home, "local");
+    writePlugin(home, "pinned");
+
+    const json = listedAsJson([{ role: "home", path: home }], {
+      local: { kind: "path", from: "/src/local", addedAt: "2026-09-21T00:00:00.000Z" },
+      pinned: { ...npmSource, name: "pinned", tag: null },
     });
-    expect(listing?.managed).toBe(true);
-    expect(listing?.source).toBeNull();
+    expect(json.plugins.map((p) => p.source)).toEqual([
+      { kind: "path", from: "/src/local" },
+      { kind: "npm", name: "pinned", version: "2.1.0", tag: null },
+    ]);
   });
 });

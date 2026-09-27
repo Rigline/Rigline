@@ -109,7 +109,7 @@ export interface UpdatePluginsOptions extends RemoteOptions {
  * check still runs afterwards and still refuses a plugin the extension cannot honour (D43).
  */
 export async function updatePlugins(options: UpdatePluginsOptions): Promise<PluginUpdate[]> {
-  const managed = options.listed.filter((plugin) => plugin.managed);
+  const managed = options.listed.filter((plugin) => plugin.origin === "home");
   const byName = new Map(managed.map((plugin) => [plugin.name, plugin]));
   const names = options.names ?? managed.map((plugin) => plugin.name);
   const updates: PluginUpdate[] = [];

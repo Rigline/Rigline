@@ -67,6 +67,7 @@ import {
   inspect,
   install,
   installedExtensions,
+  listJson,
   listPlugins,
   orderInLayout,
   type Placement,
@@ -574,9 +575,9 @@ function listing(paths: RiglinePaths, refuse?: (line: string) => void): PluginLi
   const checkout = checkoutPluginsDir();
   return listPlugins({
     roots: [
-      ...(checkout === null ? [] : [{ label: "this checkout", path: checkout }]),
-      { label: paths.plugins, path: paths.plugins, managed: true },
-      { label: "bundled", path: bundledPluginsDir(), bundled: true },
+      ...(checkout === null ? [] : [{ role: "checkout" as const, path: checkout }]),
+      { role: "home", path: paths.plugins },
+      { role: "bundled", path: bundledPluginsDir() },
     ],
     last: ["probe"],
     configPath: paths.config,
@@ -589,7 +590,7 @@ function listCommand(args: string[]): number {
   const { values } = parseArgs({ args, options: { json: { type: "boolean", default: false } } });
   const unloaded: string[] = [];
   const listings = listing(riglinePaths(), (line) => unloaded.push(line));
-  console.log(values.json ? JSON.stringify(listings) : formatPlugins(listings));
+  console.log(values.json ? JSON.stringify(listJson(listings)) : formatPlugins(listings));
   // On stderr, so `--json` stays data. `check` is what exits 1 for it.
   for (const line of unloaded) console.error(line);
   return 0;
@@ -782,7 +783,8 @@ function companionStatusCommand(args: string[]): number {
   return 0;
 }
 
-function statusCommand(): number {
+function statusCommand(args: string[]): number {
+  parseArgs({ args, options: {}, allowPositionals: false });
   const targets = installedExtensions();
   if (targets.length === 0) throw new UserError("no Claude Code extension is installed");
   for (const ext of targets) {
@@ -828,7 +830,9 @@ function doctorCommand(args: string[]): number {
   return 0;
 }
 
-function restoreCommand(): number {
+function restoreCommand(args: string[]): number {
+  // Strict, so a flag a later 1.x gives `restore` is refused here rather than restoring everything.
+  parseArgs({ args, options: {}, allowPositionals: false });
   const results = withInjectionLock({ ...lockWait, what: "rigline restore" }, () =>
     restoreAll(installedExtensions()),
   );
@@ -1180,9 +1184,9 @@ async function main(argv: string[]): Promise<number> {
     case "companion-profiles":
       return companionProfilesCommand(rest);
     case "status":
-      return statusCommand();
+      return statusCommand(rest);
     case "restore":
-      return restoreCommand();
+      return restoreCommand(rest);
     case "doctor":
       return doctorCommand(rest);
     case undefined:
@@ -1200,8 +1204,8 @@ async function main(argv: string[]): Promise<number> {
  *
  * The entry point both bins call, and the one a consumer that is not a terminal would call too —
  * the companion extension in plan.md phase 5 drives this surface without being able to exit.
- * A `UserError` is a problem a person must fix, so it is printed and becomes a 1; anything else is
- * a bug and keeps its stack.
+ * A `UserError` is a problem a person must fix, so it is printed and becomes a 1, as is an argument
+ * `parseArgs` refused; anything else is a bug and keeps its stack.
  */
 export async function runEngine(argv: readonly string[]): Promise<number> {
   try {
@@ -1211,6 +1215,16 @@ export async function runEngine(argv: readonly string[]): Promise<number> {
       console.error(`rigline: ${error.message}`);
       return 1;
     }
+    if (isArgumentError(error)) {
+      console.error(`rigline: ${error.message}`);
+      console.error("`rigline --help` lists what each command takes.");
+      return 1;
+    }
     throw error;
   }
+}
+
+function isArgumentError(error: unknown): error is Error {
+  const code = (error as { code?: unknown } | null)?.code;
+  return error instanceof Error && typeof code === "string" && code.startsWith("ERR_PARSE_ARGS_");
 }

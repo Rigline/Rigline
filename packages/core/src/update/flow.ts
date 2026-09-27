@@ -44,7 +44,7 @@ import { diffScans, formatDiff, type Scan, scansDiffer, type ViewDiff } from "..
 import { type Harvest, harvestAll } from "../layers/index.ts";
 import { HarvestError } from "../layers/types.ts";
 import { riglinePaths } from "../paths.ts";
-import { readConfig } from "../plugins/config.ts";
+import { readConfig, unknownKeyLines } from "../plugins/config.ts";
 import {
   discoverPlugins,
   enabledPlugins,
@@ -342,6 +342,7 @@ function checkHeld(options: FlowOptions): FlowReport {
   return settle(options, overrides, harvested, versions, null, {
     kind: "check",
     configNotes,
+    configProblems: config ? unknownKeyLines(config) : [],
     tokenProblem,
     unloaded,
   });
@@ -361,6 +362,8 @@ export function update(options: UpdateOptions): FlowReport {
 function updateHeld(options: UpdateOptions): FlowReport {
   const exts = options.exts ?? installedExtensions();
   const overrides = readAnchorOverrides(options.anchorsPath ?? riglinePaths().anchors);
+  // Once, before any version is touched, so every version bakes the same settings (D110).
+  const config = options.plugins ? readConfig(options.plugins.configPath) : undefined;
   const harvested: Harvested[] = [];
   const versions: VersionReport[] = [];
   let configNotes: readonly string[] = [];
@@ -379,6 +382,7 @@ function updateHeld(options: UpdateOptions): FlowReport {
         payloadDir: options.payloadDir,
         plugins: options.plugins,
         anchors: overrides,
+        ...(config === undefined ? {} : { config }),
         ...(options.wholeness === undefined ? {} : { wholeness: options.wholeness }),
         log: (line) => log.push(line),
       });
@@ -416,6 +420,7 @@ function updateHeld(options: UpdateOptions): FlowReport {
   return settle(options, overrides, harvested, versions, options, {
     kind: "install",
     configNotes,
+    configProblems: config ? unknownKeyLines(config) : [],
     tokenProblem,
     unloaded,
   });
@@ -425,6 +430,8 @@ function updateHeld(options: UpdateOptions): FlowReport {
 interface Settling {
   readonly kind: FlowReport["kind"];
   readonly configNotes: readonly string[];
+  /** Keys in `config.yaml` this engine does not read, for *Needs you* (D110). */
+  readonly configProblems: readonly string[];
   readonly tokenProblem: string | null;
   readonly unloaded: readonly string[];
 }
@@ -440,7 +447,7 @@ function settle(
 ): FlowReport {
   const dir = options.dir ?? process.cwd();
   const baselinePath = options.baselinePath ?? riglinePaths().baseline;
-  const { kind, configNotes, tokenProblem, unloaded } = settling;
+  const { kind, configNotes, configProblems, tokenProblem, unloaded } = settling;
   if (versions.length === 0) {
     return {
       kind,
@@ -452,7 +459,12 @@ function settle(
       diffs: [],
       versions,
       wrote: [],
-      attention: ["no Claude Code extension is installed", ...overrides.problems, ...unloaded],
+      attention: [
+        "no Claude Code extension is installed",
+        ...configProblems,
+        ...overrides.problems,
+        ...unloaded,
+      ],
     };
   }
 
@@ -466,7 +478,7 @@ function settle(
   let driftFile: string | null = null;
   // A malformed override is a person's mistake in a file only they can fix, and it never blocks:
   // the entries that parsed have already been applied and the rest are simply not there (D44).
-  const attention: string[] = [...overrides.problems, ...unloaded];
+  const attention: string[] = [...configProblems, ...overrides.problems, ...unloaded];
   if (tokenProblem !== null) attention.push(tokenProblem);
 
   for (const version of versions) {

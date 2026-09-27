@@ -106,9 +106,10 @@ to a class.
 ## The install pipeline
 
 `rigline install` is the one write command about the injection, and `check` is the same report
-writing nothing (D55). The flow in `core/src/update/flow.ts` runs over every installed extension
-directory; per directory, `inject.ts`'s `install()` does this, in this order, and the order is
-load-bearing at three points:
+writing nothing (D55). The flow in `core/src/update/flow.ts` reads `config.yaml` once, before any
+directory, so a file that does not hold stops the run with nothing written (D110). Then it runs over
+every installed extension directory; per directory, `inject.ts`'s `install()` does this, in this
+order, and the order is load-bearing at three points:
 
 0. **Refuse a directory that is not whole**: a file missing, or one still growing between two
    samples a quarter of a second apart (D81, D83). See [partial-bundles.md](partial-bundles.md).
@@ -123,7 +124,7 @@ load-bearing at three points:
 3. **Write the payload before the bundle is patched.** A static import pointing at a file that is
    not there yet blanks the panel on the next reload. Then `generated.js`, from the merged anchor
    table, so a local override reaches the loader and not just the report about it (D44).
-4. Discover plugins, read `config.yaml`, and take the enabled set.
+4. Discover plugins, and take the set `config.yaml` leaves enabled.
 5. Rebuild `extension.js` from `extension.js.orig` plus every enabled plugin's declared patches, and
    write it only if the bytes changed. See [patches.md](patches.md).
 6. Copy each enabled plugin's directory through the output filter, and bake `registry.js`.

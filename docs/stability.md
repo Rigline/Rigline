@@ -21,8 +21,8 @@ Code removed is refused by name, never left half-working. Every other plugin kee
 **Kept within 1.x:**
 
 - **The manifest.** `rigline.json` at `api: 1`, where every key keeps its meaning. A minor release
-  may add a key, or a value an existing key accepts. A plugin that uses one needs that release or
-  later, and an older one refuses the plugin by name.
+  may add a key, at any depth, or a value an existing key accepts. A plugin that uses one needs that
+  release or later, and an older one refuses the plugin by name.
 - **`ctx`.** Every member keeps working as it does for code written against an earlier 1.x. A minor
   release may add a member, or let one accept more values for an argument it already takes; a new
   ability is always a new member. A plugin that reads a member an older release lacks is switched
@@ -60,7 +60,9 @@ Code removed is refused by name, never left half-working. Every other plugin kee
 **Kept within 1.x:**
 
 - **`~/.rigline/config.yaml`.** Every key keeps its meaning, and a later 1.x reads what an earlier one
-  wrote, comments included ([config.md](config.md)). A layout place beside a piece of Claude Code's
+  wrote, comments included ([config.md](config.md)). A minor release may add a setting, always as a
+  new key; an existing key never takes a new kind of value. An older Rigline names a key it does not
+  know under what needs you, and does without it. A layout place beside a piece of Claude Code's
   panel stops resolving if Claude Code removes that piece: the entry stays in the file and is
   reported, and its elements go back to where their authors put them.
 - **The names in that file that Rigline owns:** the bundled plugins, their elements, and Rigline's
@@ -68,8 +70,20 @@ Code removed is refused by name, never left half-working. Every other plugin kee
 - **`~/.rigline/anchors.json`**, in the format [anchors.md](anchors.md) describes.
 - **A plugin you put in `~/.rigline/plugins/` yourself**, under the plugin rules above.
 - **The commands in the usage, with their flags.** A later 1.x accepts every invocation an earlier
-  one did. The exit status is 0 when nothing needs you and 1 when something does.
-- **`rigline list --json`.** Fields may be added, but never removed or renamed.
+  one did, and an earlier one refuses a flag it does not know rather than ignoring it. The exit
+  status is 0 when nothing needs you and 1 when something does.
+- **`rigline list --json`**, which prints JSON and nothing else on stdout, even on the run that
+  installs the engine: `{ "v": 1, "plugins": [...] }`, each plugin with
+  - `name`, and `version` or null;
+  - `origin`, which is `bundled`, `home` for `~/.rigline/plugins`, or `checkout`, and `dir`, where
+    it is;
+  - `enabled` and `overridesBundled`;
+  - `source`: null for a plugin placed by hand, `{ "kind": "npm", name, version, tag }` with `tag`
+    null when pinned, or `{ "kind": "path", from }`;
+  - `description` or null, `can`, and `patches`, each `{ why, required }`.
+
+  Fields may be added, never removed or renamed, and `origin` and `source.kind` may gain values.
+  `can` and `why` are wording, like a report's.
 - **Where it runs:** VS Code on Windows, Linux and macOS, with Node 22.12 or newer. A minor release
   may drop a Node version once it has reached end of life, or raise the oldest VS Code the companion
   supports, and the changelog says so.

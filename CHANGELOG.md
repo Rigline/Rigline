@@ -56,8 +56,17 @@ anything may change between releases.
   before any single element would do — including the model pill, where an element makes the
   composer footer fight itself.
 - A `rigline.json` key that this version of Rigline does not know now refuses the plugin, naming the
-  key, where before a key at the top level was ignored. A plugin written for a later Rigline is
-  refused rather than loaded without what it needs. `$schema` is still allowed.
+  key, where before a key at the top level or in a `patches` entry was ignored. A plugin written for
+  a later Rigline is refused rather than loaded without what it needs. `$schema` is still allowed.
+- `rigline list --json` prints `{ "v": 1, "plugins": [...] }` rather than a bare array, in a shape
+  now kept for the whole of 1.x; [docs/stability.md](docs/stability.md) lists the fields. `origin`
+  is `bundled`, `home` or `checkout`, where it was a label or a path, and `dir` has the path.
+  `source` holds the kind, and for npm the package, version and tag, where it was the whole record.
+  `managed` is gone: it is `origin: "home"`.
+- `rigline status` and `rigline restore` refuse an argument they do not take, as every other
+  command does. Before, they ignored it.
+- A key in `~/.rigline/config.yaml` that Rigline does not know is named under what needs you,
+  where before it was ignored. It is a typo, or a setting from a later Rigline.
 - `rigline vscode-setup` and `rigline update` install the companion into VS Code alone, since VS
   Code's own extensions are the only ones Rigline injects. A companion already in another editor —
   Insiders, VSCodium, Cursor or Windsurf — or in a portable VS Code or a remote window now reads
@@ -83,6 +92,12 @@ anything may change between releases.
   session passes 600 messages — no longer keeps the previous message's identity, so time-marks no
   longer shows the old message's time on it. A plugin decorating rows sees the message the row
   actually shows.
+- A `~/.rigline/config.yaml` that does not hold stops `rigline install` before it writes anything.
+  Before, it stopped after the first extension version's payload had been rewritten, leaving that
+  version half updated.
+- The first `rigline list --json` on a machine is JSON: the line saying the engine is being
+  installed goes to stderr.
+- A mistyped flag prints one line saying so, where it printed a stack trace.
 
 ## 1.0.0-alpha.12 — 2026-09-26
 

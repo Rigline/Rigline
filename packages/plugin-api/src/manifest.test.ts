@@ -180,4 +180,21 @@ describe("patchShapeProblem", () => {
     );
     expect(patchShapeProblem(null)).toBe("must be an object");
   });
+
+  it("refuses a key it does not know, rather than applying the patch without it", () => {
+    expect(patchShapeProblem({ find: "!1", replace: "!0", why: "w", platform: "win32" })).toBe(
+      'has "platform", which this version of Rigline does not know',
+    );
+    expect(
+      validateManifest(
+        {
+          api: 1,
+          name: "demo",
+          entry: "d.js",
+          patches: [{ find: "!1", replace: "!0", why: "w", versions: ">=2.2" }],
+        },
+        "demo",
+      ).problems,
+    ).toEqual(['"patches[0]" has "versions", which this version of Rigline does not know']);
+  });
 });

@@ -167,12 +167,16 @@ export {
   writeLayout,
 } from "./plugins/layout.ts";
 export type {
-  LabelledRoot,
+  ListJson,
   ListOptions,
+  ListRoot,
   PatchListing,
+  PluginJson,
   PluginListing,
+  PluginOrigin,
+  SourceJson,
 } from "./plugins/list.ts";
-export { formatPlugins, listPlugins } from "./plugins/list.ts";
+export { formatPlugins, listJson, listPlugins } from "./plugins/list.ts";
 export type {
   AddOptions,
   AddResult,

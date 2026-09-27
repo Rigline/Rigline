@@ -483,6 +483,49 @@ describe("the report a person reads", () => {
   });
 });
 
+describe("config.yaml (D110)", () => {
+  function configText(text: string): string {
+    const path = join(tempDir("rigline-config-"), "config.yaml");
+    writeFileSync(path, text);
+    return path;
+  }
+
+  it("names a key it does not read under what needs you, once, and injects anyway", () => {
+    const configPath = configText("disabled: []\ntheme: dark\n");
+    const options = {
+      exts: [fixture({ version: "2.1.268" }), fixture({ version: "2.1.270" })],
+      dir: tempDir("rigline-cwd-"),
+      baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+      plugins: { roots: [pluginRoot("fine", {})], configPath },
+    };
+    const installed = update({ ...options, payloadDir: payload() });
+    expect(installed.versions.map((v) => v.action)).toEqual(["injected", "injected"]);
+    for (const report of [installed, check(options)]) {
+      expect(report.attention.filter((line) => line.includes('"theme"'))).toEqual([
+        `${configPath} has "theme", which this version of Rigline does not know; fix it if it is a typo, or run \`rigline update\` if a later Rigline wrote it`,
+      ]);
+    }
+  });
+
+  it("writes nothing to any version when the file does not hold", () => {
+    const exts = [fixture({ version: "2.1.268" }), fixture({ version: "2.1.270" })];
+    const before = exts.map((ext) => readFileSync(join(ext, "webview", "index.js")));
+    expect(() =>
+      update({
+        exts,
+        payloadDir: payload(),
+        dir: tempDir("rigline-cwd-"),
+        baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+        plugins: { roots: [pluginRoot("fine", {})], configPath: configText("disabled: fine\n") },
+      }),
+    ).toThrow(/"disabled" must be a list of plugin names/);
+    for (const [i, ext] of exts.entries()) {
+      expect(existsSync(join(ext, "webview", "rigline"))).toBe(false);
+      expect(readFileSync(join(ext, "webview", "index.js")).equals(before[i] as Buffer)).toBe(true);
+    }
+  });
+});
+
 describe("update", () => {
   it("injects every version, records a baseline, and reports what it wrote", () => {
     const older = fixture({ version: "2.1.268" });

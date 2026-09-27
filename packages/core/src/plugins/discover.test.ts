@@ -231,6 +231,7 @@ describe("enabledPlugins", () => {
       path: "config.yaml",
       disabled: ["beta"],
       layout: {},
+      unknownKeys: [],
     });
     expect(enabled.map((p) => p.name)).toEqual(["alpha", "gamma"]);
   });
@@ -242,7 +243,7 @@ describe("enabledPlugins", () => {
     const lines: string[] = [];
 
     const path = join(tempDir(), "config.yaml");
-    enabledPlugins(discovered, { path, disabled: ["ghost"], layout: {} }, (line) =>
+    enabledPlugins(discovered, { path, disabled: ["ghost"], layout: {}, unknownKeys: [] }, (line) =>
       lines.push(line),
     );
 
@@ -324,6 +325,7 @@ describe("bakeRegistry", () => {
       path: "config.yaml",
       disabled: ["beta"],
       layout: {},
+      unknownKeys: [],
     });
 
     const source = bakeRegistry(enabled, []);

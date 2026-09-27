@@ -170,10 +170,9 @@ describe("updatePlugins", () => {
     return {
       name,
       dir: "",
-      origin: "",
+      origin: "home",
       enabled: true,
       source,
-      managed: true,
       version: null,
       overridesBundled: false,
       description: null,

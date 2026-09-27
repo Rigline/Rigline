@@ -10,26 +10,26 @@
  * rest on. Whether a plugin's declarations hold against an installed version is a different
  * question, and `check` owns it; nothing here reads an extension directory.
  */
+import { dirname } from "node:path";
 import { describeElements, describeUses, type Uses } from "@rigline/plugin-api/internal";
 import { CORE_VERSION } from "../version.ts";
 import { describeSource, type PluginSource, readConfig, readSources } from "./config.ts";
 import { type DiscoveredPlugin, discoverPlugins } from "./discover.ts";
 
-/** A discovery root and what to call it in the report. */
-export interface LabelledRoot {
-  readonly label: string;
+/**
+ * Which root a plugin was found under.
+ *
+ * - `checkout`: a Rigline checkout's `plugins/`, which only a contributor has.
+ * - `home`: `~/.rigline/plugins`, where `add` installs. A plugin here with no source record is one
+ *   somebody copied in by hand; anywhere else a missing record says nothing at all.
+ * - `bundled`: core's own `dist/bundled/plugins` (D71). A plugin here is versioned with the engine,
+ *   and one found ahead of it is an override rather than a collision.
+ */
+export type PluginOrigin = "checkout" | "home" | "bundled";
+
+export interface ListRoot {
+  readonly role: PluginOrigin;
   readonly path: string;
-  /**
-   * The root `add` installs into, where a plugin with no source record is one somebody copied in by
-   * hand. Everywhere else a missing record says nothing at all — a first-party plugin in a checkout
-   * was never added and has nothing to be updated from.
-   */
-  readonly managed?: boolean;
-  /**
-   * Core's own `dist/bundled/plugins` (D71). A plugin found here is versioned with the engine, and
-   * one found ahead of it is an override rather than a collision.
-   */
-  readonly bundled?: boolean;
 }
 
 /** One declared host patch, without the bytes: `list` says what a patch is for, not what it is. */
@@ -41,8 +41,7 @@ export interface PatchListing {
 export interface PluginListing {
   readonly name: string;
   readonly dir: string;
-  /** The label of the root it was discovered under. */
-  readonly origin: string;
+  readonly origin: PluginOrigin;
   /** False when `config.yaml` switched it off, which is the one state a person chose. */
   readonly enabled: boolean;
   /**
@@ -51,8 +50,6 @@ export interface PluginListing {
    * from, so nothing can fetch a newer one, and the person who dropped it in owns the version.
    */
   readonly source: PluginSource | null;
-  /** Whether it sits in the root `add` installs into, which is what makes a missing source a fact. */
-  readonly managed: boolean;
   /**
    * What version this is, or null for one placed by hand.
    *
@@ -71,7 +68,7 @@ export interface PluginListing {
 }
 
 export interface ListOptions {
-  readonly roots: readonly LabelledRoot[];
+  readonly roots: readonly ListRoot[];
   readonly configPath: string;
   readonly sourcesPath: string;
   /** Plugins pinned to the end of registry order, as `install` pins them. */
@@ -81,7 +78,7 @@ export interface ListOptions {
 }
 
 export function listPlugins(options: ListOptions): PluginListing[] {
-  const bundledRoot = options.roots.find((r) => r.bundled)?.path;
+  const bundledRoot = options.roots.find((r) => r.role === "bundled")?.path;
   const discovered = discoverPlugins(
     options.roots.map((r) => r.path),
     { last: options.last, bundledRoot, ...(options.refuse ? { refuse: options.refuse } : {}) },
@@ -89,18 +86,16 @@ export function listPlugins(options: ListOptions): PluginListing[] {
   const config = readConfig(options.configPath);
   const disabled = new Set(config.disabled);
   const sources = readSources(options.sourcesPath);
-  const label = new Map(options.roots.map((r) => [r.path, r.label]));
-  const managed = new Set(options.roots.filter((r) => r.managed).map((r) => r.path));
+  const role = new Map(options.roots.map((r) => [r.path, r.role]));
 
   return discovered.map((plugin: DiscoveredPlugin) => {
     const source = sources[plugin.name] ?? null;
     return {
       name: plugin.name,
       dir: plugin.dir,
-      origin: label.get(plugin.root) ?? plugin.root,
+      origin: role.get(plugin.root) as PluginOrigin,
       enabled: !disabled.has(plugin.name),
       source,
-      managed: managed.has(plugin.root),
       version: plugin.root === bundledRoot ? CORE_VERSION : versionOf(source),
       overridesBundled: plugin.overridesBundled,
       description: plugin.manifest.description,
@@ -121,18 +116,79 @@ function versionOf(source: PluginSource | null): string | null {
   return source?.kind === "npm" ? source.version : null;
 }
 
+/** `rigline list --json`, kept for 1.x (D110). A projection, so the listing itself can change. */
+export interface ListJson {
+  readonly v: 1;
+  readonly plugins: readonly PluginJson[];
+}
+
+export interface PluginJson {
+  readonly name: string;
+  readonly version: string | null;
+  readonly origin: PluginOrigin;
+  readonly dir: string;
+  readonly enabled: boolean;
+  readonly overridesBundled: boolean;
+  readonly source: SourceJson | null;
+  readonly description: string | null;
+  /** Wording, like a report's. */
+  readonly can: readonly string[];
+  readonly patches: readonly PatchListing[];
+}
+
+/** What a person needs of a source; `sources.json` keeps the rest. `kind` may gain values in 1.x. */
+export type SourceJson =
+  | {
+      readonly kind: "npm";
+      readonly name: string;
+      readonly version: string;
+      readonly tag: string | null;
+    }
+  | { readonly kind: "path"; readonly from: string };
+
+export function listJson(listings: readonly PluginListing[]): ListJson {
+  return {
+    v: 1,
+    plugins: listings.map((plugin) => ({
+      name: plugin.name,
+      version: plugin.version,
+      origin: plugin.origin,
+      dir: plugin.dir,
+      enabled: plugin.enabled,
+      overridesBundled: plugin.overridesBundled,
+      source: plugin.source === null ? null : sourceJson(plugin.source),
+      description: plugin.description,
+      can: plugin.can,
+      patches: plugin.patches.map((patch) => ({ why: patch.why, required: patch.required })),
+    })),
+  };
+}
+
+function sourceJson(source: PluginSource): SourceJson {
+  return source.kind === "npm"
+    ? { kind: "npm", name: source.name, version: source.version, tag: source.tag }
+    : { kind: "path", from: source.from };
+}
+
+/** Where a plugin was found, as the text report names it. */
+function originLabel(plugin: PluginListing): string {
+  if (plugin.origin === "checkout") return "this checkout";
+  if (plugin.origin === "bundled") return "bundled";
+  return dirname(plugin.dir);
+}
+
 export function formatPlugins(listings: readonly PluginListing[]): string {
   if (listings.length === 0) return "no plugins found";
 
   const lines: string[] = [];
   for (const plugin of listings) {
     lines.push(
-      `${plugin.name}${plugin.version ? ` ${plugin.version}` : ""} — ${plugin.origin}` +
+      `${plugin.name}${plugin.version ? ` ${plugin.version}` : ""} — ${originLabel(plugin)}` +
         `${plugin.enabled ? "" : ", switched off in config"}`,
     );
     if (plugin.description) lines.push(`  ${plugin.description}`);
     if (plugin.source !== null) lines.push(`  added from ${describeSource(plugin.source)}`);
-    else if (plugin.managed) {
+    else if (plugin.origin === "home") {
       lines.push("  placed here by hand, with no record of where from, so nothing can update it");
     }
     // Said here and at `add`, and nowhere else. It is the one arrangement where a plugin is

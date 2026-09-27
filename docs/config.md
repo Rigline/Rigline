@@ -111,6 +111,11 @@ with lists under them, or a `companion` block whose `everyProfile` is not true o
 `skipProfiles` is not a list. A key with nothing after it, like `disabled:`, is an empty list, not a
 mistake.
 
+A key Rigline does not know does nothing, and `rigline install` and `rigline check` name it under
+what needs you. It is a typo, like `disable:`, or a setting from a later Rigline than the one you
+are running, which `rigline update` fixes. A later Rigline only adds settings as new keys, never by
+changing what an existing one takes, so an older one reads the rest of the file as you meant it.
+
 ## The other files here
 
 `~/.rigline/sources.json` records where `rigline add` brought each plugin from — the npm package,

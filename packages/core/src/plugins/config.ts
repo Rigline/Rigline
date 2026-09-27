@@ -48,7 +48,13 @@ export interface PluginsConfig {
   readonly disabled: readonly string[];
   /** As written, entries that do not resolve included (D92). */
   readonly layout: Layout;
+  /** Keys this engine does not read, dotted: a typo, or a setting from a later Rigline (D110). */
+  readonly unknownKeys: readonly string[];
 }
+
+/** The settings this engine reads, at the top level and in the `companion` block. */
+const SETTINGS = ["disabled", "layout", "companion"];
+const COMPANION_SETTINGS = ["everyProfile", "skipProfiles"];
 
 /** `config.yaml`'s `companion` block: which VS Code profiles get the companion (D100). */
 export interface CompanionSettings {
@@ -78,8 +84,17 @@ const TO_STRING = { flowCollectionPadding: false } as const;
 
 /** Absent means nothing is disabled; malformed is a person's mistake, loud. */
 export function readConfig(path: string): PluginsConfig {
-  if (!existsSync(path)) return { path, disabled: [], layout: {} };
+  if (!existsSync(path)) return { path, disabled: [], layout: {}, unknownKeys: [] };
   return configOf(path, parseConfig(path, readFileSync(path, "utf8")));
+}
+
+/** A line under *Needs you* for each key the engine does not read (D110). */
+export function unknownKeyLines(config: PluginsConfig): string[] {
+  return config.unknownKeys.map(
+    (key) =>
+      `${config.path} has "${key}", which this version of Rigline does not know; fix it if it ` +
+      "is a typo, or run `rigline update` if a later Rigline wrote it",
+  );
 }
 
 /** The `companion` block, with its defaults when absent; malformed is loud, as for `readConfig`. */
@@ -163,7 +178,14 @@ function configOf(path: string, doc: Document): PluginsConfig {
     throw new UserError(`${path}: "disabled" must be a list of plugin names`);
   }
   companionOf(path, value.companion);
-  return { path, disabled, layout: layoutOf(path, value.layout) };
+  const companion = (value.companion ?? {}) as Record<string, unknown>;
+  const unknownKeys = [
+    ...Object.keys(value).filter((key) => !SETTINGS.includes(key)),
+    ...Object.keys(companion)
+      .filter((key) => !COMPANION_SETTINGS.includes(key))
+      .map((key) => `companion.${key}`),
+  ];
+  return { path, disabled, layout: layoutOf(path, value.layout), unknownKeys };
 }
 
 function companionOf(path: string, value: unknown): CompanionSettings {

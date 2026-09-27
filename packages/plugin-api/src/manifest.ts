@@ -133,6 +133,8 @@ export const MANIFEST_KEYS = [
   "elements",
   "patches",
 ] as const;
+/** Every key a `patches` entry may carry, likewise. */
+export const PATCH_KEYS: readonly string[] = ["find", "replace", "why", "required"];
 const NAME = new RegExp(NAME_PATTERN);
 
 /** One half of `uses`, shape-checked contract by contract, with every omitted key left empty. */
@@ -337,6 +339,12 @@ export function validateManifest(
  */
 export function patchShapeProblem(patch: unknown): string | null {
   if (!isRecord(patch)) return "must be an object";
+  // A key a later 1.x adds to narrow where a patch applies would otherwise be dropped, and the
+  // substitution written everywhere.
+  for (const key of Object.keys(patch)) {
+    if (!PATCH_KEYS.includes(key))
+      return `has "${key}", which this version of Rigline does not know`;
+  }
   for (const field of ["find", "replace", "why"] as const) {
     const v = patch[field];
     if (typeof v !== "string" || v.length === 0) return `needs a non-empty string "${field}"`;

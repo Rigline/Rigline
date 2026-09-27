@@ -12,7 +12,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { riglineHome as coreRiglineHome } from "../../core/src/paths.ts";
 import { core, fakeChild, npm, writeEngine } from "../test/engine.ts";
 import {
@@ -21,6 +21,7 @@ import {
   type EngineUpdate,
   engineDir,
   engineInstallArgv,
+  ensureEngine,
   findNpmCli,
   formatEngineUpdate,
   handOffProblem,
@@ -387,6 +388,32 @@ describe("updateEngine", () => {
     });
     expect(update).toMatchObject({ outcome: "failed", from: "1.0.0-alpha.6" });
     expect(readEngineState(engineDir(prefix))).toMatchObject({ version: "1.0.0-alpha.6" });
+  });
+});
+
+describe("ensureEngine", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("says it is installing on stderr, so a first `list --json` is still JSON", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const prefix = temp();
+    const engine = await ensureEngine({
+      home: prefix,
+      version: "1.0.0-alpha.7",
+      registry: npm("1.0.0-alpha.7"),
+      spawnImpl: () => {
+        writeEngine(engineDir(prefix), core("1.0.0-alpha.7"));
+        return fakeChild(0);
+      },
+    });
+    expect(engine.version).toBe("1.0.0-alpha.7");
+    expect(log).not.toHaveBeenCalled();
+    expect(error).toHaveBeenCalledWith(
+      `rigline: installing the engine, ${ENGINE_PACKAGE} 1.0.0-alpha.7`,
+    );
   });
 });
 

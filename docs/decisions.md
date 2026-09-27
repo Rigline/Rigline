@@ -209,7 +209,10 @@ being exactly where a broken plugin throws.
 
 **A key the engine does not know refuses the plugin, and only that plugin (amended 2026-09-26).** A
 top-level key was ignored where a `uses` key was refused, so a plugin written for a later 1.x would
-have loaded without the key it relied on; both now refuse, `$schema` excepted. And a manifest that
+have loaded without the key it relied on; both now refuse, `$schema` excepted. So does a key in a
+`patches` entry (2026-09-27), which is where a later 1.x would narrow where a patch applies: dropped,
+the substitution would be written everywhere. The rule holds at every depth, and `schema.test.ts`
+compares each closed object in the schema with the validator's keys for it. And a manifest that
 does not hold refused every plugin, because discovery threw: it is now named under *Needs you* and
 the rest load (P3). It keeps its name, so a same-named plugin further down the roots does not stand
 in for it. `add` still refuses outright, before anything is written. Tightening what refuses a
@@ -1017,7 +1020,8 @@ needs to know what it may move, and the wrapper asks instead of reading, because
 that file is a second opinion about what is installed.
 
 **Amended by D106:** `update` is the engine's, which reads its own listing, so `list --json` is a
-person's again and nothing of Rigline's parses it.
+person's again and nothing of Rigline's parses it. **Amended by D110:** its shape is fixed for 1.x,
+and is no longer the listing itself.
 
 **D56. A plugin name is unique across discovery roots, first root wins, and `add` refuses to make a
 collision it cannot undo.** Discovery flattens its roots into one ordered list, so two directories
@@ -2102,6 +2106,9 @@ A command that reads the settings first splits a `config.json` it finds alone: `
 files was written by an older engine; it is not read, and the command names it. `anchors.json` stays
 JSON: it is a repair pasted from a release note, not a file anyone maintains.
 
+**Amended by D110:** a key the engine does not read is named, and within a major a key never takes
+a new kind of value.
+
 **D92. The layout is a list per place, recording departures from the authors' defaults (2026-09-24,
 Leo).** `config.yaml`'s `layout` maps a place to the elements a person has put there, in order, each
 written as `plugin/element`. A place is a zone (`rigRow`), a slot spelled as every report prints it
@@ -2748,3 +2755,33 @@ Rejected:
   engine under `RIGLINE_HOME` returns: rights to write there, which package manager installed it,
   and a volta or pnpm shim shadowing a second copy on `PATH`. It would also be the one write the
   companion makes outside Rigline's home and its own directory.
+
+**D110. What a later 1.x hands this engine is named or refused, and `--json` is a contract
+(2026-09-27, Leo).** 1.0.0 is the oldest engine and wrapper that will ever meet a `config.yaml` or an
+invocation written for a later 1.x, and the oldest whose output a script reads. Whatever it accepts
+in silence now, it accepts for the major.
+
+- **`config.yaml`.** A new setting is always a new key, and an existing key never takes a new kind of
+  value, since a value this engine cannot read stops the run. A key it does not read is named under
+  *Needs you* wherever an install or a check reports: a typo looks exactly like a setting from a
+  later Rigline, and either wants a person. The file is read once, before any version is touched,
+  and handed to each version's install, so a malformed one stops the run with nothing written. It
+  used to throw after the first version's payload had landed.
+- **Every verb parses strictly.** `status` and `restore` took any arguments, so a later
+  `restore --ext DIR` would have restored every version on 1.0 and exited 0. A later 1.x accepts
+  every invocation an earlier one did, so neither could have become strict after 1.0. An argument a
+  verb refuses is a line and exit 1, not a stack trace.
+- **`list --json`** is `{ "v": 1, "plugins": [...] }`, projected from the listing rather than being
+  it, so the listing can change and the contract cannot. `origin` is a role, `bundled`, `home` or
+  `checkout`, with the path in `dir`. `source` is what a person needs of the record: its kind, and
+  for npm the name, version and tag; `integrity` and `addedAt` stay in `sources.json`. `can` and a
+  patch's `why` are wording. `origin` and `source.kind` may gain values. [stability.md](stability.md)
+  lists the fields.
+- **`--json` is JSON alone on stdout.** Everything else Rigline says goes to stderr, the wrapper's
+  first-run line included, which made the first `list --json` on a machine not JSON.
+
+The cost is that a later setting which restricts Rigline cannot count on an older engine honouring
+it: the older engine names it and carries on. This amends D74, whose `list --json` was the listing
+itself, and D91.
+
+Rejected: ignoring an unknown key in silence, which is also what a typo gets.

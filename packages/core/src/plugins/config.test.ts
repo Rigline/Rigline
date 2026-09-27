@@ -11,6 +11,7 @@ import {
   removeFromList,
   SKIP_PROFILES,
   splitLegacyConfig,
+  unknownKeyLines,
   updateSources,
 } from "./config.ts";
 
@@ -67,7 +68,7 @@ describe("readCompanionSettings", () => {
 describe("readConfig", () => {
   it("returns an empty disabled list when the file is absent, and still says where it looked", () => {
     const path = join(tempDir(), "config.yaml");
-    expect(readConfig(path)).toEqual({ path, disabled: [], layout: {} });
+    expect(readConfig(path)).toEqual({ path, disabled: [], layout: {}, unknownKeys: [] });
   });
 
   it("reads the layout as written, a place it does not know included (D92)", () => {
@@ -130,6 +131,30 @@ describe("readConfig", () => {
     expect(() => readConfig(path)).toThrow(/must be a mapping/);
     writeFileSync(path, "disabled: a\n");
     expect(() => readConfig(path)).toThrow(/"disabled" must be a list of plugin names/);
+  });
+
+  it("names a key it does not read, at the top and in the companion block, and reads the rest", () => {
+    const path = join(tempDir(), "config.yaml");
+    writeFileSync(
+      path,
+      "disabled: [a]\ntheme: dark\ncompanion:\n  everyProfile: false\n  quiet: true\nlayout:\n",
+    );
+    const config = readConfig(path);
+    expect(config.unknownKeys).toEqual(["theme", "companion.quiet"]);
+    expect(config.disabled).toEqual(["a"]);
+    expect(unknownKeyLines(config)).toEqual([
+      `${path} has "theme", which this version of Rigline does not know; fix it if it is a typo, or run \`rigline update\` if a later Rigline wrote it`,
+      `${path} has "companion.quiet", which this version of Rigline does not know; fix it if it is a typo, or run \`rigline update\` if a later Rigline wrote it`,
+    ]);
+  });
+
+  it("knows every key a command writes, so none of them is named", () => {
+    const path = join(tempDir(), "config.yaml");
+    writeFileSync(
+      path,
+      "disabled: []\nlayout:\n  rigRow: [a/b]\ncompanion:\n  everyProfile: true\n  skipProfiles: []\n",
+    );
+    expect(readConfig(path).unknownKeys).toEqual([]);
   });
 });
 

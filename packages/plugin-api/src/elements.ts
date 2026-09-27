@@ -87,7 +87,9 @@ export interface DeclaredElement {
 export const ELEMENT_ID_PATTERN = "^[a-z0-9][a-z0-9-]{0,63}$";
 const ELEMENT_ID = new RegExp(ELEMENT_ID_PATTERN);
 
-const ELEMENT_FIELDS = ["title", "placements", "default"];
+/** The keys an element and an anchor placement may carry. The schema states the same lists. */
+export const ELEMENT_KEYS: readonly string[] = ["title", "placements", "default"];
+export const PLACEMENT_KEYS: readonly string[] = ["anchor", "at"];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -115,7 +117,7 @@ function placementProblem(value: unknown): string | null {
   if (typeof value === "string") return value.length > 0 ? null : "must not be an empty zone name";
   if (!isRecord(value)) return 'must be a zone name or { "anchor", "at" }';
   for (const key of Object.keys(value)) {
-    if (key !== "anchor" && key !== "at") return `has "${key}", which a placement does not`;
+    if (!PLACEMENT_KEYS.includes(key)) return `has "${key}", which a placement does not`;
   }
   if (typeof value.anchor !== "string" || value.anchor.length === 0) {
     return 'needs "anchor", an anchor name';
@@ -150,7 +152,7 @@ export function elementsOf(value: unknown, problems: string[]): Elements {
     }
     const before = problems.length;
     for (const key of Object.keys(raw)) {
-      if (!ELEMENT_FIELDS.includes(key)) problems.push(`"${path}.${key}" is not an element field`);
+      if (!ELEMENT_KEYS.includes(key)) problems.push(`"${path}.${key}" is not an element field`);
     }
     if (typeof raw.title !== "string" || raw.title.length === 0) {
       problems.push(`"${path}.title" must be a non-empty string`);

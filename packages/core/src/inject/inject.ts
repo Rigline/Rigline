@@ -38,7 +38,7 @@ import {
   wholenessProblem,
 } from "../extension/bundles.ts";
 import { harvestAll } from "../layers/index.ts";
-import { readConfig } from "../plugins/config.ts";
+import { type PluginsConfig, readConfig } from "../plugins/config.ts";
 import {
   bakeRegistry,
   capabilityUseNotes,
@@ -296,6 +296,11 @@ export interface InstallOptions {
    * once and passes it down here, the way it owns the baseline path.
    */
   readonly anchors?: AnchorOverrides;
+  /**
+   * `config.yaml`, already read, which the flow does once for every version. Absent, `install` reads
+   * `plugins.configPath` itself, before it writes anything.
+   */
+  readonly config?: PluginsConfig;
   /** The stability sample's timings. Injected only so a test can drive the refusal it produces. */
   readonly wholeness?: WholenessOptions;
   readonly log?: (line: string) => void;
@@ -389,6 +394,11 @@ export function install(ext: string, options: InstallOptions): InstallReport {
       throw new UserError(`payload is missing ${file}: ${options.payloadDir}`);
     }
   }
+  // A `config.yaml` that does not hold stops the run here, with nothing written (D110).
+  const plugins = options.plugins && {
+    ...options.plugins,
+    config: options.config ?? readConfig(options.plugins.configPath),
+  };
 
   // Before anything is read or written. `settleWebviewBackup` makes live bytes the pristine backup
   // whenever there is no backup yet — which is every new version's directory — so an install that
@@ -441,8 +451,8 @@ export function install(ext: string, options: InstallOptions): InstallReport {
   const unloaded: string[] = [];
   let verdicts: readonly PluginVerdict[] = [];
 
-  if (options.plugins) {
-    const { roots, last, bundledRoot, configPath, tokenPath } = options.plugins;
+  if (plugins) {
+    const { roots, last, bundledRoot, config, tokenPath } = plugins;
     const note = (line: string): void => {
       configNotes.push(line);
     };
@@ -452,7 +462,6 @@ export function install(ext: string, options: InstallOptions): InstallReport {
       log: note,
       refuse: (line) => unloaded.push(line),
     });
-    const config = readConfig(configPath);
     const enabled = enabledPlugins(discovered, config, note);
     configNotes.push(...layoutNotes(config, enabled));
     enabledNames = enabled.map((p) => p.name);

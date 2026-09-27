@@ -295,7 +295,8 @@ export async function ensureEngine(options: EngineOptions = {}): Promise<Engine>
   const problem = majorProblem(version, resolved.version);
   if (problem !== null) throw new UserError(problem);
 
-  console.log(`rigline: installing the engine, ${ENGINE_PACKAGE} ${resolved.version}`);
+  // On stderr, so the first `list --json` on a machine is still JSON.
+  console.error(`rigline: installing the engine, ${ENGINE_PACKAGE} ${resolved.version}`);
   await installEngine(prefix, `${ENGINE_PACKAGE}@${resolved.version}`, options);
 
   const installed = readEngineState(prefix);

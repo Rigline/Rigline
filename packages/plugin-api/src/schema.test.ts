@@ -6,7 +6,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { CONTRACTS } from "./capabilities/index.ts";
-import { MANIFEST_KEYS, validateManifest } from "./manifest.ts";
+import { ELEMENT_KEYS, PLACEMENT_KEYS } from "./elements.ts";
+import { MANIFEST_KEYS, PATCH_KEYS, validateManifest } from "./manifest.ts";
 import { manifestSchema, manifestSchemaJson } from "./schema.ts";
 
 const COMMITTED = fileURLToPath(new URL("../schema/manifest.json", import.meta.url));
@@ -74,9 +75,28 @@ describe("manifestSchema", () => {
     ).toHaveLength(1);
   });
 
-  it("names the same top-level keys the validator allows", () => {
-    expect(Object.keys(properties(manifestSchema())).sort()).toEqual([...MANIFEST_KEYS].sort());
-    expect(manifestSchema().additionalProperties).toBe(false);
+  it("closes the objects the validator closes, at every depth, with the same keys", () => {
+    const closed: Record<string, string[]> = {};
+    const walk = (node: unknown, path: string): void => {
+      if (typeof node !== "object" || node === null) return;
+      const object = node as JsonObject;
+      if (object.additionalProperties === false) {
+        closed[path] = Object.keys(properties(object)).sort();
+      }
+      for (const [key, value] of Object.entries(object)) walk(value, `${path}/${key}`);
+    };
+    walk(manifestSchema(), "");
+
+    const capabilities = CONTRACTS.map((c) => c.key);
+    // A closed object with no list here fails, so the next one is compared by construction.
+    expect(closed).toEqual({
+      "": [...MANIFEST_KEYS].sort(),
+      "/properties/uses": [...capabilities, "optional"].sort(),
+      "/properties/uses/properties/optional": [...capabilities].sort(),
+      "/properties/elements/additionalProperties": [...ELEMENT_KEYS].sort(),
+      "/properties/patches/items": [...PATCH_KEYS].sort(),
+      "/$defs/placement/oneOf/1": [...PLACEMENT_KEYS].sort(),
+    });
   });
 
   it("allows $schema itself, since every manifest we ship carries one", () => {
