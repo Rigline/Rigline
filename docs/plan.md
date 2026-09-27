@@ -570,3 +570,5 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
 - 2026-09-27: `1.0.0-alpha.13`: the 1.0 bar, D106 to D112. Its reads gate 1.0.
 - 2026-09-27: A remote window read in WSL: a vanilla panel, and a companion there says *not in this
   editor*. Remote windows are unsupported in 1.0, and stability.md says so.
+- 2026-09-27: 2.1.283 snapshotted, `generated.ts` regenerated and the harness moved to it; one class
+  added, nothing gone.
