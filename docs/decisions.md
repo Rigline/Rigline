@@ -2821,8 +2821,15 @@ standing offer, and it failed to recover three ways.
   not finish deleting, is now reported as not restored, and the rest are restored, as `install`
   does (D104).
 
-This amends D38. Rejected: `restore` uninstalling the companion, which is heavier, and makes putting
-Rigline back two commands.
+This amends D38. Rejected:
+
+- `restore` uninstalling the companion, which is heavier, and makes putting Rigline back two
+  commands.
+- Restoring only where no profile has the companion. Profiles share Claude Code's directories, and a
+  companion in any profile injects every version, so it comes to restoring nothing while a companion
+  is installed anywhere, and a blank panel waits on removing it.
+- `restore` naming the profiles that hold the companion. It reads VS Code's profile tables on the one
+  path that must depend on nothing but Node and the extension's directories.
 
 **D112. What stability.md claims is what the code keeps (2026-09-27, Leo).** Read against the code,
 the promise claimed more than the code kept in places and less in others. It now says:

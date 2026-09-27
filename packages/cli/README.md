@@ -10,8 +10,9 @@ rather than a breakage to chase.
 
 **This modifies files belonging to Anthropic's extension, on your machine, and that is your call to
 make.** [Anthropic compliance](https://github.com/Rigline/Rigline/blob/main/docs/anthropic-compliance.md)
-is a straight account of what Rigline does and does not do — no credentials, no network calls, no
-rerouting of Claude usage, no redistribution — and how we read Anthropic's terms. `rigline restore`
+is a straight account of what Rigline does to that extension and what it does not — no credentials,
+no network calls from the panel, no rerouting of Claude usage, no redistribution — and how we read
+Anthropic's terms. `rigline restore`
 puts every install back to Anthropic's own bytes and needs nothing but Node.
 
 ## Install

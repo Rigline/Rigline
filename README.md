@@ -14,9 +14,9 @@ something new without touching the rigging itself.
 >
 > Rigline modifies files belonging to Anthropic's Claude Code extension, on the machine of the
 > person who installed both. **[docs/anthropic-compliance.md](docs/anthropic-compliance.md)** is a
-> straight account of what it does, what it does not do — no credentials, no network calls, no
-> rerouting of Claude usage, no redistribution — and how we read Anthropic's terms, including the
-> clause that comes closest to biting.
+> straight account of what it does to that extension, what it does not do — no credentials, no
+> network calls from the panel, no rerouting of Claude usage, no redistribution — and how we read
+> Anthropic's terms, including the clause that comes closest to biting.
 >
 > **If you are from Anthropic, please get in touch.** We would like to discuss making Rigline
 > something you are comfortable with, and if you would rather it stopped, it will.
