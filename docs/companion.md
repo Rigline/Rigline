@@ -235,6 +235,13 @@ VS Code, a custom `--extensions-dir`, a remote host — it reads *Rigline: not i
 neither acquires an engine nor injects. It would otherwise inject VS Code's Claude Code from another
 editor and report green over a panel it never touched.
 
+In a remote window — WSL, SSH, a container — Claude Code runs on the remote host, from
+`~/.vscode-server/extensions`, so its panel is vanilla. Read live in WSL: the local companion does not
+run there, VS Code offers *Install in WSL*, and the copy that installs reads *not in this editor*.
+**Keep the companion a workspace extension**, which is what a `main` and no `extensionKind` make it.
+As a UI extension the local one would run in the remote window, find itself in `~/.vscode/extensions`,
+and report green over a remote panel it never touched.
+
 `--profile NAME` acts on that profile alone, and refuses a name no editor has, listing the ones
 there are. With `--remove` it also adds the name to `skipProfiles`; without it, it takes the name off.
 `--remove` alone uninstalls from every profile that holds the companion and leaves the injection

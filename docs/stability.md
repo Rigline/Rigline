@@ -107,8 +107,10 @@ Rigline out until you put it back.
 - **The backups beside Claude Code's bundles:** `webview/index.js.orig`, and `extension.js.orig` where
   a plugin patched the extension host. They are the undo when `rigline` itself will not run, as the
   [README](../README.md#if-the-panel-goes-blank) describes.
-- **Where it runs:** VS Code on Windows, Linux and macOS, with Node 22.12 or newer. A minor release
-  may drop a Node version once it has reached end of life, or raise the oldest VS Code the companion
+- **Where it runs:** VS Code on Windows, Linux and macOS, in a local window, with Node 22.12 or
+  newer. A remote window — WSL, SSH or a container — runs Claude Code on the remote host, which
+  Rigline does not inject, so its panel is vanilla and a companion there says so. A minor release may
+  drop a Node version once it has reached end of life, or raise the oldest VS Code the companion
   supports, and the changelog says so.
 
 **Not kept:**

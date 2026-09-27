@@ -321,8 +321,9 @@ The bar a 1.0 release clears, agreed 2026-09-26; the working plan is `.local/pla
 
 Done: the statement, what the wrapper and the companion rely on, the wrapper change, `ctx.style`'s
 refusal, VS Code alone, no console window, the macOS row, unknown manifest keys refused, the
-reused-row read with its fix, and what checking stability.md against the code found (D108 to D112,
-and the companion's id held on the Marketplace). What is left is Leo's, under **Next session**.
+reused-row read with its fix, what checking stability.md against the code found (D108 to D112,
+and the companion's id held on the Marketplace), and the remote-window read. What is left is Leo's,
+under **Next session**.
 
 ## Open questions
 
@@ -356,6 +357,11 @@ what a plugin is written against.
 - **Editors other than VS Code.** 1.0 injects `~/.vscode/extensions` alone. The companion knows its
   own extensions directory, so the engine taking one is where it starts; a baseline per editor is
   the design.
+- **Remote windows.** Claude Code runs on the remote host, from `~/.vscode-server/extensions`, which
+  1.0 does not inject ([companion.md](companion.md)). Triggered by somebody asking. Short of support,
+  `rigline` run on a remote host could say that is where it is: today `install` there reports no
+  Claude Code installed, and `vscode-setup` installs a companion that can only say *not in this
+  editor*.
 - **The Open VSX ownership claim.** The `rigline` publisher holds the companion's id on the
   Marketplace. On Open VSX the namespace is made but has no owner, so it takes anyone's publish,
   marked unverified. Nothing of ours reaches it while 1.0 is VS Code alone: the Save link is
@@ -408,8 +414,6 @@ what a plugin is written against.
 reads below, which gate 1.0, each through a released engine with `rigline.enginePath` unset in every
 profile, since a dev companion neither updates itself nor adds itself anywhere (D99, D100). Then
 `pnpm release major`, or another alpha if a read finds something.
-
-**A WSL window**, for what a remote window does.
 
 **A live run on a Mac**, where nothing has yet exercised the companion finding Node or the profile
 table's directories.
@@ -564,3 +568,5 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
 - 2026-09-27: The compliance page covers what touches the extension, and lists what Rigline writes
   there correctly (D77). No console window, read live.
 - 2026-09-27: `1.0.0-alpha.13`: the 1.0 bar, D106 to D112. Its reads gate 1.0.
+- 2026-09-27: A remote window read in WSL: a vanilla panel, and a companion there says *not in this
+  editor*. Remote windows are unsupported in 1.0, and stability.md says so.
