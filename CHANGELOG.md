@@ -10,6 +10,8 @@ anything may change between releases.
 
 ## Unreleased
 
+## 1.0.0-alpha.13 — 2026-09-27
+
 ### Added
 
 - `rigline` says when a newer `rigline` is out. Nothing updates the command itself, so when the
