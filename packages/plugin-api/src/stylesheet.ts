@@ -25,6 +25,7 @@ const CLOSE_PAREN = 41;
 const PIPE = 124;
 const EQUALS = 61;
 const HASH = 35;
+const AT = 64;
 
 /** The longest `[class…]` quoted in a refusal, so the message stays one line. */
 const QUOTED_SELECTOR = 80;
@@ -34,23 +35,29 @@ export interface StylesheetNames {
   readonly classes: readonly string[];
   /** The first selector on the `class` attribute, as written, or null when there is none. */
   readonly classAttribute: string | null;
+  /** Whether it has an `@import` rule, whose sheet is a file nothing here can read. */
+  readonly imports: boolean;
 }
 
 export function stylesheetNames(css: string): StylesheetNames {
   const classes = new Set<string>();
   let classAttribute: string | null = null;
+  let imports = false;
   let i = 0;
 
   while (i < css.length) {
     const c = css.charCodeAt(i);
     if (c === SLASH && css.charCodeAt(i + 1) === STAR) {
-      const end = css.indexOf("*/", i + 2);
-      i = end === -1 ? css.length : end + 2;
+      i = skipComments(css, i);
     } else if (c === QUOTE || c === APOSTROPHE) {
       i = skipString(css, i);
-    } else if (c === DOT && startsIdent(css, i + 1)) {
-      const [name, next] = readIdent(css, i + 1);
+    } else if (c === DOT && startsIdent(css, skipComments(css, i + 1))) {
+      const [name, next] = readIdent(css, skipComments(css, i + 1));
       classes.add(name);
+      i = next;
+    } else if (c === AT && startsIdent(css, i + 1)) {
+      const [name, next] = readIdent(css, i + 1);
+      if (name.toLowerCase() === "import") imports = true;
       i = next;
     } else if (c === OPEN_BRACKET) {
       const [isClass, next] = attributeIsClass(css, i + 1);
@@ -70,7 +77,26 @@ export function stylesheetNames(css: string): StylesheetNames {
       i++;
     }
   }
-  return { classes: [...classes], classAttribute };
+  return { classes: [...classes], classAttribute, imports };
+}
+
+/** Past any comments at `i`: the browser drops them before it reads a selector. */
+function skipComments(css: string, i: number): number {
+  while (css.charCodeAt(i) === SLASH && css.charCodeAt(i + 1) === STAR) {
+    const end = css.indexOf("*/", i + 2);
+    i = end === -1 ? css.length : end + 2;
+  }
+  return i;
+}
+
+/** Past any whitespace and comments at `i`. */
+function skipTrivia(css: string, i: number): number {
+  for (;;) {
+    while (isWhitespace(css.charCodeAt(i))) i++;
+    const next = skipComments(css, i);
+    if (next === i) return i;
+    i = next;
+  }
 }
 
 function isDigit(c: number): boolean {
@@ -188,15 +214,19 @@ function skipUrl(css: string, i: number): number {
  * escaped or not, and where its name ends.
  */
 function attributeIsClass(css: string, i: number): [boolean, number] {
-  while (isWhitespace(css.charCodeAt(i))) i++;
-  if (css.charCodeAt(i) === STAR && css.charCodeAt(i + 1) === PIPE) i += 2;
-  else if (css.charCodeAt(i) === PIPE && css.charCodeAt(i + 1) !== EQUALS) i += 1;
+  i = skipTrivia(css, i);
+  if (css.charCodeAt(i) === STAR) {
+    const pipe = skipComments(css, i + 1);
+    if (css.charCodeAt(pipe) === PIPE) i = skipComments(css, pipe + 1);
+  } else if (css.charCodeAt(i) === PIPE && css.charCodeAt(i + 1) !== EQUALS) {
+    i = skipComments(css, i + 1);
+  }
   if (!startsIdent(css, i)) return [false, i];
   let [name, next] = readIdent(css, i);
-  let j = next;
-  while (isWhitespace(css.charCodeAt(j))) j++;
-  if (css.charCodeAt(j) === PIPE && css.charCodeAt(j + 1) !== EQUALS && startsIdent(css, j + 1)) {
-    [name, next] = readIdent(css, j + 1);
+  const j = skipTrivia(css, next);
+  if (css.charCodeAt(j) === PIPE && css.charCodeAt(j + 1) !== EQUALS) {
+    const local = skipComments(css, j + 1);
+    if (startsIdent(css, local)) [name, next] = readIdent(css, local);
   }
   return [name.toLowerCase() === "class", next];
 }

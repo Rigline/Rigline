@@ -46,7 +46,9 @@ export interface PillProps extends AriaAttributes {
 }
 
 export function Pill(props: PillProps): ReactNode {
-  const { children, title, muted, onClick, ref, ...aria } = props;
+  const { children, title, muted, onClick, ref, ...rest } = props;
+  // ARIA alone, whatever the caller passes, so the element's surface is the type's (D109).
+  const aria = Object.fromEntries(Object.entries(rest).filter(([key]) => key.startsWith("aria-")));
   const fault = useContext(FaultContext);
   const className = muted === true ? "rigline-ui-pill rigline-ui-pill-muted" : "rigline-ui-pill";
   if (onClick === undefined) {

@@ -94,8 +94,11 @@ Dynamically imported after boot. In order:
    e. Build the plugin's `ctx` by asking every capability module for its slice, each scoped to
       what this plugin declared. A method called for something undeclared, or for an identifier
       this version lacks, throws a `CapabilityViolation`, and the kernel disables the plugin before
-      it leaves `ctx`, so catching it changes nothing (D15). Any other throw is the plugin's.
-   f. Call `setup(ctx)` in its own try/catch; keep its teardown.
+      it leaves `ctx`, so catching it changes nothing (D15). Any other throw is the plugin's. `ctx`
+      and `ctx.optional` are handed over behind a Proxy, under which reading a member this release
+      lacks is the same violation (D109).
+   f. Call `setup(ctx)` in its own try/catch; keep its teardown. A promise instead disables the
+      plugin (D109).
 6. Seal the replay buffer, in a `finally`.
 7. Start the shell (D88): place the RIG pill beside the footer spacer, or in a corner where there is
    none; start the once-a-second check run that sets its failing count; and import
@@ -315,7 +318,8 @@ at frame rate.
 
 `style(css)`: a host-managed `<style>` element, removed on teardown. Before it is placed, the text
 is scanned (`stylesheetNames` in plugin-api), and a class from this version's class table the
-plugin did not declare, or any selector on the `class` attribute, is a violation (D107).
+plugin did not declare, any selector on the `class` attribute, or an `@import` is a violation
+(D107).
 
 `rewrite` and `resend` together, for anything the app sends at boot: `rename_tab` fires from a
 reactive effect at session creation, before any dynamically imported plugin can have registered a

@@ -80,6 +80,12 @@ function refusal(
   declared: ReadonlySet<string>,
 ): string | null {
   const names = stylesheetNames(css);
+  if (names.imports) {
+    return (
+      "style() has an @import, and the sheet it imports is a file nothing can check for the " +
+      "extension's classes. Put its rules in the text passed to style()."
+    );
+  }
   if (names.classAttribute !== null) {
     return (
       `style() selects on the class attribute (${names.classAttribute}), which reaches the ` +

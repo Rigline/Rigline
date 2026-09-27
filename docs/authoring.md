@@ -57,9 +57,14 @@ export default definePlugin({
 });
 ```
 
-`setup` runs once per panel. What it returns is torn down when the plugin is disabled or the panel
-goes away; everything `ctx` hands you returns its own teardown, and returning one that calls them
-all is the shape to keep.
+`setup` runs once per panel, and synchronously: register everything before it returns, since a
+`setup` that returns a promise switches the plugin off. What it returns is torn down when the plugin
+is disabled. Nothing runs when the panel closes, so keep nothing in a teardown that has to be saved.
+Everything `ctx` hands you returns its own teardown, and returning one that calls them all is the
+shape to keep.
+
+To use a member a later Rigline added, test for it with `"selector" in ctx`. Reading one this
+Rigline lacks switches your plugin off, so `if (ctx.selector)` is not a test.
 
 ## `uses` is a dependency list
 

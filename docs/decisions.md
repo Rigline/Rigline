@@ -569,6 +569,9 @@ What it means:
   `uses.optional.anchors` resolve to.
 - **A selector on the `class` attribute is refused in every form**, since `[class*="modelPill"]` is
   written to survive the hash changing, which is to say to escape the declaration.
+- **An `@import` is refused (amended 2026-09-27).** The sheet it imports is a file the webview has
+  no way to read, so its classes cannot be checked, and refusing the rule is the only check there
+  is.
 - **The check runs in the `style()` call**, because nothing earlier sees the CSS: time-marks builds
   its selector from `ctx.anchor()` at runtime. It is a violation, so it disables the plugin even
   where the plugin catches it (D15). It fires on the path that runs, so `check` cannot predict it.
@@ -601,6 +604,28 @@ class of the extension's spelled out in any script or stylesheet a plugin ships,
 version has it or only its module, in the `--verbose` log beside `capabilityUseNotes`. It sees what
 the runtime check never does — a `className`, a `<style>` of the plugin's own, an `@import`ed sheet
 — and refuses nothing.
+
+**D109. What a plugin written for a later 1.x asks of this one is loud (2026-09-27, Leo).** 1.0.0 is
+the oldest host that will ever load a plugin written against a later 1.x, so whatever it does not
+understand has to be loud now: deciding any of it later would break a plugin this release loads.
+
+- **A member this release lacks.** `ctx` and `ctx.optional` are handed over behind a Proxy. Reading
+  a string key they lack disables the plugin by name and throws a `CapabilityViolation`, wherever
+  it happens: `setup`, a handler, the plugin's own timer. `then`, `toJSON` and symbols read as
+  absent, so awaiting `ctx` or serialising it is harmless. Feature detection is `"name" in ctx`,
+  which answers truthfully; reading a member to test for it switches the plugin off where it is
+  missing.
+- **A new ability is a new member.** Every member ignores an argument it does not take, so a new
+  argument or option would be dropped by an older release without a word — P8's worst case. So a
+  member only ever accepts more values for an argument it already takes. A prop a minor adds to a
+  `/ui` component is ignored by an older panel, so such props stay cosmetic, and `Pill` forwards
+  only `aria-*`, so what reaches its element is what its type admits.
+- **`setup` is synchronous.** A thenable from `setup` disables the plugin. Awaited, it would lose
+  its teardown, leave its rejection unhandled, and miss the replay for every tap registered after
+  its first `await`. Allowing it later is free; refusing it later could not be done within 1.x.
+
+Rejected: refusing surplus arguments. It would have to ship now or never, and it trips on
+`names.map(ctx.anchor)`.
 
 ### Host patches
 

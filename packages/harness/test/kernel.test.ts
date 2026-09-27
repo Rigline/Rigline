@@ -219,7 +219,12 @@ export default { setup() {} };`,
         manifest: { uses: { style: true } },
         source: `export default { setup(ctx) { ctx.style('[class*="modelPill"]{outline:0}'); } };`,
       };
-      const booted = await boot({ plugins: [sneaky, attribute, mounterPlugin] });
+      const importer: FixturePlugin = {
+        name: "importer",
+        manifest: { uses: { style: true } },
+        source: `export default { setup(ctx) { ctx.style("@import url(theme.css); .mine{}"); } };`,
+      };
+      const booted = await boot({ plugins: [sneaky, attribute, importer, mounterPlugin] });
       try {
         await booted.page.waitForSelector(".harness-badge");
         const d = await booted.diagnostics();
@@ -229,6 +234,8 @@ export default { setup() {} };`,
         expect(status("sneaky")?.reason).toContain('anchor "modelPill"');
         expect(status("attribute")?.status).toBe("error");
         expect(status("attribute")?.reason).toContain('[class*="modelPill"]');
+        expect(status("importer")?.status).toBe("error");
+        expect(status("importer")?.reason).toContain("@import");
         expect(status("mounter")?.status).toBe("loaded");
         const placed = await booted.page.evaluate(
           () => document.querySelectorAll("style[data-rigline-style]").length,
@@ -291,6 +298,69 @@ export default { setup() {} };`,
         const d = await booted.diagnostics();
         expect(d.plugins).toContainEqual({ name: "raw", status: "loaded" });
         expect(d.plugins).toContainEqual({ name: "scoped", status: "loaded" });
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
+    it("disables a plugin reading a member of ctx this release lacks, wherever it reads it", async () => {
+      // What a plugin written for a later 1.x meets on this one (D109).
+      const eager: FixturePlugin = {
+        name: "eager",
+        manifest: {},
+        source: `export default { setup(ctx) { ctx.selector("modelPill"); } };`,
+      };
+      const later: FixturePlugin = {
+        name: "later",
+        manifest: {},
+        source: `export default { setup(ctx) {
+    setTimeout(() => {
+      try { ctx.optional.selector("modelPill"); } catch {}
+      window.__later = true;
+    }, 0);
+  } };`,
+      };
+      const detecting: FixturePlugin = {
+        name: "detecting",
+        manifest: {},
+        source: `export default { setup(ctx) {
+    window.__detected = "selector" in ctx || "selector" in ctx.optional || !("surface" in ctx);
+  } };`,
+      };
+      const booted = await boot({ plugins: [eager, later, detecting] });
+      try {
+        await booted.page.waitForFunction(
+          () => (window as unknown as { __later?: boolean }).__later === true,
+        );
+        const d = await booted.diagnostics();
+        const status = (name: string) => d.plugins.find((p) => p.name === name);
+        expect(status("eager")?.status).toBe("error");
+        expect(status("eager")?.reason).toContain("ctx.selector is not in this Rigline");
+        expect(status("later")?.status).toBe("error");
+        expect(status("later")?.reason).toContain("ctx.optional.selector is not in this Rigline");
+        expect(d.plugins).toContainEqual({ name: "detecting", status: "loaded" });
+        const detected = await booted.page.evaluate(
+          () => (window as unknown as { __detected?: boolean }).__detected,
+        );
+        expect(detected).toBe(false);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
+    it("disables a plugin whose setup returns a promise, saying why", async () => {
+      const promising: FixturePlugin = {
+        name: "promising",
+        manifest: {},
+        source: `export default { async setup() { await null; throw new Error("too late"); } };`,
+      };
+      const booted = await boot({ plugins: [promising, mounterPlugin] });
+      try {
+        await booted.page.waitForSelector(".harness-badge");
+        const d = await booted.diagnostics();
+        const status = d.plugins.find((p) => p.name === "promising");
+        expect(status?.status).toBe("error");
+        expect(status?.reason).toContain("setup() returned a promise");
       } finally {
         await booted.close();
       }

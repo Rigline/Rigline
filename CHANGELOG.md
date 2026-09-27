@@ -44,6 +44,11 @@ anything may change between releases.
   the anchor names. What Rigline's own packages share — the manifest validator, the capability
   contracts, `ANCHORS`, the parsers — moved to `@rigline/plugin-api/internal`, which may change in
   any release.
+- **For plugin authors:** reading a member of `ctx` that this Rigline does not have switches the
+  plugin off, naming the member, wherever it happens — a timer included. Test for a member a later
+  Rigline added with `"name" in ctx`. A `setup` that returns a promise switches the plugin off too:
+  register everything before it returns. `ctx.style` refuses an `@import`, whose sheet nothing can
+  check. `Pill` passes only `aria-*` attributes on to its element.
 - **For plugin authors:** the anchor `worktreeBanner` is now `worktreeBannerName`, which is what it
   always pointed at: the worktree's name inside the banner, not the banner.
 - **For plugin authors:** an element goes only where the anchor table marks a slot, which so far is

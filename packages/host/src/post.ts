@@ -62,6 +62,41 @@ function disablingOnViolation<T extends object>(members: T, disable: (reason: st
   return members;
 }
 
+/** Read as absent rather than as a missing member: `await`, `JSON.stringify` and debuggers probe them. */
+const PROBED = new Set(["then", "toJSON"]);
+
+/**
+ * `members` behind a Proxy under which reading one this release lacks disables the plugin, since a
+ * later 1.x may add it and only this release can say so (D109). `in` still answers truthfully.
+ */
+function refusingUnknown<T extends object>(
+  members: T,
+  path: string,
+  engine: string | null,
+  disable: (reason: string) => void,
+): T {
+  return new Proxy(members, {
+    get(target, key, receiver) {
+      if (typeof key === "symbol" || PROBED.has(key) || Reflect.has(target, key)) {
+        return Reflect.get(target, key, receiver);
+      }
+      const reason =
+        `${path}.${key} is not in this Rigline${engine === null ? "" : ` (${engine})`}; ` +
+        "the plugin needs a later release";
+      disable(reason);
+      throw new CapabilityViolation(reason);
+    },
+  });
+}
+
+function isThenable(value: unknown): value is PromiseLike<unknown> {
+  return (
+    (typeof value === "object" || typeof value === "function") &&
+    value !== null &&
+    typeof (value as { then?: unknown }).then === "function"
+  );
+}
+
 interface RegistryModule {
   /** The engine version that baked this file (D75). Absent in a payload older than the stamp. */
   readonly engine?: string;
@@ -170,9 +205,15 @@ async function loadPlugin(plugin: PluginRecord, kernel: Kernel): Promise<PluginS
   // object, so neither assign can clobber another capability's slice.
   const optional = {} as OptionalContext;
   for (const module of MODULES) Object.assign(optional, module.grantOptional?.(grant));
+  const engine = kernel.diagnostics.engine;
   const ctx = {
     surface: kernel.surface,
-    optional: Object.freeze(disablingOnViolation(optional, disable)),
+    optional: refusingUnknown(
+      Object.freeze(disablingOnViolation(optional, disable)),
+      "ctx.optional",
+      engine,
+      disable,
+    ),
     // Undeclared, like `surface`, because it widens nothing: the plugin hands the host a function
     // and gets nothing back, so there is no identifier for a manifest to name and no gap a
     // declaration could ever report. Through `own` so a disabled plugin's lines go with it — a
@@ -205,11 +246,21 @@ async function loadPlugin(plugin: PluginRecord, kernel: Kernel): Promise<PluginS
     },
   } as PluginContext;
   for (const module of MODULES) Object.assign(ctx, module.grant(grant));
-  Object.freeze(disablingOnViolation(ctx, disable));
+  const handed = refusingUnknown(
+    Object.freeze(disablingOnViolation(ctx, disable)),
+    "ctx",
+    engine,
+    disable,
+  );
 
   try {
-    const teardown = exported.setup(ctx);
-    if (typeof teardown === "function") grant.own(teardown);
+    const teardown: unknown = exported.setup(handed);
+    if (typeof teardown === "function") grant.own(teardown as Teardown);
+    else if (isThenable(teardown)) {
+      disable("setup() returned a promise; it has to register everything before it returns");
+      // Disabled already; its rejection would otherwise surface as unhandled, with no plugin named.
+      Promise.resolve(teardown).catch(() => {});
+    }
   } catch (e) {
     disable(`setup() threw: ${message(e)}`);
   }

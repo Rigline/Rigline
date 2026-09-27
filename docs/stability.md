@@ -24,11 +24,13 @@ Code removed is refused by name, never left half-working. Every other plugin kee
   may add a key, or a value an existing key accepts. A plugin that uses one needs that release or
   later, and an older one refuses the plugin by name.
 - **`ctx`.** Every member keeps working as it does for code written against an earlier 1.x. A minor
-  release may add a member, or let an existing one accept more. A plugin that calls a member an older
-  release lacks is switched off by name.
+  release may add a member, or let one accept more values for an argument it already takes; a new
+  ability is always a new member. A plugin that reads a member an older release lacks is switched
+  off by name, wherever it reads it, so test for one with `"name" in ctx`.
 - **`@rigline/plugin-api`**, including `@rigline/plugin-api/ui`. Code written against an earlier 1.x
   keeps compiling and working. Types grow only in ways that keep that true: a new export, a new
-  optional field, a parameter that accepts more.
+  optional field, a parameter that accepts more. A prop a minor release adds to a component is
+  ignored by an older panel, so it is only ever cosmetic.
 - **React.** The major version the panel serves plugins stays the same. Moving it is `api: 2`, and so
   a Rigline 2.0.
 - **Anchor names.** A curated name is never removed or renamed. When Claude Code removes what a name

@@ -59,6 +59,26 @@ describe("stylesheetNames: classes", () => {
   it("names classes that are no module's too; deciding which matter is the caller's", () => {
     expect(classes("body.vscode-high-contrast .mine{}")).toEqual(["vscode-high-contrast", "mine"]);
   });
+
+  it("reads a class whose dot a comment divides from its name, as the browser drops the comment", () => {
+    expect(classes("./**/modelPill_gGYT1w{}")).toEqual(["modelPill_gGYT1w"]);
+    expect(classes(". /**/notOne{}")).toEqual([]);
+  });
+});
+
+describe("stylesheetNames: @import", () => {
+  const imports = (css: string) => stylesheetNames(css).imports;
+
+  it("finds an @import in any case", () => {
+    expect(imports("@import url(theme.css); .a{}")).toBe(true);
+    expect(imports('@IMPORT "theme.css";')).toBe(true);
+  });
+
+  it("finds none in a comment, a string, or another at-rule", () => {
+    expect(imports("/* @import url(x.css); */ .a{content:'@import'} @media (width > 1px){}")).toBe(
+      false,
+    );
+  });
 });
 
 describe("stylesheetNames: the class attribute", () => {
@@ -72,6 +92,10 @@ describe("stylesheetNames: the class attribute", () => {
     ["[|class~=x]"],
     ["[svg|class]"],
     [`[cl${BS}61ss]`],
+    ['[/**/class*="modelPill"]'],
+    ["[ /* x */ class~=a]"],
+    ["[*/**/|class]"],
+    ["[svg|/**/class]"],
   ])("finds %s", (selector) => {
     expect(attribute(`.mine ${selector}{}`)).toBe(selector);
   });
