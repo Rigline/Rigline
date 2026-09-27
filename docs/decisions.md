@@ -2025,6 +2025,13 @@ An anchor slot is a node the host builds once per element and re-places at its a
 target never changes and the component keeps its state when the app replaces the anchor. A zone is a
 row the host places only while an element is in it.
 
+**A slot exists only where the anchor table marks one (amended 2026-09-27, Leo).** Every singleton
+was a slot, `modelPill` included, so a manifest could put an element where D54 says a decoration
+makes the composer unclickable. An anchor's `slots` now lists the positions an element may take
+there, and only `footerSpacer`'s `before` and `after` are marked. Any other slot is a gap like the
+rest, reported and never mounted, so nothing is refused; marking one later is additive, and
+`DeclaredPlacement`'s type follows the marks.
+
 `rigRow` is kept last in the composer box (`composerBox`), under the controls and the model pill's
 own row, with the footer's border above it. It was chosen by eye in a real panel over a row below
 the box, which needs none of what follows. The harness read behind it:

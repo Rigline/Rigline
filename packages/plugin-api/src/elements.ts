@@ -66,10 +66,17 @@ export const RIGLINE_ELEMENTS: Elements = {
   reload: { title: "Reload button", placements: ["rigRow", FOOTER], default: "rigRow" },
 };
 
-/** A placement as an author writes it, narrowed to the zones and anchors that exist. */
+/** The anchors the table marks with a slot for an element. */
+type SlotAnchor = {
+  [K in AnchorName]: (typeof ANCHORS)[K] extends { readonly slots: readonly SlotPosition[] }
+    ? K
+    : never;
+}[AnchorName];
+
+/** A placement as an author writes it, narrowed to the zones and slots that exist. */
 export type DeclaredPlacement =
   | ZoneName
-  | { readonly anchor: AnchorName; readonly at: SlotPosition };
+  | { readonly anchor: SlotAnchor; readonly at: SlotPosition };
 
 export interface DeclaredElement {
   readonly title: string;
@@ -180,6 +187,12 @@ export function placementGap(placement: Placement, tables: IdentifierTables): st
       return `"${placement}" is not a zone this version of Rigline has`;
     }
     return anchorsContract.gaps([ZONES[placement as ZoneName].anchor], tables)[0] ?? null;
+  }
+  const spec = Object.hasOwn(ANCHORS, placement.anchor)
+    ? (ANCHORS[placement.anchor as AnchorName] as AnchorSpec)
+    : undefined;
+  if (spec !== undefined && !(spec.slots ?? []).includes(placement.at)) {
+    return `"${placement.at} ${placement.anchor}" is not a place this version of Rigline puts an element`;
   }
   return anchorsContract.gaps([placement.anchor], tables)[0] ?? null;
 }

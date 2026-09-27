@@ -30,6 +30,8 @@
  * An entry is a promise to keep the name pointing at the same piece of UI across versions.
  */
 
+import type { SlotPosition } from "./elements.ts";
+
 /** The webview surfaces the extension creates. The full editor is the one with no distinguishing global. */
 export type Surface = "editor" | "sidebar" | "sessionList";
 
@@ -95,6 +97,11 @@ export interface AnchorSpec {
   readonly knownSites?: { readonly count: number; readonly why: string };
   /** The surfaces it renders on, where known. Absent means not yet measured. */
   readonly surfaces?: readonly Surface[];
+  /**
+   * Where an element may go at this anchor; absent means nowhere. Marked only where an element has
+   * been placed and its container does not fight it (D54, D90).
+   */
+  readonly slots?: readonly SlotPosition[];
   /** The condition under which it renders, when it is not always present. */
   readonly when?: string;
 }
@@ -129,6 +136,7 @@ export const ANCHORS = {
     description:
       "The flexible gap dividing the composer footer's left cluster from its right. The anchor for a footer decoration, and the reason is the footer rather than the gap: the footer measures the widths of its element children to decide a three-stage fit ladder, and resets that measurement through flushSync on any foreign mutation inside it, so a decoration whose footer membership changes with the stage fights the ladder that moved it (D54). This one renders in both layouts, so a decoration mounted against it contributes a constant width and the ladder converges. The footer counts the spacer itself as zero width, by class. Use mountBefore to land at the end of the left cluster; mountAfter puts a decoration out beside the send button.",
     surfaces: ["editor", "sidebar"],
+    slots: ["before", "after"],
   },
   composer: {
     module: "07S1Yg",
@@ -205,34 +213,13 @@ export const ANCHORS = {
     surfaces: ["sessionList"],
     when: "The session is in a worktree other than the one the window is open on.",
   },
-  worktreeBanner: {
+  worktreeBannerName: {
     module: "aqhumA",
     local: "worktreeBannerName",
     kind: "singleton",
     description: "The worktree name inside the banner that says this session is in a worktree.",
     surfaces: ["editor", "sidebar"],
     when: "The panel's session is in a worktree other than the one the window is open on.",
-  },
-  branchPill: {
-    module: "5FHdxw",
-    local: "branchPill",
-    kind: "collection",
-    description: "The git branch pill on a session-list row.",
-    surfaces: ["sessionList"],
-  },
-  repoPill: {
-    module: "W2z5EA",
-    local: "repoPill",
-    kind: "collection",
-    description: "The repository pill on a session-list row.",
-    surfaces: ["sessionList"],
-  },
-  focusNavTab: {
-    module: "hONcXw",
-    local: "navTab",
-    kind: "collection",
-    description: "A tab in the focus view's navigation.",
-    when: "The focus view is open.",
   },
   marketplaceTabBar: {
     module: "yumWmQ",

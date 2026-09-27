@@ -44,6 +44,12 @@ anything may change between releases.
   the anchor names. What Rigline's own packages share — the manifest validator, the capability
   contracts, `ANCHORS`, the parsers — moved to `@rigline/plugin-api/internal`, which may change in
   any release.
+- **For plugin authors:** the anchor `worktreeBanner` is now `worktreeBannerName`, which is what it
+  always pointed at: the worktree's name inside the banner, not the banner.
+- **For plugin authors:** an element goes only where the anchor table marks a slot, which so far is
+  `before` or `after` `footerSpacer`. A placement anywhere else is reported and left empty, where
+  before any single element would do — including the model pill, where an element makes the
+  composer footer fight itself.
 - A `rigline.json` key that this version of Rigline does not know now refuses the plugin, naming the
   key, where before a key at the top level was ignored. A plugin written for a later Rigline is
   refused rather than loaded without what it needs. `$schema` is still allowed.
@@ -53,6 +59,12 @@ anything may change between releases.
   *Rigline: not in this editor* and does nothing. Before, it injected VS Code's Claude Code from
   there and could show green over a panel it never touched. Uninstall it from those whenever you
   like.
+
+### Removed
+
+- **For plugin authors:** the anchors `branchPill`, `repoPill` and `focusNavTab`. Each named
+  something other than its description — two confirmation dialogs and the question prompt — and
+  no plugin used them. A name is kept for the whole of 1.x once it ships, so they go before it does.
 
 ### Fixed
 

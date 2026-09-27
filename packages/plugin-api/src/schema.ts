@@ -13,7 +13,7 @@
  * `uses.optional` are emitted from the same fragments, which is what makes the two halves mirror
  * each other by construction rather than by care (D41).
  */
-import { ANCHOR_NAMES, ANCHORS } from "./anchors.ts";
+import { ANCHOR_NAMES, ANCHORS, type AnchorSpec } from "./anchors.ts";
 import { CONTRACTS } from "./capabilities/index.ts";
 import { ELEMENT_ID_PATTERN, RIGLINE, SLOT_POSITIONS, ZONE_NAMES } from "./elements.ts";
 import { NAME_PATTERN, SURFACES } from "./manifest.ts";
@@ -149,8 +149,10 @@ export function manifestSchema(): JsonObject {
             additionalProperties: false,
             properties: {
               anchor: {
-                enum: ANCHOR_NAMES.filter((name) => ANCHORS[name].kind === "singleton"),
-                description: "An anchor naming one element.",
+                enum: ANCHOR_NAMES.filter(
+                  (name) => ((ANCHORS[name] as AnchorSpec).slots ?? []).length > 0,
+                ),
+                description: "An anchor the table marks with a slot for an element.",
               },
               at: { enum: [...SLOT_POSITIONS] },
             },

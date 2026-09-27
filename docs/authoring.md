@@ -207,9 +207,11 @@ element. Declare each under `elements` in `rigline.json`, as in the example abov
 `ctx.element(id, Component)`:
 
 - `title` is what the element is, for a person deciding where it goes.
-- `placements` is every place it may go: a zone, or a slot `before`, `after` or `inside` one element
-  the anchor table names. The one zone so far is `rigRow`, a row at the foot of the composer box,
-  under its controls, which appears only while something is in it.
+- `placements` is every place it may go: a zone, or a slot the anchor table marks. The one zone so
+  far is `rigRow`, a row at the foot of the composer box, under its controls, which appears only
+  while something is in it. The slots so far are `before` and `after` `footerSpacer`, in the composer
+  footer; a slot is marked only where its container does not fight what is placed in it, and any
+  other is reported and left empty.
 - `default` is where it goes until the person using it says otherwise: one of `placements`, or
   `null` for off. Every element states one, so off is a choice rather than something forgotten. A
   fresh install should show something; that is yours to see to.

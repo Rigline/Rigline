@@ -69,10 +69,7 @@
               "sessionListItemName",
               "sessionStatusFilterButton",
               "worktreePill",
-              "worktreeBanner",
-              "branchPill",
-              "repoPill",
-              "focusNavTab",
+              "worktreeBannerName",
               "marketplaceTabBar",
               "footerMenuPopup",
               "footerMenuPopupRight",
@@ -162,10 +159,7 @@
                   "sessionListItemName",
                   "sessionStatusFilterButton",
                   "worktreePill",
-                  "worktreeBanner",
-                  "branchPill",
-                  "repoPill",
-                  "focusNavTab",
+                  "worktreeBannerName",
                   "marketplaceTabBar",
                   "footerMenuPopup",
                   "footerMenuPopupRight",
@@ -328,10 +322,7 @@
         "sessionListItemName",
         "sessionStatusFilterButton",
         "worktreePill",
-        "worktreeBanner",
-        "branchPill",
-        "repoPill",
-        "focusNavTab",
+        "worktreeBannerName",
         "marketplaceTabBar",
         "footerMenuPopup",
         "footerMenuPopupRight",
@@ -364,16 +355,9 @@
           "properties": {
             "anchor": {
               "enum": [
-                "modelPill",
-                "modelPillRow",
-                "footerSpacer",
-                "composer",
-                "composerBox",
-                "sessionStatusFilterButton",
-                "worktreeBanner",
-                "marketplaceTabBar"
+                "footerSpacer"
               ],
-              "description": "An anchor naming one element."
+              "description": "An anchor the table marks with a slot for an element."
             },
             "at": {
               "enum": [

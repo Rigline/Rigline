@@ -100,13 +100,21 @@ describe("elementsOf", () => {
 describe("elementGaps", () => {
   const elements: Elements = {
     fine: { title: "Fine", placements: [spacer, "rigRow"], default: spacer },
-    gone: { title: "Gone", placements: [{ anchor: "modelPill", at: "after" }], default: null },
+    unmarked: {
+      title: "Unmarked",
+      placements: [
+        { anchor: "modelPill", at: "after" },
+        { anchor: "footerSpacer", at: "inside" },
+      ],
+      default: null,
+    },
     later: { title: "Later", placements: ["someZone"], default: "someZone" },
   };
 
   it("names each placement this extension or engine cannot provide, and nothing else", () => {
     expect(elementGaps(elements, tables)).toEqual([
-      'element "gone" cannot go after modelPill: anchor "modelPill" (gGYT1w.modelPill) is not in this extension',
+      'element "unmarked" cannot go after modelPill: "after modelPill" is not a place this version of Rigline puts an element',
+      'element "unmarked" cannot go inside footerSpacer: "inside footerSpacer" is not a place this version of Rigline puts an element',
       'element "later" cannot go in someZone: "someZone" is not a zone this version of Rigline has',
     ]);
   });
@@ -115,6 +123,13 @@ describe("elementGaps", () => {
     const withoutBox = { ...tables, anchors: { ...tables.anchors, composerBox: null } };
     expect(elementGaps({ fine: elements.fine } as Elements, withoutBox)).toEqual([
       'element "fine" cannot go in rigRow: anchor "composerBox" (cKsPxg.inputContainer) is not in this extension',
+    ]);
+  });
+
+  it("reads a slot the table marks through its anchor", () => {
+    const withoutSpacer = { ...tables, anchors: { ...tables.anchors, footerSpacer: null } };
+    expect(elementGaps({ fine: elements.fine } as Elements, withoutSpacer)).toEqual([
+      'element "fine" cannot go before footerSpacer: anchor "footerSpacer" (gGYT1w.spacer) is not in this extension',
     ]);
   });
 });
