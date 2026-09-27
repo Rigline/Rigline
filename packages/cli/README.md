@@ -21,7 +21,8 @@ puts every install back to Anthropic's own bytes and needs nothing but Node.
 
 The first command you run fetches the engine, [`@rigline/core`](https://www.npmjs.com/package/@rigline/core),
 into `~/.rigline/engine` and runs it from there. It takes a few seconds and needs the registry;
-after that nothing reaches the network unless you ask it to. If that directory is ever in a bad
+after that nothing reaches the network unless you ask it to, or install the companion below, which
+asks the registry for a newer engine each time a window starts. If that directory is ever in a bad
 state, delete it and run any command again.
 
 `install` finds every installed version of the extension, harvests it, bakes the discovered plugins

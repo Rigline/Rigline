@@ -14,7 +14,10 @@ reload of the panel.
     disabled:
       - time-marks
 
-`$RIGLINE_HOME` moves the whole directory, if you keep your dotfiles somewhere else.
+`$RIGLINE_HOME` moves the whole directory, if you keep your dotfiles somewhere else. Set it where VS
+Code sees it as well as your terminal: a VS Code started from a dock or a launcher does not read
+your shell's profile, and its companion would then keep a home of its own, with its own engine and
+settings, and no sight of a `rigline restore` you ran.
 
 ## Switching a plugin off
 

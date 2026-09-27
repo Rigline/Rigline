@@ -16,7 +16,15 @@
  * that makes the sequence stop before it touches anything.
  */
 import { execFileSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -206,6 +214,9 @@ describe("the packed extension", () => {
       }),
     );
     expect(manifest.main).toBe("./extension.cjs");
+    // An editor older than the types would load code calling an API it lacks (D112).
+    const own = JSON.parse(readFileSync(join(HERE, "..", "package.json"), "utf8"));
+    expect(manifest.engines?.vscode).toBe(`^${own.devDependencies["@types/vscode"]}`);
     expect(manifest.activationEvents).toContain("onStartupFinished");
     // What `install` reads to decide that this companion answers a Save link (D93).
     expect(manifest.activationEvents).toContain("onUri");

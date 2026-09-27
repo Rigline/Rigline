@@ -77,9 +77,12 @@ anything may change between releases.
   *Rigline: not in this editor* and does nothing. Before, it injected VS Code's Claude Code from
   there and could show green over a panel it never touched. Uninstall it from those whenever you
   like.
+- The companion needs VS Code 1.90 or newer, where it said 1.75. It could not fetch the engine on
+  anything older than 1.82, and Claude Code itself needs 1.94.
 
 ### Removed
 
+- `rigline install --payload`, which nothing a person does needs.
 - **For plugin authors:** the anchors `branchPill`, `repoPill` and `focusNavTab`. Each named
   something other than its description — two confirmation dialogs and the question prompt — and
   no plugin used them. A name is kept for the whole of 1.x once it ships, so they go before it does.

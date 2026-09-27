@@ -29,8 +29,9 @@ Then reload the window.
 the engine. If VS Code cannot see yours — common on macOS, where an application launched from the
 Dock does not inherit a login shell's `PATH` — set `rigline.nodePath` and reload.
 
-The first run reaches the network once, to fetch the engine. Nothing after that does unless you ask
-it to.
+The first run fetches the engine from npm. After that it asks the registry for a newer engine each
+time a window starts, and moves to one once it is a day old. Nothing else it does reaches the
+network.
 
 ## Settings
 

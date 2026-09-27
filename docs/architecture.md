@@ -170,12 +170,13 @@ The companion does step 1 and then an `install` on every activation and every ar
 version. It then updates itself from the VSIX that engine carries (D99), and adds itself to its own
 editor's profiles that lack it (D100) ([companion.md](companion.md)).
 
-## What the retrieval layers rely on
+## What the pieces rely on across versions
 
-The wrapper and the companion run engines of other ages. Nothing updates the wrapper, and the
-companion carries its acquisition frozen in a VSIX until it next updates itself (D99). So what each
+The wrapper, the companion and an open panel each meet engines of other ages. Nothing updates the
+wrapper, the companion carries its acquisition frozen in a VSIX until it next updates itself (D99),
+and a panel keeps running the `post.js` it loaded while the engine moves under it. So what each
 relies on in an engine holds for a whole major, and [stability.md](stability.md) promises it to a
-user; changing any of it is a 2.0. Everything else between them may change in any release.
+user; changing any of it is a 2.0 (D112). Everything else between them may change in any release.
 
 **The wrapper** relies on:
 
@@ -198,14 +199,24 @@ and on:
   companion becomes a new one (D99);
 - `companion-profiles` and its four flags (D100). Its JSON carries `v: 1`, and a companion ignores a
   `v` it does not know, so a new shape costs an old companion one look before it updates itself;
-- `list`, piped to a person, and `layout save PAYLOAD`, whose first line is its outcome and begins
-  `rigline: ` when it refused (D93). The payload carries a version of its own, which the engine
-  checks and the companion never reads.
+- `list`, piped to a person, and `layout save PAYLOAD`, whose first line is its outcome: it begins
+  `rigline: ` when the save was refused, and says `over a change` when it overwrote one made since
+  the panel loaded (D92, D93). The payload carries a version of its own, which the engine checks and
+  the companion never reads.
+
+**An open panel** relies on:
+
+- the Save link's address, `vscode://rigline.rigline/layout?p=PAYLOAD`, which whatever companion is
+  installed answers, however much older than the panel it is (D93);
+- `registry.js`'s `layout` export, which its `post.js` re-reads after the engine has moved and
+  rewritten the file (D92).
 
 **Between them**, every wrapper and companion of a major takes the lock at `<RIGLINE_HOME>/.lock`
-around an engine install (D80), and finds `RIGLINE_HOME` by the engine's rule, which the wrapper
-copies and the companion bundles (D69). Neither relies on the wording of a report, on `list --json`,
-or on any file under `RIGLINE_HOME` but the engine's manifest.
+around an engine install (D80), and judges one left behind the same way: the file holds
+`{ pid, since, what }`, and is taken over once it is a minute old and its holder has gone. Both find
+`RIGLINE_HOME` by the engine's rule, which the wrapper copies and the companion bundles (D69).
+Beyond `layout save`'s first line, neither relies on the wording of a report, on `list --json`, or
+on any file under `RIGLINE_HOME` but the lock and the engine's manifest.
 
 ## The boot pipeline
 

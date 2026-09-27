@@ -123,7 +123,7 @@ const USAGE = `rigline ${CORE_VERSION}
   rigline build [DIR] [--source FILE]
       Bundle a plugin's src/index.ts (or --source) into the entry its rigline.json names.
 
-  rigline install [--ext DIR] [--payload DIR] [--verbose]
+  rigline install [--ext DIR] [--verbose]
       Inject the loader into every installed extension version (or DIR), baking the enabled
       plugins, and report which plugins each version loads and which it refuses. Any entry
       in ~/.rigline/anchors.json is applied and named, with what this version makes of it.
@@ -187,11 +187,12 @@ const USAGE = `rigline ${CORE_VERSION}
 
   rigline vscode-setup [--profile NAME] [--remove]
       Optional. Install the companion extension into VS Code, found on PATH, from the VSIX
-      bundled in this engine, and inject. Nothing is downloaded, and the companion moves when the engine does. From then
-      on it re-injects after every extension update without you running anything, so it is a
-      step instead of install rather than after it. Declining it costs nothing: install is
-      complete on its own. --remove takes the companion out and leaves the injection alone.
-      Reload the window afterwards.
+      bundled in this engine, and inject. Nothing is downloaded, and the companion moves when
+      the engine does. From then on it re-injects after every extension update without you
+      running anything, so it is a step instead of install rather than after it, and it asks
+      npm's registry for a newer engine each time a window starts. Declining it costs
+      nothing: install is complete on its own. --remove takes the companion out and leaves
+      the injection alone. Reload the window afterwards.
       It goes into every VS Code profile that has Claude Code, and is added to any profile
       that gets Claude Code later. --profile NAME installs into that profile alone; with
       --remove it takes the companion out of that one and keeps it out. The companion block
@@ -269,7 +270,6 @@ function firstPartyPlugins(): string[] {
 
 interface ReinjectOptions {
   readonly exts?: readonly string[];
-  readonly payloadDir?: string;
   /** Refuse rather than shrug when nothing is installed: what `install`, asked outright, should do. */
   readonly required?: boolean;
   readonly verbose?: boolean;
@@ -309,7 +309,7 @@ function reinject(options: ReinjectOptions = {}): number {
   const report = update({
     // Listed again under the lock, since a wait is time for the listing to change (D105).
     exts: options.exts,
-    payloadDir: options.payloadDir ?? bundledDir(),
+    payloadDir: bundledDir(),
     plugins: pluginOptions(),
     // Only where the directory already has one; this never creates a harvest for somebody who has
     // not asked for one, and it never commits what it rewrites (D30).
@@ -571,7 +571,6 @@ function installCommand(args: string[]): number {
     args,
     options: {
       ext: { type: "string" },
-      payload: { type: "string" },
       verbose: { type: "boolean", default: false },
       // The companion's, so the usage leaves it out (D111).
       companion: { type: "boolean", default: false },
@@ -580,7 +579,6 @@ function installCommand(args: string[]): number {
   });
   return reinject({
     exts: values.ext ? [values.ext] : undefined,
-    payloadDir: values.payload,
     required: true,
     verbose: values.verbose,
     companion: values.companion,

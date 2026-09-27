@@ -38,8 +38,9 @@ Writing a plugin: [docs/authoring.md](docs/authoring.md). Repairing one an exten
     rigline install
 
 The first command fetches the engine, `@rigline/core`, into `~/.rigline/engine` and runs it from
-there; after that nothing reaches the network unless you ask it to. `install` then finds every
-installed version of the extension itself, harvests the identifiers from it, and injects the
+there; after that nothing reaches the network unless you ask it to, or add the companion below.
+`install` then finds every installed version of the extension itself, harvests the identifiers from
+it, and injects the
 loader — keeping a byte-faithful backup of every bundle it touches. Then reload the webview from the
 Command Palette with *Developer: Reload Webviews*.
 
@@ -55,6 +56,10 @@ Run `rigline install` again after the extension updates — an update installs a
 extension beside the old one, which quietly leaves the loader behind. `rigline update` is the other
 one: it brings the engine and every plugin you installed from npm up to date, and re-injects behind
 both.
+
+Or let an extension remember for you. `rigline vscode-setup` installs Rigline's companion into VS
+Code, and from then on it re-injects after every update. It also asks npm's registry for a newer
+engine each time a window starts, and moves to one once it is a day old.
 
 ## If the panel goes blank
 

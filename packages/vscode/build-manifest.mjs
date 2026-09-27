@@ -25,10 +25,8 @@ const manifest = {
   publisher: "rigline",
   license: "MIT",
   repository: { type: "git", url: "git+https://github.com/Rigline/Rigline.git" },
-  // The floor is what the API needs, which is very little: `extensions.onDidChange`, a status bar
-  // item and an output channel are all old. Kept low on purpose — a compatibility shim that refuses
-  // to load on the editor it is meant to shim would be a poor joke.
-  engines: { vscode: "^1.75.0" },
+  // The API the types check, which vsce would demand if it saw the devDependency (D112).
+  engines: { vscode: `^${own.devDependencies["@types/vscode"]}` },
   categories: ["Other"],
   // Declared because *not* declaring it is a decision too, and a worse one: VS Code disables an
   // extension that says nothing here in an untrusted workspace, listing it all the while, so the

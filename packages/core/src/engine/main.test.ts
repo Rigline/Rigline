@@ -55,6 +55,7 @@ describe("runEngine", () => {
     ["restore", "everything"],
     ["status", "--json"],
     ["status", "DIR"],
+    ["install", "--payload", "DIR"],
   ])(
     "refuses what %s does not take, so a later 1.x's flag is never ignored: %s %s",
     async (...argv) => {

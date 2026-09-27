@@ -2818,3 +2818,29 @@ standing offer, and it failed to recover three ways.
 
 This amends D38. Rejected: `restore` uninstalling the companion, which is heavier, and makes putting
 Rigline back two commands.
+
+**D112. What stability.md claims is what the code keeps (2026-09-27, Leo).** Read against the code,
+the promise claimed more than the code kept in places and less in others. It now says:
+
+- **Degrading is not refusing.** Something declared as required and gone refuses its plugin.
+  Something declared optional (D41), or a place for an element (D90), costs only itself, and so does
+  an anchor under `uses.optional` or in `placements` that an older engine does not know. A field
+  read is never declared (D10), so one that goes reads as `undefined`.
+- **Types grow by members and union values**, not only by optional fields, so a plugin handles a
+  value it does not know. Implementing Rigline's interfaces yourself is not covered.
+- **React's stable API** is what the served major keeps; its `unstable_*` exports and internals are
+  not. This amends D87.
+- **Kept, and now listed:** the layout's own words, `sources.json` read forward (D49),
+  `$RIGLINE_HOME`, the companion's command and settings, the two `.orig` backups the README gives as
+  the manual undo, and `rigline --version`. **Named as not kept:** `@rigline/core`'s JavaScript
+  exports.
+- **Between the pieces**, four more hold for the major: the Save link's address, `registry.js`'s
+  `layout` export, `.lock`'s contents and staleness rule, and `over a change` in `layout save`'s
+  first line ([architecture.md](architecture.md)).
+
+Two changes came with it. `install --payload` is removed: nothing passed it, and hidden it would have
+been a flag that is neither a person's nor one piece's to another. And the companion's VS Code floor
+is the `@types/vscode` version it is compiled against, derived in `build-manifest.mjs`: `^1.75.0`
+claimed editors where acquisition, which needs a global `fetch`, cannot run before 1.82.
+
+Rejected: hiding `install --payload`, which keeps a flag nobody uses.

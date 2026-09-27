@@ -320,10 +320,9 @@ The bar a 1.0 release clears, agreed 2026-09-26; the working plan is `.local/pla
 - The reads under **Next session**, on the last alpha before 1.0.
 
 Done: the statement, what the wrapper and the companion rely on, the wrapper change, `ctx.style`'s
-refusal, VS Code alone, no console window, the macOS row, unknown manifest keys refused, and the
-reused-row read with its fix. What is left is Leo's: a remote window, the run on a Mac, and the
-reads on the last alpha. Checking stability.md against the code proposed seventeen more, in the
-working plan, awaiting his decision.
+refusal, VS Code alone, no console window, the macOS row, unknown manifest keys refused, the
+reused-row read with its fix, and what checking stability.md against the code found (D108 to D112,
+and the companion's id held on the Marketplace). What is left is Leo's, under **Next session**.
 
 ## Open questions
 
@@ -405,8 +404,17 @@ what a plugin is written against.
 
 ## Next session
 
-`1.0.0-alpha.12` is the newest on `latest`. The next work is the 1.0 bar above, in the order its
-working plan gives.
+`1.0.0-alpha.12` is the newest on `latest`. The 1.0 bar above is built, bar what is Leo's:
+
+- a WSL window, for what a remote window does;
+- a live run on his Mac;
+- *Restart Extensions* on this machine, where no console window should flash up;
+- `restore`'s live read: `rigline restore`, then *Developer: Reload Window*, and the panel stays
+  vanilla while the companion reads *needs you*;
+- anthropic-compliance.md's wording (D77), proposed in `.local/plans/promise.md`: what Rigline writes
+  in the extension's directory, and that outside the panel it reaches npm's registry.
+
+Then the last alpha with all of it, the reads below on that alpha, and `pnpm release major`.
 
 The reads below gate 1.0. Each is read on the last alpha before it, through a released engine,
 because the bar changes the paths they cover; exercise them earlier as they come up as well.
@@ -553,3 +561,6 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   backup, and goes on past a half-deleted directory (D111). Its live read is owed.
 - 2026-09-27: The companion's id is held: publisher `rigline` on the Marketplace; on Open VSX the
   namespace is made and its ownership claim deferred.
+- 2026-09-27: stability.md says what the code keeps, and reads as one page; `install --payload` is
+  gone, and the companion's VS Code floor follows its types (D112). The compliance page's wording is
+  proposed, and Leo's.
