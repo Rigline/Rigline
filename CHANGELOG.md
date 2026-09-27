@@ -38,7 +38,6 @@ anything may change between releases.
 - **For plugin authors:** using something the manifest does not declare disables the plugin even
   when the plugin catches the error, and anything it registers afterwards is undone at once. Before,
   a caught error left the plugin running without what it had asked for, and nothing said so.
-
 - **For plugin authors:** `@rigline/plugin-api` exports only what a plugin is written against: the
   context and the types it hands you, `definePlugin`, `store` and `storeFrom`, the manifest types, and
   the anchor names. What Rigline's own packages share — the manifest validator, the capability
