@@ -357,6 +357,12 @@ what a plugin is written against.
 - **Editors other than VS Code.** 1.0 injects `~/.vscode/extensions` alone. The companion knows its
   own extensions directory, so the engine taking one is where it starts; a baseline per editor is
   the design.
+- **The Open VSX ownership claim.** The `rigline` publisher holds the companion's id on the
+  Marketplace. On Open VSX the namespace is made but has no owner, so it takes anyone's publish,
+  marked unverified. Nothing of ours reaches it while 1.0 is VS Code alone: the Save link is
+  `vscode://`, and Settings Sync asks the Marketplace. Triggered by the first Marketplace extension
+  under `rigline`, which makes the proof its repository, or by taking editors other than VS Code,
+  whichever comes first. [releasing.md](releasing.md)'s step 6 has the claim.
 - **Adding and updating plugins through the companion**, which the wrapper handing plugin work to the
   engine makes possible. A palette command runs the engine's `add` as Show Plugins runs `list`; it
   moves D84. Never from the panel: any plugin can read the Save link's token (D93), so an add behind
@@ -545,3 +551,5 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   (D110).
 - 2026-09-27: `restore` holds until a person puts Rigline back, takes the loader out without a
   backup, and goes on past a half-deleted directory (D111). Its live read is owed.
+- 2026-09-27: The companion's id is held: publisher `rigline` on the Marketplace; on Open VSX the
+  namespace is made and its ownership claim deferred.

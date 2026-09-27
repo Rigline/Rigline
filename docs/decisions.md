@@ -2181,6 +2181,10 @@ ignores. And a link naming an extension that is not installed makes VS Code inst
 Marketplace, where `rigline.rigline` is unclaimed; so `install` bakes whether an installed companion
 lists `onUri`, and the panel shows the link only then.
 
+**The id is held on the Marketplace (amended 2026-09-27).** The `rigline` publisher exists and lists
+nothing, so such a link now finds nothing rather than a squatter's extension. The gate stays: a
+link that installs nothing is still not a Save.
+
 **The token keeps web pages out without fixing what the handler may do.** Once a person ticks "Do
 not ask me again", a `vscode://rigline.rigline/…` link on any web page reaches the handler with no
 prompt. Limiting the handler forever to what a page may do was the alternative, and declined: nobody

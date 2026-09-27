@@ -241,8 +241,8 @@ there are. With `--remove` it also adds the name to `skipProfiles`; without it, 
 alone, because `restore` is the verb for that.
 
 It passes `--do-not-sync`, which the CLI accepts though its help omits it: Settings Sync would carry
-the id to other machines, where VS Code asks the Marketplace for `rigline.rigline`, which is
-unclaimed (D93). A re-run moves an existing install to machine scope, and an update keeps the scope
+the id to other machines, where VS Code asks the Marketplace for `rigline.rigline`, which our
+publisher holds and lists nothing under (D93). A re-run moves an existing install to machine scope, and an update keeps the scope
 it finds. A re-run re-extracts the same bytes; `--force` is there so that it can also downgrade after
 an engine rollback. A batch-file CLI is spawned through `cmd.exe`, since Node refuses to spawn one
 directly.
