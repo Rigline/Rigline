@@ -380,6 +380,9 @@ what a plugin is written against.
 - **`rigline corpus fetch <version>`**, a Marketplace VSIX into the corpus. Every version so far was
   snapshotted from a live install; the trigger is one that was missed.
 - **Line tags for a superseded major** ([ci.md](ci.md)): when a `2.x` branch opens.
+- **Removing the `config.json` migration** (D91), which carries a file only alphas wrote. It stays
+  for test machines not yet updated, and goes a few 1.x releases in; removing it breaks no 1.x
+  promise. Until then, `~/.rigline/config.json` is taken. config.md's paragraph on it goes with it.
 
 - **git as a plugin source.** No publish ceremony and no npm account: GitHub, GitLab and Codeberg
   serve `archive/<ref>.tar.gz`, which the tar reader already handles, with `{kind: "git", url, ref,
@@ -546,3 +549,4 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
 - 2026-09-28: The companion's output is stamped in local time, with its offset.
 - 2026-09-28: What an install leaves in a version VS Code deleted under it is removed by `install`
   and `restore`, and passed over by every listing (D113); read live on the leftover 2.1.280.
+- 2026-09-28: `SECURITY.md`, through GitHub's private vulnerability reporting.

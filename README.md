@@ -30,7 +30,8 @@ What 1.x keeps stable, for a plugin and for your machine: [docs/stability.md](do
 Writing a plugin: [docs/authoring.md](docs/authoring.md). Repairing one an extension update broke:
 [docs/anchors.md](docs/anchors.md). Working on Rigline itself:
 [docs/architecture.md](docs/architecture.md) is the map, and
-[CONTRIBUTING.md](CONTRIBUTING.md) is how to run it against your own editor.
+[CONTRIBUTING.md](CONTRIBUTING.md) is how to run it against your own editor. Reporting a
+vulnerability, or a plugin that breaks the plugin policy: [SECURITY.md](SECURITY.md).
 
 ## Installing
 

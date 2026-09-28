@@ -84,10 +84,10 @@ So this page is a statement of obligations, not a filter. What we actually have:
   reviewer can find and name.
 - **The things we choose.** We decide what ships bundled, what the docs point at, and what we
   recommend. Nothing third-party arrives on a machine without the user installing it by name.
-- **What we do when told.** Report a plugin that breaches this page and we will look, say publicly
-  what we found, unlist or remove it where we can, and withdraw permission to call it a Rigline
-  plugin. That is response, not prevention, and we would rather describe it accurately than dress it
-  up as review.
+- **What we do when told.** Report a plugin that breaches this page, privately as
+  [SECURITY.md](../SECURITY.md) describes, and we will look, say publicly what we found, unlist or
+  remove it where we can, and withdraw permission to call it a Rigline plugin. That is response, not
+  prevention, and we would rather describe it accurately than dress it up as review.
 
 Rigline is MIT and stays MIT. We have deliberately not added use restrictions to the licence: a
 field-of-use condition would stop it being open source, would not deter anybody willing to write a

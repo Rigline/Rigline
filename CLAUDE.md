@@ -64,6 +64,9 @@ Written for somebody else, so don't rewrite them for us:
   is asked of an author, and what we explicitly do not police. Written for a plugin author. Keep the
   two halves apart — a guarantee the architecture backs, and an obligation nobody is checking. We do
   not claim to review plugin source, and the licence stays MIT (D79).
+- [SECURITY.md](SECURITY.md): reporting a vulnerability, or a plugin breaching plugin-policy.md,
+  privately through GitHub. Written for a reporter. What it counts as a vulnerability is
+  plugin-policy.md's walls, so the two change together.
 - [docs/config.md](docs/config.md): `~/.rigline/config.yaml`, what it holds and how commands edit it,
   and the files beside it. Written for a user. The header every new `config.yaml` carries links it.
 - [docs/anchors.md](docs/anchors.md): what an anchor is, and repairing one through
