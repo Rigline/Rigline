@@ -87,6 +87,10 @@ anything may change between releases.
   could leave a directory behind holding only its own files, and from then on every install, the
   companion's at each window start included, said it needed you. `rigline install` and `rigline
   restore` now remove that directory, and `rigline check` passes over it.
+- `rigline` finds the npm that comes with Homebrew's `node` on macOS. It looked where other Node
+  installs keep npm, so its first run failed to install the engine and every later `rigline update`
+  said `engine: FAILED`. The command it suggests when there is no npm now quotes the engine's
+  directory, so it works for a home directory with a space in it.
 
 ## 1.0.0-alpha.13 — 2026-09-27
 

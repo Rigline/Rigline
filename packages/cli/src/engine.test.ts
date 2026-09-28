@@ -211,8 +211,33 @@ describe("findNpmCli", () => {
     expect(findNpmCli(node, (p) => p === posix)).toBe(posix);
   });
 
+  it("finds Homebrew's, in the keg that process.execPath resolves to", () => {
+    const keg = join("/opt", "homebrew", "Cellar", "node", "26.10.0_1");
+    const npmCli = join(keg, "libexec", "lib", "node_modules", "npm", "bin", "npm-cli.js");
+    expect(findNpmCli(join(keg, "bin", "node"), (p) => p === npmCli)).toBe(npmCli);
+  });
+
+  it("prefers ../lib to the keg's libexec where both are there", () => {
+    const bin = join("/opt", "homebrew", "opt", "node@22", "bin");
+    const lib = join(bin, "..", "lib", "node_modules", "npm", "bin", "npm-cli.js");
+    const libexec = join(bin, "..", "libexec", "lib", "node_modules", "npm", "bin", "npm-cli.js");
+    expect(findNpmCli(join(bin, "node"), (p) => p === lib || p === libexec)).toBe(lib);
+  });
+
   it("refuses with the command to run rather than reaching for PATH", () => {
     expect(() => findNpmCli(join("C:", "node.exe"), () => false)).toThrow(/npm install --prefix/);
+  });
+
+  it("quotes the prefix in that command, so a home with a space survives a paste", () => {
+    const home = join("/Users", "Ada Lovelace", ".rigline");
+    vi.stubEnv("RIGLINE_HOME", home);
+    try {
+      expect(() => findNpmCli(join("/usr", "bin", "node"), () => false)).toThrow(
+        `--prefix "${join(home, "engine")}" `,
+      );
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
 

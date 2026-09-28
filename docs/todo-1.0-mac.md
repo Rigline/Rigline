@@ -31,7 +31,7 @@ file.
   **Fix:** ask the found Node for `process.execPath` and `process.version` in one hidden spawn with
   a short timeout, use the real binary for npm and every spawn, and refuse a Node below 22.12 by
   name. Lands with M3: the real binary under Homebrew is in the Cellar.
-- [ ] **M3. Homebrew's Node: the wrapper finds no npm.** *Confirmed by M1.* On macOS
+- [x] **M3. Homebrew's Node: the wrapper finds no npm.** *Confirmed by M1.* On macOS
   `process.execPath` resolves symlinks, so under Homebrew it is
   `/opt/homebrew/Cellar/node/<v>/bin/node`, and npm is in the keg's `libexec/lib/node_modules/npm`,
   where `findNpmCli` (`packages/cli/src/engine.ts:174-191`) does not look. The first `rigline` run

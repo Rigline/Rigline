@@ -169,22 +169,22 @@ export function handOffProblem(wrapper: string, engine: string): string | null {
  * npm's own entry, beside the running Node.
  *
  * Never the shim on PATH: under corepack, volta or fnm that is not necessarily the npm beside this
- * Node (D73). Windows keeps it under the Node directory, POSIX under `../lib`.
+ * Node (D73). Windows keeps it under the Node directory, POSIX under `../lib`, and Homebrew's `node`
+ * in its keg's `libexec`, where `process.execPath` lands because macOS resolves the symlink.
  */
 export function findNpmCli(
   execPath: string = process.execPath,
   exists: (path: string) => boolean = existsSync,
 ): string {
   const here = dirname(execPath);
-  const candidates = [
-    join(here, "node_modules", "npm", "bin", "npm-cli.js"),
-    join(here, "..", "lib", "node_modules", "npm", "bin", "npm-cli.js"),
-  ];
+  const npmIn = (...dir: string[]) =>
+    join(here, ...dir, "node_modules", "npm", "bin", "npm-cli.js");
+  const candidates = [npmIn(), npmIn("..", "lib"), npmIn("..", "libexec", "lib")];
   const found = candidates.find(exists);
   if (found === undefined) {
     throw new UserError(
       `no npm was found beside ${execPath}, so the engine cannot be installed. ` +
-        `Run: npm install --prefix ${engineDir()} --save-exact --ignore-scripts ${ENGINE_PACKAGE}@latest`,
+        `Run: npm install --prefix "${engineDir()}" --save-exact --ignore-scripts ${ENGINE_PACKAGE}@latest`,
     );
   }
   return found;
