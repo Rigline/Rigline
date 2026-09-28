@@ -5,9 +5,13 @@ Four packages go to npm: `rigline`, `@rigline/core`, `@rigline/plugin-api` and
 
 A release is two commands and one click, cut from a commit `ci.yml` has already been green on:
 
-    pnpm release prerelease   # cut it: changelog, manifests, commit, tag, push
+    pnpm release patch        # cut it: changelog, manifests, commit, tag, push
     # then approve the four staged packages on npmjs.com — see step 3
     pnpm release:finish       # reconcile `next`, and the GitHub release
+
+`patch`, `minor` or `major` for a release to `latest`. From a stable version, `prerelease` is a
+different release rather than a smaller one: it cuts `1.0.1-alpha.0` and opens a preview line under
+`next`, and the cut does not pause to ask.
 
 Between them, the pushed tag triggers `.github/workflows/release.yml`, which **stages**: GitHub
 Actions authenticates to npm over OIDC, so no npm credential sits in this repository, and a staged

@@ -255,7 +255,7 @@ asks rather than building around it.
   packages, four browser authentications repeated every release
   (`scripts/release-finish.mjs:178-205`). **Fix:** amend D61; `release:finish` sets `next` only for
   a prerelease over a stable line, and removes it on a promotion. At 1.0.0 it sets nothing.
-- [ ] **W32. The runbook and the delivery doc.** `releasing.md:8` leads with `pnpm release
+- [x] **W32. The runbook and the delivery doc.** `releasing.md:8` leads with `pnpm release
   prerelease`, which from 1.0.0 cuts `1.0.1-alpha.0` under `next` with no pause to back out: lead
   with `patch`. `ci.md:71` says `next` follows a new alpha; `ci.md:117-119` says `release:finish`
   needs HEAD to be the tag, where the code needs the tag in history;

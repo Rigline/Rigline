@@ -60,17 +60,19 @@ if (mode === "dry-run") {
   process.exit(0);
 }
 
-write("**Nobody can install these yet.** To finish the release, on a machine with your npm 2FA:");
+write(
+  "**Nobody can install these yet.** Approve them on npmjs.com, under Staged Packages in your " +
+    "profile, then finish from the checkout the release was cut in:",
+);
 write("");
 write("```");
 write("pnpm release:finish");
 write("```");
 write("");
 write(
-  "It approves the whole batch under one authentication and in dependency order — skipping any " +
-    "package whose workspace dependency did not make it, rather than publishing against a " +
-    "dependency the registry never received — then points `next` at this version if it is ahead " +
-    "of what that tag holds, and puts the changelog section on a GitHub release.",
+  "It skips what is already approved and approves anything left, then sets or removes `next` " +
+    "where a preview line opens or closes, and puts the changelog section on a GitHub release. " +
+    "docs/releasing.md has step 3 in full.",
 );
 write("");
 write("A staged version you would rather not ship needs no action. Do not approve it; it expires.");

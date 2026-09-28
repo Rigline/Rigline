@@ -63,15 +63,15 @@ Two sentences define them, and every case falls out (D61):
 
 So the tag a release stages under is computed: `latest` when the version is above what `latest`
 holds and is either stable or the line has no stable version yet; otherwise `next` when it is above
-what `next` holds. After approval, `next` is pointed at the released version when `semver.gt` says
-the release is newer, and left alone otherwise.
+both. After approval, `next` exists only while a preview line is open (D61): a preview sets it, a
+stable release removes a `next` at or below it, and one ahead of a maintenance release is left.
 
 | the release | stages under | and `next` |
 | --- | --- | --- |
-| a new alpha, no stable line yet | `latest` | follows it |
+| a new alpha, no stable line yet | `latest` | unset: `latest` names it |
 | a preview, once a stable line exists | `next` | set by the publish |
 | a maintenance release on the `latest` line | `latest` | untouched, if a preview is ahead |
-| the major that ends a preview line | `latest` | follows it |
+| the release that ends a preview line | `latest` | removed, closing the line |
 | a release on a superseded major | refused — see below | |
 
 The comparison is `semver.gt` throughout and never a string compare, which sorts `1.0.0-alpha.10`
@@ -114,9 +114,10 @@ claims and nothing else enforces.
 
 `release:finish` needs a person, and cannot be automated. npm's OIDC exchange authenticates
 `publish` and `stage publish` and nothing else, and `otplease` — the wrapper every 2FA'd npm write
-goes through — re-throws unless stdin and stdout are a TTY. It refuses to run unless HEAD is the
-commit the tag names, because approval takes whatever is staged while the version comes from the
-tree, and a checkout that has moved between the two makes those different things.
+goes through — re-throws unless stdin and stdout are a TTY. It refuses to run unless the tag is in
+HEAD's history: approval takes whatever is staged while the version comes from the tree, and a
+checkout on another line makes those different things. The tip is free to have moved on, since
+nothing it does acts on HEAD.
 
 Every step of it repeats, because a half-finished release is the likeliest way to arrive here
 twice. It reads each package's `versions` before approving and decides three ways rather than two
