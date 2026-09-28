@@ -7,6 +7,11 @@ Report it privately, through GitHub:
 repository's Security tab. Please don't open a public issue for it. A person reads every report and
 replies.
 
+## No bounty
+
+Bug reports are appreciated, security reports most of all. But Rigline has no bounty program, and no
+reward, financial or otherwise, is offered for any report.
+
 ## What counts
 
 A vulnerability is a way through something Rigline says cannot happen. The walls a plugin runs inside
