@@ -162,7 +162,7 @@ asks rather than building around it.
 - [x] **W15. The README's manual undo** names `anthropic.claude-code-<version>`; the directory is
   `-<version>-<platform>` (`host.md:9` has it right). And a companion still installed re-injects at
   the next window, since a copy leaves no `restored` mark: say to remove it first.
-- [ ] **W16. The README's first install** says *Reload Webviews*; the first install patches
+- [x] **W16. The README's first install** says *Reload Webviews*; the first install patches
   `extension.js`, and its own report says *Reload Window*. "The first command fetches the engine" is
   the first `rigline` command, not `npm install -g`. The Layout section leaves out `packages/vscode`
   and says core answers "every verb but `update`".

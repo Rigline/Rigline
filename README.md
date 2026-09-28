@@ -38,12 +38,13 @@ vulnerability, or a plugin that breaks the plugin policy: [SECURITY.md](SECURITY
     npm install -g rigline
     rigline install
 
-The first command fetches the engine, `@rigline/core`, into `~/.rigline/engine` and runs it from
-there; after that nothing reaches the network unless you ask it to, or add the companion below.
-`install` then finds every installed version of the extension itself, harvests the identifiers from
-it, and injects the
-loader — keeping a byte-faithful backup of every bundle it touches. Then reload the webview from the
-Command Palette with *Developer: Reload Webviews*.
+The first `rigline` command you run fetches the engine, `@rigline/core`, into `~/.rigline/engine`
+and runs it from there; after that nothing reaches the network unless you ask it to, or add the
+companion below. `install` then finds every installed version of the extension itself, harvests the
+identifiers from it, and injects the loader — keeping a byte-faithful backup of every bundle it
+touches. Then reload the window from the Command Palette with *Developer: Reload Window*, which the
+report asks for: the first install also patches the extension host, and only a window reload starts
+it again.
 
 Four plugins come with it and are switched on: the **session-id** pill in the composer footer,
 **time marks** on transcript rows, the **worktree prefix** on session tab labels, and the
@@ -102,8 +103,11 @@ both files with the originals.
 ## Layout
 
     packages/core         @rigline/core: the engine — harvest, codegen, inject, plugin
-                          discovery, the install flow, and every verb but `update`
-    packages/cli          rigline: the retrieval layer that installs the engine and runs it
+                          discovery, the install flow, and every verb (of `update`, the
+                          plugins' half)
+    packages/cli          rigline: the retrieval layer that installs the engine and runs it,
+                          and moves it for `update`
+    packages/vscode       the companion extension, which re-injects after an update
     packages/host         the injected loader, pre.js and post.js
     packages/plugin-api   @rigline/plugin-api: what a plugin is written against
     packages/create-plugin create-rigline-plugin: the scaffold a plugin author starts from
