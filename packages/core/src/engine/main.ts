@@ -128,9 +128,9 @@ const USAGE = `rigline ${CORE_VERSION}
       Inject the loader into every installed extension version (or DIR), baking the enabled
       plugins, and report which plugins each version loads and which it refuses. Any entry
       in ~/.rigline/anchors.json is applied and named, with what this version makes of it.
-      What moved since the baseline is listed in ~/.rigline/drift.txt. Rewrites
-      ./generated.ts when the directory has one and records the new baseline; never commits
-      either. The report ends with what to reload, then anything that needs you. --verbose
+      What moved since the baseline is listed in ~/.rigline/drift.txt. Rewrites the
+      ./generated.ts rigline codegen wrote, when the directory has one, and records the new
+      baseline; never commits either. The report ends with what to reload, then anything that needs you. --verbose
       adds paths, harvest counts, each host patch and the full drift. Run it after an
       extension update. Exits 1 when a person is needed.
 

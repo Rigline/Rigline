@@ -19,6 +19,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { ANCHORS } from "@rigline/plugin-api/internal";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { harvestableHostReplies, harvestableWebview, writePayload } from "../../test/fixtures.ts";
@@ -952,6 +953,52 @@ describe("the baseline", () => {
     expect(
       readBaseline(tempDir("rigline-cwd-"), join(tempDir("rigline-home-"), "b.json")),
     ).toBeNull();
+  });
+
+  it.each([
+    ["somebody else's", "export const SOMETHING_ELSE = 1;\n"],
+    [
+      "the scaffold's placeholder",
+      readFileSync(
+        fileURLToPath(new URL("../../../create-plugin/template/generated.ts", import.meta.url)),
+        "utf8",
+      ),
+    ],
+  ])("passes over %s generated.ts for the recorded baseline", (_whose, text) => {
+    const cwd = tempDir("rigline-cwd-");
+    writeFileSync(join(cwd, "generated.ts"), text);
+    const baselinePath = join(tempDir("rigline-home-"), "baseline.json");
+    writeBaseline(
+      baselinePath,
+      generate(harvestAll(readBundles(fixture({ version: "2.1.1" })))).scan,
+    );
+
+    expect(readBaseline(cwd, baselinePath)?.kind).toBe("recorded");
+  });
+
+  it("neither reads nor rewrites a generated.ts it did not write, and still reports", () => {
+    const cwd = tempDir("rigline-cwd-");
+    const theirs = "// Somebody's own generated file.\nexport const X = 1;\n";
+    writeFileSync(join(cwd, "generated.ts"), theirs);
+
+    const report = update({
+      exts: [fixture()],
+      payloadDir: payload(),
+      dir: cwd,
+      baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+      codegen: true,
+    });
+
+    expect(readFileSync(join(cwd, "generated.ts"), "utf8")).toBe(theirs);
+    expect(report.wrote.some((p) => p.endsWith("generated.ts"))).toBe(false);
+    expect(report.versions[0]?.action).toBe("injected");
+  });
+
+  it("reads one with a byte-order mark, which some editors add on save", () => {
+    const cwd = tempDir("rigline-cwd-");
+    const generated = generate(harvestAll(readBundles(fixture({ version: "2.1.9" }))));
+    writeFileSync(join(cwd, "generated.ts"), `${String.fromCharCode(0xfeff)}${generated.source}`);
+    expect(readBaseline(cwd, join(tempDir("rigline-home-"), "b.json"))?.kind).toBe("generated");
   });
 });
 

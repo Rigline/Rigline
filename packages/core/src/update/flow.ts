@@ -55,7 +55,7 @@ import {
 } from "../plugins/discover.ts";
 import { readToken } from "../plugins/save.ts";
 import { CORE_VERSION } from "../version.ts";
-import { type BaselineSource, GENERATED_FILE, readBaseline, writeBaseline } from "./baseline.ts";
+import { type BaselineSource, readBaseline, riglineGenerated, writeBaseline } from "./baseline.ts";
 
 /** Why the flow left one version as it was (D104). */
 export interface Refusal {
@@ -573,13 +573,13 @@ function settle(
 
   if (writeOptions && newest && scan) {
     if (writeOptions.codegen) {
-      const path = join(dir, GENERATED_FILE);
+      const path = riglineGenerated(dir);
       // Rendered from the shipped anchor table, never the merged one (D44). What goes in here is
       // committed, and the version's answer to `~/.rigline/anchors.json` is one machine's local
       // repair: baking it into a repository's record would make the next person's checkout disagree
       // with their own harvest for a reason nothing in the file could explain.
       const source = generate(newest.harvest).source;
-      if (existsSync(path) && readFileSync(path, "utf8") !== source) {
+      if (path !== null && readFileSync(path, "utf8") !== source) {
         writeFileSync(path, source);
         wrote.push(path);
         attention.push(

@@ -36,6 +36,9 @@ anything may change between releases.
   took it from any tool's output that quoted the sentence, so a Read or a Grep of such text changed
   the address it offered. It now declares `tools` rather than the `io_message` message.
 - time-marks no longer says "Today" over yesterday's rows in a panel left open past midnight.
+- `rigline install` run in a directory holding a `generated.ts` it did not write — somebody else's,
+  or a new plugin workspace's placeholder before `pnpm codegen` — failed after injecting, with
+  advice that would have overwritten the file. It now leaves such a file alone.
 - When VS Code removed an old Claude Code version while Rigline was installing into it, Rigline
   could leave a directory behind holding only its own files, and from then on every install, the
   companion's at each window start included, said it needed you. `rigline install` and `rigline

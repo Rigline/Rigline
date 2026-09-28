@@ -12,12 +12,13 @@
  *
  * `generated.ts` is read as text rather than imported. It is a TypeScript module carrying a module
  * augmentation, so importing it would need a compiler; and it is written by `renderSource` in one
- * known shape, so the value can be lifted out by position. The marker is required to occur exactly
- * once, which turns a file that is not ours — or one an author has edited by hand — into a named
- * error rather than a silently wrong baseline.
+ * known shape, so the value can be lifted out by position. One without codegen's header is not ours
+ * and is passed over. In one that is, the marker is required to occur exactly once, which turns an
+ * author's hand edit into a named error rather than a silently wrong baseline.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { GENERATED_HEADER } from "../codegen/generate.ts";
 import { UserError } from "../errors.ts";
 import { type Scan, type ScanJson, scanFromJson, scanToJson } from "../layers/diff.ts";
 
@@ -73,12 +74,29 @@ export function readGeneratedScan(path: string): Scan {
 }
 
 /**
+ * `dir`'s `generated.ts` when `rigline codegen` wrote it, or null. Any other file of that name —
+ * somebody else's, or the scaffold's placeholder — is neither read nor rewritten.
+ */
+export function riglineGenerated(dir: string): string | null {
+  const path = join(dir, GENERATED_FILE);
+  if (!existsSync(path)) return null;
+  let source: string;
+  try {
+    source = readFileSync(path, "utf8");
+  } catch {
+    return null;
+  }
+  const text = source.charCodeAt(0) === 0xfeff ? source.slice(1) : source;
+  return text.startsWith(GENERATED_HEADER) ? path : null;
+}
+
+/**
  * The baseline for `dir`, or null when there is nothing to compare against yet — a first run,
  * which is a normal state and not an error. `dir` is the directory the command was run from.
  */
 export function readBaseline(dir: string, recordedPath: string): BaselineSource | null {
-  const generated = join(dir, GENERATED_FILE);
-  if (existsSync(generated)) {
+  const generated = riglineGenerated(dir);
+  if (generated !== null) {
     return { scan: readGeneratedScan(generated), path: generated, kind: "generated" };
   }
   if (existsSync(recordedPath)) {

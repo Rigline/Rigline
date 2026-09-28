@@ -126,7 +126,7 @@ asks rather than building around it.
   that does not exist gets the same line; `restore` on a directory with only `package.json` prints
   the path twice and tells a person to reinstall Claude Code over a directory holding nothing of
   Rigline's, where one missing only `extension.js` gets "nothing of Rigline's was in it".
-- [ ] **W11. A `generated.ts` in the working directory.** `readBaseline` takes any `generated.ts`
+- [x] **W11. A `generated.ts` in the working directory.** `readBaseline` takes any `generated.ts`
   where the command runs (`packages/core/src/update/baseline.ts:79-82`), so one that is not
   Rigline's makes `install` throw after injecting, losing the report, with advice that overwrites
   the file. **Fix:** pass over a `generated.ts` without codegen's header line. M6 is the companion's
