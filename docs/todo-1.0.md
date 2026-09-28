@@ -235,7 +235,7 @@ asks rather than building around it.
   never state the VS Code floor, 1.90, which stability.md promises a notice for raising.
   `main.ts:823` mentions a `--logs` flag `doctor` lacks. `CLAUDE.md:191` says "`rigline update` is
   the wrapper's".
-- [ ] **W44. Draft the compliance page and the plugin policy to what is true**, for Leo to rework
+- [x] **W44. Draft the compliance page and the plugin policy to what is true**, for Leo to rework
   before anything is committed: the wording is his (D77). anthropic-compliance.md says Rigline does
   not "change what the extension sends or receives", and writes `extension.js` "only when a plugin
   asks"; the bundled worktree-prefix rewrites the `rename_tab` title on its way from the panel to
