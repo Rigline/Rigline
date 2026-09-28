@@ -8,9 +8,17 @@ file.
 
 ## Findings to settle first
 
-- [ ] **M1. Which npm Homebrew's Node has.** Read-only, and it decides M3's scope. Run
+- [x] **M1. Which npm Homebrew's Node has.** Read-only, and it decides M3's scope. Run
   `node -p process.execPath`, `brew ls node | grep npm-cli` and `ls /opt/homebrew/lib/node_modules`
   with Homebrew's `node` first on `PATH`, and note which Node the Mac's own Rigline has been using.
+  **Found:** this Mac is Intel, Homebrew at `/usr/local` with no `node` keg, so read from the
+  formula and the `arm64_tahoe` bottle of `node` 26.10.0 instead. `node` is built `--without-npm`;
+  the keg's one `npm-cli.js` is `libexec/lib/node_modules/npm/bin/npm-cli.js`, and `post_install`
+  copies it to `$HOMEBREW_PREFIX/lib/node_modules/npm` for the `npm` on `PATH`. `process.execPath`
+  through a symlinked `node` is the target, so M3 holds as written. `node@22` and `node@24` are
+  keg-only and keep npm in the keg's `lib/node_modules`, which `findNpmCli` already finds. The
+  Mac's Rigline (wrapper and companion alpha.13) runs nvm's Node 26.8.1, found by `PATH`, so it
+  never met M2 or M3.
 
 ## The companion and the wrapper finding Node and npm
 
@@ -23,7 +31,7 @@ file.
   **Fix:** ask the found Node for `process.execPath` and `process.version` in one hidden spawn with
   a short timeout, use the real binary for npm and every spawn, and refuse a Node below 22.12 by
   name. Lands with M3: the real binary under Homebrew is in the Cellar.
-- [ ] **M3. Homebrew's Node: the wrapper finds no npm.** *Unconfirmed; M1 settles it.* On macOS
+- [ ] **M3. Homebrew's Node: the wrapper finds no npm.** *Confirmed by M1.* On macOS
   `process.execPath` resolves symlinks, so under Homebrew it is
   `/opt/homebrew/Cellar/node/<v>/bin/node`, and npm is in the keg's `libexec/lib/node_modules/npm`,
   where `findNpmCli` (`packages/cli/src/engine.ts:174-191`) does not look. The first `rigline` run
