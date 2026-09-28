@@ -1,7 +1,7 @@
 {
   "name": "@rigline/core",
   "version": "1.0.0-alpha.13",
-  "description": "Harvest, codegen, injection and the update flow for Rigline, as a Node library",
+  "description": "The engine behind Rigline: harvest, codegen, injection and the update flow",
   "keywords": [
     "rigline",
     "claude-code",

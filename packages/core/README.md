@@ -1,7 +1,7 @@
 # @rigline/core
 
-The Node library behind [Rigline](https://github.com/Rigline/Rigline), a plugin layer for the
-Claude Code VS Code extension.
+The engine behind [Rigline](https://github.com/Rigline/Rigline), a plugin layer for the Claude
+Code VS Code extension.
 
 **If you want to use Rigline, install [`rigline`](https://www.npmjs.com/package/rigline) instead.**
 It fetches this package for you and runs it; that is the whole of what it does.
@@ -21,8 +21,11 @@ that way.
 
 ## The command
 
-It carries a bin, `rigline-engine`, which answers every verb `rigline` does except `update` — that
-one belongs to the layer above, for the reason this package is separate from it.
+It carries a bin, `rigline-engine`, which answers every verb `rigline` does. Of `update` it does the
+second half, the plugins and the re-injection: moving the engine itself belongs to the layer above,
+for the reason this package is separate from it. What it exports to JavaScript is Rigline's own and
+not kept stable ([stability.md](https://github.com/Rigline/Rigline/blob/main/docs/stability.md));
+the command is.
 
     rigline-engine --help
 
@@ -52,8 +55,11 @@ sits, so a workspace that runs it declares rolldown itself.
   declares against what the installed extension actually contains, and bake a registry.
 - **Diff** two extension directories, so an update is a report naming what moved.
 
-Zero third-party runtime dependencies, which for a package that rewrites an editor's own bundle is
-worth something on its own.
+Two third-party runtime dependencies, each pinned to an exact version: `yaml`, which reads and
+edits `config.yaml` keeping your comments, and `es-module-lexer`, which finds the imports in a
+plugin's built entry, never a string that only looks like one, so they can be pointed at the
+payload's copies. For a package that rewrites an editor's own bundle, what it pulls in is kept to
+what it cannot do without.
 
 ## Reading it
 

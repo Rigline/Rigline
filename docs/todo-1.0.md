@@ -168,7 +168,7 @@ asks rather than building around it.
   and says core answers "every verb but `update`".
 - [x] **W17. An uninstall section in the README**: `rigline vscode-setup --remove`, `rigline
   restore`, `npm uninstall -g rigline`, then `~/.rigline`. Only CONTRIBUTING has one.
-- [ ] **W18. core's README** says "zero third-party runtime dependencies" beside `es-module-lexer`
+- [x] **W18. core's README** says "zero third-party runtime dependencies" beside `es-module-lexer`
   and `yaml`, and that `rigline-engine` answers every verb "except `update`". Its description and
   first line call it a Node library, which invites a use stability.md excludes: "the engine".
 - [ ] **W19. The manifest schema's `$id`** is `https://rigline.dev/schema/manifest.json`
