@@ -11,7 +11,7 @@
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import semver from "semver";
-import { registryStateOrNull, stageTag } from "./lib/tags.mjs";
+import { nextAction, registryStateOrNull, stageTag } from "./lib/tags.mjs";
 import {
   CHANGELOG,
   capture,
@@ -96,9 +96,15 @@ const account = state === null ? null : npmAccountOrNull();
 say(`  ${current}  ->  ${version}     (${increment}${preid ? `, preid ${identifier}` : ""})`);
 say(`  tag          ${tagName} on ${branch}`);
 say(`  manifests    ${manifestPaths().length}, plus core's own version constant`);
+const afterwards = {
+  set: ", and `next` is set to it after approval",
+  remove: ", and `next` is removed after approval, closing the preview line",
+  keep: "",
+};
+const stable = state !== null && (state.hasStable || semver.prerelease(version) === null);
 say(
   planned
-    ? `  dist-tag     stages under \`${planned.tag}\`, and \`next\` is reconciled after approval`
+    ? `  dist-tag     stages under \`${planned.tag}\`${afterwards[nextAction(version, state.next, stable)]}`
     : "  dist-tag     registry unreachable from here; the workflow derives it at stage time",
 );
 if (state !== null) {

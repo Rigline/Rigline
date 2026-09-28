@@ -7,7 +7,7 @@ marked *optional* is wanted before 1.0.0; an *optional* item can land in any 1.x
 look at them before 1.0.0. Items marked *unconfirmed* carry a reviewer's reasoning but have not been reproduced: reproduce them before
 fixing.
 
-Where things stand: lint, typecheck and all 1387 tests pass with no skips, `pnpm release major`
+Where things stand: lint, typecheck and all 1436 tests pass with no skips, `pnpm release major`
 takes 1.0.0-alpha.13 to 1.0.0 correctly, and every curated anchor still resolves on 2.1.283.
 
 ## Working the lists
