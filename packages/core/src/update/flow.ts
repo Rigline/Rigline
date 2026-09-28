@@ -52,7 +52,7 @@ import { diffScans, formatDiff, type Scan, scansDiffer, type ViewDiff } from "..
 import { type Harvest, harvestAll } from "../layers/index.ts";
 import { HarvestError } from "../layers/types.ts";
 import { riglinePaths } from "../paths.ts";
-import { readConfig, unknownKeyLines } from "../plugins/config.ts";
+import { readConfig, unknownKeyLines, unknownPlaceLines } from "../plugins/config.ts";
 import {
   capabilityUseProblems,
   discoverPlugins,
@@ -373,7 +373,7 @@ function checkHeld(options: FlowOptions): FlowReport {
     kind: "check",
     cleared: [],
     configNotes,
-    configProblems: config ? unknownKeyLines(config) : [],
+    configProblems: config ? [...unknownKeyLines(config), ...unknownPlaceLines(config)] : [],
     pluginProblems: capabilityUseProblems(plugins),
     tokenProblem,
     unloaded,
@@ -464,7 +464,7 @@ function updateHeld(options: UpdateOptions): FlowReport {
     kind: "install",
     cleared,
     configNotes,
-    configProblems: config ? unknownKeyLines(config) : [],
+    configProblems: config ? [...unknownKeyLines(config), ...unknownPlaceLines(config)] : [],
     pluginProblems,
     tokenProblem,
     unloaded,

@@ -15,6 +15,7 @@ import {
   type IdentifierTables,
   type Layout,
   layoutProblems,
+  parsePlace,
   type SaveRecord,
   type Uses,
   undeclaredUse,
@@ -233,9 +234,16 @@ export function layoutNotes(config: PluginsConfig, enabled: readonly DiscoveredP
   const plugins = withRigline(
     enabled.map((p) => ({ name: p.name, elements: p.manifest.elements })),
   );
-  return layoutProblems(config.layout, plugins, config.disabled).map(
-    (problem) => `${config.path}: ${problem}`,
+  // A place this version cannot read needs a person, so `unknownPlaceLines` says it, not this.
+  const unknown = new Set(
+    Object.keys(config.layout).flatMap((place) => {
+      const parsed = parsePlace(place);
+      return "problem" in parsed ? [parsed.problem] : [];
+    }),
   );
+  return layoutProblems(config.layout, plugins, config.disabled)
+    .filter((problem) => !unknown.has(problem))
+    .map((problem) => `${config.path}: ${problem}`);
 }
 
 /** Every enabled plugin's declared host patches, flattened and named by the plugin that owns each. */

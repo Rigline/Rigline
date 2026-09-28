@@ -78,6 +78,9 @@ anything may change between releases.
   1 when adding the companion to a profile failed. The stability page now says which
   commands exit 1 when something needs you, and that the reports — `list`, `status`, `doctor`,
   `diff` and a bare `layout` — exit 0 whenever they produced their report.
+- A layout place in `config.yaml` that Rigline does not know — a typo, or a place a later Rigline
+  added — is named under *Needs you*, and the command exits 1, as an unknown key already was. It
+  was only noted, while the elements under it went back to their defaults.
 - The engine, started by a Node older than it supports, says which Node it needs and stops, where
   it failed part-way through the command with an error naming nothing.
 - When VS Code removed an old Claude Code version while Rigline was installing into it, Rigline

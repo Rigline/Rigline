@@ -196,7 +196,7 @@ asks rather than building around it.
   `restore` holds Rigline out, which it then says, with exit 0. And `update` exits 1 when adding the
   companion failed: it prints "added the companion to no profile" and exits 0, since the additions'
   `failed` never reaches the exit status (`main.ts:436-442`).
-- [ ] **W45. A layout place Rigline does not know is under *Needs you*.** `parsePlace`'s "is not a
+- [x] **W45. A layout place Rigline does not know is under *Needs you*.** `parsePlace`'s "is not a
   place" (`packages/plugin-api/src/layout.ts:60-63`) is only noted, with exit 0, where an unknown
   `config.yaml` key is under *Needs you* (D110). D110's reasoning holds for a place: it is a typo, or
   a place a later Rigline added, whose elements an older one would quietly send back to their

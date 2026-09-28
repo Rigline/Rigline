@@ -21,7 +21,13 @@ import {
 } from "@rigline/plugin-api/internal";
 import { type Document, isMap, isScalar, isSeq } from "yaml";
 import { UserError } from "../errors.ts";
-import { addToList, editConfig, type PluginsConfig, removeFromList } from "./config.ts";
+import {
+  addToList,
+  editConfig,
+  type PluginsConfig,
+  removeFromList,
+  unknownPlaceLines,
+} from "./config.ts";
 import { type DiscoveredPlugin, layoutNotes } from "./discover.ts";
 
 export type LaidOutElement = ViewElement;
@@ -45,7 +51,7 @@ export function viewLayout(
       config.layout,
       withRigline(enabled.map((p) => ({ name: p.name, elements: p.manifest.elements }))),
     ),
-    problems: layoutNotes(config, enabled),
+    problems: [...unknownPlaceLines(config), ...layoutNotes(config, enabled)],
   };
 }
 

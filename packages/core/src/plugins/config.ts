@@ -6,7 +6,7 @@
  * keeps everything a person wrote there, comments included. The second only the engine writes (D74).
  */
 import { existsSync, readFileSync, rmSync } from "node:fs";
-import type { Layout } from "@rigline/plugin-api/internal";
+import { type Layout, parsePlace } from "@rigline/plugin-api/internal";
 import { Document, isMap, isScalar, isSeq, parseDocument } from "yaml";
 import { writeFileAtomic } from "../atomic.ts";
 import { UserError } from "../errors.ts";
@@ -96,6 +96,22 @@ export function unknownKeyLines(config: PluginsConfig): string[] {
       `${config.path} has "${key}", which this version of Rigline does not know; fix it if it ` +
       "is a typo, or run `rigline update` if a later Rigline wrote it",
   );
+}
+
+/**
+ * Each layout place this version cannot read, for *Needs you*: a typo, or a place a later Rigline
+ * added, whose elements this one would quietly send back to their defaults (D110).
+ */
+export function unknownPlaceLines(config: PluginsConfig): string[] {
+  return Object.keys(config.layout).flatMap((place) => {
+    const parsed = parsePlace(place);
+    if (!("problem" in parsed)) return [];
+    const later =
+      place === "default"
+        ? ""
+        : "; fix it if it is a typo, or run `rigline update` if a later Rigline wrote it";
+    return [`${config.path}: ${parsed.problem}${later}`];
+  });
 }
 
 /** The `companion` block, with its defaults when absent; malformed is loud, as for `readConfig`. */

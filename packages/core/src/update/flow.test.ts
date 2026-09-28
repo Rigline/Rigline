@@ -410,6 +410,22 @@ describe("the report a person reads", () => {
     },
   );
 
+  it("wants a person for a layout place this version cannot read (W45)", () => {
+    const configPath = join(tempDir("rigline-config-"), "config.yaml");
+    writeFileSync(configPath, "layout:\n  rigrow: [fine/badge]\n");
+    const report = update({
+      exts: [fixture()],
+      payloadDir: payload(),
+      dir: tempDir("rigline-cwd-"),
+      baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+      plugins: { roots: [pluginRoot("fine", {})], configPath },
+    });
+
+    const line = report.attention.find((l) => l.includes('"rigrow" is not a place'));
+    expect(line).toMatch(/run `rigline update` if a later Rigline wrote it$/);
+    expect(report.configNotes.some((l) => l.includes('"rigrow"'))).toBe(false);
+  });
+
   it("names a plugin switched off in config, which nothing else accounts for", () => {
     const ext = fixture();
     const root = pluginRoot("fine", { classes: { f00000: ["local1"] } });

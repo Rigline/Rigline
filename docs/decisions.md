@@ -2794,7 +2794,9 @@ in silence now, it accepts for the major.
   *Needs you* wherever an install or a check reports: a typo looks exactly like a setting from a
   later Rigline, and either wants a person. The file is read once, before any version is touched,
   and handed to each version's install, so a malformed one stops the run with nothing written. It
-  used to throw after the first version's payload had landed.
+  used to throw after the first version's payload had landed. A layout place it cannot read is named
+  the same way (amended 2026-09-29): it is a typo or a place a later Rigline added, and the elements
+  under it would otherwise go quietly back to their defaults.
 - **Every verb parses strictly.** `status` and `restore` took any arguments, so a later
   `restore --ext DIR` would have restored every version on 1.0 and exited 0. A later 1.x accepts
   every invocation an earlier one did, so neither could have become strict after 1.0. An argument a

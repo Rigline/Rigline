@@ -73,8 +73,8 @@ Rigline out until you put it back.
 
 - **`~/.rigline/config.yaml`.** Every key keeps its meaning, and a later 1.x reads what an earlier one
   wrote, comments included ([config.md](config.md)). A minor release may add a setting, always as a
-  new key; an existing key never takes a new kind of value. An older Rigline names a key it does not
-  know under what needs you, and does without it. A layout place beside a piece of Claude Code's
+  new key; an existing key never takes a new kind of value. An older Rigline names a key, or a
+  layout place, it does not know under what needs you, and does without it. A layout place beside a piece of Claude Code's
   panel stops resolving if Claude Code removes that piece: the entry stays in the file and is
   reported, and its elements go back to where their authors put them.
 - **The words in that file that Rigline owns:** the layout's places — `rigRow`, `off`, and `before`,
