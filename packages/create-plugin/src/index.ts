@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * `create-rigline-plugin`: scaffolds a workspace holding one plugin (decisions.md, D50).
  *
@@ -224,9 +223,3 @@ const USAGE = `create-rigline-plugin
 
 Scaffolds a pnpm workspace holding one Rigline plugin. The directory's own name is the plugin's
 unless --name says otherwise; a second plugin later is a copy of the first.`;
-
-// Only when run as the command, so that a test may import `scaffold` without scaffolding anything.
-// Compared as resolved paths rather than by suffix, which a directory named after the bin defeats.
-if (process.argv[1] !== undefined && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
-  process.exitCode = main(process.argv.slice(2));
-}

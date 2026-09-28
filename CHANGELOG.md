@@ -17,6 +17,8 @@ anything may change between releases.
 
 ### Fixed
 
+- `pnpm create rigline-plugin`, and `npm create rigline-plugin` on macOS and Linux, scaffold a
+  workspace again. They exited 0 having written nothing.
 - When VS Code removed an old Claude Code version while Rigline was installing into it, Rigline
   could leave a directory behind holding only its own files, and from then on every install, the
   companion's at each window start included, said it needed you. `rigline install` and `rigline

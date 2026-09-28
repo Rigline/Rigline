@@ -286,6 +286,11 @@ holding no extension and a `PATH` holding no editor, and without any `npm_` vari
 test` the environment carries `NPM_CONFIG_REGISTRY`, which on Windows is the same name as the one
 the test sets.
 
+`packages/create-plugin/test/packed.test.ts` asks the same of the scaffolder: its tarball, added to a
+temporary project by pnpm, run by name as `pnpm exec create-rigline-plugin`. pnpm reaches a bin
+through a link, and a scaffolder that exited 0 having written nothing through one shipped in every
+alpha while its tests, which import it, passed.
+
 It exists because of a failure the other three could not see. Every one of them drives this
 workspace, where a relative path from a package's `dist` happens to reach the files beside it.
 Installed from npm those paths reach nothing, and `rigline install` threw `payload is missing pre.js`

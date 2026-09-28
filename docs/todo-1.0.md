@@ -58,7 +58,7 @@ asks rather than building around it.
 
 ### Blockers: the documented author path does nothing
 
-- [ ] **W1. `pnpm create rigline-plugin` exits 0 having done nothing**, and so does `npm create` on
+- [x] **W1. `pnpm create rigline-plugin` exits 0 having done nothing**, and so does `npm create` on
   macOS and Linux. The guard at `packages/create-plugin/src/index.ts:230` compares
   `import.meta.url`, which is the realpath, with `resolve(process.argv[1])`, the path the bin shim
   used; pnpm reaches the package through a link and Unix npm through a symlinked `.bin`, so
