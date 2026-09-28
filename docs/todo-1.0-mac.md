@@ -58,15 +58,17 @@ file.
   tooltip has not got. Its commonest cause is a `restore` from weeks ago (D111). **Fix:** clicking
   it shows the output channel, and the tooltip carries the engine's own reason — `runEngine`'s
   `onLine` sees every line, so keep the *Needs you* lines.
-- [ ] **M9.** *Held: Leo wants to discuss it first, so leave it.* `76d11d6` made this change and was
-  reverted two minutes later with no reason given; the next commit, `651d2ab`, logs the offer as
-  declined live, which suggests the reverted commit's "nobody having touched it" was a real *Not
-  now*. **A reload offer nobody answers leaves the status green over a stale panel.** `put()` goes
-  stale only once `ask` resolves (`reload.ts:85-94`), and a toast that times out stays pending
+- [ ] **M9. A reload offer nobody answers leaves the status green over a stale panel.** D82 says the
+  offer is "asked once, then it lives in the status bar", but `put()` goes stale only once `ask`
+  resolves (`reload.ts:85-94`), and a toast that times out stays pending
   (`c:\dev\knowledge\vscode-extension-internals.md`, *A notification's promise waits for a
   person*). The tests model a dismissal as an immediate `undefined` (`reload.test.ts:99-106`), so
-  none leaves a toast pending. **Fix:** stale when the offer goes up, respecting `keepStatus`, and
-  cleared when the reload is taken; companion.md's "Dismissed" line changes with it.
+  none leaves a toast pending. `76d11d6`'s revert is no argument against this: it withdrew a
+  misread, a *Not now* taken for a timeout, and never touched when the status goes stale. **Fix:**
+  stale when the offer goes up, respecting `keepStatus`, and cleared when the reload is taken. While
+  the first toast is pending, clicking the item asks again, so answering both could reload twice:
+  after the `await`, act only if the offer answered is still the outstanding one. A test leaves a
+  toast pending. companion.md's "Dismissed, the status item reads…" becomes "Once offered…".
 - [ ] **M10. The wrong-major message omits the second step.** stability.md's *A major version*
   promises the wrapper and the companion each say "`npm i -g rigline@latest`, then `rigline
   vscode-setup`"; the wrapper says only the first.
@@ -138,7 +140,8 @@ built from this checkout, running the released engine it acquires.
 - [ ] **M27.** VS Code started with `code .` in a scaffolded workspace, then a Claude Code update:
   the workspace's `generated.ts` is untouched.
 - [ ] **M28.** *Needs you* after a `restore` opens the output when clicked and says why in its
-  tooltip. If M9 is taken: a reload offer left to time out shows *reload to apply*.
+  tooltip. A reload offer left to time out shows *reload to apply* while the toast waits in the
+  notification centre.
 
 ## Handed over to Windows
 

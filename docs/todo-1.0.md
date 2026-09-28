@@ -4,8 +4,7 @@ Three lists in two files, one per machine. This one holds **list W**, worked on 
 and **list R**, Leo's release after both. **List M**, for an agent on the Mac, is
 [todo-1.0-mac.md](todo-1.0-mac.md); the rules and decisions below apply to it too. Everything not
 marked *optional* is wanted before 1.0.0; an *optional* item can land in any 1.x, and R2 is a last
-look at them before 1.0.0. An item marked *held* waits on a discussion with Leo: leave it. Items
-marked *unconfirmed* carry a reviewer's reasoning but have not been reproduced: reproduce them before
+look at them before 1.0.0. Items marked *unconfirmed* carry a reviewer's reasoning but have not been reproduced: reproduce them before
 fixing.
 
 Where things stand: lint, typecheck and all 1387 tests pass with no skips, `pnpm release major`
@@ -51,7 +50,8 @@ asks rather than building around it.
   (W44, R5).
 - **Scope**: every item not marked *optional* before 1.0.0, then a last look at the optional ones
   (R2). The wrapper's `--version` refusing extra arguments is promoted from optional (M29).
-- **Held**: the reload offer going stale when it goes up (M9).
+- **The reload offer goes stale when it goes up**, which is D82 delivered rather than moved: an
+  unanswered toast never resolves, so the status bar is where the offer lives (M9).
 
 ## List W: Windows
 
@@ -316,8 +316,7 @@ optional items.
   install through the released wrapper under Homebrew's Node. The alpha carrying W1 ships at least a
   day before 1.0.0, since pnpm 12's `dlx` applies the one-day release age and so serves the version
   before on the day one ships.
-- [ ] **R2. A last look at the optional items** on both lists, and at M9 once it is discussed:
-  which, if any, 1.0.0 takes.
+- [ ] **R2. A last look at the optional items** on both lists: which, if any, 1.0.0 takes.
 - [ ] **R3. The release text**, which `release.mjs` does not touch and which must be committed
   before it runs, since it refuses a dirty tree: `README.md:26`, "1.0 is under construction"; the
   CHANGELOG preamble, "While the line is `1.0.0-alpha.*`"; `stability.md:7`, "Until 1.0.0 ships".
