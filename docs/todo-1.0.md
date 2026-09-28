@@ -184,7 +184,7 @@ asks rather than building around it.
   plain report beside its plugin, since it explains a disabled plugin to anybody; the hand-written
   class notes and raw class-pair counts stay behind `--verbose`, and the docs say which is where.
   Neither changes the exit status. `dev` prints the certain ones too.
-- [ ] **W22. A Node floor check where the engine starts** (`packages/core/src/engine/bin.ts`), as M4
+- [x] **W22. A Node floor check where the engine starts** (`packages/core/src/engine/bin.ts`), as M4
   is for the wrapper.
 - [ ] **W23. What exit 1 promises.** stability.md:92 promises exit 1 when something needs you;
   `list`, `status`, `doctor`, `diff` and bare `layout` always exit 0, and `check` exits 0 over a

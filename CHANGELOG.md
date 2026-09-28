@@ -69,6 +69,8 @@ anything may change between releases.
   menu, where they named a `RIG` badge that is gone; `rigline restore` says any command that
   injects puts Rigline back, not only `install`; and the README and support page say the companion
   needs VS Code 1.90 or newer.
+- The engine, started by a Node older than it supports, says which Node it needs and stops, where
+  it failed part-way through the command with an error naming nothing.
 - When VS Code removed an old Claude Code version while Rigline was installing into it, Rigline
   could leave a directory behind holding only its own files, and from then on every install, the
   companion's at each window start included, said it needed you. `rigline install` and `rigline
