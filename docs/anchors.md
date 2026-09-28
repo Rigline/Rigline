@@ -94,6 +94,10 @@ attribute the app queries itself. Those are contracts the extension is unlikely 
 and they are not minifier output. Never refine on a second hashed class, which would need resolving
 too and would be stale by the next build.
 
+A `refine` whose brackets or quotes do not close is dropped at install, with the shipped entry kept.
+One that gets past that and still does not parse in the panel leaves its anchor unresolved there,
+with the reason under *Diagnostics*: the plugins that need it are refused by name, and the rest load.
+
 ### Finding a pair
 
 `rigline codegen --out scratch.ts` writes every module and every local name the installed extension

@@ -272,9 +272,45 @@ function fieldProblem(field: (typeof SPEC_FIELDS)[number], value: unknown): stri
         : `must be a non-empty array of ${SURFACES.join(", ")}`;
     case "knownSites":
       return knownSitesProblem(value);
+    case "refine":
+      if (typeof value !== "string" || value.length === 0) return "must be a non-empty string";
+      return unbalanced(value);
     default:
       return typeof value === "string" && value.length > 0 ? null : "must be a non-empty string";
   }
+}
+
+const CLOSERS: Record<string, string> = { "[": "]", "(": ")" };
+
+/**
+ * Why a selector's brackets or quotes do not close, or null. Not a parser: the host checks with the
+ * browser's own at boot. This catches a selector cut short in pasting, before it reaches a panel.
+ */
+function unbalanced(selector: string): string | null {
+  const open: string[] = [];
+  let quote: string | null = null;
+  for (let at = 0; at < selector.length; at++) {
+    const char = selector[at] as string;
+    if (char === "\\") {
+      at++;
+      continue;
+    }
+    if (quote !== null) {
+      if (char === quote) quote = null;
+    } else if (char === '"' || char === "'") {
+      quote = char;
+    } else if (char in CLOSERS) {
+      open.push(CLOSERS[char] as string);
+    } else if (char === "]" || char === ")") {
+      if (open.pop() !== char)
+        return `closes a ${char} it never opened, so it is not a whole selector`;
+    }
+  }
+  if (quote !== null) return `leaves a ${quote} open, so it is not a whole selector`;
+  const expected = open.pop();
+  return expected === undefined
+    ? null
+    : `never closes with ${expected}, so it is not a whole selector`;
 }
 
 /**

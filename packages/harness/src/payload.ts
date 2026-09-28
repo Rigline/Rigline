@@ -62,6 +62,8 @@ export interface PreparePayloadOptions {
   readonly layout?: Layout;
   /** What the panel's Save goes through, as `install` would bake it (D93). */
   readonly save?: SaveRecord | null;
+  /** Selectors written over the resolved ones, as a refinement in `anchors.json` would be. */
+  readonly selectors?: Readonly<Record<string, string>>;
 }
 
 /** Write pre.js, post.js, runtime/, generated.js, registry.js and plugins/<name>/index.js into `dir`. */
@@ -82,7 +84,7 @@ export function preparePayload(dir: string, options: PreparePayloadOptions): voi
   const generated = generate(harvestAll(bundles));
   writeFileSync(
     join(dir, "generated.js"),
-    withoutIdentifiers(generated.runtime, bundles.webview, options.remove),
+    withoutIdentifiers(generated.runtime, bundles.webview, options.remove, options.selectors),
   );
 
   const plugins = options.plugins.map((plugin) => ({
@@ -114,8 +116,12 @@ export const save = ${JSON.stringify(options.save ?? null)};
  * `runtime` with the named identifiers gone. Rewritten as data rather than regenerated, because the
  * point is a table that disagrees with the bundle beside it, which no harvest would ever produce.
  */
-function withoutIdentifiers(runtime: string, webview: string, remove?: RemovedIdentifiers): string {
-  if (!remove) return runtime;
+function withoutIdentifiers(
+  runtime: string,
+  webview: string,
+  remove: RemovedIdentifiers = {},
+  selectors: Readonly<Record<string, string>> = {},
+): string {
   const prefix = runtime.slice(0, runtime.indexOf("{"));
   const tables = JSON.parse(runtime.slice(runtime.indexOf("{"), runtime.lastIndexOf("}") + 1)) as {
     anchors: Record<string, string | null>;
@@ -137,6 +143,7 @@ function withoutIdentifiers(runtime: string, webview: string, remove?: RemovedId
     tables.anchorSelectors[anchor] = null;
     tables.unresolvedAnchors[anchor] = missingAnchorReason(anchor as AnchorName);
   }
+  Object.assign(tables.anchorSelectors, selectors);
   for (const module of remove.modules ?? []) delete tables.moduleClasses[module];
   const gone = new Set(remove.messages ?? []);
   tables.messageTypes = tables.messageTypes.filter((type) => !gone.has(type));

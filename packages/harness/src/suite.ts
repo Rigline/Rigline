@@ -114,6 +114,8 @@ export interface BootOptions {
   readonly remove?: RemovedIdentifiers;
   readonly layout?: Layout;
   readonly save?: SaveRecord | null;
+  /** Selectors written over the resolved ones, as a refinement in `anchors.json` would be. */
+  readonly selectors?: Readonly<Record<string, string>>;
 }
 
 interface HarnessWindow {
@@ -175,6 +177,7 @@ export function register(version: string): (options?: BootOptions) => Promise<Bo
       remove: options.remove,
       layout: options.layout,
       save: options.save,
+      selectors: options.selectors,
     });
     const harness: Harness = await startHarness({
       bundleDir: join(versionDir(version), "webview"),

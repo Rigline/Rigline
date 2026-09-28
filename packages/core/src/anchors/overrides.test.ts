@@ -145,6 +145,25 @@ describe("mergeAnchorOverrides", () => {
     ]);
   });
 
+  it.each([
+    ['[data-testid="picker"', "never closes with ]"],
+    ['[data-testid="picker]', 'leaves a " open'],
+    [":not(.a", "never closes with )"],
+    ["[a])", "closes a ) it never opened"],
+  ])("drops a refine that cannot be a selector, and keeps the shipped one: %s", (refine, why) => {
+    const result = merge({ pill: { refine, why: "pasted short" } });
+    expect(result.problems).toEqual([
+      `${PATH}: "pill".refine ${why}, so it is not a whole selector`,
+    ]);
+    expect(result.names).toEqual([]);
+    expect(result.table.pill).toBe(BASE.pill);
+  });
+
+  it("passes brackets inside quotes and escaped ones, which a selector may carry", () => {
+    const result = merge({ pill: { refine: '[title="a]"]:not(\\(x)', why: "odd but valid" } });
+    expect(result.problems).toEqual([]);
+  });
+
   it("takes knownSites, which is the other discharge for an ambiguous singleton", () => {
     const result = merge({
       pill: {

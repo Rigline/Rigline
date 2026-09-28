@@ -89,6 +89,33 @@ function refusingUnknown<T extends object>(
   });
 }
 
+/**
+ * `tables` with every selector the browser will not parse made unresolved, with the reason: one
+ * from `~/.rigline/anchors.json` may not, and every query would throw with it (D44).
+ */
+function withParsedSelectors(tables: IdentifierTables): IdentifierTables {
+  const probe = document.createDocumentFragment();
+  const unparsed: Record<string, string> = {};
+  for (const [name, selector] of Object.entries(tables.anchorSelectors ?? {})) {
+    if (selector === null) continue;
+    try {
+      probe.querySelector(selector);
+    } catch (e) {
+      unparsed[name] =
+        `anchor "${name}" has a selector that does not parse, ${selector}: ${message(e)}`;
+    }
+  }
+  const names = Object.keys(unparsed);
+  if (names.length === 0) return tables;
+  const gone = Object.fromEntries(names.map((name) => [name, null]));
+  return {
+    ...tables,
+    anchors: { ...tables.anchors, ...gone },
+    anchorSelectors: { ...tables.anchorSelectors, ...gone },
+    unresolvedAnchors: { ...tables.unresolvedAnchors, ...unparsed },
+  };
+}
+
 function isThenable(value: unknown): value is PromiseLike<unknown> {
   return (
     (typeof value === "object" || typeof value === "function") &&
@@ -285,7 +312,7 @@ async function main(): Promise<void> {
     const mod = (await import(new URL("./generated.js", import.meta.url).href)) as {
       TABLES: IdentifierTables;
     };
-    tables = mod.TABLES;
+    tables = withParsedSelectors(mod.TABLES);
     diagnostics.identifiersFor = tables.version;
   } catch (e) {
     diagnostics.errors.push(`generated: ${message(e)}`);

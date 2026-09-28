@@ -408,7 +408,14 @@ export function createMountService(
     // a class, and only this says how many elements a refinement actually leaves on screen. It is
     // the same one query per watch per pass, and there are a handful of watches.
     if (w.abandoned) return;
-    const matches = document.querySelectorAll(w.target.selector);
+    let matches: NodeListOf<Element>;
+    try {
+      matches = document.querySelectorAll(w.target.selector);
+    } catch (e) {
+      w.abandoned = true;
+      w.onError(`the watch on anchor "${w.target.anchor}" cannot query it: ${message(e)}`);
+      return;
+    }
     const found = matches[0] ?? null;
     if (w.target.unique && matches.length > 1) reportMultiple(w.target.anchor, matches.length);
     if (found === w.current && (found === null || found.isConnected)) {
@@ -535,8 +542,9 @@ export function createMountService(
         abandoned: false,
         since: performance.now(),
       };
-      watches.push(w);
+      // Registered after the first run, so one that throws is not left for every pass to repeat.
       runWatch(w);
+      watches.push(w);
       return () => {
         const i = watches.indexOf(w);
         if (i !== -1) watches.splice(i, 1);

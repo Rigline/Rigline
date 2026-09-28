@@ -75,7 +75,7 @@ asks rather than building around it.
 
 ### The host and the plugins
 
-- [ ] **W3. An `anchors.json` refinement that is not a valid selector takes down Rigline's UI.**
+- [x] **W3. An `anchors.json` refinement that is not a valid selector takes down Rigline's UI.**
   `refine` and `within` are checked only as non-empty strings
   (`packages/core/src/anchors/overrides.ts:276`), so `querySelectorAll` throws at runtime. The
   watch that threw stays registered (`mounts.ts:538-539`), every later watch never runs, and

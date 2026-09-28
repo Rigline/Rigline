@@ -914,6 +914,35 @@ export default { setup() {} };`,
       }
     }, 20000);
 
+    it("takes a selector the browser cannot parse as unresolved, and keeps the pill up", async () => {
+      // An anchors.json refinement that does not parse: every query with it would throw, which took
+      // down the pill, the menu and every later watch, and said nothing.
+      const spacer: FixturePlugin = {
+        name: "spacer",
+        manifest: { uses: { anchors: ["footerSpacer"], mount: true } },
+        source: `window.__staleImported = true;
+export default { setup() {} };`,
+      };
+      const booted = await boot({
+        plugins: [spacer, mounterPlugin],
+        selectors: { footerSpacer: ".footerSpacer]" },
+      });
+      try {
+        await booted.page.waitForSelector(".harness-badge");
+        await booted.page.waitForSelector(".rigline-pill-fixed .rigline-pill");
+
+        const d = await booted.diagnostics();
+        const refused = d.plugins.find((p) => p.name === "spacer");
+        expect(refused?.status).toBe("refused");
+        expect(refused?.reason).toMatch(
+          /^anchor "footerSpacer" has a selector that does not parse, \.footerSpacer\]: /,
+        );
+        expect(d.errors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
     it("refuses only the transcript's plugins when react-dom lacks what the host reads rows with", async () => {
       // D102 at the DOM tier: the tables say react-dom has lost something, and a plugin requiring the
       // transcript is refused by that reason while one taking it optionally, and one never asking,

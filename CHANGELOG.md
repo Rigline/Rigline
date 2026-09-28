@@ -22,6 +22,10 @@ anything may change between releases.
 - **For plugin authors:** `rigline dev` installs each build, as `rigline add` would, before it
   re-injects. Outside Rigline's own repository it re-injected the copy an earlier `add` had made, so
   the panel never showed what you had just built. It also stops at the first Ctrl-C.
+- A `refine` in `~/.rigline/anchors.json` that is not a valid selector no longer takes Rigline's
+  pill, menu and elements down with it. One whose brackets or quotes do not close is dropped at
+  install, with a sentence saying so; one the panel still cannot parse leaves that anchor
+  unresolved, and only the plugins needing it are refused, by name.
 - When VS Code removed an old Claude Code version while Rigline was installing into it, Rigline
   could leave a directory behind holding only its own files, and from then on every install, the
   companion's at each window start included, said it needed you. `rigline install` and `rigline
