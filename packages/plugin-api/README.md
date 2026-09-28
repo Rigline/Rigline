@@ -50,8 +50,9 @@ export default definePlugin({
 ## What `ctx` carries
 
 Every capability is declared in the manifest and granted from the declaration, so a plugin reaching
-for something it did not declare finds nothing there, and a plugin whose declaration no longer holds
-against the installed extension is refused by name rather than failing at runtime.
+for something it did not declare gets a throw, and is switched off for the rest of the panel's life;
+and a plugin whose declaration no longer holds against the installed extension is refused by name
+rather than failing at runtime.
 
 `element` for the components declared under `elements`, and `menu` for Rigline's menu, both React;
 `cls` and `anchor` for class names; `onMessage` for the bus; `mount`, `mountAfter`, `mountBefore`

@@ -176,7 +176,7 @@ asks rather than building around it.
   to an unrelated company. **Fix:**
   `https://cdn.jsdelivr.net/npm/@rigline/plugin-api@1/schema/manifest.json`, which resolves to the
   newest 1.x schema, the one `api: 1` means.
-- [ ] **W20. plugin-api's README** says an undeclared use "finds nothing there"
+- [x] **W20. plugin-api's README** says an undeclared use "finds nothing there"
   (`packages/plugin-api/README.md:52-54`); it throws and disables the plugin.
 - [ ] **W21. Notes only `--verbose` prints**, which authoring.md:131-133 and :436-437 and
   anchors.md:132-135 say plain `install` shows (`inject.ts:579-584`). **Fix:** a certain failure
