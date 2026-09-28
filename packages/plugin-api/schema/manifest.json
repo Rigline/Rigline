@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://rigline.dev/schema/manifest.json",
+  "$id": "https://cdn.jsdelivr.net/npm/@rigline/plugin-api@1/schema/manifest.json",
   "title": "Rigline plugin manifest",
   "description": "rigline.json: what a plugin depends on, as data. Read by the installer and by the loader without evaluating the plugin.",
   "type": "object",

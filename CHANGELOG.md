@@ -57,6 +57,9 @@ anything may change between releases.
   a link — a working tree an author linked in — naming the link and its target, where `add` and
   `dev` replaced the link with a copy. `rigline remove`'s usage now says what it does: it deletes a
   plugin from `~/.rigline/plugins` however it got there.
+- **For plugin authors:** the manifest schema's `$id` is
+  `https://cdn.jsdelivr.net/npm/@rigline/plugin-api@1/schema/manifest.json`, the newest 1.x schema,
+  which is what `api: 1` means. It named a domain that is not Rigline's.
 - When VS Code removed an old Claude Code version while Rigline was installing into it, Rigline
   could leave a directory behind holding only its own files, and from then on every install, the
   companion's at each window start included, said it needed you. `rigline install` and `rigline

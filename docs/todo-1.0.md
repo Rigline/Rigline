@@ -171,7 +171,7 @@ asks rather than building around it.
 - [x] **W18. core's README** says "zero third-party runtime dependencies" beside `es-module-lexer`
   and `yaml`, and that `rigline-engine` answers every verb "except `update`". Its description and
   first line call it a Node library, which invites a use stability.md excludes: "the engine".
-- [ ] **W19. The manifest schema's `$id`** is `https://rigline.dev/schema/manifest.json`
+- [x] **W19. The manifest schema's `$id`** is `https://rigline.dev/schema/manifest.json`
   (`packages/plugin-api/src/schema.ts:43`, published in `schema/manifest.json`), a domain belonging
   to an unrelated company. **Fix:**
   `https://cdn.jsdelivr.net/npm/@rigline/plugin-api@1/schema/manifest.json`, which resolves to the
