@@ -2,15 +2,15 @@
 #
 # GitHub authenticates to npm over OIDC, so the secret this workflow would otherwise need does not
 # exist. What it does is *stage*: a staged version sits in a queue that nobody can install until you
-# approve it from your own machine with 2FA. Approving says you meant to ship it.
-#
-#     pnpm stage approve
+# approve it with your second factor. Approving says you meant to ship it. Approve on npmjs.com,
+# under your profile's Staged Packages, or with `npm stage approve <id>` (`npm stage list` shows the
+# ids); `pnpm stage approve` asks for a typed code, which a security key cannot give.
 #
 # Before this works, once per package, on npmjs.com:
 #
 #   1. Publish the first version by hand. A package that does not exist yet has nothing for a
-#      trusted publisher to attach to: `pnpm publish -r --otp <code>` (a one-time password, not a
-#      token — there is then nothing to store or revoke).
+#      trusted publisher to attach to: `pnpm build`, then `npm publish` in the plugin's directory,
+#      which opens a browser for your second factor (no token, so nothing to store or revoke).
 #   2. Add a trusted publisher under the package's settings, naming this repository and this file
 #      by path. Renaming this file breaks the exchange until the entry is edited to match.
 #      Set its permission to stage-only.
@@ -123,8 +123,8 @@ jobs:
             } else {
               out.push("## Staged, and awaiting approval", "", "| package | version |", "| --- | --- |");
               for (const p of staged) out.push(`| \`${p.name}\` | \`${p.version}\` |`);
-              out.push("", "**Nobody can install these yet.** On a machine with your npm 2FA:", "", "```", "pnpm stage approve", "```", "",
-                "It lists what is queued and takes the batch under one one-time password. A version you would rather not ship needs no action — do not approve it, and it expires.");
+              out.push("", "**Nobody can install these yet.** Approve them on npmjs.com, under Staged Packages in your profile, or from a terminal:", "", "```", "npm stage list", "npm stage approve <id>", "```", "",
+                "A version you would rather not ship needs no action — do not approve it, and it expires.");
             }
             require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, out.join("\n") + "\n");
           '

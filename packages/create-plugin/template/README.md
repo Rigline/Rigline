@@ -78,9 +78,10 @@ and both `@rigline/core` and `@rigline/plugin-api` stay *devDependencies*.
 
 `.github/workflows/release.yml` does it from CI, with no npm token stored anywhere: GitHub
 authenticates to npm over OIDC, and what the workflow does is *stage* — a version nobody can
-install until you approve it from your own machine with 2FA.
-
-    pnpm stage approve
+install until you approve it with your second factor. Approve on npmjs.com, under your profile's
+*Staged Packages*, which lists what is waiting; or from a terminal, `npm stage list` then
+`npm stage approve <id>`. Not `pnpm stage approve`: it asks for a typed one-time password, which a
+security key — the only second factor npm still enrols — cannot give.
 
 **One field to fill in before the first publish: `repository`.** npm binds a provenance attestation
 to it, and this workflow stages with provenance, so a package without one cannot be staged at all.
@@ -99,9 +100,9 @@ MIT, and npm ships a licence file whatever `files` says, so adding one is the wh
 `rigline-plugin` keyword is already there: it is how somebody finds a plugin on npm.
 
 Two things to set up once per package, the first time. Publish version one by hand, because a
-package that does not exist yet has nothing for a trusted publisher to attach to — `pnpm publish -r
---otp <code>`, supplying a one-time password rather than creating a token, so there is nothing to
-store or to revoke afterwards. Then add a trusted publisher in the package's settings on npmjs.com,
+package that does not exist yet has nothing for a trusted publisher to attach to: `pnpm build`, then
+`npm publish` in the plugin's directory, which opens your browser for the second factor rather than
+needing a token, so there is nothing to store or to revoke afterwards. Then add a trusted publisher in the package's settings on npmjs.com,
 naming this repository and `release.yml` by path, with its permission set to stage-only. The
 workflow's own header repeats both, where you will be when you need them.
 

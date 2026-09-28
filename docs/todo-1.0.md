@@ -204,7 +204,7 @@ asks rather than building around it.
   message does; stability.md's config paragraph says so. A place beside an anchor Claude Code
   removed stays a report, as stability.md already promises. Now, since moving an exit status to 1
   later is the tightening W23 rules out.
-- [ ] **W24. The scaffold's publishing steps** (`packages/create-plugin/template/README.md:83,
+- [x] **W24. The scaffold's publishing steps** (`packages/create-plugin/template/README.md:83,
   101-104`, `template/.github/workflows/release.yml:7,12-13,126-127`) use `pnpm stage approve` and
   `pnpm publish --otp`, which a security-key account cannot do — the only kind npm enrols now
   (releasing.md). Point at npmjs.com's Staged Packages page, or `npm stage approve <id>`, and
