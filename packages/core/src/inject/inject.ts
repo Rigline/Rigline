@@ -26,7 +26,12 @@ import {
 } from "../anchors/overrides.ts";
 import { writeFileAtomic } from "../atomic.ts";
 import { generate } from "../codegen/generate.ts";
-import { UnfinishedExtensionError, UserError } from "../errors.ts";
+import {
+  DamagedExtensionError,
+  isFilesystemError,
+  UnfinishedExtensionError,
+  UserError,
+} from "../errors.ts";
 import {
   HOST_BACKUP,
   HOST_BUNDLE,
@@ -135,7 +140,8 @@ export interface Injection {
 /** Reads current on-disk state without changing anything. Throws `UserError` outside an extension. */
 export function inspect(ext: string): Injection {
   if (!isExtensionDir(ext)) {
-    throw new UserError(`${ext} is not a Claude Code extension directory`);
+    const missing = existsSync(join(ext, WEBVIEW_BUNDLE)) ? "package.json" : WEBVIEW_BUNDLE;
+    throw new DamagedExtensionError(ext, `${missing} is missing`);
   }
   const bundle = join(ext, WEBVIEW_BUNDLE);
   const backup = join(ext, WEBVIEW_BACKUP);
@@ -464,11 +470,12 @@ export function install(ext: string, options: InstallOptions): InstallReport {
   // whenever there is no backup yet — which is every new version's directory — so an install that
   // races VS Code's own records a fragment as the only copy of what a restore could return to, and
   // says nothing (D81).
-  const problem = wholenessProblem(ext, options.wholeness ?? {});
-  if (problem !== null) {
+  const whole = wholenessProblem(ext, options.wholeness ?? {});
+  if (whole?.kind === "damaged") throw new DamagedExtensionError(ext, whole.problem);
+  if (whole !== null) {
     throw new UnfinishedExtensionError(
-      `${ext} is not finished being written: ${problem}. An extension update is probably in ` +
-        "progress; try again in a moment. Nothing was changed.",
+      `${ext} is not finished being written: ${whole.problem}. Something is writing it; try ` +
+        "again in a moment. Nothing was changed.",
     );
   }
 
@@ -645,6 +652,8 @@ export interface RestoreResult {
   readonly ext: string;
   /** The webview side: whether the panel is back on the extension's own bytes. */
   readonly restored: boolean;
+  /** Not a whole extension, and nothing of Rigline's in it: nothing to restore, and no failure. */
+  readonly skipped?: boolean;
   readonly reason?: string;
   /** How a restore without a trustworthy backup got there, which is worth a person knowing (D111). */
   readonly note?: string;
@@ -774,14 +783,29 @@ export function restore(ext: string): RestoreResult {
     ? revert(state.host, state.hostBackup)
     : { ok: true as const };
   // Removing a payload the bundle still loads is what turns a failed revert into a blank panel.
-  if (!stillImported(state.bundle)) rmSync(state.payloadDir, { recursive: true, force: true });
+  let note = webview.note;
+  if (!stillImported(state.bundle)) {
+    try {
+      rmSync(state.payloadDir, { recursive: true, force: true });
+    } catch (error) {
+      const left = `${state.payloadDir} is left, unreferenced: ${(error as Error).message}`;
+      note = note === undefined ? left : `${note}; ${left}`;
+    }
+  }
   return {
     ext,
     restored: webview.ok,
     ...(webview.ok ? {} : { reason: webview.reason }),
-    ...(webview.note === undefined ? {} : { note: webview.note }),
+    ...(note === undefined ? {} : { note }),
     ...(host.ok ? {} : { hostReason: host.reason }),
   };
+}
+
+/** Whether anything Rigline writes is in `ext`: its payload, or a backup of either bundle. */
+function holdsRigline(ext: string): boolean {
+  return [join("webview", DIRNAME), WEBVIEW_BACKUP, HOST_BACKUP].some((path) =>
+    existsSync(join(ext, path)),
+  );
 }
 
 /**
@@ -796,8 +820,18 @@ export function restoreAll(exts: readonly string[]): RestoreResult[] {
     try {
       return restore(ext);
     } catch (error) {
-      if (!(error instanceof UserError)) throw error;
-      return { ext, restored: false, reason: error.message };
+      if (error instanceof DamagedExtensionError) {
+        return holdsRigline(ext)
+          ? { ext, restored: false, reason: error.problem }
+          : {
+              ext,
+              restored: true,
+              skipped: true,
+              note: `${error.problem}; nothing of Rigline's is in it`,
+            };
+      }
+      if (!(error instanceof UserError) && !isFilesystemError(error)) throw error;
+      return { ext, restored: false, reason: (error as Error).message };
     }
   });
 }

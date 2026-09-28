@@ -82,6 +82,7 @@ import {
   readBundles,
   readCompanionSettings,
   readConfig,
+  refusalOf,
   removeFromList,
   removePlugin,
   resetLayout,
@@ -580,11 +581,19 @@ function installCommand(args: string[]): number {
     allowPositionals: false,
   });
   return reinject({
-    exts: values.ext ? [values.ext] : undefined,
+    exts: extOption(values.ext),
     required: true,
     verbose: values.verbose,
     companion: values.companion,
   });
+}
+
+/** `--ext`'s directory, refused by name when it is not there rather than judged as a version. */
+function extOption(ext: string | undefined): string[] | undefined {
+  if (ext === undefined) return undefined;
+  const dir = resolve(ext);
+  if (!existsSync(dir)) throw new UserError(`${dir} does not exist`);
+  return [dir];
 }
 
 /** The same roots `pluginOptions` discovers from, named for a report rather than for a loader. */
@@ -805,12 +814,18 @@ function statusCommand(args: string[]): number {
   const targets = installedExtensions();
   if (targets.length === 0) throw new UserError("no Claude Code extension is installed");
   for (const ext of targets) {
-    const state = inspect(ext);
-    console.log(
-      `${extensionVersion(ext)}: webview ${verdict(state)}${state.markerPresent ? " (marker present)" : ""}` +
-        `${state.backupExists ? "" : ", no backup"}; host ${hostVerdict(state)}` +
-        `${state.hostBackupExists ? " (backup present)" : ""}`,
-    );
+    try {
+      const state = inspect(ext);
+      console.log(
+        `${extensionVersion(ext)}: webview ${verdict(state)}${state.markerPresent ? " (marker present)" : ""}` +
+          `${state.backupExists ? "" : ", no backup"}; host ${hostVerdict(state)}` +
+          `${state.hostBackupExists ? " (backup present)" : ""}`,
+      );
+    } catch (error) {
+      const refused = refusalOf(error);
+      if (refused === null) throw error;
+      console.log(`${basename(ext)}: ${refused.reason}`);
+    }
     console.log(`  ${ext}`);
   }
   return 0;
@@ -861,7 +876,9 @@ function restoreCommand(args: string[]): number {
   let notRestored = 0;
   let hostFailed = 0;
   for (const result of results) {
-    if (result.restored) {
+    if (result.skipped) {
+      console.log(`skipped: ${result.ext} (${result.note})`);
+    } else if (result.restored) {
       console.log(`restored: ${result.ext}${result.note === undefined ? "" : ` (${result.note})`}`);
     } else {
       notRestored++;
@@ -994,7 +1011,7 @@ function checkCommand(args: string[]): number {
     options: { ext: { type: "string" }, verbose: { type: "boolean", default: false } },
   });
   const report = check({
-    exts: values.ext ? [resolve(values.ext)] : undefined,
+    exts: extOption(values.ext),
     plugins: pluginOptions(),
     lock: lockWait,
   });

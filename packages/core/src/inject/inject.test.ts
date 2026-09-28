@@ -375,7 +375,7 @@ describe("a directory still being written", () => {
     expect(existsSync(payloadOutDir(ext))).toBe(false);
   });
 
-  it("says an update is probably in progress, which is the thing to do about it", () => {
+  it("says to try again, which is the thing to do about it", () => {
     const ext = fixture();
     expect(() =>
       installBundle(ext, {
@@ -386,7 +386,7 @@ describe("a directory still being written", () => {
           },
         },
       }),
-    ).toThrow(/extension update is probably in progress/);
+    ).toThrow(/Something is writing it; try again in a moment/);
   });
 });
 
@@ -464,13 +464,27 @@ describe("restoreAll", () => {
 
     const results = restoreAll([halfDeleted, recoverable]);
 
-    expect(results[0]).toMatchObject({
+    expect(results[0]).toEqual({
       ext: halfDeleted,
       restored: false,
-      reason: expect.stringMatching(/is not a Claude Code extension directory/),
+      reason: "webview/index.js is missing",
     });
     expect(results[1]).toMatchObject({ ext: recoverable, restored: true });
     expect(readFileSync(bundlePath(recoverable))).toEqual(original);
+  });
+
+  it("skips a directory with nothing of Rigline's in it, as nothing to restore", () => {
+    const husk = tempDir("rigline-husk-");
+    writeFileSync(join(husk, "package.json"), JSON.stringify({ version: "2.1.260" }));
+
+    expect(restoreAll([husk])).toEqual([
+      {
+        ext: husk,
+        restored: true,
+        skipped: true,
+        note: "webview/index.js is missing; nothing of Rigline's is in it",
+      },
+    ]);
   });
 });
 

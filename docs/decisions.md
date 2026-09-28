@@ -2662,6 +2662,15 @@ Rejected:
 - Catching every `UserError` per version. That would turn Rigline's own broken build into the same
   line printed once per version.
 
+**A damaged directory and a filesystem error are that version's refusal too** (amended 2026-09-29).
+A version with a file missing, empty or unreadable ended `check` and `status` in a stack trace, and
+a write the filesystem refused ended `install` and skipped every later version. Since VS Code renames
+a version into place whole (D81), a missing file means damage or a delete that did not finish, never
+an update in progress, and "try again" never came true. Both are refused per version now: `damaged`
+says what the directory is and what mends it, and `filesystem` carries Node's own message. The
+watcher retries `filesystem` as it retries `unfinished`, and not `damaged`. `restore` passes over a
+directory holding nothing of Rigline's instead of failing it. Any other exception keeps its stack.
+
 **D105. One engine injects at a time (2026-09-25, Leo).** This amends D80, which left injection
 outside any lock because rebuild-from-backup is idempotent. The bytes still are, but D83's stability
 sample came after that reasoning, and it cannot tell who is writing. Read live on 2.1.282: two

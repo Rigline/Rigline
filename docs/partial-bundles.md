@@ -46,7 +46,8 @@ Three properties make it worse than an ordinary bug.
 `wholenessProblem` in [bundles.ts](../packages/core/src/extension/bundles.ts), asked by `install`
 before it reads or writes anything. It refuses a directory where any of `webview/index.js`,
 `extension.js`, `webview/index.css` or `package.json` is absent or empty, or where the manifest does
-not parse to something with a version — naming which, and saying an update is probably in progress.
+not parse to something with a version — naming which. VS Code renames a version into place whole, so
+that shape is a damaged directory rather than one being written, and is refused as `damaged` (D104).
 
 That catches the commoner shape by itself. An install part-way through has *some* of its files, and
 the two bundles are megabytes that do not appear atomically.

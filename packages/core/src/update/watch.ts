@@ -65,7 +65,10 @@ export function watch(options: WatchOptions): Watcher {
       // a moment that never existed.
       const report = update({ ...options, exts });
       options.onReport(report);
-      return !report.versions.some((version) => version.refused?.kind === "unfinished");
+      return !report.versions.some(
+        (version) =>
+          version.refused?.kind === "unfinished" || version.refused?.kind === "filesystem",
+      );
     } catch (error) {
       if (options.onError) options.onError(error);
       else throw error;

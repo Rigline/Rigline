@@ -225,7 +225,7 @@ export type {
   UpdateOptions,
   VersionReport,
 } from "./update/flow.ts";
-export { check, formatFlow, update } from "./update/flow.ts";
+export { check, formatFlow, refusalOf, update } from "./update/flow.ts";
 export type { Watcher, WatchOptions } from "./update/watch.ts";
 export { watch } from "./update/watch.ts";
 export { CORE_VERSION } from "./version.ts";

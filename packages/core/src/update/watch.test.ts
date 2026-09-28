@@ -3,7 +3,7 @@
  * the watcher decides for itself — when an update has happened — because everything after that is
  * `update`, which has its own tests.
  */
-import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -132,28 +132,33 @@ describe("watch", () => {
     }
   });
 
-  it("keeps a directory still being written outstanding, and takes it once finished (D81)", () => {
+  it("keeps a directory still moving outstanding, and takes it once it is still (D81)", () => {
     vi.useFakeTimers();
     const extensionsDir = tempDir("rigline-exts-");
-    const old = installVersion(extensionsDir, "2.1.268");
+    installVersion(extensionsDir, "2.1.268");
     const reports: FlowReport[] = [];
     const errors: unknown[] = [];
+    let writing: string | null = null;
 
-    const watcher = watch(options(extensionsDir, reports, errors));
+    // Something still appending to the new bundle while the stability sample waits.
+    const watcher = watch({
+      ...options(extensionsDir, reports, errors),
+      wholeness: {
+        sleep: () => {
+          if (writing !== null) appendFileSync(join(writing, "webview", "index.js"), ";");
+        },
+      },
+    });
     try {
-      // Half-written, the way a directory looks while VS Code is still unpacking into it.
-      const half = join(extensionsDir, `${EXTENSION_NAME_PREFIX}2.1.271-win32-x64`);
-      mkdirSync(join(half, "webview"), { recursive: true });
-      writeFileSync(join(half, "package.json"), JSON.stringify({ version: "2.1.271" }));
+      writing = installVersion(extensionsDir, "2.1.271");
       vi.advanceTimersByTime(10);
       const seen = reports.at(-1)?.versions;
       expect(seen?.find((v) => v.version === "2.1.271")?.refused?.kind).toBe("unfinished");
       // The version beside it was not held up by it (D104).
       expect(seen?.find((v) => v.version === "2.1.268")?.action).not.toBeNull();
 
-      // Finished in place, so the listing never changes again, and the watcher still takes it.
-      cpSync(old, half, { recursive: true });
-      writeFileSync(join(half, "package.json"), JSON.stringify({ version: "2.1.271" }));
+      // Still now, and the listing never changes again, so the watcher takes it on its own.
+      writing = null;
       vi.advanceTimersByTime(10);
       expect(reports.at(-1)?.versions.map((v) => v.refused)).toEqual([null, null]);
 
@@ -162,6 +167,31 @@ describe("watch", () => {
       vi.advanceTimersByTime(100);
       expect(reports).toHaveLength(settled);
       expect(errors).toEqual([]);
+    } finally {
+      watcher.stop();
+    }
+  });
+
+  it("does not keep retrying a damaged directory, which waiting does not mend", () => {
+    vi.useFakeTimers();
+    const extensionsDir = tempDir("rigline-exts-");
+    installVersion(extensionsDir, "2.1.268");
+    const reports: FlowReport[] = [];
+
+    const watcher = watch(options(extensionsDir, reports));
+    try {
+      const half = join(extensionsDir, `${EXTENSION_NAME_PREFIX}2.1.271-win32-x64`);
+      mkdirSync(join(half, "webview"), { recursive: true });
+      writeFileSync(join(half, "package.json"), JSON.stringify({ version: "2.1.271" }));
+      vi.advanceTimersByTime(10);
+      expect(reports.at(-1)?.versions.map((v) => v.refused?.kind ?? null)).toEqual([
+        null,
+        "damaged",
+      ]);
+
+      const seen = reports.length;
+      vi.advanceTimersByTime(100);
+      expect(reports).toHaveLength(seen);
     } finally {
       watcher.stop();
     }

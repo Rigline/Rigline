@@ -27,8 +27,13 @@ import {
 } from "../anchors/overrides.ts";
 import { writeFileAtomic } from "../atomic.ts";
 import { type Generated, generate } from "../codegen/generate.ts";
-import { UnfinishedExtensionError, UserError } from "../errors.ts";
-import { readBundles } from "../extension/bundles.ts";
+import {
+  DamagedExtensionError,
+  isFilesystemError,
+  UnfinishedExtensionError,
+  UserError,
+} from "../errors.ts";
+import { readBundles, wholenessProblem } from "../extension/bundles.ts";
 import { extensionVersion, installedExtensions } from "../extension/locate.ts";
 import {
   verdict as bundleVerdict,
@@ -60,8 +65,11 @@ import { type BaselineSource, readBaseline, riglineGenerated, writeBaseline } fr
 
 /** Why the flow left one version as it was (D104). */
 export interface Refusal {
-  /** Still being written, which a retry fixes; or not readable by this Rigline, which a release fixes. */
-  readonly kind: "unfinished" | "unreadable";
+  /**
+   * Still being written, which a retry fixes; damaged or part-deleted, which reinstalling Claude
+   * Code fixes; not readable by this Rigline, which a release fixes; or refused by the filesystem.
+   */
+  readonly kind: "unfinished" | "damaged" | "unreadable" | "filesystem";
   readonly reason: string;
 }
 
@@ -237,11 +245,13 @@ function anchorReport(
  * The refusal an error from one version stands for, or null for an error that is not one: a bug,
  * or Rigline's own build failing, either of which stops the run (D27, D104).
  */
-function refusalOf(error: unknown): Refusal | null {
+export function refusalOf(error: unknown): Refusal | null {
   if (error instanceof UnfinishedExtensionError) {
     return { kind: "unfinished", reason: error.message };
   }
+  if (error instanceof DamagedExtensionError) return { kind: "damaged", reason: error.problem };
   if (error instanceof HarvestError) return { kind: "unreadable", reason: error.message };
+  if (isFilesystemError(error)) return { kind: "filesystem", reason: error.message };
   return null;
 }
 
@@ -316,6 +326,9 @@ function checkHeld(options: FlowOptions): FlowReport {
   for (const ext of exts) {
     let h: Harvested;
     try {
+      // The structural half only: `check` samples nothing, since it writes nothing to race.
+      const whole = wholenessProblem(ext, { sleep: () => {} });
+      if (whole?.kind === "damaged") throw new DamagedExtensionError(ext, whole.problem);
       h = harvestOne(ext, overrides);
     } catch (error) {
       const refused = refusalOf(error);
@@ -621,10 +634,29 @@ function settle(
 /** A refused version, as the line under *Needs you* that says whose move it is. */
 function refusalLine(kind: FlowReport["kind"], version: string, refused: Refusal): string {
   const lead = kind === "install" ? `${version} was not injected` : version;
-  return refused.kind === "unfinished"
-    ? `${lead}: ${refused.reason}`
-    : `${lead}: Rigline cannot read this version of Claude Code, and needs an update for it (${refused.reason})`;
+  switch (refused.kind) {
+    case "unfinished":
+      return `${lead}: ${refused.reason}`;
+    case "damaged":
+      return (
+        `${lead}: ${refused.reason}. VS Code puts a version in place whole, so this directory is ` +
+        "damaged or was not fully deleted: reinstall Claude Code if it is the version you run, or " +
+        "delete the directory if it is an older one"
+      );
+    case "filesystem":
+      return `${lead}: the filesystem refused (${refused.reason})`;
+    case "unreadable":
+      return `${lead}: Rigline cannot read this version of Claude Code, and needs an update for it (${refused.reason})`;
+  }
 }
+
+/** What a refused version is, in the few words a row of the report has room for. */
+const REFUSED_STATE: Readonly<Record<Refusal["kind"], string>> = {
+  unfinished: "still being written",
+  damaged: "damaged",
+  unreadable: "Rigline cannot read it",
+  filesystem: "the filesystem refused",
+};
 
 /**
  * What one override entry did to this version, as the line a person reads (D44).
@@ -661,8 +693,7 @@ export interface FormatOptions {
 /** What one version is, as a person reads it: what the run did, or what `check` found on disk. */
 function stateOf(version: VersionReport): string {
   if (version.refused) {
-    const why =
-      version.refused.kind === "unfinished" ? "still being written" : "Rigline cannot read it";
+    const why = REFUSED_STATE[version.refused.kind];
     return version.injected ? `left as it was, ${why}` : `not injected, ${why}`;
   }
   if (version.action === null) {

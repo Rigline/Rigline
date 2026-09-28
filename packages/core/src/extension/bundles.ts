@@ -71,8 +71,14 @@ export function isExtensionDir(dir: string): boolean {
   return existsSync(join(dir, WEBVIEW_BUNDLE)) && existsSync(join(dir, "package.json"));
 }
 
-/** What `wholenessProblem` found wrong, as the sentence a person is shown. */
-export type WholenessProblem = string;
+/**
+ * What `wholenessProblem` found wrong, as the sentence a person is shown. `damaged` is a file
+ * missing, empty or unreadable, which a retry does not fix; `moving` is one still changing.
+ */
+export interface WholenessProblem {
+  readonly kind: "damaged" | "moving";
+  readonly problem: string;
+}
 
 export interface WholenessOptions {
   /**
@@ -86,6 +92,9 @@ export interface WholenessOptions {
 }
 
 const SETTLE_MS = 250;
+
+/** The files a whole extension directory has, none of them empty. */
+const WHOLE_FILES = [WEBVIEW_BUNDLE, HOST_BUNDLE, WEBVIEW_CSS, "package.json"] as const;
 
 /**
  * Whether an extension directory is finished being written, or a reason it is not.
@@ -112,27 +121,29 @@ export function wholenessProblem(
   options: WholenessOptions = {},
 ): WholenessProblem | null {
   const { settleMs = SETTLE_MS, sleep = sleepSync } = options;
-  const files = [WEBVIEW_BUNDLE, HOST_BUNDLE, WEBVIEW_CSS, "package.json"];
+  const damaged = (problem: string): WholenessProblem => ({ kind: "damaged", problem });
 
-  for (const name of files) {
+  for (const name of WHOLE_FILES) {
     const path = join(dir, name);
-    if (!existsSync(path)) return `${name} is not there yet`;
-    if (statSync(path).size === 0) return `${name} is empty`;
+    if (!existsSync(path)) return damaged(`${name} is missing`);
+    if (statSync(path).size === 0) return damaged(`${name} is empty`);
   }
 
   try {
     const manifest: unknown = JSON.parse(readFileSync(join(dir, "package.json"), "utf8"));
     if (typeof (manifest as { version?: unknown }).version !== "string") {
-      return "package.json has no version";
+      return damaged("package.json has no version");
     }
   } catch {
-    return "package.json is not readable JSON yet";
+    return damaged("package.json is not valid JSON");
   }
 
-  const before = files.map((name) => stampOf(join(dir, name)));
+  const before = WHOLE_FILES.map((name) => stampOf(join(dir, name)));
   sleep(settleMs);
-  for (const [index, name] of files.entries()) {
-    if (stampOf(join(dir, name)) !== before[index]) return `${name} is still being written`;
+  for (const [index, name] of WHOLE_FILES.entries()) {
+    if (stampOf(join(dir, name)) !== before[index]) {
+      return { kind: "moving", problem: `${name} is still being written` };
+    }
   }
   return null;
 }

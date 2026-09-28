@@ -114,13 +114,13 @@ asks rather than building around it.
 
 ### `restore` and the state Rigline keeps
 
-- [ ] **W9. Per-version isolation is incomplete.** `status` and `check` stop at the first broken
+- [x] **W9. Per-version isolation is incomplete.** `status` and `check` stop at the first broken
   directory: a truncated `package.json` or a missing `extension.js` is a stack trace, and a
   directory holding only `package.json` stops `status` naming nothing else (`flow.ts:315-324`,
   `main.ts:802-816`). `install` rethrows `EPERM`, `EACCES`, `ENOSPC` and `EROFS`, skipping every
   later version (`flow.ts:410-414`), and `restore`'s payload `rmSync` is outside any `try`
   (`inject.ts:742`). **Fix:** each refuses that version with a sentence and goes on (D104).
-- [ ] **W10. A half-deleted directory is reported as "an extension update is probably in progress;
+- [x] **W10. A half-deleted directory is reported as "an extension update is probably in progress;
   try again"** (`inject.ts:450`, `flow.ts:661`), which never comes true, since VS Code renames into
   place (D83), so every window start says it needs you. Say what it is. `install --ext` on a path
   that does not exist gets the same line; `restore` on a directory with only `package.json` prints

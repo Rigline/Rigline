@@ -163,25 +163,28 @@ describe("wholenessProblem", () => {
   it("names the file that has not arrived", () => {
     const ext = wholeExtension();
     rmSync(join(ext, "extension.js"));
-    expect(whole(ext)).toMatch(/extension\.js is not there yet/);
+    expect(whole(ext)).toEqual({ kind: "damaged", problem: "extension.js is missing" });
   });
 
   it("names an empty file, which is a created-but-unwritten one", () => {
     const ext = wholeExtension();
     writeFileSync(join(ext, "webview", "index.js"), "");
-    expect(whole(ext)).toMatch(/is empty/);
+    expect(whole(ext)).toMatchObject({
+      kind: "damaged",
+      problem: expect.stringMatching(/is empty/),
+    });
   });
 
   it("refuses a manifest that is not JSON yet", () => {
     const ext = wholeExtension();
     writeFileSync(join(ext, "package.json"), '{"version": "2.1.2');
-    expect(whole(ext)).toMatch(/not readable JSON/);
+    expect(whole(ext)).toEqual({ kind: "damaged", problem: "package.json is not valid JSON" });
   });
 
   it("refuses a manifest with no version", () => {
     const ext = wholeExtension();
     writeFileSync(join(ext, "package.json"), "{}");
-    expect(whole(ext)).toMatch(/no version/);
+    expect(whole(ext)).toEqual({ kind: "damaged", problem: "package.json has no version" });
   });
 
   it("accepts a bundle that is merely odd, because content is not what this judges", () => {
@@ -196,7 +199,10 @@ describe("wholenessProblem", () => {
   it("checks the css too, since a part-written install often has some files and not others", () => {
     const ext = wholeExtension();
     rmSync(join(ext, "webview", "index.css"));
-    expect(whole(ext)).toMatch(/index\.css is not there yet/);
+    expect(whole(ext)).toMatchObject({
+      kind: "damaged",
+      problem: expect.stringMatching(/index\.css is missing/),
+    });
   });
 
   // The half structure cannot see: every file present, one of them still growing. This is the
@@ -208,7 +214,10 @@ describe("wholenessProblem", () => {
         writeFileSync(join(ext, "webview", "index.js"), "var a={};var more={};");
       },
     });
-    expect(problem).toMatch(/index\.js is still being written/);
+    expect(problem).toMatchObject({
+      kind: "moving",
+      problem: expect.stringMatching(/index\.js is still being written/),
+    });
   });
 
   it("refuses a file that disappeared between the two samples", () => {
@@ -218,7 +227,7 @@ describe("wholenessProblem", () => {
         rmSync(join(ext, "extension.js"));
       },
     });
-    expect(problem).toMatch(/extension\.js is still being written/);
+    expect(problem).toEqual({ kind: "moving", problem: "extension.js is still being written" });
   });
 
   it("accepts a directory nobody is touching, which is every ordinary run", () => {

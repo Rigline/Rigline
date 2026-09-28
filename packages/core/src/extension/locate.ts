@@ -7,7 +7,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { UserError } from "../errors.ts";
+import { DamagedExtensionError, UserError } from "../errors.ts";
 
 /**
  * VS Code's own, and the only one injected. The companion's copy is `injectedDir` in
@@ -98,12 +98,15 @@ export function supersededExtensions(extensionsDir = EXTENSIONS_DIR): string[] {
  */
 export function extensionVersion(ext: string): string {
   const manifestPath = join(ext, "package.json");
-  if (!existsSync(manifestPath)) {
-    throw new UserError(`${ext} has no package.json; it is not an extension directory`);
+  if (!existsSync(manifestPath)) throw new DamagedExtensionError(ext, "package.json is missing");
+  let manifest: { version?: unknown };
+  try {
+    manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as { version?: unknown };
+  } catch {
+    throw new DamagedExtensionError(ext, "package.json is not valid JSON");
   }
-  const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as { version?: unknown };
-  if (typeof manifest.version !== "string") {
-    throw new UserError(`${manifestPath} has no "version" field`);
+  if (typeof manifest?.version !== "string") {
+    throw new DamagedExtensionError(ext, "package.json has no version");
   }
   return manifest.version;
 }

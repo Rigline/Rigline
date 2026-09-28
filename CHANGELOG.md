@@ -47,6 +47,12 @@ anything may change between releases.
 - The same holds for `~/.rigline/config.yaml`, `sources.json` and `baseline.json`. A
   `baseline.json` that cannot be read no longer fails every `install` and `check` until somebody
   deletes it: it is noted, and the next install records a new one.
+- One broken Claude Code directory no longer stops `rigline check` and `rigline status` with a stack
+  trace, or `rigline install` at the first write the filesystem refuses: that version is named with
+  what is wrong, and every other is dealt with. A directory missing a file is said to be damaged or
+  not fully deleted, with what mends it, where it was said to be mid-update, which never came true.
+  `rigline restore` passes over a directory holding nothing of Rigline's rather than failing it, and
+  `install --ext` and `check --ext` name a directory that does not exist.
 - When VS Code removed an old Claude Code version while Rigline was installing into it, Rigline
   could leave a directory behind holding only its own files, and from then on every install, the
   companion's at each window start included, said it needed you. `rigline install` and `rigline

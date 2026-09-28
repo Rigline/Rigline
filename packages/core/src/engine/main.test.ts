@@ -115,6 +115,32 @@ describe("the mark restore leaves (D111)", () => {
   });
 });
 
+describe("a version that is not whole (W9, W10)", () => {
+  const good = join(EXTENSIONS_DIR, "anthropic.claude-code-2.1.263-win32-x64");
+  const broken = join(EXTENSIONS_DIR, "anthropic.claude-code-2.1.280-win32-x64");
+
+  afterEach(() => {
+    rmSync(EXTENSIONS_DIR, { recursive: true, force: true });
+  });
+
+  it("is named by status beside every other version, rather than ending it", async () => {
+    writeFixtureExtension(good);
+    mkdirSync(broken, { recursive: true });
+    writeFileSync(join(broken, "package.json"), '{"version": "2.1.2');
+
+    expect(await runEngine(["status"])).toBe(0);
+    const lines = log.mock.calls.flat();
+    expect(lines).toContain("anthropic.claude-code-2.1.280-win32-x64: webview/index.js is missing");
+    expect(lines.some((line) => String(line).startsWith("2.1.263: webview "))).toBe(true);
+  });
+
+  it("is a directory that is not there, when --ext names one", async () => {
+    const nowhere = join(home, "no-such-extension");
+    expect(await runEngine(["install", "--ext", nowhere])).toBe(1);
+    expect(error.mock.calls.flat()).toEqual([`rigline: ${nowhere} does not exist`]);
+  });
+});
+
 describe("dev (W2)", () => {
   const plugins = (): string => join(home, ".rigline", "plugins");
   const ext = join(EXTENSIONS_DIR, "anthropic.claude-code-2.1.263-win32-x64");

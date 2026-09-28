@@ -748,7 +748,7 @@ describe("a refused version (D104)", () => {
     expect(report.wrote).toContain(baselinePath);
   });
 
-  it("refuses a version still being written, and injects the one beside it", () => {
+  it("refuses a damaged version, says what it is, and injects the one beside it", () => {
     const whole = fixture({ version: "2.1.268" });
     const half = fixture({ version: "2.1.270" });
     rmSync(join(half, "webview", "index.css"));
@@ -760,14 +760,55 @@ describe("a refused version (D104)", () => {
       baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
     });
 
-    expect(report.versions[1]?.refused?.kind).toBe("unfinished");
+    expect(report.versions[1]?.refused?.kind).toBe("damaged");
     expect(report.attention).toContainEqual(
       expect.stringMatching(
-        /^2\.1\.270 was not injected: [^\n]{1,300} is not finished being written: webview\/index\.css is not there yet/,
+        /^2\.1\.270 was not injected: webview\/index\.css is missing\. VS Code puts a version in place whole/,
       ),
     );
+    expect(formatFlow(report)).toContain("2.1.270: not injected, damaged");
     expect(readFileSync(join(whole, "webview", "index.js"), "utf8")).toContain("rigline/pre.js");
     expect(existsSync(join(half, "webview", "index.js.orig"))).toBe(false);
+  });
+
+  it("refuses a version the filesystem will not let it write, and injects the one beside it", () => {
+    const blocked = fixture({ version: "2.1.268" });
+    const whole = fixture({ version: "2.1.270" });
+    // A file where the payload directory goes, so making it fails as a locked one would.
+    writeFileSync(join(blocked, "webview", "rigline"), "");
+
+    const report = update({
+      exts: [blocked, whole],
+      payloadDir: payload(),
+      dir: tempDir("rigline-cwd-"),
+      baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+    });
+
+    expect(report.versions.map((v) => v.refused?.kind ?? null)).toEqual(["filesystem", null]);
+    expect(report.attention).toContainEqual(
+      expect.stringMatching(/^2\.1\.268 was not injected: the filesystem refused \(E/),
+    );
+    expect(readFileSync(join(whole, "webview", "index.js"), "utf8")).toContain("rigline/pre.js");
+  });
+
+  it.each([
+    [
+      "a package.json cut short",
+      (ext: string) => writeFileSync(join(ext, "package.json"), '{"ver'),
+    ],
+    ["no extension.js", (ext: string) => rmSync(join(ext, "extension.js"))],
+    ["only a package.json", (ext: string) => rmSync(join(ext, "webview"), { recursive: true })],
+  ])("reports a version with %s from check, and the rest", (_what, damage) => {
+    const broken = fixture({ version: "2.1.260" });
+    damage(broken);
+
+    const report = check({
+      exts: [broken, fixture({ version: "2.1.268" })],
+      dir: tempDir("rigline-cwd-"),
+      baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+    });
+
+    expect(report.versions.map((v) => v.refused?.kind ?? null)).toEqual(["damaged", null]);
   });
 
   it("reports the same from check, which used to report nothing at all", () => {
