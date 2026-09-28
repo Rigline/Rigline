@@ -20,7 +20,7 @@ takes 1.0.0-alpha.13 to 1.0.0 correctly, and every curated anchor still resolves
 - **Both lists commit to `main`.** Pull before starting and before each batch; commit small, tick
   the item (`[x]`) in the same commit as its fix, and push straight after, so the other machine sees
   it. A conflict in `CHANGELOG.md`'s `## Unreleased` keeps both entries.
-- **Decision numbers.** The next free one is D114. Pull before taking one, and push the commit that
+- **Decision numbers.** The next free one is D115. Pull before taking one, and push the commit that
   takes it at once. A fix that moves a recorded decision amends it and says so.
 - **The repo's rules hold**: root `CLAUDE.md`, and planning a batch before coding it (its plan in
   `.local/plans/` on the machine doing it). The Mac has no corpus at `c:/dev/kb`, so the corpus tier
@@ -131,7 +131,7 @@ asks rather than building around it.
   Rigline's makes `install` throw after injecting, losing the report, with advice that overwrites
   the file. **Fix:** pass over a `generated.ts` without codegen's header line. M6 is the companion's
   half.
-- [ ] **W12. An interrupted write destroys what `restore` restores.** A bundle cut short is taken
+- [x] **W12. An interrupted write destroys what `restore` restores.** A bundle cut short is taken
   as unrelated and becomes the backup; a first backup cut short is a prefix of the live bytes and is
   rolled back over Claude Code's bundle; `restore` then reports success (`inject.ts:197-226`, with
   the writes at `:200`, `:218`, `:224`, `:601`). **Fix:** write to a temporary file and rename. In

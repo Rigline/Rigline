@@ -2885,3 +2885,25 @@ a delete that failed on a file a window held open.
 Rejected: making each `mkdir` below the version directory non-recursive, so the race cannot recreate
 it. That narrows the window without closing it, since a delete can still land between two writes,
 and the removal makes it unnecessary.
+
+**D114. What Rigline writes into an extension is whole or not there, and an unfinished write from
+before is recognised (2026-09-29).** A write cut short — the engine killed, the machine off — left a
+truncated bundle or backup, and the settle then made it worse. A truncated injection shares no
+relation with the backup, so it became the new backup. A truncated first backup is contained in the
+live bundle, so it was taken for the pristine half of a foreign patch and written over Claude Code's
+bundle. `restore` then reported success over either.
+
+Every write into an extension directory now goes to a temporary file beside its target and is
+renamed over it, retried briefly on Windows, where a scanner can hold a new file for a moment. The
+settle, and `restore` for the second, recognise the two shapes an earlier engine's write can have
+left:
+
+- **Live bytes that are a strict prefix of the injection, or of the backup**, are an injection or a
+  rollback cut short, and are put back from the backup.
+- **A backup that is a strict prefix of the loader-free live bytes** is a first backup cut short, and
+  is rewritten from them. It is checked before the rollback of a foreign patch, which would otherwise
+  take it.
+
+Accepted: the second rule takes a foreign patch that only appends to the bundle as part of its
+pristine bytes, so `restore` would keep that patch. None has been seen, and the alternative is a
+truncated backup written over the extension.

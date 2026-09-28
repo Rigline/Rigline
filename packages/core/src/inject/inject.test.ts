@@ -565,6 +565,66 @@ describe("a foreign or outdated patch already on the bundle", () => {
   });
 });
 
+describe("a write an earlier engine did not finish (D114)", () => {
+  const injectedOf = (pristine: Buffer): Buffer =>
+    Buffer.concat([Buffer.from(PRE_LINE, "utf8"), pristine, Buffer.from(POST_LINE, "utf8")]);
+
+  it.each([
+    ["the injection", (pristine: Buffer) => injectedOf(pristine).subarray(0, pristine.length >> 1)],
+    ["a rollback", (pristine: Buffer) => pristine.subarray(0, pristine.length - 10)],
+  ])("finishes %s cut short, from the backup", (_what, cut) => {
+    const ext = fixture();
+    const pristine = readFileSync(bundlePath(ext));
+    writeFileSync(backupPath(ext), pristine);
+    writeFileSync(bundlePath(ext), cut(pristine));
+    const log: string[] = [];
+
+    install(ext, { payloadDir: payload(), log: (line) => log.push(line) });
+
+    expect(readFileSync(backupPath(ext))).toEqual(pristine);
+    expect(readFileSync(bundlePath(ext))).toEqual(injectedOf(pristine));
+    expect(log).toContain(
+      `${bundlePath(ext)} was cut short while being written; put it back from ${backupPath(ext)}`,
+    );
+  });
+
+  it.each([
+    ["part-written", (pristine: Buffer) => pristine.subarray(0, pristine.length >> 1)],
+    ["empty", () => Buffer.alloc(0)],
+  ])("rewrites a first backup left %s from the live bytes, never the reverse", (_what, cut) => {
+    const ext = fixture();
+    const pristine = readFileSync(bundlePath(ext));
+    writeFileSync(backupPath(ext), cut(pristine));
+
+    install(ext, { payloadDir: payload() });
+
+    expect(readFileSync(backupPath(ext))).toEqual(pristine);
+    expect(readFileSync(bundlePath(ext))).toEqual(injectedOf(pristine));
+  });
+
+  it("restores the live bytes less the loader over a backup that was cut short", () => {
+    const ext = fixture();
+    const pristine = readFileSync(bundlePath(ext));
+    install(ext, { payloadDir: payload() });
+    writeFileSync(backupPath(ext), pristine.subarray(0, pristine.length >> 1));
+
+    const result = restore(ext);
+
+    expect(result).toMatchObject({ restored: true, note: expect.stringMatching(/cut short/) });
+    expect(readFileSync(bundlePath(ext))).toEqual(pristine);
+    expect(readFileSync(backupPath(ext))).toEqual(pristine);
+  });
+
+  it("leaves no temporary file behind a write", () => {
+    const ext = fixture();
+    install(ext, { payloadDir: payload() });
+    const strays = readdirSync(ext, { recursive: true }).filter((name) =>
+      String(name).endsWith(".tmp"),
+    );
+    expect(strays).toEqual([]);
+  });
+});
+
 describe("plugins", () => {
   it("tolerates a missing plugins root entirely, producing an empty registry", () => {
     const ext = fixture();

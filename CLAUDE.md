@@ -25,7 +25,7 @@ no new plans. Update the plan before writing code; log status there, not here.
   `Atomics.wait` rather than making `install` async. Carries a negative result worth not
   re-proposing: a content check on the bundle's tail was evidenced against the corpus and rejected,
   because a rule that fits today's bundler refuses every install the day it changes.
-- [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D113.
+- [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D114.
 
 The internals, for a contributor to Rigline itself. The shape, not the argument — the argument is in
 decisions.md, and each doc cites the decisions it rests on.
@@ -111,8 +111,8 @@ Written for somebody else, so don't rewrite them for us:
   surroundings cannot supply.
 - **Bound any regex you run over a stringified record.** `JSON.stringify` output is one line;
   `.*` and `(.+?)` cross into unrelated fields. Exclude `"` and `\` and cap the length.
-- **Patch bundles byte-faithfully.** Read and write bytes; text-mode I/O rewrites every line
-  ending on Windows. Line endings in the repo are git's problem, not yours: `* text=auto`
+- **Patch bundles byte-faithfully, and whole.** Write through `writeFileAtomic` (D114), and read and
+  write bytes: text-mode I/O rewrites every line ending on Windows. Line endings in the repo are git's problem, not yours: `* text=auto`
   normalises to LF on commit and checks out native, so write files however your tools write
   them, and run `pnpm format` before `pnpm lint`: Biome's `lineEnding: "auto"` wants the platform's
   ending, so a file written with LF fails lint on Windows until it is formatted. Format before

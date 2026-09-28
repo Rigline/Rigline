@@ -39,6 +39,11 @@ anything may change between releases.
 - `rigline install` run in a directory holding a `generated.ts` it did not write — somebody else's,
   or a new plugin workspace's placeholder before `pnpm codegen` — failed after injecting, with
   advice that would have overwritten the file. It now leaves such a file alone.
+- An install or restore stopped part-way — the machine turned off, say — could leave Claude Code's
+  bundle or Rigline's backup of it cut short, and the next run could then make the cut-short copy
+  the one `rigline restore` returns to, or write it over Claude Code's bundle. Every write into
+  Claude Code's directory is now whole or not made at all, and a copy an earlier version left cut
+  short is recognised and repaired from the whole one.
 - When VS Code removed an old Claude Code version while Rigline was installing into it, Rigline
   could leave a directory behind holding only its own files, and from then on every install, the
   companion's at each window start included, said it needed you. `rigline install` and `rigline

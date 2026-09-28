@@ -8,7 +8,7 @@
  * because a round trip through `"utf8"` or `"latin1"` text would rewrite line endings on Windows
  * and turn a two-line patch into a diff nobody could audit (D37).
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join, posix, relative, sep } from "node:path";
 import {
   capabilityViolation,
@@ -24,6 +24,7 @@ import {
   anchorOverrideOutcomes,
   NO_ANCHOR_OVERRIDES,
 } from "../anchors/overrides.ts";
+import { writeFileAtomic } from "../atomic.ts";
 import { generate } from "../codegen/generate.ts";
 import { UnfinishedExtensionError, UserError } from "../errors.ts";
 import {
@@ -192,37 +193,56 @@ export function hostVerdict(state: Injection): Verdict {
  * live bytes become the new pristine baseline. Answers whether it rolled a patch back.
  *
  * Whatever becomes the backup is taken without Rigline's own loader, and a backup found carrying it
- * is rewritten without (D111).
+ * is rewritten without (D111). Before any of the rest, the two shapes an earlier engine's write
+ * cut short can leave are put right, since both would otherwise land in a branch that destroys
+ * the extension's bytes (D114).
  */
 function settleWebviewBackup(state: Injection, log: (line: string) => void): boolean {
   const live = readFileSync(state.bundle);
+  const pristine = withoutLoader(live) ?? live;
   if (!state.backupExists) {
-    writeFileSync(state.backup, withoutLoader(live) ?? live);
+    writeFileAtomic(state.backup, pristine);
     return false;
   }
   let backup: Buffer = readFileSync(state.backup);
   const unwrapped = withoutLoader(backup);
   if (unwrapped !== null) {
     backup = unwrapped;
-    writeFileSync(state.backup, backup);
+    writeFileAtomic(state.backup, backup);
     log(`${state.backup} carried Rigline's loader; took it out`);
   }
   if (live.equals(backup)) {
     return false;
   }
-  if (live.equals(Buffer.concat([PRE_BYTES, backup, POST_BYTES]))) {
+  const injected = Buffer.concat([PRE_BYTES, backup, POST_BYTES]);
+  if (live.equals(injected)) {
+    return false;
+  }
+  if (isStrictPrefix(live, injected) || isStrictPrefix(live, backup)) {
+    writeFileAtomic(state.bundle, backup);
+    log(`${state.bundle} was cut short while being written; put it back from ${state.backup}`);
+    return false;
+  }
+  if (isStrictPrefix(backup, pristine)) {
+    writeFileAtomic(state.backup, pristine);
+    log(`${state.backup} was cut short while being written; rewrote it from ${state.bundle}`);
     return false;
   }
   if (live.includes(backup)) {
-    writeFileSync(state.bundle, backup);
+    writeFileAtomic(state.bundle, backup);
     log(
       `${state.bundle} carried an unrecognised patch; rolled it back from ${state.backup} ` +
         "(any payload directory it used is left in webview/, unreferenced)",
     );
     return true;
   }
-  writeFileSync(state.backup, withoutLoader(live) ?? live);
+  writeFileAtomic(state.backup, pristine);
   return false;
+}
+
+/** Whether `part` is the start of `whole` and shorter: what a write cut short leaves. */
+function isStrictPrefix(part: Buffer, whole: Buffer): boolean {
+  return part.byteLength < whole.byteLength && whole.subarray(0, part.byteLength).equals(part);
 }
 
 /** `extension.js` as the extension shipped it, and whether that came from the backup. */
@@ -251,7 +271,7 @@ export function hostPatchOutcomes(
  */
 function writeIfChanged(path: string, bytes: Buffer): boolean {
   if (existsSync(path) && readFileSync(path).equals(bytes)) return false;
-  writeFileSync(path, bytes);
+  writeFileAtomic(path, bytes);
   return true;
 }
 
@@ -518,10 +538,10 @@ export function install(ext: string, options: InstallOptions): InstallReport {
     if (!pristine.fromBackup && outcomes.some((o) => o.applied)) {
       // A patch is about to land and the backup does not already hold this build's pristine
       // bytes — either there was none, or it belonged to a build extension.js has since replaced.
-      writeFileSync(state.hostBackup, pristine.bytes);
+      writeFileAtomic(state.hostBackup, pristine.bytes);
     }
     if (!hostBytes.equals(hostLive)) {
-      writeFileSync(state.host, hostBytes);
+      writeFileAtomic(state.host, hostBytes);
       hostChanged = true;
       log("extension.js rewritten");
     }
@@ -598,7 +618,7 @@ export function install(ext: string, options: InstallOptions): InstallReport {
   const live = readFileSync(state.bundle);
   const alreadyPatched = live.equals(Buffer.concat([PRE_BYTES, backup, POST_BYTES]));
   if (!alreadyPatched) {
-    writeFileSync(state.bundle, Buffer.concat([PRE_BYTES, backup, POST_BYTES]));
+    writeFileAtomic(state.bundle, Buffer.concat([PRE_BYTES, backup, POST_BYTES]));
     log(`injected (${PATCH_BYTES} bytes added)`);
   }
 
@@ -670,7 +690,7 @@ interface Reverted {
 /** Writes `bytes` over `target` and confirms them, returning an I/O failure as `revert` does. */
 function writeConfirmed(target: string, bytes: Buffer, from: string): Reverted {
   try {
-    writeFileSync(target, bytes);
+    writeFileAtomic(target, bytes);
     if (!readFileSync(target).equals(bytes)) {
       return { ok: false, reason: `${target} did not match ${from} after restoring` };
     }
@@ -697,7 +717,22 @@ function restoreWebview(state: Injection): Reverted {
 
 function restoreWebviewBytes(state: Injection): Reverted {
   if (state.backupExists) {
-    const original = withoutLoader(readFileSync(state.backup));
+    const stored = readFileSync(state.backup);
+    const live = readFileSync(state.bundle);
+    const pristine = withoutLoader(live) ?? live;
+    if (isStrictPrefix(withoutLoader(stored) ?? stored, pristine)) {
+      // A backup cut short while being written, which the live bytes hold whole (D114).
+      const bundle = writeConfirmed(state.bundle, pristine, "its own bytes less Rigline's loader");
+      if (!bundle.ok) return bundle;
+      const backup = writeConfirmed(state.backup, pristine, state.bundle);
+      return backup.ok
+        ? {
+            ok: true,
+            note: "its backup was cut short, so the bundle less Rigline's lines was kept",
+          }
+        : backup;
+    }
+    const original = withoutLoader(stored);
     if (original === null) return revert(state.bundle, state.backup);
     const backup = writeConfirmed(state.backup, original, "its own bytes less Rigline's loader");
     if (!backup.ok) return backup;
