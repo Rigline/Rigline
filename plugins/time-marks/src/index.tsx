@@ -54,10 +54,11 @@
  * 86,400,000ms long. A session that runs past local midnight should break where the person actually
  * saw it break.
  *
- * `dayName` is computed fresh against `Date.now()` on every call, and is never cached. A panel can
- * sit open across midnight, and a cached "Today" would keep saying so after it stopped being true;
- * nothing here reruns on a clock timer, only when the transcript changes, so a cached answer would
- * persist arbitrarily long past being true.
+ * `dayName` is computed fresh against `Date.now()` on every call, and is never cached. But a row is
+ * built once and kept until the entries change, so a panel open across midnight would go on saying
+ * "Today" over yesterday's rows. A minute's poll re-registers the decorator when the date has moved,
+ * which redraws every row; a poll rather than a timer set for midnight, since a timer does not run
+ * while the machine sleeps and waking past midnight is the usual way to cross one.
  *
  * ## Why the toggle removes nodes instead of hiding them
  *
@@ -74,6 +75,9 @@ import type { ReactNode } from "react";
 const GAP_MS = 10 * 60 * 1000;
 
 const STORAGE_KEY = "rigline.time-marks.visible";
+
+/** How often the date is compared with the one the rows were drawn on. */
+const MIDNIGHT_POLL_MS = 60 * 1000;
 
 /** Present on both a plain time node and a divider; a divider adds LEAD_CLASS alongside it. */
 const TIME_CLASS = "rigline-tm-time";
@@ -345,10 +349,16 @@ export default definePlugin({
 
     const visible = store(storedVisible());
     let decorateOff: (() => void) | null = null;
+    let drawnOn = "";
+
+    function decorate(): void {
+      decorateOff = ctx.decorateTranscript(build);
+      drawnOn = new Date().toDateString();
+    }
 
     function applyDecoration(): void {
       if (visible.get() && decorateOff === null) {
-        decorateOff = ctx.decorateTranscript(build);
+        decorate();
       } else if (!visible.get() && decorateOff !== null) {
         decorateOff();
         decorateOff = null;
@@ -359,6 +369,12 @@ export default definePlugin({
       storeVisible(visible.get());
       applyDecoration();
     });
+
+    const midnight = setInterval(() => {
+      if (decorateOff === null || new Date().toDateString() === drawnOn) return;
+      decorateOff();
+      decorate();
+    }, MIDNIGHT_POLL_MS);
 
     ctx.menu(() => <Toggle visible={visible} />);
 
@@ -390,5 +406,7 @@ export default definePlugin({
       }
       return { verdict: "n/a", detail: `${asked} rows, none timed yet` };
     });
+
+    return () => clearInterval(midnight);
   },
 });

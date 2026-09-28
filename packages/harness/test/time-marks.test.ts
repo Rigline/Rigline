@@ -98,6 +98,34 @@ describe.skipIf(skipReason !== null)(
       }
     }, 20000);
 
+    it("says Yesterday over the rows once the panel has sat open past midnight", async () => {
+      const lateEvening = new Date();
+      lateEvening.setHours(23, 58, 0, 0);
+      const booted = await boot({ plugins: [timeMarks as FixturePlugin], clock: lateEvening });
+      const { page } = booted;
+      const lead = (): Promise<string | null> =>
+        page.evaluate(
+          () => document.getElementsByClassName("rigline-tm-lead")[0]?.textContent ?? null,
+        );
+      try {
+        await page.waitForFunction(
+          () => document.getElementsByClassName("rigline-tm-lead").length === 1,
+        );
+        expect(await lead()).toContain("Today");
+
+        await page.clock.fastForward("03:00");
+        await page.waitForFunction(
+          () =>
+            document
+              .getElementsByClassName("rigline-tm-lead")[0]
+              ?.textContent?.includes("Yesterday") ?? false,
+        );
+        expect(booted.consoleErrors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
     it("removes every mark from the menu's toggle, and puts them back", async () => {
       const booted = await boot({ plugins: [timeMarks as FixturePlugin] });
       const { page } = booted;

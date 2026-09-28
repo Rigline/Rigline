@@ -116,6 +116,8 @@ export interface BootOptions {
   readonly save?: SaveRecord | null;
   /** Selectors written over the resolved ones, as a refinement in `anchors.json` would be. */
   readonly selectors?: Readonly<Record<string, string>>;
+  /** Where the page's clock starts, installed before it loads, for a test that moves time. */
+  readonly clock?: Date;
 }
 
 interface HarnessWindow {
@@ -191,6 +193,7 @@ export function register(version: string): (options?: BootOptions) => Promise<Bo
     });
     page.on("pageerror", (err) => consoleErrors.push(`pageerror: ${err.message}`));
 
+    if (options.clock) await page.clock.install({ time: options.clock });
     const started = performance.now();
     await page.goto(harness.url);
     // The model pill is the app's own markup, so waiting for it is waiting for a real render

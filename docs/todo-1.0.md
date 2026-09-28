@@ -107,7 +107,7 @@ asks rather than building around it.
 - [ ] **W7.** *Optional; unconfirmed.* session-id keeps offering an address after *Reload Claude*,
   which keeps the session id (`currentAddress`, `index.tsx:160-165`), though the plugin says an
   address is per process. Stamp the observation with the envelope's `channelId`.
-- [ ] **W8. time-marks says "Today" over yesterday's rows** in a panel open past midnight: the day
+- [x] **W8. time-marks says "Today" over yesterday's rows** in a panel open past midnight: the day
   name is fixed when the node is built (`plugins/time-marks/src/index.tsx:124-131`), and the host
   rebuilds only when entries differ. **Fix:** re-register the decorator at local midnight, which
   resets and redraws (`host/src/kernel/transcript.ts:181-184`).
