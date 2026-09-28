@@ -5,9 +5,18 @@
  * name is not the plugin's, a name already taken somewhere `add` does not own, a `config.yaml`
  * carrying a person's own comments, and a `remove` pointed at a checkout.
  */
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { UserError } from "../errors.ts";
 import { readConfig, readSources } from "./config.ts";
@@ -241,6 +250,51 @@ describe("removePlugin", () => {
   it("refuses a name that is nowhere at all", () => {
     const paths = home();
     expect(() => removePlugin({ name: "ghost", ...paths })).toThrow(UserError);
+  });
+});
+
+describe("a link in ~/.rigline/plugins (W43)", () => {
+  /** A working tree linked in, as an author might: a junction on Windows, a symlink elsewhere. */
+  function linked(): { paths: ReturnType<typeof home>; tree: string; link: string } {
+    const paths = home();
+    const tree = source({ name: "clock" });
+    const link = join(paths.pluginsDir, "clock");
+    symlinkSync(tree, link, "junction");
+    return { paths, tree, link };
+  }
+
+  it("is refused by add, which would put a copy where the author's link was", () => {
+    const { paths, tree, link } = linked();
+    const other = source({ name: "clock", dirName: "clock-elsewhere" });
+
+    expect(() => addPlugin({ from: other, ...paths })).toThrow(
+      new RegExp(`is a link to .*${basename(tree)}, so rigline will not replace it`),
+    );
+    expect(lstatSync(link).isSymbolicLink()).toBe(true);
+    expect(existsSync(join(tree, "rigline.json"))).toBe(true);
+  });
+
+  it("is refused by remove, which names the link and what to do instead", () => {
+    const { paths, tree, link } = linked();
+
+    expect(() => removePlugin({ name: "clock", ...paths })).toThrow(
+      /which rigline did not make and will not remove.*rigline disable clock/,
+    );
+    expect(lstatSync(link).isSymbolicLink()).toBe(true);
+    expect(existsSync(join(tree, "rigline.json"))).toBe(true);
+  });
+
+  it("is no reason to refuse a link inside a plugin, which remove unlinks and does not follow", () => {
+    const paths = home();
+    const placed = addPlugin({ from: source({ name: "clock" }), ...paths });
+    const elsewhere = tempDir();
+    writeFileSync(join(elsewhere, "keep.txt"), "kept");
+    symlinkSync(elsewhere, join(placed.dir, "linked"), "junction");
+
+    removePlugin({ name: "clock", ...paths });
+
+    expect(existsSync(placed.dir)).toBe(false);
+    expect(readFileSync(join(elsewhere, "keep.txt"), "utf8")).toBe("kept");
   });
 });
 

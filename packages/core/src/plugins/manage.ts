@@ -12,7 +12,16 @@
  * Nothing here runs a package manager, resolves a dependency, or evaluates a line of the plugin
  * (D47, D12). A plugin that needs any of those is a plugin Rigline does not install.
  */
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  readlinkSync,
+  rmSync,
+  statSync,
+} from "node:fs";
 import { basename, join, relative, resolve } from "node:path";
 import {
   describeElements,
@@ -183,6 +192,13 @@ function place(placement: Placement): AddResult {
   const config = readConfig(placement.configPath);
   const disabled = config.disabled.includes(name);
 
+  const link = linkTarget(dir);
+  if (link !== null) {
+    throw new UserError(
+      `${dir} is a link to ${link}, so rigline will not replace it with a copy. Remove the link ` +
+        `first, or keep it and build through it: \`rigline dev ${dir}\` builds it where it is.`,
+    );
+  }
   const replaced = existsSync(dir);
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
@@ -264,9 +280,9 @@ export interface RemoveOptions {
 }
 
 /**
- * Deletes one plugin from `~/.rigline/plugins` and forgets it.
+ * Deletes one plugin from `~/.rigline/plugins`, however it got there, and forgets it.
  *
- * It refuses anything outside that directory, and says where the plugin really is rather than just
+ * It refuses a link there, and anything outside that directory, and says where the plugin really is rather than just
  * that it is not here: a first-party plugin in a checkout is switched off in `config.yaml`, not
  * deleted, and deleting somebody's working tree because they typed its name is not a thing a
  * package manager gets to do.
@@ -294,6 +310,13 @@ export function removePlugin(options: RemoveOptions): RemoveResult {
     }
     throw new UserError(`no plugin called "${name}" is installed in ${options.pluginsDir}`);
   }
+  const link = linkTarget(dir);
+  if (link !== null) {
+    throw new UserError(
+      `${dir} is a link to ${link}, which rigline did not make and will not remove. Delete the ` +
+        `link itself to take the plugin out, or run \`rigline disable ${name}\`.`,
+    );
+  }
 
   rmSync(dir, { recursive: true, force: true });
 
@@ -309,6 +332,15 @@ export function removePlugin(options: RemoveOptions): RemoveResult {
   );
 
   return { name, dir, hadSource, wasDisabled };
+}
+
+/** Where `dir` points when it is a symlink or a junction, which `lstat` reports alike, or null. */
+function linkTarget(dir: string): string | null {
+  try {
+    return lstatSync(dir).isSymbolicLink() ? readlinkSync(dir) : null;
+  } catch {
+    return null;
+  }
 }
 
 /**

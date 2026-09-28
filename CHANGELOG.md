@@ -53,6 +53,10 @@ anything may change between releases.
   not fully deleted, with what mends it, where it was said to be mid-update, which never came true.
   `rigline restore` passes over a directory holding nothing of Rigline's rather than failing it, and
   `install --ext` and `check --ext` name a directory that does not exist.
+- `rigline add`, `rigline dev` and `rigline remove` refuse a plugin in `~/.rigline/plugins` that is
+  a link — a working tree an author linked in — naming the link and its target, where `add` and
+  `dev` replaced the link with a copy. `rigline remove`'s usage now says what it does: it deletes a
+  plugin from `~/.rigline/plugins` however it got there.
 - When VS Code removed an old Claude Code version while Rigline was installing into it, Rigline
   could leave a directory behind holding only its own files, and from then on every install, the
   companion's at each window start included, said it needed you. `rigline install` and `rigline

@@ -146,7 +146,7 @@ asks rather than building around it.
   `restore`, `status` and `doctor` all say vanilla (`inject.ts:176-177`, `:229-231`, `:738`).
   Reverse it from the baked manifests under `webview/rigline/plugins/*/rigline.json`, which carry
   each patch's find and replace. It needs the backup deleted.
-- [ ] **W43. `remove`, and replacing a plugin, over a link.** `remove` deletes a plugin's directory
+- [x] **W43. `remove`, and replacing a plugin, over a link.** `remove` deletes a plugin's directory
   in `~/.rigline/plugins` whether or not `add` put it there (`plugins/manage.ts:298`), which is
   right, since the directory is Rigline's; its usage says such a plugin is only switched off, which
   is wrong. And `add`, and so `dev` after W2, delete a same-named directory before copying
@@ -336,4 +336,6 @@ optional items.
 
 ## Handed over to the Mac
 
-Nothing yet.
+- [ ] **From W43.** `packages/cli/README.md:73` says `rigline remove` deletes "a plugin rigline
+  installed". It deletes whatever is in `~/.rigline/plugins` under that name, and refuses a link
+  there; the engine's usage now says "Delete a plugin from ~/.rigline/plugins, however it got there".

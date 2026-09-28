@@ -164,8 +164,9 @@ const USAGE = `rigline ${CORE_VERSION}
       installed, it is added to any VS Code profile that has Claude Code without it.
 
   rigline remove NAME
-      Delete a plugin rigline installed, and re-inject. A plugin you did not install this
-      way, including one bundled in the engine, is switched off with disable instead.
+      Delete a plugin from ~/.rigline/plugins, however it got there, and re-inject. One
+      anywhere else, such as a plugin bundled in the engine, or a link placed there, is
+      refused: switch it off with disable instead.
 
   rigline disable NAME
   rigline enable NAME

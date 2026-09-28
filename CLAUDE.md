@@ -151,7 +151,7 @@ Written for somebody else, so don't rewrite them for us:
     pnpm rigline install    # inject every version, bake plugins, record the baseline; --verbose for detail
     pnpm rigline check      # the same report, writing nothing
     pnpm rigline add SPEC   # install a plugin from a directory or npm, name it, re-inject
-    pnpm rigline remove N   # delete a plugin rigline installed, and re-inject
+    pnpm rigline remove N   # delete a plugin from ~/.rigline/plugins, and re-inject
     pnpm rigline disable N  # switch a plugin off in config.yaml, and re-inject
     pnpm rigline enable N   # switch it back on, and re-inject
     pnpm rigline list       # every plugin, in load order: version, origin, source, switch, uses
