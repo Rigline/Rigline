@@ -42,12 +42,12 @@ in the menu, which is where you go when you actually want to copy it.
   container being measured every time the measurement changes its mind, and re-entering it
   re-triggers the measurement. That oscillates at one cycle per frame and makes the composer
   unusable. See D54 in `docs/decisions.md`.
-- **`io_message`** (required): a raw tap, not `tools: true`. The address only appears in a tool
-  *result*, which `ctx.onToolUse` cannot see (it reports the assistant's tool *call*). Why the
-  address is scraped from text at all, rather than read from a declared field, is answered in the
-  header comment of `src/index.tsx`: the CLI writes it to a session file, the extension host's own
-  registry parser drops it before anything downstream sees it, and the one place it survives to the
-  webview is the plain text of a tool result.
+- **`tools: true`** (required): `ctx.onToolResult`, read for `ListAgents` and `SendMessage` only,
+  since any other tool's output — a Read of this plugin's own tests, say — may quote the sentence
+  the address is taken from. Why the address is scraped from text at all, rather than read from a
+  declared field, is answered in the header comment of `src/index.tsx`: the CLI writes it to a
+  session file, the extension host's own registry parser drops it before anything downstream sees
+  it, and the one place it survives to the webview is the plain text of a tool result.
 - **`session: true`** (required): `ctx.onSessionId`, so the pill knows which session it is
   labelling. Which bus message actually carries that, and why three tempting alternatives are each
   wrong, is answered once in `packages/plugin-api/src/session.ts`.

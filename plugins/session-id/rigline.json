@@ -6,7 +6,7 @@
   "entry": "dist/index.js",
   "surfaces": ["editor", "sidebar"],
   "uses": {
-    "messages": ["io_message"],
+    "tools": true,
     "session": true,
     "menu": true
   },

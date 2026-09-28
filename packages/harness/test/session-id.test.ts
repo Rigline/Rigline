@@ -16,32 +16,46 @@ const PLUGIN_DIR = new URL("../../../plugins/session-id/", import.meta.url);
 /** Where the short id renders: the slot the host places before the footer spacer. */
 const SHORT_ID = '[data-rigline-slot="session-id/short-id"] .rigline-ui-pill';
 
-/** A ListAgents result carrying this session's own address, in the CLI's exact wording. */
-async function pushAddress(page: Page): Promise<void> {
-  await page.evaluate(() => {
-    const push = (window as unknown as { __harness?: { push: (m: unknown) => void } }).__harness
-      ?.push;
-    if (!push) throw new Error("harness push missing");
-    push({
-      type: "io_message",
-      channelId: "harness-address-channel",
-      message: {
-        type: "user",
-        uuid: "addr-1",
-        timestamp: new Date().toISOString(),
-        message: {
-          role: "user",
-          content: [
-            {
-              type: "tool_result",
-              tool_use_id: "addr-call",
-              content: "This session is abcd-1234-ticket-work-46 [fa26a5] - the name others use.",
-            },
-          ],
-        },
-      },
-    });
-  });
+/** A tool call and its result, which states an address in the CLI's exact wording. */
+async function pushAddress(page: Page, tool = "ListAgents", ref = "fa26a5"): Promise<void> {
+  await page.evaluate(
+    ({ tool, ref }) => {
+      const push = (window as unknown as { __harness?: { push: (m: unknown) => void } }).__harness
+        ?.push;
+      if (!push) throw new Error("harness push missing");
+      const id = `addr-call-${ref}`;
+      const envelope = (message: Record<string, unknown>) => ({
+        type: "io_message",
+        channelId: "harness-address-channel",
+        message: { uuid: `${id}-${message.type}`, timestamp: new Date().toISOString(), ...message },
+      });
+      push(
+        envelope({
+          type: "assistant",
+          message: {
+            role: "assistant",
+            content: [{ type: "tool_use", id, name: tool, input: {} }],
+          },
+        }),
+      );
+      push(
+        envelope({
+          type: "user",
+          message: {
+            role: "user",
+            content: [
+              {
+                type: "tool_result",
+                tool_use_id: id,
+                content: `This session is abcd-1234-ticket-work-46 [${ref}] - the name others use.`,
+              },
+            ],
+          },
+        }),
+      );
+    },
+    { tool, ref },
+  );
 }
 
 /** The built plugin as a fixture, or the reason it could not be loaded as one. Read at module scope,
@@ -148,6 +162,30 @@ describe.skipIf(skip !== null)(
         const d = await booted.diagnostics();
         expect(d.errors).toEqual([]);
         expect(booted.consoleErrors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
+    it("takes the address from ListAgents, and not from a Read of text quoting it", async () => {
+      const booted = await boot({ plugins: [sessionIdPlugin as FixturePlugin] });
+      try {
+        await booted.page.waitForSelector(SHORT_ID);
+        await pushAddress(booted.page);
+        await booted.page.waitForFunction(
+          (selector) =>
+            (document.querySelector(selector) as HTMLElement | null)?.title.includes("fa26a5"),
+          SHORT_ID,
+        );
+
+        await pushAddress(booted.page, "Read", "bbbbbb");
+        await booted.page.waitForTimeout(500);
+        const title = await booted.page.evaluate(
+          (selector) => (document.querySelector(selector) as HTMLElement | null)?.title ?? "",
+          SHORT_ID,
+        );
+        expect(title).toContain("[fa26a5]");
+        expect(title).not.toContain("bbbbbb");
       } finally {
         await booted.close();
       }

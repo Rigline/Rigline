@@ -4,10 +4,10 @@
  * `packages/harness/test/session-id.test.ts` covers the DOM half against the real extension bundle.
  *
  * This file pins two things worth pinning precisely: the exact wording of the CLI's own-session
- * sentence, since both the sentence and the record shape it arrives in were reverse-engineered
- * rather than read from a published contract, and the spoof guard, since a chat message and a tool
- * result share the same `type: "user"` envelope and only the guard tells them apart.
+ * sentence, reverse-engineered rather than read from a published contract, and the spoof guard,
+ * which is the tool's name: any other tool's output may quote the sentence.
  */
+import type { ToolResult } from "@rigline/plugin-api";
 import { describe, expect, it } from "vitest";
 import {
   buildEntries,
@@ -21,46 +21,9 @@ import {
   type Observed,
 } from "./index.tsx";
 
-/** One `io_message` carrying a single `tool_result` content block, the shape a real
- * `ListAgents`/`SendMessage` result arrives in. */
-function toolResult(text: string): unknown {
-  return {
-    type: "io_message",
-    channelId: "c1",
-    done: false,
-    message: {
-      type: "user",
-      uuid: "11111111-1111-1111-1111-111111111111",
-      message: {
-        role: "user",
-        content: [{ type: "tool_result", tool_use_id: "toolu_01", content: text }],
-      },
-    },
-  };
-}
-
-/** A typed chat message: same `type: "user"` envelope, but no `tool_result` block anywhere in it. */
-function typedMessage(text: string): unknown {
-  return {
-    type: "io_message",
-    message: {
-      type: "user",
-      uuid: "22222222-2222-2222-2222-222222222222",
-      message: { role: "user", content: [{ type: "text", text }] },
-    },
-  };
-}
-
-/** An assistant record, so `record.type !== "user"` regardless of what its text contains. */
-function assistantMessage(text: string): unknown {
-  return {
-    type: "io_message",
-    message: {
-      type: "assistant",
-      uuid: "33333333-3333-3333-3333-333333333333",
-      message: { role: "assistant", content: [{ type: "text", text }] },
-    },
-  };
+/** One settled tool call, as `ctx.onToolResult` hands it over. */
+function result(content: unknown, name = "ListAgents"): ToolResult {
+  return { id: "toolu_01", name, input: {}, ok: true, content };
 }
 
 describe("messagingIdentity", () => {
@@ -70,7 +33,39 @@ describe("messagingIdentity", () => {
       "  atlas-old [9c1a2b] idle 12m",
       "This session is atlas-ae [61b4a3] - the name other sessions use to message it",
     ].join("\n");
-    expect(messagingIdentity(toolResult(text))).toEqual({ name: "atlas-ae", ref: "61b4a3" });
+    expect(messagingIdentity(result(text))).toEqual({ name: "atlas-ae", ref: "61b4a3" });
+  });
+
+  it("reads SendMessage's result too", () => {
+    const text = "Sent. This session is atlas-ae [61b4a3] - the name other sessions use";
+    expect(messagingIdentity(result(text, "SendMessage"))).toEqual({
+      name: "atlas-ae",
+      ref: "61b4a3",
+    });
+  });
+
+  it.each(["Read", "Grep", "Bash", "WebFetch"])(
+    "is not moved by %s output quoting the sentence, such as this plugin's own tests",
+    (tool) => {
+      const text = "This session is atlas-ae [61b4a3] - the name other sessions use to message it";
+      expect(messagingIdentity(result(text, tool))).toBeNull();
+    },
+  );
+
+  it("reads a result whose content is text blocks", () => {
+    const blocks = [
+      { type: "text", text: "Known sessions:" },
+      { type: "text", text: "This session is atlas-ae [61b4a3] - hint" },
+    ];
+    expect(messagingIdentity(result(blocks))).toEqual({ name: "atlas-ae", ref: "61b4a3" });
+  });
+
+  it("cannot stitch a name together across two text blocks", () => {
+    const blocks = [
+      { type: "text", text: "This session is atlas" },
+      { type: "text", text: " renamed [61b4a3] - hint" },
+    ];
+    expect(messagingIdentity(result(blocks))).toBeNull();
   });
 
   it("is not fooled by a peer's row appearing before the own-session line", () => {
@@ -79,103 +74,56 @@ describe("messagingIdentity", () => {
     const text = ["  bogus-peer [ffffff] idle 5m", "This session is atlas-ae [61b4a3] - hint"].join(
       "\n",
     );
-    expect(messagingIdentity(toolResult(text))).toEqual({ name: "atlas-ae", ref: "61b4a3" });
+    expect(messagingIdentity(result(text))).toEqual({ name: "atlas-ae", ref: "61b4a3" });
   });
 
   it("extracts the same shape from the subagent's wording", () => {
     const text = "This process's main session is atlas-ae [61b4a3] - the name OTHER sessions use";
-    expect(messagingIdentity(toolResult(text))).toEqual({ name: "atlas-ae", ref: "61b4a3" });
+    expect(messagingIdentity(result(text))).toEqual({ name: "atlas-ae", ref: "61b4a3" });
   });
 
   it("keeps a ref extended past six hex characters whole", () => {
     const text = "This session is atlas-ae [61b4a3ff] - a listing lengthened this one";
-    expect(messagingIdentity(toolResult(text))).toEqual({ name: "atlas-ae", ref: "61b4a3ff" });
+    expect(messagingIdentity(result(text))).toEqual({ name: "atlas-ae", ref: "61b4a3ff" });
   });
 
   it("keeps a name containing a space, set via /rename", () => {
     const text = "This session is atlas renamed [61b4a3] - hint";
-    expect(messagingIdentity(toolResult(text))).toEqual({ name: "atlas renamed", ref: "61b4a3" });
+    expect(messagingIdentity(result(text))).toEqual({ name: "atlas renamed", ref: "61b4a3" });
   });
 
   it("does not let a name capture run on to a later bracket when no token actually follows", () => {
-    // Regression case for the real bug the length cap and the quote/backslash exclusion exist to
-    // prevent: prose describing the sentence format, with nothing following it, used to let an
-    // earlier unbounded capture run on to the next bracketed hex string anywhere in the record.
     const prose =
       "This session is " +
       "the exact phrase ListAgents prints just before it names the current session, " +
       "which this sentence keeps describing at some length without ever actually supplying " +
       "one, while a different part of the same tool output happens to mention a session " +
       "named peer-x [abcdef] much further along than any real token would sit";
-    expect(messagingIdentity(toolResult(prose))).toBeNull();
+    expect(messagingIdentity(result(prose))).toBeNull();
   });
 
-  it("cannot stitch a name together across two separate tool_result content blocks", () => {
-    const envelope = {
-      type: "io_message",
-      message: {
-        type: "user",
-        message: {
-          content: [
-            { type: "tool_result", tool_use_id: "a", content: "This session is atlas" },
-            { type: "tool_result", tool_use_id: "b", content: " renamed [61b4a3] - hint" },
-          ],
-        },
-      },
-    };
-    expect(messagingIdentity(envelope)).toBeNull();
+  it("does not let a name capture cross a line", () => {
+    const text = ["This session is", "peer-x [abcdef] idle 5m"].join("\n");
+    expect(messagingIdentity(result(text))).toBeNull();
   });
 
-  it("refuses an implausibly long name with no JSON delimiter to stop it", () => {
+  it("refuses an implausibly long name", () => {
     const longName = "x".repeat(100);
-    expect(messagingIdentity(toolResult(`This session is ${longName} [61b4a3] - hint`))).toBeNull();
+    expect(messagingIdentity(result(`This session is ${longName} [61b4a3] - hint`))).toBeNull();
   });
 
-  it("returns null for a tool result that plainly carries no address", () => {
-    expect(
-      messagingIdentity(toolResult("Tool ran successfully with no relevant output.")),
-    ).toBeNull();
+  it("returns null for a result that plainly carries no address", () => {
+    expect(messagingIdentity(result("Tool ran successfully with no relevant output."))).toBeNull();
   });
 
-  it("is not spoofed by a typed message quoting the address text as plain content", () => {
-    const pasted = "This session is atlas-ae [61b4a3] - the name other sessions use to message it";
-    expect(messagingIdentity(typedMessage(pasted))).toBeNull();
-  });
-
-  it("ignores an assistant record even when its text contains the phrase and the word tool_result", () => {
-    const text = "tool_result: This session is atlas-ae [61b4a3] - the name other sessions use";
-    expect(messagingIdentity(assistantMessage(text))).toBeNull();
-  });
-
-  const malformed: ReadonlyArray<readonly [string, unknown]> = [
-    ["null", null],
-    ["undefined", undefined],
-    ["a bare string", "hello"],
+  it.each([
+    ["empty content", ""],
+    ["no content", undefined],
     ["a number", 42],
-    ["an empty object", {}],
-    ["an io_message envelope with no message field", { type: "io_message" }],
-    ["an io_message envelope whose message is null", { type: "io_message", message: null }],
-    [
-      "an io_message envelope whose message is a string, not an object",
-      { type: "io_message", message: "user" },
-    ],
-    [
-      "a differently-typed envelope",
-      { type: "update_session_state", message: { type: "user", message: {} } },
-    ],
-    ["a tool result with empty content", toolResult("")],
-  ];
-
-  it.each(malformed)("returns null for %s", (_label, input) => {
-    expect(messagingIdentity(input)).toBeNull();
-  });
-
-  it("returns null rather than throwing for a record that will not serialise", () => {
-    const cyclic: Record<string, unknown> = { type: "user", content: [{ type: "tool_result" }] };
-    cyclic.self = cyclic;
-    const envelope = { type: "io_message", message: cyclic };
-    expect(() => messagingIdentity(envelope)).not.toThrow();
-    expect(messagingIdentity(envelope)).toBeNull();
+    ["an object", { text: "This session is atlas-ae [61b4a3]" }],
+    ["blocks without text", [{ type: "image" }, null, 4]],
+  ])("returns null for %s", (_label, content) => {
+    expect(messagingIdentity(result(content))).toBeNull();
   });
 });
 

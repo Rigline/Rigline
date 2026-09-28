@@ -32,6 +32,9 @@ anything may change between releases.
   not need. The probe required three anchors and eight message types, most of them unused, and any
   one moving refused it just as the pill turned red; it now requires nothing of Claude Code, and
   `rigline list` says what it reads where present.
+- session-id takes the messaging address only from what `ListAgents` and `SendMessage` return. It
+  took it from any tool's output that quoted the sentence, so a Read or a Grep of such text changed
+  the address it offered. It now declares `tools` rather than the `io_message` message.
 - When VS Code removed an old Claude Code version while Rigline was installing into it, Rigline
   could leave a directory behind holding only its own files, and from then on every install, the
   companion's at each window start included, said it needed you. `rigline install` and `rigline

@@ -19,7 +19,8 @@
  * anything downstream sees it, and `ctx.rewrite`/`ctx.resend` can only shape what the app already
  * sends, never originate a request that might answer for it. The one place it survives to the
  * webview is inside the plain text of a `ListAgents`/`SendMessage` tool result, which the host
- * relays verbatim — so that is where this plugin reads it from, for the menu.
+ * relays verbatim — so that is where this plugin reads it from, for the menu, and from no other
+ * tool's: a Read or a Grep of text holding the sentence is not this session speaking.
  *
  * Because the address is scraped rather than declared, `messagingIdentity` and the regex it runs
  * are this plugin's one piece of "derived from a bundle" risk, and are pinned by src/index.test.ts
@@ -32,6 +33,7 @@ import {
   store,
   storeFrom,
   type Teardown,
+  type ToolResult,
 } from "@rigline/plugin-api";
 import { MenuItem, MenuNote, Pill, Submenu, useStore } from "@rigline/plugin-api/ui";
 import { type ReactNode, useEffect, useState } from "react";
@@ -70,71 +72,36 @@ export type Entry =
 /**
  * The CLI's own-session sentence, in the two wordings `ListAgents` and `SendMessage` use: `"This
  * session is NAME [REF]"` in the session itself, `"This process's main session is NAME [REF]"` in
- * a subagent, both interpolating the same token. One pattern covers both by making the subagent
- * half an optional non-capturing group.
+ * a subagent, both interpolating the same token.
  *
- * This runs against `JSON.stringify(record)` — one line, with a literal newline in tool output
- * already turned into the two characters `\n` — which is exactly the shape the repo's "bound any
- * regex you run over a stringified record" rule exists for. Three choices make it safe:
- *
- * - The name is captured non-greedily, and never as `\S+`: a name set via `/rename` collapses
- *   whitespace but does not forbid it, so a name may contain a space.
- * - The name's character class excludes `"` and `\`, so a match cannot cross a JSON string
- *   boundary — the delimiters that separate this field from the next one in the same stringified
- *   object, or one `tool_result` content block from another.
- * - The name is additionally capped at 64 characters. The quote/backslash exclusion alone stops a
- *   match crossing into another field, but does nothing to stop it running the full length of one
- *   very long field — a minified line of output, or (the failure this was written to prevent) prose
- *   that merely *describes* "This session is" with no real token following, which let an earlier
- *   unbounded version's capture run on to the next bracketed hex string anywhere in the record and
- *   render everything in between into the badge, growing the composer to the height of the panel.
- *
- * The ref is `[0-9a-f]{6,}`, six *or more*, not exactly six: the own-session token is always six
- * hex characters, but a listing extends a peer's ref past six when two sessions collide on that
- * prefix, and this regex has to read both. It does not need an explicit upper bound of its own —
- * "]" is not a hex digit, so the greedy match already stops at the closing bracket.
+ * The name is captured non-greedily and never as `\S+`, since a name set via `/rename` may hold a
+ * space; it stops at a line end and at 64 characters, so prose that only describes the sentence
+ * cannot run on to a later bracket. The ref is six hex characters or more: a listing extends a
+ * peer's ref past six when two collide on the prefix.
  */
-const ADDRESS = /This (?:process's main )?session is ([^"\\]{1,64}?) \[([0-9a-f]{6,})\]/;
+const ADDRESS = /This (?:process's main )?session is (.{1,64}?) \[([0-9a-f]{6,})\]/;
+
+/** The tools whose result states this session's address. Any other result is text anybody wrote. */
+const ADDRESSING_TOOLS: ReadonlySet<string> = new Set(["ListAgents", "SendMessage"]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-/**
- * The messaging address a bus message carries, or null.
- *
- * Reads `io_message` raw rather than through `ctx.onToolUse`: the tool-use capability reports the
- * assistant's *call* (`{id, name, input}`), and the address is only present in the *result*, which
- * arrives afterward as its own `type: "user"` bus record — the case a raw tap exists to cover, and
- * why the manifest declares `messages: ["io_message"]` rather than `tools: true`.
- *
- * The `.includes("tool_result")` check before the regex ever runs is the spoof guard: a typed chat
- * message is also a `type: "user"` record, so without it, a peer pasting `ListAgents` output into
- * the composer as ordinary text would rename this badge to whatever the pasted text said. The regex
- * only ever runs against a genuine tool result.
- */
-export function messagingIdentity(message: unknown): Identity | null {
-  if (!isRecord(message) || message.type !== "io_message") {
-    return null;
-  }
-  const record = message.message;
-  if (!isRecord(record) || record.type !== "user") {
-    return null;
-  }
-  let json: string;
-  try {
-    json = JSON.stringify(record);
-  } catch {
-    // A record that will not serialise (a cyclic object, say) is not one carrying tool output.
-    return null;
-  }
-  if (!json.includes("tool_result")) {
-    return null;
-  }
-  const match = ADDRESS.exec(json);
-  if (!match) {
-    return null;
-  }
+/** A result's text: a string as it came, or its text blocks, a line apart so none run together. */
+function resultText(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+  return content
+    .map((block) => (isRecord(block) && typeof block.text === "string" ? block.text : ""))
+    .join("\n");
+}
+
+/** The messaging address a `ListAgents` or `SendMessage` result states, or null. */
+export function messagingIdentity(result: ToolResult): Identity | null {
+  if (!ADDRESSING_TOOLS.has(result.name)) return null;
+  const match = ADDRESS.exec(resultText(result.content));
+  if (!match) return null;
   const [, name, ref] = match;
   return name && ref ? { name, ref } : null;
 }
@@ -387,8 +354,8 @@ export default definePlugin({
       observed: store<Observed | null>(null),
     };
 
-    const stopMessages = ctx.onMessage("io_message", (payload) => {
-      const identity = messagingIdentity(payload);
+    const stopResults = ctx.onToolResult((result) => {
+      const identity = messagingIdentity(result);
       if (identity !== null) {
         stores.observed.set({ sessionId: stores.session.get(), identity });
       }
@@ -422,6 +389,6 @@ export default definePlugin({
       return { verdict: "n/a", detail: "none yet — it appears once this session runs ListAgents" };
     });
 
-    return stopMessages;
+    return stopResults;
   },
 });

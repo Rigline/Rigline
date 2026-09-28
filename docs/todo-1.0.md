@@ -97,7 +97,7 @@ asks rather than building around it.
   the pill turns red, and `list` says the probe reads the whole conversation. **Fix:**
   `messages: ["request", "rename_tab"]`, and `transcript`, the tap and the rewrite under
   `uses.optional`.
-- [ ] **W6. session-id adopts a messaging address from any tool result.** `messagingIdentity`
+- [x] **W6. session-id adopts a messaging address from any tool result.** `messagingIdentity`
   (`plugins/session-id/src/index.tsx:116-140`) checks the stringified record contains
   `"tool_result"` and takes the first match anywhere, so a Read or Grep of text holding the phrase
   renames the address — reading this plugin's own tests does it. **Fix:** `ctx.onToolResult`
