@@ -2,7 +2,7 @@
 
 **List M**, for an agent on the Mac: the companion and the wrapper, which is where every
 macOS-specific finding lives, then the macOS checks nothing on Windows can do. Read
-[todo-1.0.md](todo-1.0.md)'s opening, *Working the lists* and *Decisions that are Leo's* first:
+[todo-1.0.md](todo-1.0.md)'s opening, *Working the lists* and *Decided with Leo* first:
 they apply here, and the W and R items this list names are in that file. Only the Mac edits this
 file.
 
@@ -34,8 +34,11 @@ file.
 - [ ] **M4. A Node floor check where the wrapper starts.** Below 22.12 the engine dies mid-install
   with a `TypeError` (`entry.parentPath` is undefined before Node 20.12). One sentence naming the
   floor and the Node found, before anything runs. W22 is the engine's half.
-- [ ] **M5. The engine's Node floor at acquisition.** *Waits on decision 3.* Read
-  `versions[v].engines.node` from the registry data `updateEngine` already fetches
+- [ ] **M5. The engine's Node floor at acquisition.** Nothing reads `engines.node` when the wrapper
+  or the companion moves the engine, so when a minor drops a Node version, as stability.md allows,
+  a 1.0 wrapper or companion moves to an engine that cannot run — and the companion then cannot
+  update itself, since that asks the engine. Only 1.0.0's acquisition code can prevent it. **Fix:**
+  read `versions[v].engines.node` from the registry data `updateEngine` already fetches
   (`packages/cli/src/engine.ts:408-462`), and withhold a move the running Node cannot satisfy the
   way the age gate withholds one, saying why. The companion needs the found Node's version from M2.
 - [ ] **M6. The companion's engine runs in VS Code's launch directory.** VS Code changes directory
@@ -55,7 +58,10 @@ file.
   tooltip has not got. Its commonest cause is a `restore` from weeks ago (D111). **Fix:** clicking
   it shows the output channel, and the tooltip carries the engine's own reason — `runEngine`'s
   `onLine` sees every line, so keep the *Needs you* lines.
-- [ ] **M9. A reload offer nobody answers leaves the status green over a stale panel.** `put()` goes
+- [ ] **M9.** *Held: Leo wants to discuss it first, so leave it.* `76d11d6` made this change and was
+  reverted two minutes later with no reason given; the next commit, `651d2ab`, logs the offer as
+  declined live, which suggests the reverted commit's "nobody having touched it" was a real *Not
+  now*. **A reload offer nobody answers leaves the status green over a stale panel.** `put()` goes
   stale only once `ask` resolves (`reload.ts:85-94`), and a toast that times out stays pending
   (`c:\dev\knowledge\vscode-extension-internals.md`, *A notification's promise waits for a
   person*). The tests model a dismissal as an immediate `undefined` (`reload.test.ts:99-106`), so
@@ -73,6 +79,10 @@ file.
 - [ ] **M12. The wrapper's README** (`packages/cli/README.md`): its commands leave out `watch`;
   "(a day, by default)" suggests a setting that does not exist; `npm create rigline-plugin` has no
   directory, and fails without one.
+- [ ] **M29. The wrapper's `--version` refuses extra arguments.** It ignores them
+  (`packages/cli/src/index.ts:15-18`, `commands.ts:85`). Nothing updates the wrapper, so a 1.0
+  wrapper lives for the major, and a later one that refused `rigline --version foo` would refuse an
+  invocation 1.0 accepted: strict now or never, as the engine's verbs already are.
 - [ ] **M13.** *Optional.* **A stranded companion updates itself.** In the *not in this editor*
   branch (`extension.ts:92-102`), with `enginePath` unset: find Node quietly, read the engine
   already on disk (`readEngineState(engineDir())`, no npm, no network), and if it is ready and of
@@ -96,9 +106,9 @@ file.
   manual `npm install --prefix …` line.
 - [ ] **M18.** The companion always follows `latest`, so `rigline update --tag next` lasts only to
   the next window start.
-- [ ] **M19.** The wrapper's `--version` ignores extra arguments (`commands.ts:85`); `update --bogus`
-  moves the engine before the engine refuses the flag; the rollback hint in `formatEngineUpdate`
-  omits `--ignore-scripts` (D47); the fallback line hardcodes `@latest`.
+- [ ] **M19.** `update --bogus` moves the engine before the engine refuses the flag; the rollback
+  hint in `formatEngineUpdate` omits `--ignore-scripts` (D47); the fallback line hardcodes
+  `@latest`.
 - [ ] **M20.** D106's leftovers in `packages/cli/src/registry.ts`: `FetchResponse.arrayBuffer` is
   unused, `PluginSpec` is documented as what `add` was asked for, and `tarball` and `integrity` are
   computed and unused.
@@ -127,8 +137,8 @@ built from this checkout, running the released engine it acquires.
   the output shows the engine moving, not `engine update did not happen`.
 - [ ] **M27.** VS Code started with `code .` in a scaffolded workspace, then a Claude Code update:
   the workspace's `generated.ts` is untouched.
-- [ ] **M28.** A reload offer left to time out shows *reload to apply*; *needs you* after a `restore`
-  opens the output when clicked and says why in its tooltip.
+- [ ] **M28.** *Needs you* after a `restore` opens the output when clicked and says why in its
+  tooltip. If M9 is taken: a reload offer left to time out shows *reload to apply*.
 
 ## Handed over to Windows
 

@@ -414,9 +414,9 @@ what a plugin is written against.
 `1.0.0-alpha.13` is the newest on `latest`, and carries the 1.0 bar. Its reads are done, and what
 they did not reach is taken as working until somebody finds otherwise.
 
-Left before 1.0: [todo-1.0.md](todo-1.0.md), lists W on Windows and R the release, with the
-decisions that are Leo's at its head; and [todo-1.0-mac.md](todo-1.0-mac.md), list M, for an agent
-on the Mac. Both go when 1.0.0 ships.
+Left before 1.0: [todo-1.0.md](todo-1.0.md), lists W on Windows and R the release, with what was
+decided for them at its head; and [todo-1.0-mac.md](todo-1.0-mac.md), list M, for an agent on the
+Mac. Both go when 1.0.0 ships.
 
 ## Status log
 

@@ -3,10 +3,10 @@
 Three lists in two files, one per machine. This one holds **list W**, worked on the Windows machine,
 and **list R**, Leo's release after both. **List M**, for an agent on the Mac, is
 [todo-1.0-mac.md](todo-1.0-mac.md); the rules and decisions below apply to it too. Everything not
-marked *optional* is wanted before 1.0.0;
-an *optional* item can land in any 1.x. An item marked *waits on decision N* needs Leo's answer to
-that decision first. Items marked *unconfirmed* carry a reviewer's reasoning but have not been
-reproduced: reproduce them before fixing.
+marked *optional* is wanted before 1.0.0; an *optional* item can land in any 1.x, and R2 is a last
+look at them before 1.0.0. An item marked *held* waits on a discussion with Leo: leave it. Items
+marked *unconfirmed* carry a reviewer's reasoning but have not been reproduced: reproduce them before
+fixing.
 
 Where things stand: lint, typecheck and all 1387 tests pass with no skips, `pnpm release major`
 takes 1.0.0-alpha.13 to 1.0.0 correctly, and every curated anchor still resolves on 2.1.283.
@@ -27,22 +27,31 @@ takes 1.0.0-alpha.13 to 1.0.0 correctly, and every curated anchor still resolves
   `.local/plans/` on the machine doing it). The Mac has no corpus at `c:/dev/kb`, so the corpus tier
   and the harness skip there, as they do in CI; that does not touch list M's packages.
 
-## Decisions that are Leo's
+## Decided with Leo
 
-1. **An alpha.14 before 1.0.0.** Recommended. Nothing under `## Unreleased` has shipped, and W1 is
-   the first command in authoring.md. pnpm 12's `dlx` applies the one-day release age, so on the
-   day a version ships `pnpm create rigline-plugin` serves the one before it: the scaffolder fix
-   must be out at least a day before 1.0.0.
-2. **`next` at 1.0.0.** Once 1.0.0 is approved, `hasStable` turns true and `release:finish` runs
-   `npm dist-tag add <pkg>@1.0.0 next` for all four packages — four browser authentications, on a
-   path that has never run live (`scripts/release-finish.mjs:178-205`), repeated every release.
-   Recommended: amend D61 so `next` exists only while a preview line is open, and a promotion
-   removes it. W30 is wanted either way.
-3. **The engine's Node floor, checked at acquisition.** Nothing reads `engines.node` when the wrapper
-   or the companion moves the engine. When a minor drops a Node version, as stability.md allows, a
-   1.0 wrapper or companion moves to an engine that cannot run, and the companion cannot then update
-   itself, since that asks the engine. Only 1.0.0's acquisition code can withhold the move.
-   Recommended: take it (M5).
+Settled provisionally, so the work can proceed. A fix that turns up a reason against one stops and
+asks rather than building around it.
+
+- **`next` exists only while a preview line is open**, and a promotion removes it, so a stable
+  release costs no dist-tag authentications. D61 is amended (W31).
+- **The engine's Node floor is checked at acquisition**: the wrapper and the companion withhold a
+  move to an engine the Node they run cannot satisfy, as the age gate withholds one (M5).
+- **What exit 1 promises.** The commands that change or check the install follow the rule; the
+  reports exit 0 whenever they produced their report; `check` exits 1 over a version not injected
+  unless a `restore` holds Rigline out (W23).
+- **`rigline dev` adds each build** as `add` from a path does, then injects (W2).
+- **A certain plugin failure is in the plain report**; what only an author needs stays behind
+  `--verbose` (W21).
+- **The schema's `$id`** is `https://cdn.jsdelivr.net/npm/@rigline/plugin-api@1/schema/manifest.json`
+  (W19).
+- **`remove` keeps deleting** what is in `~/.rigline/plugins`, since that directory is Rigline's,
+  and refuses a link (W43).
+- **The compliance page and the plugin policy say what is true**: a plugin may change what passes
+  between the panel and the extension on the machine, never what the extension sends off it
+  (W44, R5).
+- **Scope**: every item not marked *optional* before 1.0.0, then a last look at the optional ones
+  (R2). The wrapper's `--version` refusing extra arguments is promoted from optional (M29).
+- **Held**: the reload offer going stale when it goes up (M9).
 
 ## List W: Windows
 
@@ -136,6 +145,16 @@ takes 1.0.0-alpha.13 to 1.0.0 correctly, and every curated anchor still resolves
   `restore`, `status` and `doctor` all say vanilla (`inject.ts:176-177`, `:229-231`, `:738`).
   Reverse it from the baked manifests under `webview/rigline/plugins/*/rigline.json`, which carry
   each patch's find and replace. It needs the backup deleted.
+- [ ] **W43. `remove`, and replacing a plugin, over a link.** `remove` deletes a plugin's directory
+  in `~/.rigline/plugins` whether or not `add` put it there (`plugins/manage.ts:298`), which is
+  right, since the directory is Rigline's; its usage says such a plugin is only switched off, which
+  is wrong. And `add`, and so `dev` after W2, delete a same-named directory before copying
+  (`manage.ts:187`). Where that directory is a symlink or a junction — an author linking a working
+  tree in, say — the target is somebody's source. **Fix:** both refuse, naming the link and its
+  target, when the plugin's directory is a link; the usage says `remove` deletes. Check with a
+  junction on Windows that `lstat` reports it as a link, and that a link *inside* a plugin
+  directory is unlinked rather than followed. Now rather than later: refusing after 1.0 would
+  refuse an invocation 1.0 accepted.
 
 ### What a user or author reads
 
@@ -153,17 +172,27 @@ takes 1.0.0-alpha.13 to 1.0.0 correctly, and every curated anchor still resolves
   first line call it a Node library, which invites a use stability.md excludes: "the engine".
 - [ ] **W19. The manifest schema's `$id`** is `https://rigline.dev/schema/manifest.json`
   (`packages/plugin-api/src/schema.ts:43`, published in `schema/manifest.json`), a domain belonging
-  to an unrelated company. Use a github.com/Rigline URL.
+  to an unrelated company. **Fix:**
+  `https://cdn.jsdelivr.net/npm/@rigline/plugin-api@1/schema/manifest.json`, which resolves to the
+  newest 1.x schema, the one `api: 1` means.
 - [ ] **W20. plugin-api's README** says an undeclared use "finds nothing there"
   (`packages/plugin-api/README.md:52-54`); it throws and disables the plugin.
 - [ ] **W21. Notes only `--verbose` prints**, which authoring.md:131-133 and :436-437 and
-  anchors.md:132-135 say plain `install` shows. Either say `--verbose`, or print the certain
-  failures ("will throw and disable the plugin", `inject.ts:589`) without it. `dev` prints none.
+  anchors.md:132-135 say plain `install` shows (`inject.ts:579-584`). **Fix:** a certain failure
+  ("calls onToolUse without declaring tools: it will throw and disable the plugin") goes in the
+  plain report beside its plugin, since it explains a disabled plugin to anybody; the hand-written
+  class notes and raw class-pair counts stay behind `--verbose`, and the docs say which is where.
+  Neither changes the exit status. `dev` prints the certain ones too.
 - [ ] **W22. A Node floor check where the engine starts** (`packages/core/src/engine/bin.ts`), as M4
   is for the wrapper.
-- [ ] **W23. stability.md:92 promises exit 1 when something needs you**; `list`, `status`,
-  `doctor`, `diff` and bare `layout` always exit 0, and `list` prints unloaded plugins to stderr
-  with exit 0. Name the commands the rule covers.
+- [ ] **W23. What exit 1 promises.** stability.md:92 promises exit 1 when something needs you;
+  `list`, `status`, `doctor`, `diff` and bare `layout` always exit 0, and `check` exits 0 over a
+  version that is not injected. **Fix:** stability.md names the two kinds. The commands that change
+  or check the install — `install`, `check`, `update`, `add`, `remove`, `enable`, `disable`,
+  `layout`'s edits, `restore`, `codegen --check` — exit 1 when something needs you. The reports —
+  `list`, `status`, `doctor`, `diff`, bare `layout` — exit 0 whenever they produced their report,
+  which is what the code does already. And `check` exits 1 over a version not injected, unless a
+  `restore` holds Rigline out, which it then says, with exit 0.
 - [ ] **W24. The scaffold's publishing steps** (`packages/create-plugin/template/README.md:83,
   101-104`, `template/.github/workflows/release.yml:7,12-13,126-127`) use `pnpm stage approve` and
   `pnpm publish --otp`, which a security-key account cannot do — the only kind npm enrols now
@@ -195,6 +224,14 @@ takes 1.0.0-alpha.13 to 1.0.0 correctly, and every curated anchor still resolves
   never state the VS Code floor, 1.90, which stability.md promises a notice for raising.
   `main.ts:823` mentions a `--logs` flag `doctor` lacks. `CLAUDE.md:191` says "`rigline update` is
   the wrapper's".
+- [ ] **W44. Draft the compliance page and the plugin policy to what is true**, for Leo to rework
+  before anything is committed: the wording is his (D77). anthropic-compliance.md says Rigline does
+  not "change what the extension sends or receives", and writes `extension.js` "only when a plugin
+  asks"; the bundled worktree-prefix rewrites the `rename_tab` title on its way from the panel to
+  the extension, its host patch widens the session-list request, and a default install always
+  asks. It still calls the probe "a diagnostics badge" (`:59`, `:97-98`). plugin-policy.md:58-61,
+  read literally, bans the bundled patch. The line both draw: a plugin may change what passes
+  between the panel and the extension on the machine, never what the extension sends off it.
 
 ### Release scripts
 
@@ -202,9 +239,11 @@ takes 1.0.0-alpha.13 to 1.0.0 correctly, and every curated anchor still resolves
   `hasStable && above(next)`, so with a stable line and `next` unset or behind, `stageTag("1.0.2",
   {latest: "1.1.0", next: null, hasStable: true})` gives `next` rather than refusing. **Fix:**
   `hasStable && above(latest) && above(next)`, with tests for `next` null and lagging.
-- [ ] **W31. `next` only while a preview line is open.** *Waits on decision 2.* Amend D61, and
-  `release:finish` sets `next` only for a prerelease over a stable line, and removes it on a
-  promotion.
+- [ ] **W31. `next` only while a preview line is open.** Once 1.0.0 is approved, `hasStable` turns
+  true and `release:finish` as written runs `npm dist-tag add <pkg>@1.0.0 next` for all four
+  packages, four browser authentications repeated every release
+  (`scripts/release-finish.mjs:178-205`). **Fix:** amend D61; `release:finish` sets `next` only for
+  a prerelease over a stable line, and removes it on a promotion. At 1.0.0 it sets nothing.
 - [ ] **W32. The runbook and the delivery doc.** `releasing.md:8` leads with `pnpm release
   prerelease`, which from 1.0.0 cuts `1.0.1-alpha.0` under `next` with no pause to back out: lead
   with `patch`. `ci.md:71` says `next` follows a new alpha; `ci.md:117-119` says `release:finish`
@@ -224,15 +263,12 @@ takes 1.0.0-alpha.13 to 1.0.0 correctly, and every curated anchor still resolves
   unknown manifest key or `api: 2` could suggest a later Rigline, as the config message does.
   `rigline help`, the engine's `--version` and `VERB --help` all say "unknown". The usage opens with
   the maintainer verbs.
-- [ ] **W34. The engine's behaviour.** The `remove` usage says a plugin not installed through `add`
-  is switched off instead, but it deletes a hand-placed plugin in `~/.rigline/plugins`
-  (`manage.ts:298`), which may be somebody's only copy. `update` exits 0 after failing to add the
-  companion (`main.ts:438-442`). `install --ext COPY` moves the real `baseline.json` to the copy's
-  version and clears the restore mark, and `--ext` is not resolved. `check`, `status` and `doctor`
-  never mention the `restored` mark, so a bug report will not show Rigline held out; `restore` with
+- [ ] **W34. The engine's behaviour.** `update` exits 0 after failing to add the companion
+  (`main.ts:438-442`). `install --ext COPY` moves the real `baseline.json` to the copy's version and
+  clears the restore mark, and `--ext` is not resolved. `status` and `doctor` never mention the
+  `restored` mark, so a bug report will not show Rigline held out (`check` is W23's); `restore` with
   nothing installed writes it and says nothing. `status` says "webview unknown, no backup" for a
   version Rigline never touched, and lists oldest first where `install` and `check` list newest.
-  Whether `check` exiting 0 over a version not injected counts as "needs you" is a decision.
 - [ ] **W35. `layout`'s wording.** "can also go rigRow"; "is not a place" lists places without
   `default` while bare `layout order` suggests `default`, which `order` refuses; an unknown place in
   `config.yaml` is only noted with exit 0, where an unknown key is under *Needs you*, and does not
@@ -273,25 +309,23 @@ takes 1.0.0-alpha.13 to 1.0.0 correctly, and every curated anchor still resolves
 
 ## List R: the release, Leo's
 
-After lists M and W, bar their optional items.
+Alphas ship as there are things to test, as they have; 1.0.0 comes after lists M and W, bar their
+optional items.
 
-- [ ] **R1.** Decisions 1 to 3 above.
-- [ ] **R2. The release text**, which `release.mjs` does not touch and which must be committed
+- [ ] **R1. The alpha reads.** On an alpha carrying lists M and W: M26 to M28, and the Mac's first
+  install through the released wrapper under Homebrew's Node. The alpha carrying W1 ships at least a
+  day before 1.0.0, since pnpm 12's `dlx` applies the one-day release age and so serves the version
+  before on the day one ships.
+- [ ] **R2. A last look at the optional items** on both lists, and at M9 once it is discussed:
+  which, if any, 1.0.0 takes.
+- [ ] **R3. The release text**, which `release.mjs` does not touch and which must be committed
   before it runs, since it refuses a dirty tree: `README.md:26`, "1.0 is under construction"; the
   CHANGELOG preamble, "While the line is `1.0.0-alpha.*`"; `stability.md:7`, "Until 1.0.0 ships".
-- [ ] **R3. The 1.0.0 changelog lead.** `## Unreleased` becomes the 1.0.0 section and the GitHub
+- [ ] **R4. The 1.0.0 changelog lead.** `## Unreleased` becomes the 1.0.0 section and the GitHub
   release's notes. Before 1.0.0 is cut, a paragraph ahead of its first `###`: the first stable
   release, what stability.md keeps, and the step from an alpha, `npm i -g rigline@latest`.
-- [ ] **R4. Facts for Leo's documents.** anthropic-compliance.md says Rigline does not "change what
-  the extension sends or receives" and writes `extension.js` "only when a plugin asks"; the bundled
-  worktree-prefix rewrites the outbound `rename_tab` title, its host patch widens the session-list
-  request, and a default install always asks. It still calls the probe "a diagnostics badge"
-  (`:59`, `:97-98`). plugin-policy.md:58-61, read literally, bans the bundled patch. The GitHub
-  repository's About section has no description, homepage or topics.
-- [ ] **R5.** `1.0.0-alpha.14`, and its reads: M26 to M28, and the Mac's first install through the
-  released wrapper under Homebrew's Node.
-- [ ] **R6.** `pnpm release major --dry-run`, then, at least a day after alpha.14, `pnpm release
-  major`.
+- [ ] **R5. W44's draft**, reworked into the compliance page and the plugin policy.
+- [ ] **R6.** `pnpm release major --dry-run`, then `pnpm release major`.
 
 ## Handed over to the Mac
 
