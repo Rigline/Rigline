@@ -37,7 +37,8 @@ asks rather than building around it.
   move to an engine the Node they run cannot satisfy, as the age gate withholds one (M5).
 - **What exit 1 promises.** The commands that change or check the install follow the rule; the
   reports exit 0 whenever they produced their report; `check` exits 1 over a version not injected
-  unless a `restore` holds Rigline out (W23).
+  unless a `restore` holds Rigline out, and `update` exits 1 when adding the companion failed (W23).
+- **A layout place Rigline does not know is under *Needs you***, as an unknown key is (W45).
 - **`rigline dev` adds each build** as `add` from a path does, then injects (W2).
 - **A certain plugin failure is in the plain report**; what only an author needs stays behind
   `--verbose` (W21).
@@ -191,8 +192,18 @@ asks rather than building around it.
   or check the install — `install`, `check`, `update`, `add`, `remove`, `enable`, `disable`,
   `layout`'s edits, `restore`, `codegen --check` — exit 1 when something needs you. The reports —
   `list`, `status`, `doctor`, `diff`, bare `layout` — exit 0 whenever they produced their report,
-  which is what the code does already. And `check` exits 1 over a version not injected, unless a
-  `restore` holds Rigline out, which it then says, with exit 0.
+  which is what the code does already. `check` exits 1 over a version not injected, unless a
+  `restore` holds Rigline out, which it then says, with exit 0. And `update` exits 1 when adding the
+  companion failed: it prints "added the companion to no profile" and exits 0, since the additions'
+  `failed` never reaches the exit status (`main.ts:436-442`).
+- [ ] **W45. A layout place Rigline does not know is under *Needs you*.** `parsePlace`'s "is not a
+  place" (`packages/plugin-api/src/layout.ts:60-63`) is only noted, with exit 0, where an unknown
+  `config.yaml` key is under *Needs you* (D110). D110's reasoning holds for a place: it is a typo, or
+  a place a later Rigline added, whose elements an older one would quietly send back to their
+  defaults. **Fix:** name it under *Needs you*, exit 1, and suggest a later Rigline, as the key
+  message does; stability.md's config paragraph says so. A place beside an anchor Claude Code
+  removed stays a report, as stability.md already promises. Now, since moving an exit status to 1
+  later is the tightening W23 rules out.
 - [ ] **W24. The scaffold's publishing steps** (`packages/create-plugin/template/README.md:83,
   101-104`, `template/.github/workflows/release.yml:7,12-13,126-127`) use `pnpm stage approve` and
   `pnpm publish --otp`, which a security-key account cannot do — the only kind npm enrols now
@@ -263,16 +274,13 @@ asks rather than building around it.
   unknown manifest key or `api: 2` could suggest a later Rigline, as the config message does.
   `rigline help`, the engine's `--version` and `VERB --help` all say "unknown". The usage opens with
   the maintainer verbs.
-- [ ] **W34. The engine's behaviour.** `update` exits 0 after failing to add the companion
-  (`main.ts:438-442`). `install --ext COPY` moves the real `baseline.json` to the copy's version and
+- [ ] **W34. The engine's behaviour.** `install --ext COPY` moves the real `baseline.json` to the copy's version and
   clears the restore mark, and `--ext` is not resolved. `status` and `doctor` never mention the
   `restored` mark, so a bug report will not show Rigline held out (`check` is W23's); `restore` with
   nothing installed writes it and says nothing. `status` says "webview unknown, no backup" for a
   version Rigline never touched, and lists oldest first where `install` and `check` list newest.
 - [ ] **W35. `layout`'s wording.** "can also go rigRow"; "is not a place" lists places without
-  `default` while bare `layout order` suggests `default`, which `order` refuses; an unknown place in
-  `config.yaml` is only noted with exit 0, where an unknown key is under *Needs you*, and does not
-  suggest a later Rigline.
+  `default` while bare `layout order` suggests `default`, which `order` refuses.
 - [ ] **W36. Locks by PID alone.** Windows reuses PIDs quickly, so a crashed holder's PID can come
   back and pin a lock (`isStale` in both lock files). An absolute age cap of about ten minutes.
 - [ ] **W37. Plugin files.** The tar reader declines exact duplicate names only, missing case and
