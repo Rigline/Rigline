@@ -6,7 +6,7 @@
  * strands whoever is following it on a version older than a bare install gives.
  */
 import { describe, expect, it } from "vitest";
-import { nextShouldMove, stageTag } from "./tags.mjs";
+import { nextAction, stageTag } from "./tags.mjs";
 
 /** The registry as it is today: alphas only, `latest` on the newest and `next` not maintained. */
 const alphaLine = { latest: "1.0.0-alpha.2", next: null, hasStable: false };
@@ -84,42 +84,43 @@ describe("stageTag", () => {
   });
 });
 
-describe("nextShouldMove", () => {
-  // The alpha line, which is where every release has been so far. `latest` already names the newest
-  // version of any kind, so a `next` beside it names the same one — and keeping them in step costs
-  // an authenticated write per package, per release, for a pointer that says nothing.
-  it("never moves next while no stable release exists", () => {
-    expect(nextShouldMove("1.0.0-alpha.3", "1.0.0-alpha.2", false)).toBe(false);
-    expect(nextShouldMove("1.0.0-alpha.3", undefined, false)).toBe(false);
-    expect(nextShouldMove("1.0.0-alpha.3", null, false)).toBe(false);
+describe("nextAction", () => {
+  it("does nothing while no stable release exists, since latest is already the newest", () => {
+    expect(nextAction("1.0.0-alpha.3", "1.0.0-alpha.2", false)).toBe("keep");
+    expect(nextAction("1.0.0-alpha.3", undefined, false)).toBe("keep");
   });
 
-  it("moves next up behind a release to latest once a stable line exists", () => {
-    expect(nextShouldMove("1.2.4", "1.2.3", true)).toBe(true);
+  it("sets nothing at 1.0.0, the first stable release, with no preview line open", () => {
+    expect(nextAction("1.0.0", null, true)).toBe("keep");
+    expect(nextAction("1.0.0", undefined, true)).toBe("keep");
   });
 
-  // The one release with no version to publish under `next`: a promotion supersedes the preview the
-  // tag is pointing at, so the tag has to be moved rather than published to.
-  it("carries next forward onto the stable version that supersedes a preview", () => {
-    expect(nextShouldMove("1.3.0", "1.3.0-beta.1", true)).toBe(true);
+  it("costs a stable release nothing while no preview line is open", () => {
+    expect(nextAction("1.2.4", null, true)).toBe("keep");
+  });
+
+  it("opens a preview line on a package that has no next", () => {
+    expect(nextAction("1.3.0-beta.1", undefined, true)).toBe("set");
   });
 
   it("does nothing when the release was staged to next itself", () => {
-    expect(nextShouldMove("2.0.0-beta.2", "2.0.0-beta.2", true)).toBe(false);
+    expect(nextAction("2.0.0-beta.2", "2.0.0-beta.2", true)).toBe("keep");
   });
 
-  it("leaves a preview alone that is ahead of a maintenance release", () => {
-    expect(nextShouldMove("1.2.4", "2.0.0-beta.1", true)).toBe(false);
+  // The promotion: the stable version supersedes the preview line `next` was carrying.
+  it("removes next when a stable release closes the preview line it pointed at", () => {
+    expect(nextAction("1.3.0", "1.3.0-beta.1", true)).toBe("remove");
+    expect(nextAction("1.3.0", "1.3.0", true)).toBe("remove");
+  });
+
+  it("keeps a preview that is ahead of a maintenance release", () => {
+    expect(nextAction("1.2.4", "2.0.0-beta.1", true)).toBe("keep");
   });
 
   it("compares as semver, not as text", () => {
-    // The release that would move the tag backwards is exactly the one nobody would check:
-    // "1.0.0-alpha.10" < "1.0.0-alpha.2" as strings.
-    expect(nextShouldMove("2.0.0-alpha.10", "2.0.0-alpha.2", true)).toBe(true);
-    expect(nextShouldMove("2.0.0-alpha.2", "2.0.0-alpha.10", true)).toBe(false);
-  });
-
-  it("sets next on a package that has none, once there is a line to preview", () => {
-    expect(nextShouldMove("2.0.0-beta.1", undefined, true)).toBe(true);
+    // "1.0.0-alpha.10" < "1.0.0-alpha.2" as strings, which would move the tag backwards on exactly
+    // the release nobody would check.
+    expect(nextAction("2.0.0-alpha.10", "2.0.0-alpha.2", true)).toBe("set");
+    expect(nextAction("2.0.0-alpha.2", "2.0.0-alpha.10", true)).toBe("keep");
   });
 });

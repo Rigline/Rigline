@@ -15,7 +15,7 @@
  * Usage: pnpm release:finish [--no-github-release]
  */
 import semver from "semver";
-import { nextShouldMove } from "./lib/tags.mjs";
+import { nextAction } from "./lib/tags.mjs";
 import {
   capture,
   changelogSection,
@@ -169,8 +169,8 @@ if (already.length === packages.length) {
 // shares `otplease` with `npm publish`, whose first branch opens a browser.
 //
 // One package at a time, each caught: a cancelled authentication partway through must not take the
-// ones after it with it. `npm dist-tag add` is idempotent, so the recovery is this whole command
-// again and there is no resume state for anybody to carry.
+// ones after it with it. A second run finds each package it finished already right and skips it,
+// so the recovery is this whole command again and there is no resume state for anybody to carry.
 say("");
 // Whether any package has ever had a stable release, which is what decides `next` has a job at all.
 // Read from `versions` rather than from the tags: a line is stable once a stable version exists,
@@ -185,26 +185,33 @@ const moved = [];
 const stuck = [];
 for (const name of hasStable ? packages : []) {
   const { next } = distTags(name);
-  // Equality first: `nextShouldMove` is a `semver.gt`, so it already says no for the version that
-  // was staged under `next` — and "stays at X, which is ahead of X" is not what happened.
-  if (next === version) {
-    say(`  ${name}: \`next\` is already ${version}, set by the publish`);
+  const action = nextAction(version, next, hasStable);
+  if (action === "keep") {
+    if (next === version) say(`  ${name}: \`next\` is already ${version}, set by the publish`);
+    else if (next) say(`  ${name}: \`next\` stays at ${next}, a preview ahead of ${version}`);
     continue;
   }
-  if (!nextShouldMove(version, next, hasStable)) {
-    say(`  ${name}: \`next\` stays at ${next}, which is ahead of ${version}`);
-    continue;
-  }
+  const argv =
+    action === "set"
+      ? ["dist-tag", "add", `${name}@${version}`, "next"]
+      : ["dist-tag", "rm", name, "next"];
   try {
-    run("npm", ["dist-tag", "add", `${name}@${version}`, "next"]);
+    run("npm", argv);
     moved.push(name);
   } catch {
     stuck.push(name);
-    say(`  ${name}: \`next\` not moved — npm dist-tag add ${name}@${version} next`);
+    say(
+      `  ${name}: \`next\` not ${action === "set" ? "moved" : "removed"} — npm ${argv.join(" ")}`,
+    );
   }
 }
-if (moved.length > 0)
-  say(`  \`next\` moved to ${version} on ${moved.length} of ${packages.length}`);
+if (moved.length > 0) {
+  const done =
+    semver.prerelease(version) === null
+      ? "removed, closing the preview line,"
+      : `moved to ${version}`;
+  say(`  \`next\` ${done} on ${moved.length} of ${packages.length}`);
+}
 
 if (!args.includes("--no-github-release") && !githubReleaseExists()) {
   const notes = changelogSection(version);
@@ -230,7 +237,7 @@ say("");
 if (stuck.length === 0) {
   say(`${version} is published.`);
 } else {
-  say(`${version} is published, and \`next\` still points elsewhere on ${stuck.join(", ")}.`);
+  say(`${version} is published, and \`next\` is not yet right on ${stuck.join(", ")}.`);
   say("Run `pnpm release:finish` again: it skips what is done and retries only those.");
   process.exitCode = 1;
 }

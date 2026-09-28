@@ -250,7 +250,7 @@ asks rather than building around it.
   `hasStable && above(next)`, so with a stable line and `next` unset or behind, `stageTag("1.0.2",
   {latest: "1.1.0", next: null, hasStable: true})` gives `next` rather than refusing. **Fix:**
   `hasStable && above(latest) && above(next)`, with tests for `next` null and lagging.
-- [ ] **W31. `next` only while a preview line is open.** Once 1.0.0 is approved, `hasStable` turns
+- [x] **W31. `next` only while a preview line is open.** Once 1.0.0 is approved, `hasStable` turns
   true and `release:finish` as written runs `npm dist-tag add <pkg>@1.0.0 next` for all four
   packages, four browser authentications repeated every release
   (`scripts/release-finish.mjs:178-205`). **Fix:** amend D61; `release:finish` sets `next` only for

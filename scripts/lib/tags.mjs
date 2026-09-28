@@ -42,7 +42,7 @@ export function stageTag(version, { latest, next, hasStable }) {
 
   if (above(latest) && (isStable || !hasStable)) return { tag: "latest" };
   // A preview: only once a stable line exists, and only ahead of it. `next` is unset outside an open
-  // preview line (see `nextShouldMove`), so `above(next)` alone is vacuously true, and a version merely
+  // preview line (see `nextAction`), so `above(next)` alone is vacuously true, and a version merely
   // *not new* — a dry run, or `1.0.2` with `latest` on `1.1.0` — would stage under `next` instead of
   // being refused.
   if (hasStable && above(latest) && above(next)) return { tag: "next" };
@@ -64,25 +64,22 @@ export function stageTag(version, { latest, next, hasStable }) {
 }
 
 /**
- * Whether `next` should be pointed at the released version once it is on the registry.
+ * What to do with `next` once `version` is on the registry: `set` it, `remove` it, or `keep` it.
  *
- * **Not while there is no stable line.** `latest` then already means "the newest of any kind", so a
- * `next` beside it names the same version and carries nothing — and keeping the two in step costs a
- * separate authenticated write per package, every release, because `npm dist-tag` cannot batch and
- * each invocation asks for a second factor of its own. That is four browser round trips to make one
- * pointer agree with another.
- *
- * Leaving it unset is the better failure too (P8): `install <pkg>@next` erroring is worth more than
- * it quietly resolving a version several releases old, which is what a tag nobody moves becomes.
- *
- * Nothing is lost for the case the tag exists for. A preview opens its line by staging *under*
- * `next` — publishing to the tag rather than moving it, which the runbook prefers wherever there is
- * a choice — and the one release with no version to publish there, a promotion carrying `next`
- * forward onto the stable version it supersedes, has a stable line by definition and still moves it.
+ * `next` exists only while a preview line is open (D61). A prerelease over a stable line opens or
+ * advances one, so it sets `next` where the publish has not already. A stable release closes the
+ * line it supersedes, so it removes a `next` at or below it, and keeps one ahead of it: a preview
+ * beyond a maintenance release. With no stable line, `latest` already names the newest version of
+ * any kind and there is nothing to preview. Every other release costs no authentication, since each
+ * `npm dist-tag` write asks for a second factor of its own.
  */
-export function nextShouldMove(version, currentNext, hasStable) {
-  if (!hasStable) return false;
-  return currentNext === undefined || currentNext === null || semver.gt(version, currentNext);
+export function nextAction(version, currentNext, hasStable) {
+  if (!hasStable) return "keep";
+  const next = currentNext ?? null;
+  if (semver.prerelease(version) === null) {
+    return next !== null && !semver.gt(next, version) ? "remove" : "keep";
+  }
+  return next === null || semver.gt(version, next) ? "set" : "keep";
 }
 
 /**

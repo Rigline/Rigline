@@ -1278,6 +1278,14 @@ it alone; and the one release that has no version to publish there — a promoti
 forward onto the stable version superseding the preview — has a stable line by definition, so it
 still moves. The rule that changed is one condition: no stable line, no `next`.
 
+**Amended 2026-09-29, Leo: `next` exists only while a preview line is open.** Once 1.0.0 is out the
+line is stable for good, and the rule above would move `next` onto every stable release: four
+authentications, every release, for a pointer naming what `latest` names. So a prerelease over a
+stable line sets `next`, where its publish has not already; a stable release removes a `next` at or
+below it, which is the preview line it closes, and keeps one ahead of it, a preview beyond a
+maintenance release. 1.0.0 sets nothing, and a stable release with no preview open costs no
+authentication at all. A promotion costs one `npm dist-tag rm` per package, where it cost an `add`.
+
 CI cannot do this half, for two reasons that hold independently. npm's OIDC exchange authenticates
 `npm publish` and `npm stage publish` and nothing else, `dist-tag` included; and `otplease`, the
 wrapper every 2FA'd write goes through, returns the original error unless both stdin and stdout are
