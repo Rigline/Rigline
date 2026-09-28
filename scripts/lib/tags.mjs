@@ -41,12 +41,11 @@ export function stageTag(version, { latest, next, hasStable }) {
   const above = (tag) => tag === null || semver.gt(version, tag);
 
   if (above(latest) && (isStable || !hasStable)) return { tag: "latest" };
-  // Only once a stable line exists, and the condition is load-bearing rather than belt-and-braces:
-  // `next` is unset until then (see `nextShouldMove`), so `above(next)` is vacuously true, and
-  // without this a version that is merely *not new* — a dry run against an unchanged tree — would
-  // stage under `next` instead of being refused. Staging there is a preview, and a preview is
-  // something a stable line has.
-  if (hasStable && above(next)) return { tag: "next" };
+  // A preview: only once a stable line exists, and only ahead of it. `next` is unset outside an open
+  // preview line (see `nextShouldMove`), so `above(next)` alone is vacuously true, and a version merely
+  // *not new* — a dry run, or `1.0.2` with `latest` on `1.1.0` — would stage under `next` instead of
+  // being refused.
+  if (hasStable && above(latest) && above(next)) return { tag: "next" };
 
   const held = `\`latest\` (${latest ?? "unset"}) or \`next\` (${next ?? "unset"})`;
   if (latest !== null && semver.major(version) < semver.major(latest)) {

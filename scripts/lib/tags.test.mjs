@@ -55,6 +55,24 @@ describe("stageTag", () => {
     expect(stageTag("1.0.0-alpha.2", alphaLine).refusal).toBeTypeOf("string");
   });
 
+  it.each([
+    ["unset", null],
+    ["behind latest", "1.0.1"],
+  ])(
+    "refuses a version below latest with next %s, rather than staging it as a preview",
+    (_what, next) => {
+      const { tag, refusal } = stageTag("1.0.2", { latest: "1.1.0", next, hasStable: true });
+      expect(tag).toBeUndefined();
+      expect(refusal).toBeTypeOf("string");
+    },
+  );
+
+  it("opens a preview line under next, ahead of latest, when next is unset", () => {
+    expect(stageTag("1.2.0-alpha.0", { latest: "1.1.0", next: null, hasStable: true })).toEqual({
+      tag: "next",
+    });
+  });
+
   it("refuses a version already behind both tags", () => {
     expect(stageTag("1.0.0-alpha.1", alphaLine).refusal).toBeTypeOf("string");
   });

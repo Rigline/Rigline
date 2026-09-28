@@ -246,7 +246,7 @@ asks rather than building around it.
 
 ### Release scripts
 
-- [ ] **W30. `stageTag` stages below `latest` under `next`.** `scripts/lib/tags.mjs:49` is
+- [x] **W30. `stageTag` stages below `latest` under `next`.** `scripts/lib/tags.mjs:49` is
   `hasStable && above(next)`, so with a stable line and `next` unset or behind, `stageTag("1.0.2",
   {latest: "1.1.0", next: null, hasStable: true})` gives `next` rather than refusing. **Fix:**
   `hasStable && above(latest) && above(next)`, with tests for `next` null and lagging.
