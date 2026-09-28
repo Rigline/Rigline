@@ -133,7 +133,9 @@ the whole plugin. Resolve an optional name through `ctx.optional.anchor()`, whic
 
 Calling one you did not declare throws and disables the plugin. That is deliberate: a declaration
 you can forget is a declaration the install cannot check. `rigline install` scans your built source
-and says so when the two disagree, in either direction.
+and says so when the two disagree. A call you did not declare is in the plain report, and in
+`rigline dev`'s, since it will disable the plugin; a declaration you never call is behind
+`--verbose`, since it costs nothing yet.
 
 Two members of `ctx` are on it without a declaration, because neither widens what you can reach:
 `ctx.surface`, which is a string, and `ctx.check`, below. `ctx.element` is declared by `elements`
@@ -438,7 +440,7 @@ be repaired on a user's machine in minutes without a release from anybody — se
 
 **Something you declared is gone** — a message type, a payload field, a raw class pair. That one is
 yours: the install names it, and the fix is a new build. Raw `ctx.cls()` pairs are counted per
-plugin at install for exactly this reason, because no table fix reaches them.
+plugin by `rigline install --verbose` for exactly this reason, because no table fix reaches them.
 
 There is a third kind that neither of those catches, and it is the one `ctx.check` exists for:
 everything you declared still resolves, the install is clean, and the feature has stopped working

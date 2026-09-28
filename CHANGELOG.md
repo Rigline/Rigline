@@ -69,6 +69,10 @@ anything may change between releases.
   menu, where they named a `RIG` badge that is gone; `rigline restore` says any command that
   injects puts Rigline back, not only `install`; and the README and support page say the companion
   needs VS Code 1.90 or newer.
+- **For plugin authors:** `rigline install`, `rigline check` and `rigline dev` say in their plain
+  report when a plugin calls something it never declared, which will disable it when it runs. It
+  was behind `--verbose`, where the docs said it was not; a declaration never called, and the other
+  notes about a plugin's source, stay there.
 - The engine, started by a Node older than it supports, says which Node it needs and stops, where
   it failed part-way through the command with an error naming nothing.
 - When VS Code removed an old Claude Code version while Rigline was installing into it, Rigline

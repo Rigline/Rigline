@@ -135,7 +135,8 @@ your file. Until it is, `install` will keep telling you it is there.
 ## Two things it cannot repair
 
 **A raw class pair.** `ctx.cls(module, local)` is the escape hatch for UI nobody has curated, and
-nothing in the anchor table reaches it. The install counts them per plugin for exactly this reason:
+nothing in the anchor table reaches it. `rigline install --verbose` counts them per plugin for
+exactly this reason:
 
     session-id: 2 raw class pair(s), which no anchor-table fix can repair
 

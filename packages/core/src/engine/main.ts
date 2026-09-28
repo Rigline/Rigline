@@ -1116,6 +1116,8 @@ async function dev(args: string[]): Promise<number> {
       }
       reported = true;
       let changed = false;
+      // The same for every version, since they are read from the plugins' own source (W21).
+      const problems = new Set<string>();
       for (const ext of exts) {
         const report = install(ext, {
           payloadDir: bundledDir(),
@@ -1129,7 +1131,9 @@ async function dev(args: string[]): Promise<number> {
         for (const verdict of report.verdicts) {
           if (verdict.refusal) console.log(`  REFUSED ${verdict.plugin}: ${verdict.refusal}`);
         }
+        for (const problem of report.problems) problems.add(problem);
       }
+      for (const problem of problems) console.log(`  ${problem}`);
       return changed;
     });
     console.log(

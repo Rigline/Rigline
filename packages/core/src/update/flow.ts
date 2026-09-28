@@ -54,6 +54,7 @@ import { HarvestError } from "../layers/types.ts";
 import { riglinePaths } from "../paths.ts";
 import { readConfig, unknownKeyLines } from "../plugins/config.ts";
 import {
+  capabilityUseProblems,
   discoverPlugins,
   enabledPlugins,
   layoutNotes,
@@ -136,6 +137,8 @@ export interface FlowReport {
   readonly baseline: BaselineSource | null;
   /** Discovery and `config.yaml` problems, which are the same for every version. */
   readonly configNotes: readonly string[];
+  /** A plugin calling a switch it never declared, which will disable it; said plainly (W21). */
+  readonly pluginProblems: readonly string[];
   /** Where `install` listed what moved, or null: nothing moved, or this is `check` (D98). */
   readonly driftFile: string | null;
   /** The local anchor table override, as read: the file, and anything wrong with it (D44). */
@@ -369,6 +372,7 @@ function checkHeld(options: FlowOptions): FlowReport {
     cleared: [],
     configNotes,
     configProblems: config ? unknownKeyLines(config) : [],
+    pluginProblems: capabilityUseProblems(plugins),
     tokenProblem,
     unloaded,
   });
@@ -402,6 +406,7 @@ function updateHeld(options: UpdateOptions): FlowReport {
   const harvested: Harvested[] = [];
   const versions: VersionReport[] = [];
   let configNotes: readonly string[] = [];
+  let pluginProblems: readonly string[] = [];
   let tokenProblem: string | null = null;
   let unloaded: readonly string[] = [];
 
@@ -448,6 +453,7 @@ function updateHeld(options: UpdateOptions): FlowReport {
     });
     // The same for every version, since they come from discovery and the config.
     configNotes = report.configNotes;
+    pluginProblems = report.problems;
     tokenProblem = report.tokenProblem;
     unloaded = report.unloaded;
   }
@@ -457,6 +463,7 @@ function updateHeld(options: UpdateOptions): FlowReport {
     cleared,
     configNotes,
     configProblems: config ? unknownKeyLines(config) : [],
+    pluginProblems,
     tokenProblem,
     unloaded,
   });
@@ -469,6 +476,7 @@ interface Settling {
   readonly configNotes: readonly string[];
   /** Keys in `config.yaml` this engine does not read, for *Needs you* (D110). */
   readonly configProblems: readonly string[];
+  readonly pluginProblems: readonly string[];
   readonly tokenProblem: string | null;
   readonly unloaded: readonly string[];
 }
@@ -484,12 +492,14 @@ function settle(
 ): FlowReport {
   const dir = options.dir ?? process.cwd();
   const baselinePath = options.baselinePath ?? riglinePaths().baseline;
-  const { kind, cleared, configNotes, configProblems, tokenProblem, unloaded } = settling;
+  const { kind, cleared, configNotes, configProblems, pluginProblems, tokenProblem, unloaded } =
+    settling;
   if (versions.length === 0) {
     return {
       kind,
       baseline: null,
       configNotes,
+      pluginProblems,
       driftFile: null,
       overrides,
       scan: null,
@@ -620,6 +630,7 @@ function settle(
     kind,
     baseline,
     configNotes: [...configNotes, ...baselineNotes],
+    pluginProblems,
     driftFile,
     overrides,
     scan,
@@ -775,6 +786,7 @@ export function formatFlow(report: FlowReport, options: FormatOptions = {}): str
     const disabled = read[0]?.disabled ?? [];
     if (disabled.length > 0) lines.push(`switched off: ${disabled.join(", ")}`);
   }
+  lines.push(...report.pluginProblems);
   lines.push(...report.configNotes);
 
   if (report.baseline && report.scan) {

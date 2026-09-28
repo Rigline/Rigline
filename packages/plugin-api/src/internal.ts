@@ -16,6 +16,8 @@ export {
   optionalGaps,
   patchViolation,
   sharedFields,
+  undeclaredUse,
+  unusedDeclaration,
 } from "./capabilities/index.ts";
 export type { AnchorSlot, ElementSpec, Elements, Placement, ZoneSpec } from "./elements.ts";
 export {

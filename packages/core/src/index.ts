@@ -151,6 +151,7 @@ export type { DiscoveredPlugin, ManifestCheck } from "./plugins/discover.ts";
 export {
   bakeRegistry,
   capabilityUseNotes,
+  capabilityUseProblems,
   checkManifest,
   declaredPatches,
   discoverPlugins,

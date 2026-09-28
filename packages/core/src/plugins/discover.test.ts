@@ -12,6 +12,7 @@ import type { DiscoveredPlugin } from "./discover.ts";
 import {
   bakeRegistry,
   capabilityUseNotes,
+  capabilityUseProblems,
   declaredPatches,
   discoverPlugins,
   enabledPlugins,
@@ -363,7 +364,7 @@ describe("isPluginOutput", () => {
   });
 });
 
-describe("capabilityUseNotes", () => {
+describe("capabilityUseNotes and capabilityUseProblems", () => {
   function plugin(name: string, uses: Record<string, unknown>, source: string): DiscoveredPlugin {
     const root = tempDir();
     const dir = join(root, name);
@@ -393,20 +394,23 @@ describe("capabilityUseNotes", () => {
   it("is quiet when the manifest and the shipped source agree", () => {
     const p = plugin("agrees", { session: true }, "ctx.onSessionId(() => {});");
     expect(capabilityUseNotes([p])).toEqual([]);
+    expect(capabilityUseProblems([p])).toEqual([]);
   });
 
-  it("reports a capability used but not declared", () => {
+  it("makes a capability used but not declared a problem, since it will disable the plugin", () => {
     const p = plugin("undeclared", {}, "ctx.onToolUse(() => {});");
-    expect(capabilityUseNotes([p])).toEqual([
+    expect(capabilityUseProblems([p])).toEqual([
       'undeclared: calls onToolUse/onToolResult() without declaring "tools": it will throw and disable the plugin',
     ]);
+    expect(capabilityUseNotes([p])).toEqual([]);
   });
 
-  it("reports a capability declared but never used", () => {
+  it("makes a capability declared but never used a note, which costs nothing yet", () => {
     const p = plugin("unused", { session: true }, "// no calls in here");
     expect(capabilityUseNotes([p])).toEqual([
       'unused: declares "session" but never calls onSessionId()',
     ]);
+    expect(capabilityUseProblems([p])).toEqual([]);
   });
 });
 

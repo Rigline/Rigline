@@ -358,6 +358,30 @@ describe("the report a person reads", () => {
     expect(loadingLine(text)).toBe("loading: fine");
   });
 
+  it.each(["install", "check"] as const)(
+    "says plainly from %s that a plugin calling an undeclared switch will be disabled",
+    (kind) => {
+      const root = pluginRoot("caller", {});
+      writeFileSync(
+        join(root, "caller", "index.js"),
+        "export default { setup(ctx) { ctx.onToolUse(() => {}); } };\n",
+      );
+      const options = {
+        exts: [fixture()],
+        dir: tempDir("rigline-cwd-"),
+        baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+        plugins: plugins(root),
+      };
+      const report =
+        kind === "install" ? update({ ...options, payloadDir: payload() }) : check(options);
+
+      expect(formatFlow(report)).toContain(
+        'caller: calls onToolUse/onToolResult() without declaring "tools": it will throw and disable the plugin',
+      );
+      expect(report.attention.some((line) => line.includes("onToolUse"))).toBe(false);
+    },
+  );
+
   it("names a plugin switched off in config, which nothing else accounts for", () => {
     const ext = fixture();
     const root = pluginRoot("fine", { classes: { f00000: ["local1"] } });

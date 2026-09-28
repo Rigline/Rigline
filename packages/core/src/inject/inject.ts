@@ -49,6 +49,7 @@ import { type PluginsConfig, readConfig } from "../plugins/config.ts";
 import {
   bakeRegistry,
   capabilityUseNotes,
+  capabilityUseProblems,
   type DiscoveredPlugin,
   declaredPatches,
   discoverPlugins,
@@ -399,6 +400,8 @@ export interface InstallReport {
   readonly enabled: readonly string[];
   readonly disabled: readonly string[];
   readonly notes: readonly string[];
+  /** A plugin calling a switch it never declared, which will disable it: the plain report's (W21). */
+  readonly problems: readonly string[];
   /** Discovery and `config.yaml` problems, the same for every version. */
   readonly configNotes: readonly string[];
   /** Why the panel's Save copies commands instead, when the token file is unusable (D93). */
@@ -513,6 +516,7 @@ export function install(ext: string, options: InstallOptions): InstallReport {
   let enabledNames: readonly string[] = [];
   let disabledNames: readonly string[] = [];
   const notes: string[] = [];
+  let problems: readonly string[] = [];
   const configNotes: string[] = [];
   let tokenProblem: string | null = null;
   const unloaded: string[] = [];
@@ -604,6 +608,7 @@ export function install(ext: string, options: InstallOptions): InstallReport {
       }
     }
 
+    problems = capabilityUseProblems(enabled);
     notes.push(...capabilityUseNotes(enabled));
     notes.push(...handWrittenClassNotes(enabled, generated.tables));
     for (const shared of sharedFields(
@@ -640,6 +645,7 @@ export function install(ext: string, options: InstallOptions): InstallReport {
     enabled: enabledNames,
     disabled: disabledNames,
     notes,
+    problems,
     configNotes,
     tokenProblem,
     unloaded,

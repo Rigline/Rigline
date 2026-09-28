@@ -178,7 +178,7 @@ asks rather than building around it.
   newest 1.x schema, the one `api: 1` means.
 - [x] **W20. plugin-api's README** says an undeclared use "finds nothing there"
   (`packages/plugin-api/README.md:52-54`); it throws and disables the plugin.
-- [ ] **W21. Notes only `--verbose` prints**, which authoring.md:131-133 and :436-437 and
+- [x] **W21. Notes only `--verbose` prints**, which authoring.md:131-133 and :436-437 and
   anchors.md:132-135 say plain `install` shows (`inject.ts:579-584`). **Fix:** a certain failure
   ("calls onToolUse without declaring tools: it will throw and disable the plugin") goes in the
   plain report beside its plugin, since it explains a disabled plugin to anybody; the hand-written

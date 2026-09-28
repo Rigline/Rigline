@@ -11,13 +11,14 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 
 import {
-  capabilityDrift,
   capabilityUse,
   type IdentifierTables,
   type Layout,
   layoutProblems,
   type SaveRecord,
   type Uses,
+  undeclaredUse,
+  unusedDeclaration,
   type ValidManifest,
   validateManifest,
   withRigline,
@@ -338,22 +339,29 @@ function shippedSource(dir: string, kind: RegExp): string {
 }
 
 /**
- * Where a plugin's manifest and its shipped source disagree about a capability switch, by name.
- * Advisory only (decisions.md, D16): `capabilityUse` is a textual scan and says so in its own
- * doc comment, and acting on it here would put a scanner's blind spots in charge of whether a
- * plugin loads. The manifest stays the contract; this is a line at install time when it looks
- * wrong, in either direction — used without declaring throws and disables the plugin, declared but
- * never used is a stale dependency nothing else would notice.
+ * Switches a plugin declares and its shipped source never calls: a stale dependency nothing else
+ * would notice. Advisory only (decisions.md, D16): `capabilityUse` is a textual scan and says so in
+ * its own doc comment, and acting on it would put a scanner's blind spots in charge of whether a
+ * plugin loads. `capabilityUseProblems` is the other direction.
  */
 export function capabilityUseNotes(plugins: readonly DiscoveredPlugin[]): string[] {
-  const notes: string[] = [];
-  for (const p of plugins) {
-    const used = capabilityUse(shippedSource(p.dir, SCRIPT));
-    for (const note of capabilityDrift(p.manifest.uses as Uses, used)) {
-      notes.push(`${p.name}: ${note}`);
-    }
-  }
-  return notes;
+  return plugins.flatMap((p) =>
+    unusedDeclaration(p.manifest.uses as Uses, capabilityUse(shippedSource(p.dir, SCRIPT))).map(
+      (note) => `${p.name}: ${note}`,
+    ),
+  );
+}
+
+/**
+ * The half of the drift that is certain: a switch called and never declared throws and disables
+ * the plugin, so it goes in the plain report, where a person reading why a plugin is off will look.
+ */
+export function capabilityUseProblems(plugins: readonly DiscoveredPlugin[]): string[] {
+  return plugins.flatMap((p) =>
+    undeclaredUse(p.manifest.uses as Uses, capabilityUse(shippedSource(p.dir, SCRIPT))).map(
+      (problem) => `${p.name}: ${problem}`,
+    ),
+  );
 }
 
 /** A run of the characters a hashed class is made of, capped so a data URI stays a bounded read. */

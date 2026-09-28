@@ -101,19 +101,37 @@ export function capabilityUse(source: string): UsesKey[] {
  * the scan cannot tell which call site meant which.
  */
 export function capabilityDrift(uses: Uses, used: readonly UsesKey[]): string[] {
+  return [...undeclaredUse(uses, used), ...unusedDeclaration(uses, used)];
+}
+
+/** Switches the source calls and the manifest never declared: each a certain throw (W21). */
+export function undeclaredUse(uses: Uses, used: readonly UsesKey[]): string[] {
+  return switchDrift(uses, used)
+    .filter((drift) => drift.used)
+    .map(
+      ({ key, grant }) =>
+        `calls ${grant}() without declaring "${key}": it will throw and disable the plugin`,
+    );
+}
+
+/** Switches declared and never called: a stale dependency, which costs nothing yet. */
+export function unusedDeclaration(uses: Uses, used: readonly UsesKey[]): string[] {
+  return switchDrift(uses, used)
+    .filter((drift) => !drift.used)
+    .map(({ key, grant }) => `declares "${key}" but never calls ${grant}()`);
+}
+
+function switchDrift(
+  uses: Uses,
+  used: readonly UsesKey[],
+): { readonly key: UsesKey; readonly grant: string; readonly used: boolean }[] {
   return CONTRACTS.flatMap((contract) => {
     const declared = uses[contract.key];
     if (typeof declared !== "boolean") return [];
-    const optional = uses.optional[contract.key];
-    const isDeclared = declared || optional === true;
+    const isDeclared = declared || uses.optional[contract.key] === true;
     const isUsed = used.includes(contract.key);
     if (isDeclared === isUsed) return [];
-    const grant = contract.grants.join("/");
-    return isUsed
-      ? [
-          `calls ${grant}() without declaring "${contract.key}": it will throw and disable the plugin`,
-        ]
-      : [`declares "${contract.key}" but never calls ${grant}()`];
+    return [{ key: contract.key, grant: contract.grants.join("/"), used: isUsed }];
   });
 }
 
