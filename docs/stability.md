@@ -108,10 +108,12 @@ Rigline out until you put it back.
   a plugin patched the extension host. They are the undo when `rigline` itself will not run, as the
   [README](../README.md#if-the-panel-goes-blank) describes.
 - **Where it runs:** VS Code on Windows, Linux and macOS, in a local window, with Node 22.12 or
-  newer. A remote window — WSL, SSH or a container — runs Claude Code on the remote host, which
-  Rigline does not inject, so its panel is vanilla and a companion there says so. A minor release may
-  drop a Node version once it has reached end of life, or raise the oldest VS Code the companion
-  supports, and the changelog says so.
+  newer. A minor release may drop a Node version once it has reached end of life, or raise the
+  oldest VS Code the companion supports, and the changelog says so.
+
+**Not supported:** remote windows (WSL, SSH, dev containers, Codespaces), other editors built on VS
+Code (Insiders, VSCodium, Cursor, Windsurf), a portable VS Code, and a custom extensions directory.
+In any of them, Claude Code's panel stays as it ships.
 
 **Not kept:**
 

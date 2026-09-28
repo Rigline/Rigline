@@ -10,6 +10,7 @@ import { existsSync, readdirSync, statSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import * as vscode from "vscode";
 import { acquireAndInject, ENGINE_SETTING, marked, saveLayout, showPlugins } from "./acquire.ts";
+import { localTime } from "./clock.ts";
 import { CLAUDE_CODE, type Editor, type Health } from "./editor.ts";
 import { addToProfiles } from "./profiles.ts";
 import { type ReloadOffer, reloadOffer } from "./reload.ts";
@@ -60,7 +61,7 @@ export function activate(context: vscode.ExtensionContext): void {
     },
     // A blank line keeps the engine's paragraphs apart; stamping it would turn each one into a
     // line of noise.
-    log: (line) => output.appendLine(line === "" ? "" : `[${new Date().toISOString()}] ${line}`),
+    log: (line) => output.appendLine(line === "" ? "" : `[${localTime()}] ${line}`),
     ask: async (level, message, ...actions) =>
       level === "warn"
         ? await vscode.window.showWarningMessage(message, ...actions)

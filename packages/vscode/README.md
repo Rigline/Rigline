@@ -33,6 +33,11 @@ The first run fetches the engine from npm. After that it asks the registry for a
 time a window starts, and moves to one once it is a day old. Nothing else it does reaches the
 network.
 
+**Where it works:** VS Code on Windows, Linux and macOS, in a local window. **Not supported:** remote
+windows (WSL, SSH, dev containers, Codespaces), other editors built on VS Code (Insiders, VSCodium,
+Cursor, Windsurf), a portable VS Code, and a custom extensions directory. In any of them it reads
+*Rigline: not in this editor* and does nothing.
+
 ## Settings
 
 - **`rigline.nodePath`** — an absolute path to a Node executable. Leave it blank to search `PATH`.

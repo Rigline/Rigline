@@ -61,6 +61,14 @@ Or let an extension remember for you. `rigline vscode-setup` installs Rigline's 
 Code, and from then on it re-injects after every update. It also asks npm's registry for a newer
 engine each time a window starts, and moves to one once it is a day old.
 
+## Where it works
+
+VS Code on Windows, Linux and macOS, in a local window, with Node 22.12 or newer.
+
+**Not supported:** remote windows (WSL, SSH, dev containers, Codespaces), other editors built on VS
+Code (Insiders, VSCodium, Cursor, Windsurf), a portable VS Code, and a custom extensions directory.
+In any of them, Claude Code's panel stays as it ships.
+
 ## If the panel goes blank
 
 `rigline restore` puts every installed version back to the bytes the extension shipped with. It

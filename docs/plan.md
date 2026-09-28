@@ -415,16 +415,8 @@ reads below, which gate 1.0, each through a released engine with `rigline.engine
 profile, since a dev companion neither updates itself nor adds itself anywhere (D99, D100). Then
 `pnpm release major`, or another alpha if a read finds something.
 
-**A live run on a Mac**, where nothing has yet exercised the companion finding Node or the profile
-table's directories.
-
 **`restore`** (D111): `rigline restore`, then *Developer: Reload Window*. The panel stays vanilla and
 the companion reads *needs you*, naming the restore. `rigline install` and a reload put it back.
-
-**One engine injects at a time (D105)**, on the next Claude Code update with two windows open: both
-companions should reach *ready to restart*, and one output channel should show `rigline: waiting for
-rigline install (pid N) to finish`. A window whose companion runs this checkout's engine reads it
-before a release does.
 
 **A Save through a released engine.** On a machine with `alpha.13` installed and
 `rigline.enginePath` unset, edit the layout in the panel and Save: the notification should say it
@@ -572,3 +564,8 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   editor*. Remote windows are unsupported in 1.0, and stability.md says so.
 - 2026-09-27: 2.1.283 snapshotted, `generated.ts` regenerated and the harness moved to it; one class
   added, nothing gone.
+- 2026-09-28: A live run on a Mac, on `alpha.13`: everything worked.
+- 2026-09-28: One engine injects at a time (D105), read when Claude Code went back to 2.1.280 with
+  several windows open, through an engine whose source is `alpha.13`'s: one window's engine waited
+  for another's `rigline install`, then found both versions current and wrote nothing.
+- 2026-09-28: The companion's output is stamped in local time, with its offset.
