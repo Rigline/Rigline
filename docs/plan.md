@@ -414,8 +414,10 @@ what a plugin is written against.
 `1.0.0-alpha.13` is the newest on `latest`, and carries the 1.0 bar. Its reads are done, and what
 they did not reach is taken as working until somebody finds otherwise.
 
-Left before 1.0: releasing D113 and the companion's local-time output, as `1.0.0-alpha.14` or as
-1.0.0 itself, which is Leo's call, and then `pnpm release major`.
+Left before 1.0: what a final look found, sorted in `.local/plans/final-look.md` — two blockers on
+the author's first steps, the companion under version managers and Homebrew, and the release text —
+with the decisions that are Leo's at its head. Then `1.0.0-alpha.14`, its reads, and `pnpm release
+major`.
 
 ## Status log
 
