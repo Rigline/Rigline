@@ -166,7 +166,7 @@ asks rather than building around it.
   `extension.js`, and its own report says *Reload Window*. "The first command fetches the engine" is
   the first `rigline` command, not `npm install -g`. The Layout section leaves out `packages/vscode`
   and says core answers "every verb but `update`".
-- [ ] **W17. An uninstall section in the README**: `rigline vscode-setup --remove`, `rigline
+- [x] **W17. An uninstall section in the README**: `rigline vscode-setup --remove`, `rigline
   restore`, `npm uninstall -g rigline`, then `~/.rigline`. Only CONTRIBUTING has one.
 - [ ] **W18. core's README** says "zero third-party runtime dependencies" beside `es-module-lexer`
   and `yaml`, and that `rigline-engine` answers every verb "except `update`". Its description and

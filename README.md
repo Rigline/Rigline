@@ -100,6 +100,16 @@ undo when it is absent.
 Failing all of that, uninstalling and reinstalling Claude Code from the Extensions view replaces
 both files with the originals.
 
+## Uninstalling
+
+    rigline vscode-setup --remove    # only if you added the companion
+    rigline restore
+    npm uninstall -g rigline
+
+In that order: the companion first, so it does not put Rigline back, and `restore` while there is
+still a `rigline` to run it. Then delete `~/.rigline`, which holds the engine, your settings and any
+plugin you added, and reload the window.
+
 ## Layout
 
     packages/core         @rigline/core: the engine — harvest, codegen, inject, plugin
