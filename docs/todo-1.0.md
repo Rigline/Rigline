@@ -138,7 +138,7 @@ asks rather than building around it.
   `settleWebviewBackup`, live bytes that are a prefix of `PRE + backup + POST` are our own
   interrupted write, and a backup that is a strict prefix of loader-free live bytes is rewritten
   from them.
-- [ ] **W13. A truncated `baseline.json` fails every `install` and `check`** until somebody deletes
+- [x] **W13. A truncated `baseline.json` fails every `install` and `check`** until somebody deletes
   it (`baseline.ts:84-91`), and it is rewritten at every companion window start. **Fix:** write it
   as W12 does, and treat an unreadable one as absent, since it is bookkeeping stability.md does not
   keep. The same write for `config.yaml` and `sources.json` (`plugins/config.ts:120,263,280,283`).

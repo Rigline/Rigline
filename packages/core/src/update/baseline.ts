@@ -16,8 +16,9 @@
  * and is passed over. In one that is, the marker is required to occur exactly once, which turns an
  * author's hand edit into a named error rather than a silently wrong baseline.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { writeFileAtomic } from "../atomic.ts";
 import { GENERATED_HEADER } from "../codegen/generate.ts";
 import { UserError } from "../errors.ts";
 import { type Scan, type ScanJson, scanFromJson, scanToJson } from "../layers/diff.ts";
@@ -93,22 +94,31 @@ export function riglineGenerated(dir: string): string | null {
 /**
  * The baseline for `dir`, or null when there is nothing to compare against yet — a first run,
  * which is a normal state and not an error. `dir` is the directory the command was run from.
+ *
+ * A recorded baseline that cannot be read is absent too, and `note` says so: it is bookkeeping
+ * stability.md does not keep, and the next install records a new one. A committed `generated.ts`
+ * is somebody's file, so one that cannot be read still stops the run.
  */
-export function readBaseline(dir: string, recordedPath: string): BaselineSource | null {
+export function readBaseline(
+  dir: string,
+  recordedPath: string,
+  note: (line: string) => void = () => {},
+): BaselineSource | null {
   const generated = riglineGenerated(dir);
   if (generated !== null) {
     return { scan: readGeneratedScan(generated), path: generated, kind: "generated" };
   }
-  if (existsSync(recordedPath)) {
-    let value: unknown;
-    try {
-      value = JSON.parse(readFileSync(recordedPath, "utf8"));
-    } catch (error) {
-      throw new UserError(`${recordedPath} is not valid JSON: ${(error as Error).message}`);
-    }
+  if (!existsSync(recordedPath)) return null;
+  try {
+    const value: unknown = JSON.parse(readFileSync(recordedPath, "utf8"));
     return { scan: parseScan(value, recordedPath), path: recordedPath, kind: "recorded" };
+  } catch (error) {
+    note(
+      `${recordedPath} could not be read, so nothing was compared with it; an install records a ` +
+        `new one (${(error as Error).message})`,
+    );
+    return null;
   }
-  return null;
 }
 
 /**
@@ -118,5 +128,5 @@ export function readBaseline(dir: string, recordedPath: string): BaselineSource 
  */
 export function writeBaseline(path: string, scan: Scan): void {
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, `${JSON.stringify(scanToJson(scan), null, 2)}\n`);
+  writeFileAtomic(path, `${JSON.stringify(scanToJson(scan), null, 2)}\n`);
 }

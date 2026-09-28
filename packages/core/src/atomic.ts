@@ -1,4 +1,7 @@
-/** Writes a crash cannot leave half done. Everything Rigline writes into an extension goes here (D114). */
+/**
+ * Writes a crash cannot leave half done: everything Rigline writes into an extension, and every
+ * file under `~/.rigline` a later run reads back (D114).
+ */
 import { renameSync, rmSync, writeFileSync } from "node:fs";
 import { sleepSync } from "./extension/bundles.ts";
 

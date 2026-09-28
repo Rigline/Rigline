@@ -2894,7 +2894,12 @@ live bundle, so it was taken for the pristine half of a foreign patch and writte
 bundle. `restore` then reported success over either.
 
 Every write into an extension directory now goes to a temporary file beside its target and is
-renamed over it, retried briefly on Windows, where a scanner can hold a new file for a moment. The
+renamed over it, retried briefly on Windows, where a scanner can hold a new file for a moment. So
+does every file a later run reads back: `config.yaml`, `sources.json`, `baseline.json`, `drift.txt`
+and the `generated.ts` an install rewrites. A `baseline.json` that still cannot be read is taken as
+absent and noted, since it is bookkeeping stability.md does not keep and the next install replaces
+it; a `generated.ts` is somebody's committed file, and one that cannot be read still stops the run.
+The
 settle, and `restore` for the second, recognise the two shapes an earlier engine's write can have
 left:
 

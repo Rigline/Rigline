@@ -17,7 +17,7 @@
  * `check` and `update` differ in exactly one way: `check` writes nothing. Everything either of them
  * would say, `check` says, which is what makes it safe to run from a hook or from a watch loop.
  */
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import {
   type AnchorOverrideOutcome,
@@ -25,6 +25,7 @@ import {
   anchorOverrideOutcomes,
   readAnchorOverrides,
 } from "../anchors/overrides.ts";
+import { writeFileAtomic } from "../atomic.ts";
 import { type Generated, generate } from "../codegen/generate.ts";
 import { UnfinishedExtensionError, UserError } from "../errors.ts";
 import { readBundles } from "../extension/bundles.ts";
@@ -496,7 +497,8 @@ function settle(
   // committed `generated.ts` and the baseline cannot move backwards (D104).
   const newest = versions.at(-1)?.refused ? undefined : harvested.at(-1);
   const scan = newest?.generated.scan ?? null;
-  const baseline = readBaseline(dir, baselinePath);
+  const baselineNotes: string[] = [];
+  const baseline = readBaseline(dir, baselinePath, (line) => baselineNotes.push(line));
   const diffs = baseline && scan ? diffScans(baseline.scan, scan) : [];
   const wrote: string[] = [];
   let driftFile: string | null = null;
@@ -580,7 +582,7 @@ function settle(
       // with their own harvest for a reason nothing in the file could explain.
       const source = generate(newest.harvest).source;
       if (path !== null && readFileSync(path, "utf8") !== source) {
-        writeFileSync(path, source);
+        writeFileAtomic(path, source);
         wrote.push(path);
         attention.push(
           `${path} was rewritten from ${newest.version}; read the diff, typecheck, and commit it`,
@@ -591,7 +593,7 @@ function settle(
     const driftPath = options.driftPath ?? riglinePaths().drift;
     if (baseline && scansDiffer(diffs)) {
       mkdirSync(dirname(driftPath), { recursive: true });
-      writeFileSync(driftPath, `${formatDiff(baseline.scan, scan, diffs, Infinity)}\n`);
+      writeFileAtomic(driftPath, `${formatDiff(baseline.scan, scan, diffs, Infinity)}\n`);
       wrote.push(driftPath);
       driftFile = driftPath;
     } else {
@@ -604,7 +606,7 @@ function settle(
   return {
     kind,
     baseline,
-    configNotes,
+    configNotes: [...configNotes, ...baselineNotes],
     driftFile,
     overrides,
     scan,

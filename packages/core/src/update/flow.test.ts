@@ -994,6 +994,37 @@ describe("the baseline", () => {
     expect(report.versions[0]?.action).toBe("injected");
   });
 
+  it.each([
+    ["cut short", '{\n  "version": "2.1.1",\n  "vi'],
+    ["not a scan", "[]\n"],
+  ])("reads a recorded baseline %s as absent, and says so", (_what, text) => {
+    const baselinePath = join(tempDir("rigline-home-"), "baseline.json");
+    writeFileSync(baselinePath, text);
+    const notes: string[] = [];
+
+    expect(readBaseline(tempDir("rigline-cwd-"), baselinePath, (line) => notes.push(line))).toBe(
+      null,
+    );
+    expect(notes).toEqual([
+      expect.stringMatching(/^.*baseline\.json could not be read, so nothing was compared/),
+    ]);
+  });
+
+  it("installs over a baseline.json cut short, notes it, and records a whole one", () => {
+    const baselinePath = join(tempDir("rigline-home-"), "baseline.json");
+    writeFileSync(baselinePath, '{"version": "2.1');
+
+    const report = update({
+      exts: [fixture()],
+      payloadDir: payload(),
+      dir: tempDir("rigline-cwd-"),
+      baselinePath,
+    });
+
+    expect(report.configNotes.some((line) => line.includes("could not be read"))).toBe(true);
+    expect(readBaseline(tempDir("rigline-cwd-"), baselinePath)?.kind).toBe("recorded");
+  });
+
   it("reads one with a byte-order mark, which some editors add on save", () => {
     const cwd = tempDir("rigline-cwd-");
     const generated = generate(harvestAll(readBundles(fixture({ version: "2.1.9" }))));

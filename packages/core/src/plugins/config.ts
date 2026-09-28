@@ -5,9 +5,10 @@
  * The first is edited by hand as well as by commands, so a command edits the document in place and
  * keeps everything a person wrote there, comments included. The second only the engine writes (D74).
  */
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import type { Layout } from "@rigline/plugin-api/internal";
 import { Document, isMap, isScalar, isSeq, parseDocument } from "yaml";
+import { writeFileAtomic } from "../atomic.ts";
 import { UserError } from "../errors.ts";
 
 /**
@@ -117,7 +118,7 @@ export function editConfig(path: string, edit: (doc: Document) => boolean): bool
   configOf(path, doc);
   if (!edit(doc)) return false;
   const eol = text?.includes("\r\n") ? "\r\n" : "\n";
-  writeFileSync(path, render(doc).replaceAll("\n", eol));
+  writeFileAtomic(path, render(doc).replaceAll("\n", eol));
   return true;
 }
 
@@ -260,7 +261,7 @@ export function updateSources(
 ): void {
   const value = readJsonObject(path) ?? {};
   mutate(value);
-  writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
+  writeFileAtomic(path, `${JSON.stringify(value, null, 2)}\n`);
 }
 
 /**
@@ -277,10 +278,11 @@ export function splitLegacyConfig(files: ConfigFiles): string | null {
     );
   }
   const { sources, ...rest } = readJsonObject(files.legacy) ?? {};
-  if (sources !== undefined) writeFileSync(files.sources, `${JSON.stringify(sources, null, 2)}\n`);
+  if (sources !== undefined)
+    writeFileAtomic(files.sources, `${JSON.stringify(sources, null, 2)}\n`);
   const doc = freshConfig();
   for (const [key, value] of Object.entries(rest)) doc.set(key, doc.createNode(value));
-  writeFileSync(files.config, doc.toString(TO_STRING));
+  writeFileAtomic(files.config, doc.toString(TO_STRING));
   // Forced, because two engines can split at once — the companion and a terminal — and the second
   // to get here finds it gone, having written what the first did.
   rmSync(files.legacy, { force: true });
