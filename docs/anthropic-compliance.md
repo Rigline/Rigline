@@ -43,21 +43,30 @@ about whose product it is.
 
 ## What Rigline actually does
 
-Rigline runs entirely on one person's machine, on an installation they made, and changes nothing
-anywhere else.
+Rigline adds to the interface of Claude Code's VS Code extension. The four plugins it ships put a
+session's id beside the composer, the time on each transcript row, the worktree a session is in on
+its tab, and diagnostics in a menu of Rigline's own; anybody else can write a plugin that adds
+something of theirs. That is the whole of the ambition: things you can see, in the panel, that were
+not there before.
 
-Inside the installed extension's directory it changes two files: `webview/index.js`, and — only
-when a plugin asks for it — `extension.js`. Beside each it keeps a byte-faithful backup of the
-original, `index.js.orig` and `extension.js.orig`, and it adds one directory of its own,
+It does that on one person's machine, on an installation they made, and changes nothing anywhere
+else. Inside the installed extension's directory it changes two files: `webview/index.js`, and
+`extension.js` when a plugin declares a patch to it. One of the four does, so a default install
+changes both. Beside each it keeps a byte-faithful backup of the original,
+`index.js.orig` and `extension.js.orig`, and it adds one directory of its own,
 `webview/rigline/`, holding the loader and the plugins. `rigline restore` puts every installed
 version back to the extension's own bytes from the backups, and removes that directory. The
 uninstall path is the same code as the recovery path, so it is exercised constantly rather than
 being a promise.
 
-The modification is an injected loader. It runs inside the extension's existing webview, hands
-registered plugins a capability-scoped context, and lets them decorate the interface — a session-id
-pill, timestamps on transcript rows, a worktree prefix on tab labels, a diagnostics badge. That is
-the whole of the ambition: things you can see, in the panel, that were not there before.
+The modification is an injected loader. It runs inside the extension's existing webview and hands
+each plugin a capability-scoped context to add to the interface through.
+
+One of the four reaches past drawing, in two ways, and both stay on the machine. The worktree prefix
+rewrites the title the panel sends the extension when it names a tab, since that message is the only
+way to a native tab's label. And its patch to `extension.js` flips one flag in how the extension
+lists sessions for the panel, so sessions in a git worktree are listed too — a listing the extension
+already makes, from the session files on the user's disk, and already uses elsewhere.
 
 ## What Rigline does not do
 
@@ -83,7 +92,10 @@ one. It is installed alongside an extension the user obtained from the Marketpla
 it is inert without it.
 
 **It does not remove, disable or restrict any authentication method**, degrade any feature, alter
-any model behaviour, or change what the extension sends or receives.
+any model behaviour, or change what the extension sends off the machine or what comes back to it.
+What passes between the panel and the extension on the machine, a plugin may change — the two
+above do — and that is the line: the panel and the extension are the user's to arrange between
+themselves; what reaches Anthropic is not ours to touch.
 
 **It does not disguise itself.** Rigline announces what it has modified, reports drift after every
 extension update, and ships a diagnostics panel whose entire purpose is to say out loud when
@@ -95,8 +107,8 @@ Rigline is a plugin layer, so everything above invites the question of what a pl
 Rigline promises not to. We would rather answer it than be asked.
 
 **Four plugins ship with Rigline** — a session-id pill, timestamps on transcript rows, a worktree
-prefix on tab labels, and the diagnostics badge. They are ours, they are what the claims above are
-about, and they are all that an install puts on a machine. Anything third-party is installed by the
+prefix on tab labels, and the diagnostics in Rigline's menu. They are ours, they are what the claims
+above are about, and they are all that an install puts on a machine. Anything third-party is installed by the
 user, by name, one plugin at a time.
 
 **The walls are architectural, and they hold for a hostile plugin as well as an honest one.** No
@@ -118,8 +130,8 @@ That is containment rather than safety, and we would rather say so. A plugin sti
 likes in the panel, and the CSP does not stop a convincing lie. So
 [plugin-policy.md](plugin-policy.md) states what we require of authors — no deception, no reaching
 for credentials, no carrying conversation content off the machine by a path the network closure does
-not cover, no host patch that disables a check or alters what the extension sends — and binds them
-to Anthropic's terms explicitly.
+not cover, no host patch that disables a check or changes what the extension sends off the machine
+— and binds them to Anthropic's terms explicitly.
 
 **We do not review plugin source, and we do not claim to.** We could not reliably detect a plugin
 built to hide what it does, and a promise to police that would be one we could not keep. What we

@@ -1501,6 +1501,14 @@ Claude Code's extension, and the engine that puts it there. The `rigline` comman
 the downloads from npm never touch the extension, so they are outside it, and the page says so. Its
 network claim is about what runs in the panel.
 
+**The line a plugin may not cross is the machine's edge (amended 2026-09-29, Leo).** The page said
+Rigline does not change what the extension sends or receives, and that it writes `extension.js` only
+when a plugin asks; the bundled worktree-prefix rewrites a title the panel sends the extension, its
+host patch widens a listing the extension makes for the panel, and a default install always asks.
+What is true, and now what both the page and plugin-policy.md say: a plugin may change what passes
+between the panel and the extension on the machine, never what the extension sends off it. The page
+also leads with what Rigline is for, adding to the extension's interface, before how it does it.
+
 **D78. Install-time-only signature verification is a premise, not a guarantee (2026-09-21).** VS
 Code verifies an extension's signature when it installs it and not afterwards, which is the fact the
 entire project rests on — CLI and companion alike. It is not a commitment Microsoft has made, it is

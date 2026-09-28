@@ -55,10 +55,13 @@ worst case is bounded and local, not that there is no bad case.
   what `ctx` would not send is doing something your manifest does not say.
 - **Do not route Claude usage.** No endpoint substitution, no proxying, no reselling, no billing
   anything to anyone but the user whose account it is.
-- **Keep host patches to reaching what the extension already does.** The justified shape is a
-  capability the extension already has, switched on. A patch that disables a check, suppresses a
-  warning, alters authentication or changes what the extension sends is out of bounds whatever `why`
-  claims about it. If you are unsure, open an issue before you publish.
+- **Change what passes between the panel and the extension, never what leaves the machine.** A
+  rewrite of a message the panel sends, or a host patch that has the extension answer the panel more
+  fully, stays on the machine, and the bundled worktree-prefix does both. A patch that disables a
+  check, suppresses a warning, alters authentication, or changes what the extension sends off the
+  machine is out of bounds whatever `why` claims about it. The justified shape for a host patch is a
+  capability the extension already has, switched on. If you are unsure, open an issue before you
+  publish.
 - **Do not imply Anthropic built, endorses or is partnered with your plugin.** Say what it works
   with, in plain text, and no more.
 

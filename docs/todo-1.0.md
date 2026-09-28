@@ -331,7 +331,7 @@ optional items.
 - [ ] **R4. The 1.0.0 changelog lead.** `## Unreleased` becomes the 1.0.0 section and the GitHub
   release's notes. Before 1.0.0 is cut, a paragraph ahead of its first `###`: the first stable
   release, what stability.md keeps, and the step from an alpha, `npm i -g rigline@latest`.
-- [ ] **R5. W44's draft**, reworked into the compliance page and the plugin policy.
+- [x] **R5. W44's draft**, reworked into the compliance page and the plugin policy.
 - [ ] **R6.** `pnpm release major --dry-run`, then `pnpm release major`.
 
 ## Handed over to the Mac
