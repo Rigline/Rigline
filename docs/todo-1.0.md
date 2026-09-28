@@ -90,7 +90,7 @@ asks rather than building around it.
   anchors.md says means delete it. `anchorOverrideOutcomes` (`overrides.ts:163-172`) compares only
   whether the class resolves, and anchors.md's own worked example is a refine-only repair. **Fix:**
   compare the resolved selectors.
-- [ ] **W5. The probe requires eleven identifiers it never uses.** `plugins/probe/rigline.json`
+- [x] **W5. The probe requires eleven identifiers it never uses.** `plugins/probe/rigline.json`
   declares three anchors and eight message types; the code calls `onMessage` for `request` and
   `rename_tab` only, and survives without `transcript` and the `rename_tab` rewrite
   (`src/index.tsx:299-313`). Any of them moving refuses the probe, so Diagnostics vanish just as

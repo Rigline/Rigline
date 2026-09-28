@@ -5,21 +5,13 @@
   "description": "Rigline's diagnostics, in Rigline's menu. Renders every contributor's checks — the host's own under core, then each plugin's — and contributes the handful nothing else can run.",
   "entry": "dist/index.js",
   "uses": {
-    "anchors": ["modelPill", "transcriptRow", "sessionListItem"],
-    "messages": [
-      "init",
-      "request",
-      "response",
-      "rename_tab",
-      "session_states_update",
-      "update_session_state",
-      "update_state",
-      "io_message"
-    ],
-    "rewrites": {
-      "rename_tab": ["title"]
-    },
-    "transcript": true,
-    "menu": true
+    "menu": true,
+    "optional": {
+      "messages": ["request", "rename_tab"],
+      "rewrites": {
+        "rename_tab": ["title"]
+      },
+      "transcript": true
+    }
   }
 }

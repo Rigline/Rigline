@@ -28,6 +28,10 @@ anything may change between releases.
   unresolved, and only the plugins needing it are refused, by name.
 - An `anchors.json` override that changes only an anchor's `refine` is no longer reported as
   "changes nothing", which says to delete it. It reads "changes what the anchor matches".
+- *Diagnostics* in Rigline's menu no longer disappears when Claude Code renames something it does
+  not need. The probe required three anchors and eight message types, most of them unused, and any
+  one moving refused it just as the pill turned red; it now requires nothing of Claude Code, and
+  `rigline list` says what it reads where present.
 - When VS Code removed an old Claude Code version while Rigline was installing into it, Rigline
   could leave a directory behind holding only its own files, and from then on every install, the
   companion's at each window start included, said it needed you. `rigline install` and `rigline
