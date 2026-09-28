@@ -315,16 +315,44 @@ describe("check", () => {
   });
 
   it("wants nobody when every declaration holds", () => {
-    const ext = fixture();
-    const report = check({
-      exts: [ext],
+    const options = {
+      exts: [fixture()],
       dir: tempDir("rigline-cwd-"),
       baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
       plugins: plugins(pluginRoot("fine", { classes: { f00000: ["local1"] } })),
-    });
+    };
+    update({ ...options, payloadDir: payload() });
+    const report = check(options);
     // The synthetic bundle carries none of the curated anchors, so the anchor table is expected to
     // be missing every one of them; that is the only thing here that should want a person.
     expect(report.attention.filter((line) => !line.includes("anchor table"))).toEqual([]);
+  });
+
+  it("wants a person for a version that is not injected (W23)", () => {
+    const report = check({
+      exts: [fixture()],
+      dir: tempDir("rigline-cwd-"),
+      baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+      restoredPath: join(tempDir("rigline-home-"), "restored"),
+    });
+    expect(report.attention).toContainEqual(
+      expect.stringMatching(/^[\d.]+: not injected; `rigline install` injects it$/),
+    );
+  });
+
+  it("says instead that a restore is holding Rigline out, and wants nobody for it", () => {
+    const restoredPath = join(tempDir("rigline-home-"), "restored");
+    writeFileSync(restoredPath, "2026-09-29T00:00:00.000Z\n");
+    const report = check({
+      exts: [fixture()],
+      dir: tempDir("rigline-cwd-"),
+      baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+      restoredPath,
+    });
+    expect(report.attention.some((line) => line.includes("not injected"))).toBe(false);
+    expect(report.configNotes).toContain(
+      "Rigline is out since `rigline restore` at 2026-09-29T00:00:00.000Z; `rigline install` puts it back",
+    );
   });
 });
 

@@ -440,11 +440,13 @@ async function updateCommand(args: string[]): Promise<number> {
     },
   });
   console.log(formatUpdates(updates));
-  for (const line of (await companionAdditions({})).lines) console.log(line);
+  const additions = await companionAdditions({});
+  for (const line of additions.lines) console.log(line);
 
   console.log("");
   const injected = reinject();
-  return updates.some((u) => u.outcome === "failed") || injected !== 0 ? 1 : 0;
+  const failed = updates.some((u) => u.outcome === "failed") || additions.failed;
+  return failed || injected !== 0 ? 1 : 0;
 }
 
 /**

@@ -180,6 +180,8 @@ export interface FlowOptions {
   readonly wholeness?: InstallOptions["wholeness"];
   /** The injection lock: where it is, how long to wait, and what to say while waiting (D105). */
   readonly lock?: InjectionLockOptions;
+  /** Where `restore`'s mark is, which `check` reads (D111). Defaults to `~/.rigline/restored`. */
+  readonly restoredPath?: string;
 }
 
 export interface UpdateOptions extends FlowOptions {
@@ -529,6 +531,9 @@ function settle(
   // the entries that parsed have already been applied and the rest are simply not there (D44).
   const attention: string[] = [...configProblems, ...overrides.problems, ...unloaded];
   if (tokenProblem !== null) attention.push(tokenProblem);
+  // A version not injected needs a person, unless `restore` is holding Rigline out on purpose.
+  const heldOut =
+    writeOptions === null ? restoredSince(options.restoredPath ?? riglinePaths().restored) : null;
 
   for (const version of versions) {
     if (version.refused) attention.push(refusalLine(kind, version.version, version.refused));
@@ -594,7 +599,19 @@ function settle(
         `${version.version}: its payload was written by engine ${version.payloadEngine}, and this engine is ${CORE_VERSION}; run \`rigline install\``,
       );
     }
+    if (
+      writeOptions === null &&
+      version.refused === null &&
+      !version.injected &&
+      heldOut === null
+    ) {
+      attention.push(`${version.version}: not injected; \`rigline install\` injects it`);
+    }
   }
+  const heldOutNotes =
+    heldOut !== null && versions.some((version) => !version.injected)
+      ? [`Rigline is out since \`rigline restore\` at ${heldOut}; \`rigline install\` puts it back`]
+      : [];
 
   if (writeOptions && newest && scan) {
     if (writeOptions.codegen) {
@@ -629,7 +646,7 @@ function settle(
   return {
     kind,
     baseline,
-    configNotes: [...configNotes, ...baselineNotes],
+    configNotes: [...configNotes, ...baselineNotes, ...heldOutNotes],
     pluginProblems,
     driftFile,
     overrides,

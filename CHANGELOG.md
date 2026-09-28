@@ -73,6 +73,11 @@ anything may change between releases.
   report when a plugin calls something it never declared, which will disable it when it runs. It
   was behind `--verbose`, where the docs said it was not; a declaration never called, and the other
   notes about a plugin's source, stay there.
+- `rigline check` exits 1 over an installed Claude Code version Rigline is not injected into,
+  unless `rigline restore` is holding Rigline out, which it says instead; and `rigline update` exits
+  1 when adding the companion to a profile failed. The stability page now says which
+  commands exit 1 when something needs you, and that the reports — `list`, `status`, `doctor`,
+  `diff` and a bare `layout` — exit 0 whenever they produced their report.
 - The engine, started by a Node older than it supports, says which Node it needs and stops, where
   it failed part-way through the command with an error naming nothing.
 - When VS Code removed an old Claude Code version while Rigline was installing into it, Rigline

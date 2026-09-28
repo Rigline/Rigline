@@ -89,7 +89,12 @@ Rigline out until you put it back.
   ([config.md](config.md)).
 - **The commands in the usage, `rigline --help`, with their flags, and `rigline --version`.** A later
   1.x accepts every invocation an earlier one did, and an earlier one refuses a flag it does not know
-  rather than ignoring it. The exit status is 0 when nothing needs you and 1 when something does.
+  rather than ignoring it. The commands that change or check the install — `install`, `check`,
+  `update`, `add`, `remove`, `enable`, `disable`, `layout`'s edits, `restore` and `codegen --check`
+  — exit 1 when something needs you and 0 when nothing does; for `check`, a version not injected
+  needs you, unless `rigline restore` is holding Rigline out, which it says instead. The reports —
+  `list`, `status`, `doctor`, `diff` and a bare `layout` — exit 0 whenever they produced their
+  report. A command that cannot run at all exits 1.
 - **`rigline list --json`**, which prints JSON and nothing else on stdout, even on the run that
   installs the engine: `{ "v": 1, "plugins": [...] }`, each plugin with
   - `name`, and `version` or null;

@@ -2921,3 +2921,15 @@ left:
 Accepted: the second rule takes a foreign patch that only appends to the bundle as part of its
 pristine bytes, so `restore` would keep that patch. None has been seen, and the alternative is a
 truncated backup written over the extension.
+
+**D115. What exit 1 promises (2026-09-29, Leo).** stability.md promised exit 1 whenever something
+needs you. The reports — `list`, `status`, `doctor`, `diff` and a bare `layout` — always exit 0,
+`check` exited 0 over a version that was not injected, and `update` exited 0 having failed to add
+the companion. So there are two kinds, and stability.md names them. The commands that change or
+check the install exit 1 when something needs you. The reports exit 0 whenever they produced their
+report: a script reads a report's output, and failing to report is the only failure a report has.
+
+`check` counts a version not injected as needing you, unless a `restore` is holding Rigline out
+(D111), which it says instead, with 0: a person who ran `restore` meant it. `update` counts a failed
+companion addition. Both land before 1.0, since moving an exit status to 1 is a tightening no 1.x
+can make afterwards.

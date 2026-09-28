@@ -20,7 +20,7 @@ takes 1.0.0-alpha.13 to 1.0.0 correctly, and every curated anchor still resolves
 - **Both lists commit to `main`.** Pull before starting and before each batch; commit small, tick
   the item (`[x]`) in the same commit as its fix, and push straight after, so the other machine sees
   it. A conflict in `CHANGELOG.md`'s `## Unreleased` keeps both entries.
-- **Decision numbers.** The next free one is D115. Pull before taking one, and push the commit that
+- **Decision numbers.** The next free one is D116. Pull before taking one, and push the commit that
   takes it at once. A fix that moves a recorded decision amends it and says so.
 - **The repo's rules hold**: root `CLAUDE.md`, and planning a batch before coding it (its plan in
   `.local/plans/` on the machine doing it). The Mac has no corpus at `c:/dev/kb`, so the corpus tier
@@ -186,7 +186,7 @@ asks rather than building around it.
   Neither changes the exit status. `dev` prints the certain ones too.
 - [x] **W22. A Node floor check where the engine starts** (`packages/core/src/engine/bin.ts`), as M4
   is for the wrapper.
-- [ ] **W23. What exit 1 promises.** stability.md:92 promises exit 1 when something needs you;
+- [x] **W23. What exit 1 promises.** stability.md:92 promises exit 1 when something needs you;
   `list`, `status`, `doctor`, `diff` and bare `layout` always exit 0, and `check` exits 0 over a
   version that is not injected. **Fix:** stability.md names the two kinds. The commands that change
   or check the install — `install`, `check`, `update`, `add`, `remove`, `enable`, `disable`,
