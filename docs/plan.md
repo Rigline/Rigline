@@ -414,10 +414,8 @@ what a plugin is written against.
 `1.0.0-alpha.13` is the newest on `latest`, and carries the 1.0 bar. Its reads are done, and what
 they did not reach is taken as working until somebody finds otherwise.
 
-Left before 1.0: what a final look found, sorted in `.local/plans/final-look.md` — two blockers on
-the author's first steps, the companion under version managers and Homebrew, and the release text —
-with the decisions that are Leo's at its head. Then `1.0.0-alpha.14`, its reads, and `pnpm release
-major`.
+Left before 1.0: [todo-1.0.md](todo-1.0.md), three lists — W on Windows, M by an agent on the Mac,
+R the release — with the decisions that are Leo's at its head. It goes when 1.0.0 ships.
 
 ## Status log
 
