@@ -352,8 +352,8 @@ what a plugin is written against.
   `stampOf`, or reading the bytes twice and handing those to the backup and the harvest. First read
   which call libuv makes for a by-path stat on Windows, and whether a handle held during another
   process's write, rename or delete is harmless to it.
-- **What [support.md](support.md) lists as not supported yet.** Taken in the order people ask for
-  them, and none gets a date. Another editor, a portable VS Code or a custom extensions directory
+- **What [support.md](support.md) lists as not supported yet.** Taken by demand, not by who asked
+  first, and none gets a date. Another editor, a portable VS Code or a custom extensions directory
   starts with the engine taking a directory, which the companion already knows for itself; a
   baseline per editor is the design, and the forks' directory names are unread. A remote window runs
   Claude Code on the remote host from `~/.vscode-server/extensions` ([companion.md](companion.md)).

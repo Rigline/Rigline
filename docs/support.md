@@ -27,6 +27,7 @@ GitHub Codespaces.
 
 ## Asking for one
 
-Nothing marked *not yet* has a date. Support arrives in the order people ask for it, so if you want
-one, say so: open an issue at [github.com/Rigline/Rigline](https://github.com/Rigline/Rigline/issues),
-or give a thumbs-up to one that is already there.
+Nothing marked *not yet* has a date. What comes first depends on how many people want it, not on who
+asked first, so if you want one, say so: open an issue at
+[github.com/Rigline/Rigline](https://github.com/Rigline/Rigline/issues), or give a thumbs-up to one
+that is already there. The thumbs-ups are how we count.
