@@ -16,7 +16,7 @@
  */
 import { spawn } from "node:child_process";
 import { existsSync, watch as fsWatch, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { basename, join, relative, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { placementLabel, placeName } from "@rigline/plugin-api/internal";
@@ -144,9 +144,10 @@ const USAGE = `rigline ${CORE_VERSION}
       install, and again whenever the set of installed extension directories changes,
       which is what an extension update looks like from outside VS Code.
 
-  rigline dev [DIR...]
-      Build the named plugin directories (or every first-party one), re-inject, and rebuild
-      on every source change. Reload webviews after each one.
+  rigline dev DIR...
+      Build each plugin directory, install it as add does, and re-inject; then again on
+      every source change. Reload webviews after each one. The last build stays installed
+      when it stops.
 
   rigline add PATH|SPEC [--now]
       Install a plugin into ~/.rigline/plugins, say what it can do, and re-inject. PATH is a
@@ -1073,12 +1074,25 @@ async function dev(args: string[]): Promise<number> {
   const overrides = readAnchorOverrides();
   for (const problem of overrides.problems) console.error(`rigline dev: ${problem}`);
 
+  // One already in a discovery root loads from where it is; any other is added after each build, so
+  // stopping leaves the latest build installed (D56).
+  const paths = riglinePaths();
+  const roots = discoveryRoots();
+  const added = dirs.filter((dir) => !roots.some((root) => samePath(dirname(dir), root)));
+  let reported = false;
+
   async function once(): Promise<void> {
     for (const dir of dirs) {
       const built = await buildPlugin({ dir });
       console.log(`built ${basename(dir)}: ${built.input} -> ${built.output}`);
     }
     const hostChanged = withInjectionLock({ ...lockWait, what: "rigline dev" }, () => {
+      for (const dir of added) {
+        const result = addPlugin({ from: dir, ...placement(paths) });
+        if (reported) console.log(`refreshed ${result.name} in ${result.dir}`);
+        else reportAdded(result, paths.config);
+      }
+      reported = true;
       let changed = false;
       for (const ext of exts) {
         const report = install(ext, {
@@ -1125,19 +1139,34 @@ async function dev(args: string[]): Promise<number> {
     }, 150);
   };
 
-  for (const dir of dirs) {
-    const src = join(dir, "src");
-    if (!existsSync(src)) continue;
-    fsWatch(src, { recursive: true }, schedule);
-  }
+  const watchers = dirs
+    .map((dir) => join(dir, "src"))
+    .filter((src) => existsSync(src))
+    .map((src) => fsWatch(src, { recursive: true }, schedule));
   console.log(
     `watching ${dirs.length} plugin source director${dirs.length === 1 ? "y" : "ies"}; Ctrl-C to stop`,
   );
 
+  // The watchers are closed, since an open one keeps the process alive past the first Ctrl-C.
   return new Promise((resolveWith) => {
-    process.once("SIGINT", () => resolveWith(0));
-    process.once("SIGTERM", () => resolveWith(0));
+    const stop = (): void => {
+      process.off("SIGINT", stop);
+      process.off("SIGTERM", stop);
+      for (const watcher of watchers) watcher.close();
+      if (pending) clearTimeout(pending);
+      resolveWith(0);
+    };
+    process.on("SIGINT", stop);
+    process.on("SIGTERM", stop);
   });
+}
+
+/** Whether two paths name the same directory, case-blind where the default filesystem is. */
+function samePath(a: string, b: string): boolean {
+  const [x, y] = [resolve(a), resolve(b)];
+  return process.platform === "win32" || process.platform === "darwin"
+    ? x.toLowerCase() === y.toLowerCase()
+    : x === y;
 }
 
 /**

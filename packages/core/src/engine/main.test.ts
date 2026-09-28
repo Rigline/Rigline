@@ -2,7 +2,7 @@
  * The engine's argument handling. `homedir()` is a temporary directory, so a verb that failed to
  * refuse would find no extension to act on rather than the live one (D39).
  */
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   afterAll,
@@ -14,6 +14,7 @@ import {
   type MockInstance,
   vi,
 } from "vitest";
+import { writeFixtureExtension } from "../../test/fixtures.ts";
 import { EXTENSIONS_DIR } from "../extension/locate.ts";
 import { runEngine } from "./main.ts";
 
@@ -112,4 +113,67 @@ describe("the mark restore leaves (D111)", () => {
       "Rigline was out since `rigline restore`; this puts it back.",
     );
   });
+});
+
+describe("dev (W2)", () => {
+  const plugins = (): string => join(home, ".rigline", "plugins");
+  const ext = join(EXTENSIONS_DIR, "anthropic.claude-code-2.1.263-win32-x64");
+
+  function writePlugin(dir: string, name: string, marker: string): string {
+    mkdirSync(join(dir, "src"), { recursive: true });
+    writeFileSync(
+      join(dir, "rigline.json"),
+      JSON.stringify({ api: 1, name, entry: "dist/index.js", uses: {} }),
+    );
+    writeFileSync(join(dir, "src", "index.ts"), `export const marker = "${marker}";\n`);
+    return dir;
+  }
+
+  /** The first pass, then Ctrl-C, as a person would stop it. */
+  async function developOnce(dir: string): Promise<number> {
+    const running = runEngine(["dev", dir]);
+    await vi.waitFor(
+      () => {
+        expect(log.mock.calls.flat().some((line) => String(line).startsWith("watching"))).toBe(
+          true,
+        );
+      },
+      { timeout: 30_000 },
+    );
+    process.emit("SIGINT");
+    return running;
+  }
+
+  beforeEach(() => {
+    writeFixtureExtension(ext);
+  });
+
+  afterEach(() => {
+    rmSync(ext, { recursive: true, force: true });
+    rmSync(join(home, ".rigline"), { recursive: true, force: true });
+  });
+
+  it("installs each build over the copy add made, so the panel loads what was just built", async () => {
+    const dir = writePlugin(join(home, "work", "clock"), "clock", "fresh");
+    const stale = writePlugin(join(plugins(), "clock"), "clock", "stale");
+    mkdirSync(join(stale, "dist"));
+    writeFileSync(join(stale, "dist", "index.js"), 'export const marker = "stale";\n');
+
+    expect(await developOnce(dir)).toBe(0);
+
+    expect(readFileSync(join(plugins(), "clock", "dist", "index.js"), "utf8")).toContain("fresh");
+    const baked = join(ext, "webview", "rigline", "plugins", "clock", "dist", "index.js");
+    expect(readFileSync(baked, "utf8")).toContain("fresh");
+    expect(log.mock.calls.flat()).toContain(`replaced clock — ${join(plugins(), "clock")}`);
+  }, 60_000);
+
+  it("builds one already in ~/.rigline/plugins where it is, and copies nothing", async () => {
+    const dir = writePlugin(join(plugins(), "clock"), "clock", "in place");
+
+    expect(await developOnce(dir)).toBe(0);
+
+    expect(readFileSync(join(dir, "dist", "index.js"), "utf8")).toContain("in place");
+    expect(existsSync(join(home, ".rigline", "sources.json"))).toBe(false);
+    expect(log.mock.calls.flat().some((line) => String(line).startsWith("replaced"))).toBe(false);
+  }, 60_000);
 });

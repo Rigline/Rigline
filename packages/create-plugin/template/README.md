@@ -23,7 +23,7 @@ you run against a newer extension, and the diff is how you find out what moved.
 
     pnpm rigline dev plugins/__NAME__
 
-Rebuilds and re-injects on every save. Reload webviews to see each change.
+Rebuilds, installs the build and re-injects on every save. Reload webviews to see each change.
 
 ## What a plugin declares
 

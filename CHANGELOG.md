@@ -19,6 +19,9 @@ anything may change between releases.
 
 - `pnpm create rigline-plugin`, and `npm create rigline-plugin` on macOS and Linux, scaffold a
   workspace again. They exited 0 having written nothing.
+- **For plugin authors:** `rigline dev` installs each build, as `rigline add` would, before it
+  re-injects. Outside Rigline's own repository it re-injected the copy an earlier `add` had made, so
+  the panel never showed what you had just built. It also stops at the first Ctrl-C.
 - When VS Code removed an old Claude Code version while Rigline was installing into it, Rigline
   could leave a directory behind holding only its own files, and from then on every install, the
   companion's at each window start included, said it needed you. `rigline install` and `rigline

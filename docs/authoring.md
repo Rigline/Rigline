@@ -19,8 +19,11 @@ repairing one that breaks; read it when something stops resolving.
 Then **Developer: Reload Webviews**. The scaffolded plugin puts a small badge in the composer
 footer; replace its body and keep its shape.
 
-While you work, `pnpm rigline dev plugins/my-plugin` rebuilds and re-injects on every save. Each
-change still needs a webview reload — nothing can avoid that.
+While you work, `pnpm rigline dev plugins/my-plugin` rebuilds on every save, installs the build as
+`add` does, and re-injects, so when you stop it the last build is the one installed. Each change
+still needs a webview reload — nothing can avoid that. `dev` injects with this workspace's
+`@rigline/core`; the companion, if you have it, re-injects at each window start with the engine
+`rigline` installed, and from the same copy.
 
 ## The two files
 

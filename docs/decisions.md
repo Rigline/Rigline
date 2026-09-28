@@ -1052,6 +1052,13 @@ reports that the bundled copy is now shadowed, and discovery records the same fa
 rather than logging it per collision. `remove` reads the same root and refuses, naming `disable`,
 since there is nothing of the user's to delete and an engine update would put it back.
 
+**`dev` adds each build, then drives the installer** (amended 2026-09-28, Leo). Outside this
+checkout the discovery roots are the home and the bundled set, so building in place and injecting
+re-injected the copy an earlier `add` made. A directory whose parent is a discovery root still loads
+from where it is; any other is added after each build, under the injection lock with the install
+that follows, so stopping `dev` leaves the latest build installed — which is also what the
+companion re-injects at the next window start.
+
 **D57. A tarball is read by a reader that refuses, not by an extractor that reproduces.** Node has
 no tar, so this was a fork: depend on `tar`, which is general, battle-tested and streaming, or write
 the reader. The reader, for the reason D47 gives about package managers — what we want from

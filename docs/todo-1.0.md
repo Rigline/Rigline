@@ -65,7 +65,7 @@ asks rather than building around it.
   `main()` never runs. Reproduced through a junction. **Fix:** a separate bin file that calls
   `main()`, as core's `engine/bin.ts` does, and a tier-4 step running the scaffolder's bin by name
   through pnpm.
-- [ ] **W2. `rigline dev` in an author's workspace re-injects the stale copy.** It builds the named
+- [x] **W2. `rigline dev` in an author's workspace re-injects the stale copy.** It builds the named
   directories in place, then installs from `discoveryRoots()`
   (`packages/core/src/engine/main.ts:225-228`), which outside this checkout are the home and the
   bundled set; the copy `add` made is never refreshed. **Fix:** `dev` adds each built directory as
