@@ -215,7 +215,7 @@ asks rather than building around it.
 - [x] **W26. create-plugin's README** scaffolds `my-plugins` then adds `plugins/my-plugin`, shows
   `src/index.ts` for a `.tsx`, and credits `tsconfig.base.json` with what `tsconfig.plugin.json`
   does.
-- [ ] **W27. "Delete `generated.ts` and everything still compiles"** (authoring.md:366-367, and the
+- [x] **W27. "Delete `generated.ts` and everything still compiles"** (authoring.md:366-367, and the
   header codegen writes, `codegen/generate.ts:228`) is false in the scaffold, whose
   `tsconfig.plugin.json` lists it under `files`. The same header says `rigline update` diffs against
   it; `install` does.

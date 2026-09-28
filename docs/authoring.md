@@ -366,9 +366,10 @@ module, class, message type and payload field the installed extension has. Commi
 rather than at install time.
 
 Nothing harvested is published, and there is no version matrix to pick from: the file describes the
-extension *you* have, and the next person's `rigline codegen` describes theirs. Delete it and
-everything still compiles, with every identifier widened back to `string` — the narrowing is
-ergonomics, and the contract is the install-time check on the user's machine.
+extension *you* have, and the next person's `rigline codegen` describes theirs. With the placeholder
+a new workspace starts with, everything still compiles, with every identifier widened back to
+`string` — the narrowing is ergonomics, and the contract is the install-time check on the user's
+machine. Keep a file there, though: every plugin's tsconfig names it.
 
 Re-run it after an extension update and read the diff. That is the fastest way to find out what
 moved.

@@ -131,9 +131,9 @@ const USAGE = `rigline ${CORE_VERSION}
       in ~/.rigline/anchors.json is applied and named, with what this version makes of it.
       What moved since the baseline is listed in ~/.rigline/drift.txt. Rewrites the
       ./generated.ts rigline codegen wrote, when the directory has one, and records the new
-      baseline; never commits either. The report ends with what to reload, then anything that needs you. --verbose
-      adds paths, harvest counts, each host patch and the full drift. Run it after an
-      extension update. Exits 1 when a person is needed.
+      baseline; never commits either. The report ends with what to reload, then anything
+      that needs you. --verbose adds paths, harvest counts, each host patch and the full
+      drift. Run it after an extension update. Exits 1 when a person is needed.
 
   rigline check [--ext DIR] [--verbose]
       Read-only. Per installed version (or DIR): whether it is injected and by which

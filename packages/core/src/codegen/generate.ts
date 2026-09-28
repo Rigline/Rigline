@@ -228,8 +228,7 @@ function renderSource(
 //
 // Commit this file. It is the record of the extension version these plugins were built and tested
 // against: it narrows what \`ctx.cls\`, \`ctx.onMessage\` and \`ctx.rewrite\` will accept, and it is the
-// baseline \`rigline update\` diffs the next version against. Delete it and everything still
-// compiles, with every identifier widened back to \`string\`.
+// baseline \`rigline install\` diffs the next version against.
 //
 // ${missing}
 // ${ambiguous}
