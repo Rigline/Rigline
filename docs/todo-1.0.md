@@ -212,7 +212,7 @@ asks rather than building around it.
 - [x] **W25. The scaffold's workflows** pin `actions/checkout@v5` and `actions/setup-node@v5`
   (`template/.github/workflows/ci.yml:40,47`, `release.yml:59,85`) against this repo's v7. Its
   README says CI runs the same Node set as the release (`:67-69`); the release runs 26 alone.
-- [ ] **W26. create-plugin's README** scaffolds `my-plugins` then adds `plugins/my-plugin`, shows
+- [x] **W26. create-plugin's README** scaffolds `my-plugins` then adds `plugins/my-plugin`, shows
   `src/index.ts` for a `.tsx`, and credits `tsconfig.base.json` with what `tsconfig.plugin.json`
   does.
 - [ ] **W27. "Delete `generated.ts` and everything still compiles"** (authoring.md:366-367, and the

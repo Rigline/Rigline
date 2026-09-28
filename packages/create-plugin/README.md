@@ -3,7 +3,7 @@
 Scaffolds a workspace for [Rigline](https://github.com/Rigline/Rigline) plugins — plugins for the
 Claude Code VS Code extension.
 
-    npm create rigline-plugin my-plugins
+    npm create rigline-plugin my-plugin
 
 A plugin runs inside a modification of Anthropic's extension, so the
 [plugin policy](https://github.com/Rigline/Rigline/blob/main/docs/plugin-policy.md) applies to it —
@@ -15,17 +15,19 @@ A pnpm workspace with `plugins/*` and one plugin in it, rather than a single-plu
 multi-plugin shape scaffolds correctly for one plugin and a second is then a directory copy, where a
 single-plugin template could not grow into a workspace without a restructure.
 
-    my-plugins/
+    my-plugin/
       generated.ts              the harvested identifiers, shared by every plugin here
       pnpm-workspace.yaml       with the supply-chain settings written down rather than inherited
-      tsconfig.base.json        pulls the root harvest into every plugin's program
+      tsconfig.base.json        the compiler settings every plugin shares
+      tsconfig.plugin.json      pulls the root harvest into every plugin's program
       plugins/my-plugin/
         rigline.json            what the plugin declares it needs from the extension
-        src/index.ts            the plugin
+        src/index.tsx           the plugin
         src/index.test.ts
 
 Then:
 
+    cd my-plugin
     pnpm install
     pnpm codegen                # harvest your installed extension, and commit the result
     pnpm build
@@ -46,8 +48,8 @@ and the diff when you run against a newer extension is how you find out what mov
 
 The identifiers are harvested once, at the root, and imported by every plugin in the repository,
 because they all compile against the same installed extension. Module augmentation is per-program,
-so each plugin's tsconfig has to pull that harvest in — which the shared base config does, and which
-is the one ordering dependency in the whole arrangement.
+so each plugin's tsconfig has to pull that harvest in — which `tsconfig.plugin.json`, the config each
+plugin extends, does, and which is the one ordering dependency in the whole arrangement.
 
 [Authoring guide](https://github.com/Rigline/Rigline/blob/main/docs/authoring.md)
 

@@ -63,7 +63,8 @@ anything may change between releases.
 - **For plugin authors:** a new workspace's publishing steps work with a security key, the only
   second factor npm still enrols. They approve a staged release on npmjs.com or with
   `npm stage approve <id>`, and publish the first version with `npm publish`, where they said
-  `pnpm stage approve` and `pnpm publish --otp`, both of which need a typed code.
+  `pnpm stage approve` and `pnpm publish --otp`, both of which need a typed code. Its workflows use
+  `actions/checkout` and `actions/setup-node` at v7.
 - When VS Code removed an old Claude Code version while Rigline was installing into it, Rigline
   could leave a directory behind holding only its own files, and from then on every install, the
   companion's at each window start included, said it needed you. `rigline install` and `rigline
