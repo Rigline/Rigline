@@ -46,4 +46,5 @@ asserts that exact list is absent from the generated CSS.
 
 `src/index.test.ts` covers `gapName`, `markFor` and `styleRules` with no DOM at all.
 `packages/harness/test/time-marks.test.ts` drives the actual built plugin against the real
-2.1.270 webview bundle: a real transcript row, a real divider, and the real injected stylesheet.
+webview bundle the harness is pinned to, `HARNESS_VERSION` in `packages/harness/src/suite.ts`: a
+real transcript row, a real divider, and the real injected stylesheet.

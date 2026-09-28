@@ -1,44 +1,44 @@
 # probe
 
-Rigline's own integration harness. It is loaded as an ordinary plugin — same manifest, same `ctx`,
-same capability enforcement as any third-party plugin — so that "the probe passes" is proof the
-host's plugin machinery works end to end, not a special case exempted from the rules it checks.
+Rigline's diagnostics, under *Diagnostics* in Rigline's menu — the menu behind the `RIG` pill. It is
+loaded as an ordinary plugin, with the same manifest, `ctx` and capability enforcement as any other,
+so its own checks passing is evidence that the host's plugin machinery works end to end rather than
+a special case exempted from the rules it checks.
 
-## What it checks
+## What it shows
 
-One named check per capability the manifest declares (anchors, classes via `cls`'s escape hatch is
-not exercised here but `anchor` is, messages, rewrites, mount, style, tools, session, transcript),
-plus checks read directly off `globalThis.__rigline.diagnostics` — pre/post hook timing, raw bus
-counts, the buffer's seal state, every installed plugin's load status, rewrite bookkeeping, and the
-React renderer hook the transcript capability rests on. The probe is the one plugin allowed to read
-that global directly: it exists to diagnose the host, and none of it is something a manifest could
-sanely declare.
+Every contributor's checks, grouped: the host's own under `core` — the kernel and each capability
+module — then each plugin under its name, so the report reads as which part is broken rather than as
+one list. Each line is `pass`, `fail` or `n/a` with a one-line detail. `n/a` is a real state, not a
+lesser failure: a check that cannot apply on this surface, or has had no chance to yet — no session,
+no tool run, no tab renamed.
 
-Every check reports a verdict of `pass`, `fail` or `n/a`, plus a one-line detail, through a single
-path so the badge's failing count and the panel's lines can never disagree. `n/a` is a real state,
-not a lesser failure: it means a check cannot apply on this surface (the session list renders no
-composer footer and no transcript) or has had no opportunity yet (no session id has arrived, no tool
-has run, no tab has been renamed).
+The failing count on the `RIG` pill is the host's, read from the same registry, so the pill and the
+menu cannot disagree.
 
-## The badge
+*Copy report* puts a report on the clipboard for a bug report: the extension and engine versions,
+the checks, the load status of every plugin, the host's counters and peaks, and the previous run's
+tail. `rigline doctor` is its other half, the install state read from disk.
 
-A small `RIG` badge sits at the end of the composer footer's left cluster on the full editor and the
-sidebar, or fixed to the bottom-right corner on the session list, which has no composer. Green means
-every check is `pass` or `n/a`; red means at least one is `fail`, with the failing count shown on
-the badge and as its tooltip.
+## What it checks itself
 
-## The panel
+The few things nothing else is placed to check, because they mean doing something to the bus and
+looking at what came back:
 
-Click the badge to open a small monospace panel, fixed to a corner, listing every check by name with
-its verdict and detail. It re-renders once a second while open, and immediately whenever an event
-changes a verdict. Close it by clicking the badge again, pressing Escape, or clicking outside the
-panel.
+- **read taps are immutable** — a tap is handed a frozen payload.
+- **rewrite chain composes in order** — two rewriters on `rename_tab`, the second seeing the first's
+  change, with nothing left on the wire.
+- **read taps see the app's original** — a tap never sees another plugin's rewrite.
+- **rewrite bookkeeping** — the host's record of those rewrites agrees.
+- **transcript decorator registered** — a decorator that draws nothing, which keeps rows being
+  identified and timed so the host's transcript check means something on a panel with no other.
 
-## Reading a red badge
+It requires nothing of Claude Code: the messages, the rewrite and the transcript are optional, so an
+update that moves one leaves the diagnostics up and the check that needed it reading `n/a`.
 
-Every check names the thing that broke: `every plugin loaded` names the plugin and its refusal
-reason; `rewrite chain composes in order` and `read taps see the app's original` catch a broken
-rewrite chain; `React renderer injected` failing means the transcript capability is dead and every
-check below it will read as having found nothing rather than explaining why. After an extension
-update, the badge's colour alone answers "is anything broken", and the panel is there for when the
-answer is yes.
+## Reading a failure
+
+Every check names what broke. `every plugin loaded`, under `core`, names each plugin refused and
+why. A rewrite check failing means the outbound chain is broken for every plugin that rewrites.
+`React renderer injected` failing means the transcript capability is dead, and every check that
+reads rows will say it found nothing rather than why.

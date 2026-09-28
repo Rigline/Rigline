@@ -68,7 +68,7 @@ the one caller in the whole extension that opts out of worktree enumeration it a
 and already uses elsewhere (`getSession`, the resume precheck). This plugin declares an **optional**
 byte patch flipping that flag to `true`, so a session already relocated into a worktree before this
 panel connected shows up in `list_sessions_response` too — recovering exactly the case
-`ctx.onToolUse` cannot reach, since no tool call happened here to observe it. The patch is optional:
+`ctx.onToolResult` cannot reach, since no tool call happened here to observe it. The patch is optional:
 without it, the plugin still catches every worktree move made during the conversation itself, and
 only loses the "already there when the panel connected, or after a reload" case.
 
@@ -81,23 +81,14 @@ the webview — and no amount of cleverness here recovers it. This is why `Enter
 form (an existing worktree, which may sit outside that convention) falls back to the path's own
 last segment as a label, rather than assuming a `.claude/worktrees/` layout.
 
-## Why nothing here is declared under `uses.optional`
+## What is optional, and why only that
 
-This plugin has two genuinely optional information sources by design, which reads like the
-textbook case for D41's `uses.optional`. It is not declared that way, because of what the current
-host implementation actually does with an optional declaration for anything other than an anchor or
-a raw class: `ctx.onMessage`, `ctx.onToolUse`, `ctx.onSessionId` and `ctx.rewrite` are granted by
-checking only the *required* half of a plugin's `uses` (see `packages/host/src/capabilities/{messages,tools,session,rewrites}.ts`).
-An identifier declared solely under `uses.optional` is therefore never in the declared set those
-grants check, so calling the corresponding `ctx` method throws unconditionally — *even when the
-identifier is present* — which disables the whole plugin the moment it is called. That is strictly
-worse than declaring the same identifier required, where the plugin at least loads and runs for as
-long as the identifier exists, and is refused cleanly, by name, only if it truly goes.
+`list_sessions_response` is declared under `uses.optional`, and it is the one dependency with a
+working fallback: losing it costs only the session that was already in a worktree before this panel
+connected, while every move made during the conversation still arrives through `ctx.onToolResult`.
+If Claude Code stops sending it, the tap never fires and the plugin goes on working (D41).
 
-`ctx.watch` was deliberately extended to accept an anchor declared under either half of `uses`
-(`packages/host/src/capabilities/mount.ts`); `messages`, `rewrites`, `tools` and `session` were not
-given the same treatment. Every identifier this plugin depends on — `session`, `tools`,
-`list_sessions_response`, `update_state`, `init_response`, `rename_tab.title` — is declared required
-as a result. The two-detection-source design is unaffected; it just cannot be expressed as
-resilience against the *extension* retiring one of its sources, only as a plugin that (correctly)
-still works when both continue to exist. See the worked-plugin report for the full reasoning.
+Everything else is declared required, because without it there is no feature: the `rename_tab`
+rewrite is the only route to a native tab's title, the session id is what the list is read against,
+and `update_state` and `init_response` carry the directory a worktree is told apart from. An update
+that retires one of those refuses the plugin by name rather than leaving it half working.

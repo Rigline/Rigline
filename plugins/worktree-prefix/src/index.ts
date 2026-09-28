@@ -228,7 +228,7 @@ export default definePlugin({
     // Declared under `uses.optional` (D41), alone among this plugin's taps. It is the one
     // dependency with a working fallback: losing the list costs the session that was already in a
     // worktree before this panel connected, while every move made during the conversation still
-    // arrives through `ctx.onToolUse`. Everything else here is load-bearing — without the rewrite
+    // arrives through `ctx.onToolResult`. Everything else here is load-bearing — without the rewrite
     // there is no feature, and without the session id the list cannot be read at all — so refusing
     // the plugin by name is the right answer for those and the wrong one for this.
     ctx.onMessage("list_sessions_response", (payload) => {

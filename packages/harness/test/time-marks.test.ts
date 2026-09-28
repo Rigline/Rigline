@@ -1,5 +1,5 @@
 /**
- * time-marks against the real 2.1.270 bundle: the same manifest and the same built output
+ * time-marks against the real bundle: the same manifest and the same built output
  * `rigline build` produces, run through the DOM tier so "the plugin loads and decorates" is proven
  * against React's real fiber tree rather than a hand-written stand-in. See test/kernel.test.ts for
  * the kernel's own behaviour and the scaffolding this reuses; this file is the plugin's own, per

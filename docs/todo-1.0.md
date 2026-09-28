@@ -219,7 +219,7 @@ asks rather than building around it.
   header codegen writes, `codegen/generate.ts:228`) is false in the scaffold, whose
   `tsconfig.plugin.json` lists it under `files`. The same header says `rigline update` diffs against
   it; `install` does.
-- [ ] **W28. The first-party plugins' docs.** The probe's README describes the badge and panel it no
+- [x] **W28. The first-party plugins' docs.** The probe's README describes the badge and panel it no
   longer has, and capabilities it does not declare. worktree-prefix's README (`:84-103`) says
   optional declarations throw when present and cites a report that does not exist; its patch `why`
   (`rigline.json:23`, printed by `list` and `doctor`) and `src/index.ts:228-233` name `onToolUse`
