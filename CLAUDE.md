@@ -188,8 +188,8 @@ only Node and this checkout.
 `install` is the one write command about the injection, and `check` is its read-only half. `add`,
 `remove`, `disable` and `enable` change the plugin set and re-inject afterwards, so a plugin is one
 reload away rather than one reload and a command a person has to know about (D55, D56). `rigline
-update` is the wrapper's: it moves the engine and the plugins, and re-injects behind both (D55,
-D69).
+update` is split: the wrapper moves the engine, then the engine moves the plugins and re-injects
+behind both (D55, D69, D106).
 
 The four first-party plugins are bundled inside `@rigline/core` and discovered in place, so this
 checkout's `plugins/` shadows them and `disable` is the only way to decline one (D71, D72). In a

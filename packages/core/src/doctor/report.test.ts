@@ -102,7 +102,7 @@ describe("formatDoctor", () => {
   });
 
   it("points at the probe for what the panel itself was doing", () => {
-    expect(formatDoctor(reportWith())).toContain("copy the probe's report");
+    expect(formatDoctor(reportWith())).toContain("*Diagnostics*, then *Copy report*");
   });
 
   it("leaves no run of blank lines", () => {

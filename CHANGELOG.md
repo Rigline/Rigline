@@ -65,6 +65,10 @@ anything may change between releases.
   `npm stage approve <id>`, and publish the first version with `npm publish`, where they said
   `pnpm stage approve` and `pnpm publish --otp`, both of which need a typed code. Its workflows use
   `actions/checkout` and `actions/setup-node` at v7.
+- `rigline --help` and `rigline doctor` point at *Diagnostics*, then *Copy report*, in Rigline's
+  menu, where they named a `RIG` badge that is gone; `rigline restore` says any command that
+  injects puts Rigline back, not only `install`; and the README and support page say the companion
+  needs VS Code 1.90 or newer.
 - When VS Code removed an old Claude Code version while Rigline was installing into it, Rigline
   could leave a directory behind holding only its own files, and from then on every install, the
   companion's at each window start included, said it needed you. `rigline install` and `rigline

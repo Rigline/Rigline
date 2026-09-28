@@ -221,7 +221,7 @@ export function formatDoctor(report: DoctorReport): string {
     "## What is not here",
     "",
     "This report covers only files Rigline wrote or patched. For what the panel itself was doing, " +
-      "copy the probe's report from the `RIG` badge in the composer footer.",
+      "use *Diagnostics*, then *Copy report*, in Rigline's menu behind the `RIG` pill.",
     "",
   );
 

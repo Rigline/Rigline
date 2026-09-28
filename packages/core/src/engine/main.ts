@@ -123,7 +123,8 @@ const USAGE = `rigline ${CORE_VERSION}
       Compare the identifier layers of two extension directories.
 
   rigline build [DIR] [--source FILE]
-      Bundle a plugin's src/index.ts (or --source) into the entry its rigline.json names.
+      Bundle a plugin's src/index.ts or src/index.tsx (or --source) into the entry its
+      rigline.json names.
 
   rigline install [--ext DIR] [--verbose]
       Inject the loader into every installed extension version (or DIR), baking the enabled
@@ -214,7 +215,8 @@ const USAGE = `rigline ${CORE_VERSION}
   rigline doctor [--out FILE] [--ext DIR]
       A markdown diagnostic to paste into a bug report: per installed version, whether it is
       patched, what the payload holds, which plugins are baked in and what any host patch
-      did. For what the panel itself was doing, copy the probe's report from the RIG badge.
+      did. For what the panel itself was doing, use Diagnostics, then Copy report, in
+      Rigline's menu.
 `;
 
 /**
@@ -837,7 +839,7 @@ function statusCommand(args: string[]): number {
  * the window, still gets an install-state report, and a person whose panel has just frozen should
  * not also have to work out why the tool that was meant to explain it failed.
  *
- * `--ext` and `--logs` point it at copies rather than at what is installed, which is how this gets
+ * `--ext` points it at a copy rather than at what is installed, which is how this gets
  * rehearsed against somebody else's log bundle without a test ever touching a live directory (D39).
  */
 function doctorCommand(args: string[]): number {
@@ -902,7 +904,9 @@ function restoreCommand(args: string[]): number {
       "\nAn extension.js left patched still runs the substitution a plugin declared. Reinstalling Claude Code from the Extensions view replaces it.",
     );
   }
-  console.log("Rigline stays out, whatever reloads or updates, until you run `rigline install`.");
+  console.log(
+    "Rigline stays out, whatever reloads or updates, until you run `rigline install` or another command that injects.",
+  );
   console.log("Reload the window afterwards.");
   return notRestored + hostFailed > 0 ? 1 : 0;
 }

@@ -225,7 +225,7 @@ asks rather than building around it.
   (`rigline.json:23`, printed by `list` and `doctor`) and `src/index.ts:228-233` name `onToolUse`
   where the code uses `onToolResult`; its description says "first eight characters" of a cut that
   goes by word. time-marks' README (`:49`) names 2.1.270.
-- [ ] **W29. Smaller wrong facts.** The engine usage and `doctor` say "RIG badge" (`main.ts:214`,
+- [x] **W29. Smaller wrong facts.** The engine usage and `doctor` say "RIG badge" (`main.ts:214`,
   `doctor/report.ts:224`), and the usage says to copy the report from it: it is *Diagnostics → Copy
   report* in Rigline's menu. The usage's `build` names only `src/index.ts`. CONTRIBUTING says the
   probe "adds a `RIG` badge" (`:45`) and that there is "no branching model yet" (`:79`), and never

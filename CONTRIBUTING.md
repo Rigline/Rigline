@@ -42,12 +42,19 @@ it finds them itself, so there's nothing to point it at.
     pnpm rigline install
 
 This injects the loader and bakes in the first-party plugins (session id, worktree prefix, time
-marks, and a probe plugin that adds a `RIG` badge you can use to confirm it worked). Then reload:
+marks, and the probe, whose *Diagnostics* in Rigline's menu, behind the `RIG` pill, confirm it
+worked). Then reload:
 
 - **Developer: Reload Webviews** (Command Palette) if only the webview payload changed — this
   affects the current window only, but ends any Claude Code turn that's in flight in it.
 - **Developer: Reload Window** if the install output says a host patch changed — this reloads the
   whole window.
+
+**If you use the companion, point it at this checkout.** `pnpm rigline vscode-setup` installs it
+from here and prints a line to add to VS Code's user settings, `rigline.enginePath`, naming this
+checkout's engine. Without it, every window start has the companion run the *released* engine's
+`install`, which puts the released payload over yours while every check passes. With it, the status
+bar reads *Rigline (dev)*.
 
 Check what's currently patched at any time with:
 
@@ -76,7 +83,7 @@ for you. Run `install` again after updating.
 
 ## Workflow
 
-Work happens on `main`; there's no branching model yet. Commit at each checkpoint rather than
+Work happens on `main`; [docs/ci.md](docs/ci.md) has the branching rule for release lines. Commit at each checkpoint rather than
 accumulating a large, hard-to-review tree.
 
 ## Releasing

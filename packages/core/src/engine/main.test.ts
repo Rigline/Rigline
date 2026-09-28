@@ -84,7 +84,7 @@ describe("the mark restore leaves (D111)", () => {
     expect(await runEngine(["restore"])).toBe(0);
     expect(existsSync(mark())).toBe(true);
     expect(log.mock.calls.flat()).toContain(
-      "Rigline stays out, whatever reloads or updates, until you run `rigline install`.",
+      "Rigline stays out, whatever reloads or updates, until you run `rigline install` or another command that injects.",
     );
   });
 

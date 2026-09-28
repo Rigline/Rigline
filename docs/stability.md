@@ -108,7 +108,7 @@ Rigline out until you put it back.
   a plugin patched the extension host. They are the undo when `rigline` itself will not run, as the
   [README](../README.md#if-the-panel-goes-blank) describes.
 - **Where it runs:** VS Code on Windows, Linux and macOS, in a local window, with Node 22.12 or
-  newer. A minor release may drop a Node version once it has reached end of life, or raise the
+  newer, and the companion in VS Code 1.90 or newer. A minor release may drop a Node version once it has reached end of life, or raise the
   oldest VS Code the companion supports, and the changelog says so.
 
 **Not supported yet:** remote windows, other editors built on VS Code, a portable VS Code, and a

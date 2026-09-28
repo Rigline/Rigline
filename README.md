@@ -65,7 +65,8 @@ engine each time a window starts, and moves to one once it is a day old.
 
 ## Where it works
 
-VS Code on Windows, Linux and macOS, in a local window, with Node 22.12 or newer.
+VS Code on Windows, Linux and macOS, in a local window, with Node 22.12 or newer. The companion
+needs VS Code 1.90 or newer.
 
 **Not supported yet:** remote windows, other editors built on VS Code, a portable VS Code, and a
 custom extensions directory. In any of them, Claude Code's panel stays as it ships.
