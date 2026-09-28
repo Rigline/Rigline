@@ -31,6 +31,7 @@ import { readBundles } from "../extension/bundles.ts";
 import { extensionVersion, installedExtensions } from "../extension/locate.ts";
 import {
   verdict as bundleVerdict,
+  clearLeftovers,
   hostPatchOutcomes,
   type InstallOptions,
   type InstallReport,
@@ -139,6 +140,8 @@ export interface FlowReport {
   readonly versions: readonly VersionReport[];
   /** Files written. Empty from `check`. */
   readonly wrote: readonly string[];
+  /** Leftovers `install` removed, which only `--verbose` prints (D113). Empty from `check`. */
+  readonly cleared: readonly string[];
   /**
    * Why a person is needed, one line each. Empty means nothing here wants a human, which is the
    * answer a watcher running unattended is looking for; anything else is a non-zero exit (D27).
@@ -151,6 +154,8 @@ export interface FlowOptions {
   readonly dir?: string;
   /** Installed extension directories, newest last. Defaults to every one on this machine. */
   readonly exts?: readonly string[];
+  /** Where to list them from when `exts` is not given. Defaults to VS Code's own. */
+  readonly extensionsDir?: string;
   /** Plugin roots and config, as `install` takes them. Without it, no plugin is checked. */
   readonly plugins?: InstallOptions["plugins"];
   /** Where the recorded baseline lives. Defaults to `~/.rigline/baseline.json`. */
@@ -284,7 +289,7 @@ export function check(options: FlowOptions = {}): FlowReport {
 }
 
 function checkHeld(options: FlowOptions): FlowReport {
-  const exts = options.exts ?? installedExtensions();
+  const exts = options.exts ?? installedExtensions(options.extensionsDir);
   const overrides = readAnchorOverrides(options.anchorsPath ?? riglinePaths().anchors);
   const configNotes: string[] = [];
   const note = (line: string): void => {
@@ -347,6 +352,7 @@ function checkHeld(options: FlowOptions): FlowReport {
 
   return settle(options, overrides, harvested, versions, null, {
     kind: "check",
+    cleared: [],
     configNotes,
     configProblems: config ? unknownKeyLines(config) : [],
     tokenProblem,
@@ -373,7 +379,9 @@ function updateHeld(options: UpdateOptions): FlowReport {
         "until you run `rigline install`",
     );
   }
-  const exts = options.exts ?? installedExtensions();
+  // Only from its own listing: a directory named on the command line is the person's to judge.
+  const cleared = options.exts === undefined ? clearLeftovers(options.extensionsDir) : [];
+  const exts = options.exts ?? installedExtensions(options.extensionsDir);
   const overrides = readAnchorOverrides(options.anchorsPath ?? riglinePaths().anchors);
   // Once, before any version is touched, so every version bakes the same settings (D110).
   const config = options.plugins ? readConfig(options.plugins.configPath) : undefined;
@@ -432,6 +440,7 @@ function updateHeld(options: UpdateOptions): FlowReport {
 
   return settle(options, overrides, harvested, versions, options, {
     kind: "install",
+    cleared,
     configNotes,
     configProblems: config ? unknownKeyLines(config) : [],
     tokenProblem,
@@ -442,6 +451,7 @@ function updateHeld(options: UpdateOptions): FlowReport {
 /** What `check` and `update` each know that the shared half does not. */
 interface Settling {
   readonly kind: FlowReport["kind"];
+  readonly cleared: readonly string[];
   readonly configNotes: readonly string[];
   /** Keys in `config.yaml` this engine does not read, for *Needs you* (D110). */
   readonly configProblems: readonly string[];
@@ -460,7 +470,7 @@ function settle(
 ): FlowReport {
   const dir = options.dir ?? process.cwd();
   const baselinePath = options.baselinePath ?? riglinePaths().baseline;
-  const { kind, configNotes, configProblems, tokenProblem, unloaded } = settling;
+  const { kind, cleared, configNotes, configProblems, tokenProblem, unloaded } = settling;
   if (versions.length === 0) {
     return {
       kind,
@@ -472,6 +482,7 @@ function settle(
       diffs: [],
       versions,
       wrote: [],
+      cleared,
       attention: [
         "no Claude Code extension is installed",
         ...configProblems,
@@ -600,6 +611,7 @@ function settle(
     diffs,
     versions,
     wrote,
+    cleared,
     attention,
   };
 }
@@ -746,6 +758,11 @@ export function formatFlow(report: FlowReport, options: FormatOptions = {}): str
     }
   }
   if (verbose) for (const path of report.wrote) lines.push(`wrote: ${path}`);
+  if (verbose) {
+    for (const path of report.cleared) {
+      lines.push(`removed: ${path}, left by an install after VS Code deleted that version`);
+    }
+  }
 
   const sections = [lines.join("\n")];
   if (report.kind === "install") sections.push(options.reload ?? reloadLine(report));

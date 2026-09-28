@@ -8,6 +8,8 @@ import {
   extensionVersion,
   findExtension,
   installedExtensions,
+  isLeftover,
+  leftoverExtensions,
   supersededExtensions,
 } from "./locate.ts";
 
@@ -26,10 +28,48 @@ function makeExtension(extensionsDir: string, name: string): string {
   return dir;
 }
 
+/** What an install leaves in a version VS Code deleted under it (D113). */
+function makeLeftover(extensionsDir: string, name: string): string {
+  const dir = join(extensionsDir, name);
+  mkdirSync(join(dir, "webview", "rigline"), { recursive: true });
+  writeFileSync(join(dir, "webview", "rigline", "pre.js"), "");
+  return dir;
+}
+
 afterEach(() => {
   for (const dir of dirs.splice(0)) {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+describe("a leftover (D113)", () => {
+  it("is passed over by the listing, and listed on its own", () => {
+    const extensionsDir = tempDir();
+    const whole = makeExtension(extensionsDir, `${EXTENSION_NAME_PREFIX}2.1.283-win32-x64`);
+    const leftover = makeLeftover(extensionsDir, `${EXTENSION_NAME_PREFIX}2.1.280-win32-x64`);
+
+    expect(isLeftover(leftover)).toBe(true);
+    expect(installedExtensions(extensionsDir)).toEqual([whole]);
+    expect(leftoverExtensions(extensionsDir)).toEqual([leftover]);
+  });
+
+  it.each([["package.json"], ["webview/index.css"]])(
+    "is not one with %s beside the payload",
+    (extra) => {
+      const dir = makeLeftover(tempDir(), `${EXTENSION_NAME_PREFIX}2.1.280-win32-x64`);
+      writeFileSync(join(dir, extra), "");
+      expect(isLeftover(dir)).toBe(false);
+    },
+  );
+
+  it("is not a whole version, nor an empty directory", () => {
+    const extensionsDir = tempDir();
+    const whole = makeExtension(extensionsDir, `${EXTENSION_NAME_PREFIX}2.1.283-win32-x64`);
+    const empty = join(extensionsDir, `${EXTENSION_NAME_PREFIX}2.1.280-win32-x64`);
+    mkdirSync(empty);
+    expect(isLeftover(whole)).toBe(false);
+    expect(isLeftover(empty)).toBe(false);
+  });
 });
 
 describe("installedExtensions", () => {

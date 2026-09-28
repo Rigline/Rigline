@@ -87,6 +87,8 @@ export {
   extensionVersion,
   findExtension,
   installedExtensions,
+  isLeftover,
+  leftoverExtensions,
   supersededExtensions,
   URL_SCHEME,
 } from "./extension/locate.ts";
@@ -106,6 +108,7 @@ export type {
   Verdict,
 } from "./inject/inject.ts";
 export {
+  clearLeftovers,
   hostPatchOutcomes,
   hostVerdict,
   inspect,

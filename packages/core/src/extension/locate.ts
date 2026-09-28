@@ -36,12 +36,8 @@ function compareVersions(a: string, b: string): number {
   return 0;
 }
 
-/**
- * Every installed Claude Code extension directory, oldest version first. `[]` when the extensions
- * directory does not exist, rather than throwing: a machine with nothing installed yet is not an
- * error until something asks for one by name.
- */
-export function installedExtensions(extensionsDir = EXTENSIONS_DIR): string[] {
+/** Every directory named as a Claude Code version, oldest first. */
+function versionDirs(extensionsDir: string): string[] {
   if (!existsSync(extensionsDir)) {
     return [];
   }
@@ -50,6 +46,35 @@ export function installedExtensions(extensionsDir = EXTENSIONS_DIR): string[] {
     .map((entry) => entry.name)
     .sort(compareVersions)
     .map((name) => join(extensionsDir, name));
+}
+
+/**
+ * Whether `dir` holds nothing but Rigline's own `webview/rigline/`: what an install leaves in a
+ * version VS Code deleted under it (D113).
+ */
+export function isLeftover(dir: string): boolean {
+  try {
+    const top = readdirSync(dir);
+    if (top.length !== 1 || top[0] !== "webview") return false;
+    const webview = readdirSync(join(dir, "webview"), { withFileTypes: true });
+    return webview.length === 1 && webview[0]?.name === "rigline" && webview[0].isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Every installed Claude Code extension directory, oldest version first, leftovers aside. `[]` when
+ * the extensions directory does not exist, rather than throwing: a machine with nothing installed
+ * yet is not an error until something asks for one by name.
+ */
+export function installedExtensions(extensionsDir = EXTENSIONS_DIR): string[] {
+  return versionDirs(extensionsDir).filter((dir) => !isLeftover(dir));
+}
+
+/** The directories `installedExtensions` passes over, which `install` and `restore` remove. */
+export function leftoverExtensions(extensionsDir = EXTENSIONS_DIR): string[] {
+  return versionDirs(extensionsDir).filter(isLeftover);
 }
 
 /** The newest installed extension directory. */

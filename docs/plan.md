@@ -411,8 +411,10 @@ what a plugin is written against.
 `1.0.0-alpha.13` is the newest on `latest`, and carries the 1.0 bar. Its reads are done, and what
 they did not reach is taken as working until somebody finds otherwise.
 
-Left before 1.0: the husk fix (`.local/plans/husk.md`), then `1.0.0-alpha.14` with it and the
-companion's local-time output, a look at the fix live, and `pnpm release major`.
+Left before 1.0: `1.0.0-alpha.14` with D113 and the companion's local-time output, a look at D113
+live, and `pnpm release major`. The look: with `rigline.enginePath` unset, make a directory
+`anthropic.claude-code-0.0.1-win32-x64` holding only `webview/rigline/pre.js` under
+`~/.vscode/extensions`, then *Reload Window*. The companion stays green, and the directory is gone.
 
 ## Status log
 
@@ -544,3 +546,5 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   several windows open, through an engine whose source is `alpha.13`'s: one window's engine waited
   for another's `rigline install`, then found both versions current and wrote nothing.
 - 2026-09-28: The companion's output is stamped in local time, with its offset.
+- 2026-09-28: What an install leaves in a version VS Code deleted under it is removed by `install`
+  and `restore`, and passed over by every listing (D113).

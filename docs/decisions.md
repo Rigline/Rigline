@@ -2856,3 +2856,23 @@ is the `@types/vscode` version it is compiled against, derived in `build-manifes
 claimed editors where acquisition, which needs a global `fetch`, cannot run before 1.82.
 
 Rejected: hiding `install --payload`, which keeps a flag nobody uses.
+
+**D113. What an install leaves in a version VS Code deleted is Rigline's, and `install` removes it
+(2026-09-28, Leo).** VS Code deleted a superseded version while an install was part-way into it.
+`install` harvests the bundles, makes `webview/rigline/` with a recursive `mkdir`, writes the
+payload, and only then reads `extension.js`. A delete landing between the harvest and the `mkdir`
+gets the version's directory made again, the payload written into it, and the version refused
+(D104) for the `extension.js` that is gone. What is left is named as a Claude Code version and holds
+nothing of Anthropic's. VS Code no longer lists it, so it never deletes it again, and every install
+after it, the companion's at every window start included, named it under *Needs you* as a directory
+still being written.
+
+A directory named as a version whose only entry is `webview`, whose only entry is `rigline`, is such
+a leftover. Every listing passes over it, and `install` and `restore` remove it under the injection
+lock, `install` saying so under `--verbose` and `restore` in its report. Anything more in the
+directory keeps D81's handling. Removing it heals the state whatever made it: this race, a crash, or
+a delete that failed on a file a window held open.
+
+Rejected: making each `mkdir` below the version directory non-recursive, so the race cannot recreate
+it. That narrows the window without closing it, since a delete can still land between two writes,
+and the removal makes it unnecessary.

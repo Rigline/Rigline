@@ -167,3 +167,15 @@ writing. The sample cannot tell who that somebody is, which is why the lock exis
 It also does not remove D81's settle from the companion. Waiting two seconds is cheaper than
 refusing and retrying, and the two answer different halves: the settle avoids the refusal, and the
 refusal catches what the settle missed.
+
+## A version deleted under an install
+
+The mirror case, which this refusal would otherwise report for ever (D113). An install harvests a
+version, then makes `webview/rigline/` with a recursive `mkdir`, and reads `extension.js` only after
+writing the payload. When VS Code deletes the version in between, the `mkdir` makes its directory
+again, and what is left holds nothing but `webview/rigline/`. VS Code no longer lists it, so it never
+deletes it again.
+
+Such a directory, named as a version and holding only `webview/rigline/`, is Rigline's leftover: the
+listing passes over it, and `install` and `restore` remove it under the injection lock. Anything
+more in the directory is not a leftover, and gets the refusal above.

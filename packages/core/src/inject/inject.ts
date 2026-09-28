@@ -37,6 +37,7 @@ import {
   type WholenessOptions,
   wholenessProblem,
 } from "../extension/bundles.ts";
+import { leftoverExtensions } from "../extension/locate.ts";
 import { harvestAll } from "../layers/index.ts";
 import { type PluginsConfig, readConfig } from "../plugins/config.ts";
 import {
@@ -764,4 +765,21 @@ export function restoreAll(exts: readonly string[]): RestoreResult[] {
       return { ext, restored: false, reason: error.message };
     }
   });
+}
+
+/**
+ * Removes every leftover, which holds only Rigline's own files, and returns those it removed (D113).
+ * Call it under the injection lock.
+ */
+export function clearLeftovers(extensionsDir?: string): string[] {
+  const cleared: string[] = [];
+  for (const dir of leftoverExtensions(extensionsDir)) {
+    try {
+      rmSync(dir, { recursive: true, force: true });
+      cleared.push(dir);
+    } catch {
+      // A file a window still holds open; the listing passes over it, and the next run tries again.
+    }
+  }
+  return cleared;
 }

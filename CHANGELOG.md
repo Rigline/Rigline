@@ -15,6 +15,13 @@ anything may change between releases.
 - The companion's output shows each line's time in your own time zone, with its offset, where it
   showed UTC.
 
+### Fixed
+
+- When VS Code removed an old Claude Code version while Rigline was installing into it, Rigline
+  could leave a directory behind holding only its own files, and from then on every install, the
+  companion's at each window start included, said it needed you. `rigline install` and `rigline
+  restore` now remove that directory, and `rigline check` passes over it.
+
 ## 1.0.0-alpha.13 — 2026-09-27
 
 ### Added

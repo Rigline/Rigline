@@ -8,7 +8,15 @@
  * would not after an upstream rename.
  */
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ANCHORS } from "@rigline/plugin-api/internal";
@@ -786,6 +794,52 @@ describe("a refused version (D104)", () => {
         baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
       }),
     ).toThrow(/payload is missing post\.js/);
+  });
+});
+
+describe("a leftover (D113)", () => {
+  /** A whole version, and what an install left in one VS Code deleted under it. */
+  function extensionsWithLeftover(): { extensionsDir: string; whole: string; leftover: string } {
+    const extensionsDir = tempDir("rigline-extensions-");
+    const whole = join(extensionsDir, "anthropic.claude-code-2.1.283-win32-x64");
+    cpSync(fixture({ version: "2.1.283" }), whole, { recursive: true });
+    const leftover = join(extensionsDir, "anthropic.claude-code-2.1.280-win32-x64");
+    mkdirSync(join(leftover, "webview", "rigline", "runtime"), { recursive: true });
+    writeFileSync(join(leftover, "webview", "rigline", "pre.js"), "");
+    return { extensionsDir, whole, leftover };
+  }
+
+  it("is removed by install, and needs nobody", () => {
+    const { extensionsDir, whole, leftover } = extensionsWithLeftover();
+
+    const report = update({
+      extensionsDir,
+      payloadDir: payload(),
+      dir: tempDir("rigline-cwd-"),
+      baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+    });
+
+    expect(existsSync(leftover)).toBe(false);
+    expect(report.cleared).toEqual([leftover]);
+    expect(report.versions.map((v) => v.ext)).toEqual([whole]);
+    expect(report.attention.join("\n")).not.toContain("2.1.280");
+    expect(formatFlow(report)).not.toContain("removed:");
+    expect(formatFlow(report, { verbose: true })).toContain(`removed: ${leftover}`);
+  });
+
+  it("is passed over by check, which removes nothing", () => {
+    const { extensionsDir, whole, leftover } = extensionsWithLeftover();
+
+    const report = check({
+      extensionsDir,
+      dir: tempDir("rigline-cwd-"),
+      baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+    });
+
+    expect(existsSync(leftover)).toBe(true);
+    expect(report.cleared).toEqual([]);
+    expect(report.versions.map((v) => v.ext)).toEqual([whole]);
+    expect(report.attention.join("\n")).not.toContain("2.1.280");
   });
 });
 

@@ -35,6 +35,7 @@ import {
   check,
   checkoutEngineNote,
   checkoutPluginsDir,
+  clearLeftovers,
   clearRestored,
   collect,
   companionStatus,
@@ -848,11 +849,14 @@ function doctorCommand(args: string[]): number {
 function restoreCommand(args: string[]): number {
   // Strict, so a flag a later 1.x gives `restore` is refused here rather than restoring everything.
   parseArgs({ args, options: {}, allowPositionals: false });
-  const results = withInjectionLock({ ...lockWait, what: "rigline restore" }, () => {
+  const { results, cleared } = withInjectionLock({ ...lockWait, what: "rigline restore" }, () => {
     // Under the lock, so a companion install waiting on it finds the mark (D111).
     markRestored(riglinePaths().restored);
-    return restoreAll(installedExtensions());
+    return { results: restoreAll(installedExtensions()), cleared: clearLeftovers() };
   });
+  for (const dir of cleared) {
+    console.log(`removed: ${dir} (left by an install after VS Code deleted that version)`);
+  }
   let notRestored = 0;
   let hostFailed = 0;
   for (const result of results) {

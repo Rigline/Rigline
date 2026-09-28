@@ -2,7 +2,7 @@
  * The engine's argument handling. `homedir()` is a temporary directory, so a verb that failed to
  * refuse would find no extension to act on rather than the live one (D39).
  */
-import { existsSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   afterAll,
@@ -84,6 +84,18 @@ describe("the mark restore leaves (D111)", () => {
     expect(existsSync(mark())).toBe(true);
     expect(log.mock.calls.flat()).toContain(
       "Rigline stays out, whatever reloads or updates, until you run `rigline install`.",
+    );
+  });
+
+  it("comes with removing what an install left in a version VS Code deleted (D113)", async () => {
+    const leftover = join(EXTENSIONS_DIR, "anthropic.claude-code-2.1.280-win32-x64");
+    mkdirSync(join(leftover, "webview", "rigline"), { recursive: true });
+    writeFileSync(join(leftover, "webview", "rigline", "pre.js"), "");
+
+    expect(await runEngine(["restore"])).toBe(0);
+    expect(existsSync(leftover)).toBe(false);
+    expect(log.mock.calls.flat()).toContain(
+      `removed: ${leftover} (left by an install after VS Code deleted that version)`,
     );
   });
 
