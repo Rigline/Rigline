@@ -710,7 +710,7 @@ describe("plugins", () => {
     expect(existsSync(join(payloadOutDir(ext), "plugins", "sample"))).toBe(false);
   });
 
-  it("reports capability-use notes in both directions, only over shipped source", () => {
+  it("reports an undeclared call as a problem, only over shipped source", () => {
     const ext = fixture();
     const root = tempDir("rigline-plugins-");
     writePlugin(
@@ -724,9 +724,9 @@ describe("plugins", () => {
 
     const report = install(ext, { payloadDir: payload(), plugins: withPlugins([root]) });
 
-    expect(report.notes).toContain(
+    expect(report.problems).toEqual([
       'mismatched: calls onToolUse/onToolResult() without declaring "tools": it will throw and disable the plugin',
-    );
+    ]);
     expect(report.notes.some((n) => n.includes("agrees"))).toBe(false);
     expect(report.notes.some((n) => n.includes("transcript"))).toBe(false);
   });
