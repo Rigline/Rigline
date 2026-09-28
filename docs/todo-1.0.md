@@ -209,7 +209,7 @@ asks rather than building around it.
   `pnpm publish --otp`, which a security-key account cannot do — the only kind npm enrols now
   (releasing.md). Point at npmjs.com's Staged Packages page, or `npm stage approve <id>`, and
   bootstrap with `npm publish`.
-- [ ] **W25. The scaffold's workflows** pin `actions/checkout@v5` and `actions/setup-node@v5`
+- [x] **W25. The scaffold's workflows** pin `actions/checkout@v5` and `actions/setup-node@v5`
   (`template/.github/workflows/ci.yml:40,47`, `release.yml:59,85`) against this repo's v7. Its
   README says CI runs the same Node set as the release (`:67-69`); the release runs 26 alone.
 - [ ] **W26. create-plugin's README** scaffolds `my-plugins` then adds `plugins/my-plugin`, shows

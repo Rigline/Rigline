@@ -65,8 +65,9 @@ lands in the right place, survives a re-render, or costs a row a line of height 
 the app can answer: build, add, reload, look.
 
 `.github/workflows/ci.yml` runs typecheck, build and test on every push and every pull request,
-over three Node versions — the same set the release workflow runs, so nothing reaches a release
-that a pull request would not already have failed on. Commit `pnpm-lock.yaml`: CI installs what it
+over three Node versions. The release workflow runs the same three steps again on the newest of
+them before it stages anything, so nothing reaches a release that a pull request would not already
+have failed on. Commit `pnpm-lock.yaml`: CI installs what it
 says rather than resolving its own.
 
 ## Publishing
