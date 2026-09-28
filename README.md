@@ -81,11 +81,14 @@ you suspect with `rigline disable NAME`, which puts the rest back, or run `rigli
 of them.
 
 If `rigline` itself is gone or will not run, the undo is a file copy, because the backup of every
-bundle sits beside the bundle it came from. Each installed version is a directory under
-`~/.vscode/extensions/` named `anthropic.claude-code-<version>`, on every platform, and there may be
-more than one — do all of them, then reload the window.
+bundle sits beside the bundle it came from. If you added the companion, uninstall it first — it is
+*Rigline* in the Extensions view — since a copy by hand leaves nothing telling it Rigline is meant
+to be out, and it would put Rigline back at the next window. Each installed version is a directory under
+`~/.vscode/extensions/` named `anthropic.claude-code-<version>-<platform>`, such as
+`anthropic.claude-code-2.1.283-win32-x64`, and there may be more than one — do all of them, then
+reload the window.
 
-    cd ~/.vscode/extensions/anthropic.claude-code-<version>
+    cd ~/.vscode/extensions/anthropic.claude-code-<version>-<platform>
     cp webview/index.js.orig webview/index.js
     cp extension.js.orig extension.js          # only if this file is there
 
