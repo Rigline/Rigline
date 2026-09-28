@@ -69,11 +69,15 @@ export interface AnchorOverrideOutcome {
   /** Whether this version resolves the name with the override applied. */
   readonly resolves: boolean;
   /**
-   * Whether it resolved without one. Both true is an override doing nothing the shipped table does
-   * not already do; true and false is a local file having broken a working anchor, which is silent
-   * in every other report and gets blamed on the extension.
+   * Whether it resolved without one. True and false is a local file having broken a working anchor,
+   * which is silent in every other report and gets blamed on the extension.
    */
   readonly resolvedWithout: boolean;
+  /**
+   * Whether this version resolves it differently with the override: another class, or another
+   * selector. Only an override that changes nothing is one the shipped table has caught up with.
+   */
+  readonly changes: boolean;
 }
 
 /** No file, no overrides: the shipped table, unchanged. */
@@ -169,6 +173,9 @@ export function anchorOverrideOutcomes(
     added: overrides.added.includes(name),
     resolves: (merged.classes[name] ?? null) !== null,
     resolvedWithout: (shipped.classes[name] ?? null) !== null,
+    changes:
+      (merged.classes[name] ?? null) !== (shipped.classes[name] ?? null) ||
+      (merged.selectors[name] ?? null) !== (shipped.selectors[name] ?? null),
   }));
 }
 

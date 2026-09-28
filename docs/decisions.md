@@ -758,8 +758,10 @@ next person to read it — usually its author, weeks later — needs to know wha
 neither of the two things allowed to cost every plugin its injection (D27): a file that will not
 parse is reported and ignored, a single bad entry is reported and dropped while the rest apply.
 Against that, every entry that does apply is named in the install report, with what this version
-makes of it — whether it repairs a name this version would not otherwise resolve, adds one, or
-changes nothing because the shipped table already resolves it. An override that *stops* a name
+makes of it — whether it repairs a name this version would not otherwise resolve, adds one, changes
+what a resolving one matches, or changes nothing because the shipped table already resolves it the
+same way (amended 2026-09-29: a `refine` alone was reported as changing nothing). An override that
+*stops* a name
 resolving is an attention line: a local file breaking an anchor that was working is silent
 otherwise, and the plugin refused for it would be blamed on the extension.
 

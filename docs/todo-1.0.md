@@ -86,7 +86,7 @@ asks rather than building around it.
   refused by name; `try` around the query in `runWatch`, and register a watch after its first run.
   *Optionally* a bracket and quote balance check in `mergeAnchorOverrides`, so `rigline check`
   names it too.
-- [ ] **W4. An override that changes only `refine` is reported as "changes nothing"**, which
+- [x] **W4. An override that changes only `refine` is reported as "changes nothing"**, which
   anchors.md says means delete it. `anchorOverrideOutcomes` (`overrides.ts:163-172`) compares only
   whether the class resolves, and anchors.md's own worked example is a refine-only repair. **Fix:**
   compare the resolved selectors.

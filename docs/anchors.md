@@ -111,11 +111,12 @@ Every entry is named, per installed version, with what that version makes of it:
     2.1.271: refreshed
       anchor overrides, from C:\Users\you\.rigline\anchors.json:
         modelPill: repairs an anchor this version does not otherwise resolve
-        composer: changes nothing; this version resolves the anchor without it
+        transcriptRow: changes what the anchor matches; this version resolves it without the override too
+        composer: changes nothing; this version resolves the anchor the same way without it
         agentMap: adds an anchor the table has not got, and it resolves here
 
 `changes nothing` is the line that says an override has done its job and can be deleted: the shipped
-table has caught up.
+table has caught up. A refinement over an anchor that resolves anyway is a change, and says so.
 
 An override that *stops* an anchor resolving is called out under **Needs you**, and so is a file
 that will not parse. Neither ever blocks the install: a file that cannot be read is ignored

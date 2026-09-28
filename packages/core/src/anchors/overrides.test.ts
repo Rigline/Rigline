@@ -301,19 +301,32 @@ describe("anchorOverrideOutcomes", () => {
       PATH,
     );
     expect(anchorOverrideOutcomes(ambiguous, overrides)).toEqual([
-      { name: "composer", added: false, resolves: true, resolvedWithout: false },
+      { name: "composer", added: false, resolves: true, resolvedWithout: false, changes: true },
     ]);
   });
 
   it("reports an entry the shipped table has caught up with, which is one to delete", () => {
+    const pill = ANCHORS.modelPill;
     const overrides = mergeAnchorOverrides(
       ANCHORS,
-      { anchors: { composer: { refine: "[data-composer]", why: "no longer needed" } } },
+      { anchors: { modelPill: { refine: pill.refine, why: "the shipped table has it now" } } },
+      PATH,
+    );
+    const unique = classesOf([[pill.module, pill.local]]);
+    expect(anchorOverrideOutcomes(unique, overrides)).toEqual([
+      { name: "modelPill", added: false, resolves: true, resolvedWithout: true, changes: false },
+    ]);
+  });
+
+  it("reports a refinement over an anchor that resolves anyway as a change, not as nothing", () => {
+    const overrides = mergeAnchorOverrides(
+      ANCHORS,
+      { anchors: { composer: { refine: "[data-composer]", why: "the wrong box matched" } } },
       PATH,
     );
     const unique = classesOf([[composer.module, composer.local]]);
     expect(anchorOverrideOutcomes(unique, overrides)).toEqual([
-      { name: "composer", added: false, resolves: true, resolvedWithout: true },
+      { name: "composer", added: false, resolves: true, resolvedWithout: true, changes: true },
     ]);
   });
 
@@ -325,7 +338,7 @@ describe("anchorOverrideOutcomes", () => {
     );
     const unique = classesOf([[composer.module, composer.local]]);
     expect(anchorOverrideOutcomes(unique, overrides)).toEqual([
-      { name: "composer", added: false, resolves: false, resolvedWithout: true },
+      { name: "composer", added: false, resolves: false, resolvedWithout: true, changes: true },
     ]);
   });
 
@@ -346,10 +359,10 @@ describe("anchorOverrideOutcomes", () => {
       PATH,
     );
     expect(anchorOverrideOutcomes(classesOf([["dddddd", "agentMap"]]), overrides)).toEqual([
-      { name: "agentMap", added: true, resolves: true, resolvedWithout: false },
+      { name: "agentMap", added: true, resolves: true, resolvedWithout: false, changes: true },
     ]);
     expect(anchorOverrideOutcomes(classesOf([["eeeeee", "other"]]), overrides)).toEqual([
-      { name: "agentMap", added: true, resolves: false, resolvedWithout: false },
+      { name: "agentMap", added: true, resolves: false, resolvedWithout: false, changes: false },
     ]);
   });
 });

@@ -26,6 +26,8 @@ anything may change between releases.
   pill, menu and elements down with it. One whose brackets or quotes do not close is dropped at
   install, with a sentence saying so; one the panel still cannot parse leaves that anchor
   unresolved, and only the plugins needing it are refused, by name.
+- An `anchors.json` override that changes only an anchor's `refine` is no longer reported as
+  "changes nothing", which says to delete it. It reads "changes what the anchor matches".
 - When VS Code removed an old Claude Code version while Rigline was installing into it, Rigline
   could leave a directory behind holding only its own files, and from then on every install, the
   companion's at each window start included, said it needed you. `rigline install` and `rigline

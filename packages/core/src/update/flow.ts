@@ -638,9 +638,11 @@ function overrideEffect(override: AnchorOverrideOutcome): string {
       : "adds an anchor the table has not got, and it does not resolve here";
   }
   if (override.resolves) {
-    return override.resolvedWithout
-      ? "changes nothing; this version resolves the anchor without it"
-      : "repairs an anchor this version does not otherwise resolve";
+    if (!override.resolvedWithout)
+      return "repairs an anchor this version does not otherwise resolve";
+    return override.changes
+      ? "changes what the anchor matches; this version resolves it without the override too"
+      : "changes nothing; this version resolves the anchor the same way without it";
   }
   return override.resolvedWithout
     ? "STOPS an anchor resolving that this version resolves without it"

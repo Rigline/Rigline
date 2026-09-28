@@ -1006,9 +1006,15 @@ describe("the anchor override", () => {
       baselinePath: join(home, "baseline.json"),
     });
     expect(report.versions[0]?.anchorOverrides).toEqual([
-      { name: "composer", added: false, resolves: true, resolvedWithout: false },
-      { name: "agentMap", added: true, resolves: true, resolvedWithout: false },
-      { name: "worktreePill", added: false, resolves: false, resolvedWithout: false },
+      { name: "composer", added: false, resolves: true, resolvedWithout: false, changes: true },
+      { name: "agentMap", added: true, resolves: true, resolvedWithout: false, changes: true },
+      {
+        name: "worktreePill",
+        added: false,
+        resolves: false,
+        resolvedWithout: false,
+        changes: false,
+      },
     ]);
     const text = formatFlow(report);
     expect(text).toContain("composer: repairs an anchor this version does not otherwise resolve");
@@ -1031,7 +1037,7 @@ describe("the anchor override", () => {
       baselinePath: join(home, "baseline.json"),
     });
     expect(report.versions[0]?.anchorOverrides).toEqual([
-      { name: "composer", added: false, resolves: false, resolvedWithout: true },
+      { name: "composer", added: false, resolves: false, resolvedWithout: true, changes: true },
     ]);
     expect(report.attention.some((line) => line.includes("resolves it without the override"))).toBe(
       true,
