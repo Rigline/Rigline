@@ -111,9 +111,9 @@ Rigline out until you put it back.
   newer. A minor release may drop a Node version once it has reached end of life, or raise the
   oldest VS Code the companion supports, and the changelog says so.
 
-**Not supported:** remote windows (WSL, SSH, dev containers, Codespaces), other editors built on VS
-Code (Insiders, VSCodium, Cursor, Windsurf), a portable VS Code, and a custom extensions directory.
-In any of them, Claude Code's panel stays as it ships.
+**Not supported yet:** remote windows, other editors built on VS Code, a portable VS Code, and a
+custom extensions directory ([support.md](support.md) lists each). In any of them, Claude Code's
+panel stays as it ships. A minor release may add support for any of them.
 
 **Not kept:**
 

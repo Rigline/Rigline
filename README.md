@@ -65,9 +65,9 @@ engine each time a window starts, and moves to one once it is a day old.
 
 VS Code on Windows, Linux and macOS, in a local window, with Node 22.12 or newer.
 
-**Not supported:** remote windows (WSL, SSH, dev containers, Codespaces), other editors built on VS
-Code (Insiders, VSCodium, Cursor, Windsurf), a portable VS Code, and a custom extensions directory.
-In any of them, Claude Code's panel stays as it ships.
+**Not supported yet:** remote windows, other editors built on VS Code, a portable VS Code, and a
+custom extensions directory. In any of them, Claude Code's panel stays as it ships.
+[docs/support.md](docs/support.md) lists each, and how to ask for one.
 
 ## If the panel goes blank
 

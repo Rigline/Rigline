@@ -317,12 +317,10 @@ The bar a 1.0 release clears, agreed 2026-09-26; the working plan is `.local/pla
 - One macOS row in CI, and a live run on a Mac.
 - Reads: what a remote window does, and whether a reused row reports its previous message (it
   did, and no longer does).
-- The reads under **Next session**, on the last alpha before 1.0.
+- The reads on the last alpha before 1.0.
 
-Done: the statement, what the wrapper and the companion rely on, the wrapper change, `ctx.style`'s
-refusal, VS Code alone, no console window, the macOS row, unknown manifest keys refused, the
-reused-row read with its fix, what checking stability.md against the code found (D108 to D112,
-and the companion's id held on the Marketplace), and the remote-window read. What is left is Leo's,
+Done: all of it, the reads on `alpha.13` included, with what checking stability.md against the code
+found (D108 to D112, and the companion's id held on the Marketplace). What those reads turned up is
 under **Next session**.
 
 ## Open questions
@@ -354,14 +352,14 @@ what a plugin is written against.
   `stampOf`, or reading the bytes twice and handing those to the backup and the harvest. First read
   which call libuv makes for a by-path stat on Windows, and whether a handle held during another
   process's write, rename or delete is harmless to it.
-- **Editors other than VS Code.** 1.0 injects `~/.vscode/extensions` alone. The companion knows its
-  own extensions directory, so the engine taking one is where it starts; a baseline per editor is
-  the design.
-- **Remote windows.** Claude Code runs on the remote host, from `~/.vscode-server/extensions`, which
-  1.0 does not inject ([companion.md](companion.md)). Triggered by somebody asking. Short of support,
-  `rigline` run on a remote host could say that is where it is: today `install` there reports no
-  Claude Code installed, and `vscode-setup` installs a companion that can only say *not in this
-  editor*.
+- **What [support.md](support.md) lists as not supported yet.** Taken in the order people ask for
+  them, and none gets a date. Another editor, a portable VS Code or a custom extensions directory
+  starts with the engine taking a directory, which the companion already knows for itself; a
+  baseline per editor is the design, and the forks' directory names are unread. A remote window runs
+  Claude Code on the remote host from `~/.vscode-server/extensions` ([companion.md](companion.md)).
+  Short of supporting it, `rigline` run on a remote host could say that is where it is: today
+  `install` there reports no Claude Code installed, and `vscode-setup` installs a companion that can
+  only say *not in this editor*.
 - **The Open VSX ownership claim.** The `rigline` publisher holds the companion's id on the
   Marketplace. On Open VSX the namespace is made but has no owner, so it takes anyone's publish,
   marked unverified. Nothing of ours reaches it while 1.0 is VS Code alone: the Save link is
@@ -410,36 +408,11 @@ what a plugin is written against.
 
 ## Next session
 
-`1.0.0-alpha.13` is the newest on `latest`, and carries the 1.0 bar. What is left is Leo's: the
-reads below, which gate 1.0, each through a released engine with `rigline.enginePath` unset in every
-profile, since a dev companion neither updates itself nor adds itself anywhere (D99, D100). Then
-`pnpm release major`, or another alpha if a read finds something.
+`1.0.0-alpha.13` is the newest on `latest`, and carries the 1.0 bar. Its reads are done, and what
+they did not reach is taken as working until somebody finds otherwise.
 
-**`restore`** (D111): `rigline restore`, then *Developer: Reload Window*. The panel stays vanilla and
-the companion reads *needs you*, naming the restore. `rigline install` and a reload put it back.
-
-**A Save through a released engine.** On a machine with `alpha.13` installed and
-`rigline.enginePath` unset, edit the layout in the panel and Save: the notification should say it
-saved, the panel should leave editing, and `~/.rigline/config.yaml` should hold the layout.
-
-**`npm i -g rigline@latest`, `rigline update`, then `rigline vscode-setup` once, on each
-machine.** The new wrapper first, since an `alpha.12` wrapper's `add` from npm fails against a later
-engine (D106); its `update` should print the engine line and then hand off. The companions installed
-now predate self-update (D99) and sync; the one run makes them machine-scoped and able to follow the
-engine from then on, and puts one in every profile with Claude Code (D100).
-
-**The companion adding itself (D100)**, on a machine with `rigline.enginePath` unset, since a dev
-companion adds nothing:
-
-1. Make a profile and install Claude Code into it from a window of that profile.
-2. Reload a window of a profile that has the companion. Its output channel should say it added the
-   companion to the new profile, and the new profile's open window should start the companion
-   without a restart.
-3. Uninstall the companion there, and the next reload elsewhere puts it back. Disable it, and it
-   stays disabled.
-4. `rigline update` should print the line when it adds the companion.
-
-Still unread, and no gate: the directory names of the VS Code forks.
+Left before 1.0: the husk fix (`.local/plans/husk.md`), then `1.0.0-alpha.14` with it and the
+companion's local-time output, a look at the fix live, and `pnpm release major`.
 
 ## Status log
 
@@ -564,7 +537,9 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   editor*. Remote windows are unsupported in 1.0, and stability.md says so.
 - 2026-09-27: 2.1.283 snapshotted, `generated.ts` regenerated and the harness moved to it; one class
   added, nothing gone.
-- 2026-09-28: A live run on a Mac, on `alpha.13`: everything worked.
+- 2026-09-28: A live run on a Mac, on `alpha.13`: everything tried worked. It stands for the
+  remaining reads (restore, Save, the companion adding itself, the upgrade), since it was not run
+  rigorously and nothing it tried failed; the rest is assumed until shown otherwise.
 - 2026-09-28: One engine injects at a time (D105), read when Claude Code went back to 2.1.280 with
   several windows open, through an engine whose source is `alpha.13`'s: one window's engine waited
   for another's `rigline install`, then found both versions current and wrote nothing.

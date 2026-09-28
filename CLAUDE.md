@@ -68,6 +68,9 @@ Written for somebody else, so don't rewrite them for us:
   and the files beside it. Written for a user. The header every new `config.yaml` carries links it.
 - [docs/anchors.md](docs/anchors.md): what an anchor is, and repairing one through
   `~/.rigline/anchors.json` without waiting for a release. Written for a user.
+- [docs/support.md](docs/support.md): where Rigline works and what is not supported yet, as a
+  matrix. Written for a user. Support comes in the order people ask for it, so it never gives a date
+  and nothing here promises one.
 - [docs/stability.md](docs/stability.md): what 1.x keeps stable, for a plugin and for a person's
   machine, and what it does not. Written for both. It is a promise: a change that would break
   something on it waits for a major, and changing what it claims is a decision.

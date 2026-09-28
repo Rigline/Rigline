@@ -37,9 +37,10 @@ directory until *Developer: Reload Window*.
 **That is the whole of Rigline, and it needs nothing else.** Everything below is optional.
 
 **Where it works:** VS Code on Windows, Linux and macOS, in a local window, with Node 22.12 or
-newer. **Not supported:** remote windows (WSL, SSH, dev containers, Codespaces), other editors built
-on VS Code (Insiders, VSCodium, Cursor, Windsurf), a portable VS Code, and a custom extensions
-directory. In any of them, Claude Code's panel stays as it ships.
+newer. **Not supported yet:** remote windows, other editors built on VS Code, a portable VS Code, and
+a custom extensions directory. In any of them, Claude Code's panel stays as it ships.
+[Where Rigline works](https://github.com/Rigline/Rigline/blob/main/docs/support.md) lists each, and
+how to ask for one.
 
 ## Optional: let an extension do the remembering
 
