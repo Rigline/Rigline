@@ -2,7 +2,7 @@
  * The probe's own verdict logic, and the formatting for everything the panel and the clipboard show.
  *
  * Two jobs, and they used to be one. The probe is now a *renderer* of a registry it no longer owns —
- * the kernel and the capability modules contribute `core`, plugins contribute their own lines — and
+ * the kernel and the capability modules contribute `rigline`, plugins contribute their own lines — and
  * separately one contributor among them, with the handful of checks nothing else can run.
  *
  * What stayed here is what is an experiment rather than a reading: register a tap and check the tap
@@ -21,7 +21,7 @@ export interface CheckLine {
   readonly detail: string;
 }
 
-/** One contributor's lines. `core` first, then plugins in registry order. */
+/** One contributor's lines. The host's, `rigline`, first, then plugins in registry order. */
 export interface CheckGroup {
   readonly contributor: string;
   readonly results: readonly CheckLine[];

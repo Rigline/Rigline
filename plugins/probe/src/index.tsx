@@ -1,7 +1,7 @@
 /**
  * Rigline's diagnostics, in Rigline's menu, and one contributor to them.
  *
- * Two jobs. Its menu contribution renders the host's check registry: `core` — the kernel and every
+ * Two jobs. Its menu contribution renders the host's check registry: `rigline` — the kernel and every
  * capability module — then each plugin under its own name, so the report reads as *which part of
  * this is broken* rather than as one undifferentiated list. The failing count on the RIG pill is the
  * shell's, which reads the same registry. And separately, this plugin contributes the handful of

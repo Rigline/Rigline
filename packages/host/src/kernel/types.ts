@@ -86,10 +86,10 @@ export interface CapabilityModule<K extends UsesKey = UsesKey> {
    */
   grantOptional?(grant: Grant): Partial<OptionalContext>;
   /**
-   * The lines this capability contributes to `core`, registered once at boot rather than per plugin.
+   * The lines this capability contributes under the host's name, registered once at boot rather than per plugin.
    *
    * A module's check is a reading of state the module already owns, so it is handed the `Kernel` —
-   * where a plugin's check is handed nothing. Called before any plugin loads, so `core` is the first
+   * where a plugin's check is handed nothing. Called before any plugin loads, so the host is the first
    * contributor in the panel and a capability that has already failed says so above the plugins it
    * took down with it. A module with nothing to say omits this.
    */

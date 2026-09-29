@@ -26,7 +26,7 @@ import {
 } from "@rigline/plugin-api/internal";
 import { MODULES } from "./capabilities/index.ts";
 import { type Bridge, bridge as findBridge, type PluginStatus } from "./kernel/bridge.ts";
-import { CORE, createCheckService, kernelChecks } from "./kernel/checks.ts";
+import { createCheckService, HOST, kernelChecks } from "./kernel/checks.ts";
 import { createLayoutEditor } from "./kernel/layout.ts";
 import { guardLinks } from "./kernel/links.ts";
 import { createMountService } from "./kernel/mounts.ts";
@@ -116,6 +116,25 @@ function withParsedSelectors(tables: IdentifierTables): IdentifierTables {
   };
 }
 
+/** How long one plugin's import may take before the next loads without it. */
+const IMPORT_MS = 10_000;
+
+/** Why an import lost its race with the timer, as opposed to failing. */
+class ImportTimeout extends Error {}
+
+/** `promise`, or an `ImportTimeout` once `ms` has passed without it settling. */
+async function within<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new ImportTimeout()), ms);
+  });
+  try {
+    return await Promise.race([promise, late]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function isThenable(value: unknown): value is PromiseLike<unknown> {
   return (
     (typeof value === "object" || typeof value === "function") &&
@@ -180,11 +199,17 @@ async function loadPlugin(plugin: PluginRecord, kernel: Kernel): Promise<PluginS
 
   let mod: { default?: RiglinePlugin };
   try {
-    mod = (await import(new URL(plugin.entry, import.meta.url).href)) as {
+    // Raced, since loading is sequential: a top-level await that never settles would otherwise
+    // hold every later plugin, the buffer's seal and the shell.
+    mod = (await within(import(new URL(plugin.entry, import.meta.url).href), IMPORT_MS)) as {
       default?: RiglinePlugin;
     };
   } catch (e) {
-    return Object.assign(status, { status: "error", reason: `import failed: ${message(e)}` });
+    const reason =
+      e instanceof ImportTimeout
+        ? `import did not finish within ${IMPORT_MS / 1000}s`
+        : `import failed: ${message(e)}`;
+    return Object.assign(status, { status: "error", reason });
   }
   const exported = mod.default;
   if (!exported || typeof exported.setup !== "function") {
@@ -376,14 +401,14 @@ async function main(): Promise<void> {
     plugins: entries,
   };
 
-  // Before the loop, so `core` is the first contributor and a capability that has already failed
+  // Before the loop, so the host is the first contributor and a capability that has already failed
   // reads above the plugins it took down with it. A module's checks throwing while being *built* is
   // a fault in the host rather than in a check, so it goes to `diagnostics.errors` like any other.
-  checks.addAll(CORE, kernelChecks(kernel));
+  checks.addAll(HOST, kernelChecks(kernel));
   for (const module of MODULES) {
     try {
       const contributed = module.checks?.(kernel);
-      if (contributed) checks.addAll(CORE, contributed);
+      if (contributed) checks.addAll(HOST, contributed);
     } catch (e) {
       diagnostics.errors.push(`checks(${module.contract.key}): ${message(e)}`);
     }

@@ -40,7 +40,7 @@ describe("formatLine and failingCount", () => {
 
   it("counts only fail, never n/a or pass, across every contributor", () => {
     const groups = [
-      group("core", line("a", "pass"), line("b", "fail")),
+      group("rigline", line("a", "pass"), line("b", "fail")),
       group("probe", line("c", "n/a"), line("d", "fail")),
     ];
     expect(failingCount(groups)).toBe(2);
@@ -50,27 +50,27 @@ describe("formatLine and failingCount", () => {
 
 describe("formatGroups", () => {
   it("heads each contributor's lines with its name and indents them under it", () => {
-    const text = formatGroups([group("core", line("tables loaded", "pass", "2.1.270"))]);
-    expect(text).toBe("core\n  PASS  tables loaded — 2.1.270");
+    const text = formatGroups([group("rigline", line("tables loaded", "pass", "2.1.270"))]);
+    expect(text).toBe("rigline\n  PASS  tables loaded — 2.1.270");
   });
 
   // A count on every header would train the eye to skip it; a header that carries one is itself
   // the finding, which is the same reason the abandoned-mounts line is absent rather than empty.
   it("puts a count on a header only when that contributor has a failure", () => {
     const text = formatGroups([
-      group("core", line("a", "pass")),
+      group("rigline", line("a", "pass")),
       group("time-marks", line("b", "fail", "no rows carried a time")),
     ]);
-    expect(text.split("\n")[0]).toBe("core");
+    expect(text.split("\n")[0]).toBe("rigline");
     expect(text).toContain("time-marks  (1 failing)");
   });
 
   it("keeps the host's order rather than sorting, so the list cannot move as verdicts change", () => {
     const text = formatGroups([
-      group("core", line("a", "pass")),
+      group("rigline", line("a", "pass")),
       group("probe", line("b", "fail")),
     ]);
-    expect(text.indexOf("core")).toBeLessThan(text.indexOf("probe"));
+    expect(text.indexOf("rigline")).toBeLessThan(text.indexOf("probe"));
   });
 
   it("says so rather than rendering nothing when no check has been contributed", () => {
@@ -205,7 +205,7 @@ describe("formatReport", () => {
     },
     errors: [],
   };
-  const groups = [group("core", line("tables loaded", "pass", "2.1.270"))];
+  const groups = [group("rigline", line("tables loaded", "pass", "2.1.270"))];
 
   it("leads with the facts a stranger needs before any check line", () => {
     const text = formatReport(facts, groups);

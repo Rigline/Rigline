@@ -7,7 +7,7 @@ a special case exempted from the rules it checks.
 
 ## What it shows
 
-Every contributor's checks, grouped: the host's own under `core` — the kernel and each capability
+Every contributor's checks, grouped: the host's own under `rigline` — the kernel and each capability
 module — then each plugin under its name, so the report reads as which part is broken rather than as
 one list. Each line is `pass`, `fail` or `n/a` with a one-line detail. `n/a` is a real state, not a
 lesser failure: a check that cannot apply on this surface, or has had no chance to yet — no session,
@@ -38,7 +38,7 @@ update that moves one leaves the diagnostics up and the check that needed it rea
 
 ## Reading a failure
 
-Every check names what broke. `every plugin loaded`, under `core`, names each plugin refused and
+Every check names what broke. `every plugin loaded`, under `rigline`, names each plugin refused and
 why. A rewrite check failing means the outbound chain is broken for every plugin that rewrites.
 `React renderer injected` failing means the transcript capability is dead, and every check that
 reads rows will say it found nothing rather than why.

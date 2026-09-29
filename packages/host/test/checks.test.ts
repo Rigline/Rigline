@@ -3,11 +3,11 @@
  * back in.
  *
  * The two behaviours here that are decisions rather than plumbing are the ones worth reading: a
- * check that throws produces a failing line and nothing else, and `core` sorts first however late
- * it registered.
+ * check that throws produces a failing line and nothing else, and the host's lines sort first however
+ * late they registered.
  */
 import { describe, expect, it } from "vitest";
-import { CORE, createCheckService } from "../src/kernel/checks.ts";
+import { createCheckService, HOST } from "../src/kernel/checks.ts";
 
 const pass = () => ({ verdict: "pass" as const, detail: "fine" });
 const fail = () => ({ verdict: "fail" as const, detail: "broken" });
@@ -65,9 +65,9 @@ describe("grouping and order", () => {
     const checks = createCheckService();
     checks.add("time-marks", "a", pass);
     checks.add("probe", "b", pass);
-    checks.add(CORE, "c", pass);
+    checks.add(HOST, "c", pass);
     checks.add("time-marks", "d", pass);
-    expect(checks.run().map((g) => g.contributor)).toEqual([CORE, "time-marks", "probe"]);
+    expect(checks.run().map((g) => g.contributor)).toEqual([HOST, "time-marks", "probe"]);
   });
 
   // A check registered later — from a message handler, say — joins its own contributor rather than
@@ -83,11 +83,11 @@ describe("grouping and order", () => {
 
   it("counts the failures in each group, which is what the badge sums", () => {
     const checks = createCheckService();
-    checks.add(CORE, "ok", pass);
-    checks.add(CORE, "bad", fail);
+    checks.add(HOST, "ok", pass);
+    checks.add(HOST, "bad", fail);
     checks.add("probe", "also bad", fail);
     expect(checks.run().map((g) => [g.contributor, g.failing])).toEqual([
-      [CORE, 1],
+      [HOST, 1],
       ["probe", 1],
     ]);
   });
@@ -101,9 +101,9 @@ describe("removal", () => {
   it("takes a check out, and drops the group once it is empty", () => {
     const checks = createCheckService();
     const off = checks.add("probe", "only", pass);
-    checks.add(CORE, "kept", pass);
+    checks.add(HOST, "kept", pass);
     off();
-    expect(checks.run().map((g) => g.contributor)).toEqual([CORE]);
+    expect(checks.run().map((g) => g.contributor)).toEqual([HOST]);
   });
 
   it("removes every check a contributor added at once through addAll", () => {

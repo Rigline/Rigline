@@ -219,7 +219,7 @@ reason says which.
 exercises the real extension host, the real CSP, the real React build and the real install.
 
 **A check is contributed, not written into the probe** (D63). The kernel and each capability module
-contribute the host's lines under `core`; every plugin contributes its own through `ctx.check`, under
+contribute the host's lines under `rigline`; every plugin contributes its own through `ctx.check`, under
 its own name. So the panel answers *which part of this is broken* — and a plugin, which is precisely
 the thing whose failure was invisible, now has somewhere to say what working would look like.
 
@@ -231,7 +231,7 @@ evidence rather than self-assessment. The one exception is `globalThis.__rigline
 by nothing else: rendering every contributor's verdict, and the diagnostics the copied report
 carries, is not a capability a manifest could sanely declare.
 
-The verdict logic behind `core` is pure and tested in Node, in
+The verdict logic behind `rigline` is pure and tested in Node, in
 [verdicts.test.ts](../packages/host/test/verdicts.test.ts), with the registry's own behaviour — a
 throwing check, a malformed one, the grouping — beside it in `checks.test.ts`. Tier 2 proves the
 registry end to end through the real `ctx`, in

@@ -32,8 +32,8 @@ function coreCheck(page: Page, name: string): Promise<CheckLine | null> {
         };
       }
     ).__rigline;
-    const core = bridge?.checks?.run().find((g) => g.contributor === "core");
-    return core?.results.find((r) => r.name === wanted) ?? null;
+    const host = bridge?.checks?.run().find((g) => g.contributor === "rigline");
+    return host?.results.find((r) => r.name === wanted) ?? null;
   }, name);
 }
 

@@ -1,5 +1,5 @@
 /**
- * Pure verdict logic for every check the host contributes under `core`.
+ * Pure verdict logic for every check the host contributes under `rigline`.
  *
  * Every function here takes state already reduced to plain data and returns a verdict and a line of
  * detail. Nothing here touches the DOM, the bridge or a kernel service: that wiring is in checks.ts

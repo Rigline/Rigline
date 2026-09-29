@@ -234,7 +234,7 @@ interface CapabilityModule<K extends UsesKey> {
   grant(grant: Grant): Partial<PluginContext>;
   /** The slice of ctx.optional, for the lookups that may answer null (D41). */
   grantOptional?(grant: Grant): Partial<OptionalContext>;
-  /** The lines this capability contributes to `core`, registered once at boot (D63). */
+  /** The lines this capability contributes under `rigline`, registered once at boot (D63). */
   checks?(kernel: Kernel): readonly Check[];
 }
 ```
@@ -257,7 +257,7 @@ session, tools, transcript, checks. Modules do not import each other; a capabili
 another's state (the transcript needs the session) asks the kernel for a shared service the kernel
 owns.
 
-`checks` is called once per module, before any plugin loads, so `core` is the first contributor in
+`checks` is called once per module, before any plugin loads, so `rigline` is the first contributor in
 the panel. A module is handed the `Kernel` because a module's check is a reading of state it already
 owns — where a plugin's check is handed nothing (D63). Two of the three switch modules read
 `kernel.plugins` first, through `usedOnSurface`: a capability nothing on this surface declared
@@ -422,7 +422,7 @@ until the kernel has run and null forever if it never did. Beside rather than in
 `diagnostics` is data the recorder snapshots into the storage ring.
 
 `add(contributor, name, run)` registers one line and returns its removal; `run()` executes every
-registered check now and returns them grouped — `core` first, then each contributor in the order it
+registered check now and returns them grouped — `rigline` first, then each contributor in the order it
 first appeared, which for plugins is registry order because setup runs in it (D66). Nothing sorts on
 the verdicts: a list that reorders as they change slides a line out from under a pointer mid-click.
 
@@ -448,7 +448,7 @@ resend, counts); every contract's `gaps` and `summary`.
 The probe plugin, live: every contributor's lines under its own heading, `n/a` where a check cannot
 apply on a surface, and the `RIG` badge green or red with the total count. Leo reloads webviews and
 reads the badge on the full editor, the sidebar and the session list. The probe renders the registry
-and contributes six of its own; the verdict logic behind `core` is unit-tested in
+and contributes six of its own; the verdict logic behind `rigline` is unit-tested in
 `packages/host/test/verdicts.test.ts` and the registry's own behaviour in `checks.test.ts` beside it,
 because neither needs a browser to be argued about.
 

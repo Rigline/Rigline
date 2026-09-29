@@ -24,6 +24,8 @@ anything may change between releases.
 - `rigline help` prints the usage, and `rigline help COMMAND` or `rigline COMMAND --help` prints
   that command's part of it, where each said the command was unknown. The usage lists the commands
   you use before the ones for writing plugins.
+- *Diagnostics* heads Rigline's own checks `rigline`, where it said `core`. A plugin may be named
+  `core`, and its checks then read as Rigline's; no plugin may be named `rigline`.
 
 ### Fixed
 
@@ -173,6 +175,9 @@ anything may change between releases.
 - `rigline layout` says where else an element can go as "before footerSpacer or in rigRow", where it
   said "can also go rigRow". `layout place` offers `default` when it refuses a place, and `layout
   order` no longer does, since it refuses `default`.
+- A plugin whose module never finishes loading — a top-level `await` that never settles — is given
+  up on after ten seconds and reported by name, and the plugins after it load. It held every later
+  plugin, and Rigline's pill and menu, for the life of the panel.
 
 ## 1.0.0-alpha.13 — 2026-09-27
 

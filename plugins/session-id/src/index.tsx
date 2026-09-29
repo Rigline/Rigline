@@ -404,7 +404,7 @@ export default definePlugin({
      * Whether the address scrape has ever found anything.
      *
      * This is the check worth having here, and the session id is not: the id comes from the host,
-     * which reports on it under `core`, while the address is this plugin's one piece of
+     * which reports on it under `rigline`, while the address is this plugin's one piece of
      * derived-from-someone-else's-wording risk — a bounded regex over a stringified tool result, in
      * two CLI phrasings, pinned by this plugin's tests against a form that can change without
      * anything here breaking loudly. A rewording turns the menu's first row into a permanent "no

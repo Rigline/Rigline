@@ -366,6 +366,28 @@ export default { setup() {} };`,
       }
     }, 20000);
 
+    it("gives up on an import that never finishes, and loads the plugins after it", async () => {
+      // Ten real seconds: `boot` waits on the seal, which is what the timeout releases.
+      const stalling: FixturePlugin = {
+        name: "stalling",
+        manifest: {},
+        source: `await new Promise(() => {});
+export default { setup() {} };`,
+      };
+      const booted = await boot({ plugins: [stalling, mounterPlugin] });
+      try {
+        await booted.page.waitForSelector(".harness-badge");
+        await booted.page.waitForSelector(".rigline-pill");
+        const d = await booted.diagnostics();
+        const status = d.plugins.find((p) => p.name === "stalling");
+        expect(status?.status).toBe("error");
+        expect(status?.reason).toBe("import did not finish within 10s");
+        expect(d.plugins).toContainEqual({ name: "mounter", status: "loaded" });
+      } finally {
+        await booted.close();
+      }
+    }, 30000);
+
     it("decorates transcript rows with a real time once the pushed messages land", async () => {
       const timerPlugin: FixturePlugin = {
         name: "timer",
@@ -1596,10 +1618,10 @@ export default { setup(ctx) {
               };
             }
           ).__rigline;
-          const core = bridge?.checks?.run().find((g) => g.contributor === "core");
+          const host = bridge?.checks?.run().find((g) => g.contributor === "rigline");
           return {
             found,
-            watches: core?.results.find((r) => r.name.startsWith("mount: watches")) ?? null,
+            watches: host?.results.find((r) => r.name.startsWith("mount: watches")) ?? null,
           };
         });
 
@@ -1656,10 +1678,11 @@ export default { setup(ctx) {
 
     /**
      * A plugin's own diagnostics, end to end: `ctx.check` with no declaration behind it, grouped
-     * under the plugin's name, with `core` above it — and a throwing check rendered as one failing
-     * line with the plugin still loaded, which is the decision this whole capability turns on.
+     * under the plugin's name, with the host's above it — and a throwing check rendered as one
+     * failing line with the plugin still loaded, which is the decision this whole capability turns
+     * on.
      */
-    it("groups a plugin's contributed checks under its name, core first, and survives one that throws", async () => {
+    it("groups a plugin's contributed checks under its name, the host's first, and survives one that throws", async () => {
       const checkerPlugin: FixturePlugin = {
         name: "checker",
         // Nothing declared, because a check declares nothing: it names no identifier, so there is
@@ -1694,15 +1717,15 @@ export default { setup(ctx) {
 
         expect(groups).not.toBeNull();
         const names = (groups ?? []).map((g) => g.contributor);
-        expect(names[0]).toBe("core");
+        expect(names[0]).toBe("rigline");
         expect(names).toContain("checker");
 
-        // core carries the kernel's own lines and every capability module's, keyed by capability.
-        const core = (groups ?? []).find((g) => g.contributor === "core");
-        expect(core?.results.map((r) => r.name)).toEqual(
+        // The host's lines: the kernel's own and every capability module's, keyed by capability.
+        const host = (groups ?? []).find((g) => g.contributor === "rigline");
+        expect(host?.results.map((r) => r.name)).toEqual(
           expect.arrayContaining(["tables loaded", "mount: re-placement after a re-render"]),
         );
-        expect(core?.results.find((r) => r.name === "tables loaded")?.detail).toBe(VERSION);
+        expect(host?.results.find((r) => r.name === "tables loaded")?.detail).toBe(VERSION);
 
         const checker = (groups ?? []).find((g) => g.contributor === "checker");
         expect(checker?.results.map((r) => [r.name, r.verdict])).toEqual([

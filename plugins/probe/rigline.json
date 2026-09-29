@@ -2,7 +2,7 @@
   "$schema": "node_modules/@rigline/plugin-api/schema/manifest.json",
   "api": 1,
   "name": "probe",
-  "description": "Rigline's diagnostics, in Rigline's menu. Renders every contributor's checks — the host's own under core, then each plugin's — and contributes the handful nothing else can run.",
+  "description": "Rigline's diagnostics, in Rigline's menu. Renders every contributor's checks — the host's own under rigline, then each plugin's — and contributes the handful nothing else can run.",
   "entry": "dist/index.js",
   "uses": {
     "menu": true,

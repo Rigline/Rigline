@@ -16,7 +16,12 @@
  * The renderer owns the cadence. The host owns the registry and the running, so that every reader
  * gets the same answers and a throw is attributed the same way wherever it is read from.
  */
-import type { CheckVerdict, Teardown, Verdict } from "@rigline/plugin-api/internal";
+import {
+  type CheckVerdict,
+  RIGLINE,
+  type Teardown,
+  type Verdict,
+} from "@rigline/plugin-api/internal";
 import type { Diagnostics } from "./bridge.ts";
 import type { Kernel } from "./types.ts";
 import {
@@ -32,8 +37,11 @@ import {
   tablesLoadedVerdict,
 } from "./verdicts.ts";
 
-/** The contributor name the host's own checks are grouped under, and the one that sorts first. */
-export const CORE = "core";
+/**
+ * The contributor name the host's own checks are grouped under, and the one that sorts first. A name
+ * no plugin may take, so no plugin's lines read as the host's.
+ */
+export const HOST = RIGLINE;
 
 /** One check, as a contributor hands it over. */
 export interface Check {
@@ -61,7 +69,7 @@ export interface CheckService {
   add(contributor: string, name: string, run: () => CheckVerdict): Teardown;
   /** Register several at once, under one contributor. One teardown removes them all. */
   addAll(contributor: string, checks: readonly Check[]): Teardown;
-  /** Run every check now, grouped: `core` first, then contributors in the order they first appeared. */
+  /** Run every check now, grouped: the host's first, then contributors in the order they first appeared. */
   run(): readonly CheckGroup[];
 }
 
@@ -145,11 +153,11 @@ export function createCheckService(): CheckService {
         if (results) results.push(runOne(entry));
         else groups.set(entry.contributor, [runOne(entry)]);
       }
-      // `core` first, then first-appearance order, which for plugins is registry order because
+      // The host's first, then first-appearance order, which for plugins is registry order because
       // setup runs in it. First-appearance rather than insertion so a check registered late — from
       // a message handler, say — joins its own group instead of starting a second one, and so the
       // list a person is reading does not reorder underneath them.
-      const names = [...groups.keys()].sort((a, b) => (a === CORE ? -1 : b === CORE ? 1 : 0));
+      const names = [...groups.keys()].sort((a, b) => (a === HOST ? -1 : b === HOST ? 1 : 0));
       return names.map((contributor) => {
         const results = groups.get(contributor) as CheckResult[];
         return {

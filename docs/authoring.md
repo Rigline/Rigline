@@ -277,7 +277,7 @@ failing, and a badge that goes red for a deliberate choice teaches people to ign
 That includes *not yet*. Your check runs from the moment `setup` returns, before the host has handed
 you an element, so a check that goes straight to `fail` when your decoration is not on screen is red
 for the first second of every panel. Say `n/a` until you have been given something to decorate.
-Whether an anchor that should have appeared never did is not your question — `core`'s
+Whether an anchor that should have appeared never did is not your question — `rigline`'s
 *mount: watches have found their element* owns it, has a clock, and waits before it fails.
 
 **A check reads; it does not compute.** The host calls it about once a second for the life of the
@@ -292,8 +292,9 @@ is not evidence against the feature. So there is no reason to be defensive in on
 wrap it in a `try`.
 
 Ask the question only your own state can answer. Whether the host derived a session id, whether
-mounts are being re-placed and whether the anchor table still resolves are already lines under
-`core`; what nothing else can say is whether *your* plugin turned any of that into what it promised.
+mounts are being re-placed and whether the anchor table still resolves are already the host's lines,
+under `rigline`; what nothing else can say is whether *your* plugin turned any of that into what it
+promised.
 
 ## What you may do, and what is asked of you
 

@@ -1,5 +1,5 @@
 /**
- * The verdict logic behind every line the host contributes under `core`.
+ * The verdict logic behind every line the host contributes under `rigline`.
  *
  * Pure functions over plain data, so a verdict is arguable without a browser and without the
  * kernel. What wires them to diagnostics and to the kernel's services is in checks.ts and in each

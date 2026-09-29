@@ -325,7 +325,7 @@ asks rather than building around it.
 - [x] **W40. The scaffold.** It never typechecks its tests (`plugins/__NAME__/tsconfig.json`
   excludes them), which is how alpha.3's type error went green. A release dry run reports "Staged,
   and awaiting approval" (`release.yml:108-130`); branch on `inputs.dry_run`.
-- [ ] **W41. The host.** Plugins load one after another (`post.ts:380-386`) and the `import` is
+- [x] **W41. The host.** Plugins load one after another (`post.ts:380-386`) and the `import` is
   unbounded, so one whose top-level await never settles stalls every later plugin, the replay
   buffer's seal and the shell. Race it against a timeout and report it by name. A plugin named
   `core` shows its checks as the host's (`host/src/kernel/checks.ts:36`); rename the host's
