@@ -6,7 +6,7 @@
  */
 import type { TranscriptEntry } from "@rigline/plugin-api";
 import { describe, expect, it } from "vitest";
-import { gapName, markFor, styleRules } from "./index.tsx";
+import { dayName, gapName, markFor, styleRules } from "./index.tsx";
 
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
@@ -63,6 +63,20 @@ describe("gapName", () => {
 
   it("rounds to the nearest minute rather than truncating", () => {
     expect(gapName(50 * 1000)).toBe("1m");
+  });
+});
+
+describe("dayName", () => {
+  const now = noon(29);
+
+  it("names today and yesterday", () => {
+    expect(dayName(noon(29) - 3 * HOUR, now)).toBe("Today");
+    expect(dayName(noon(28), now)).toBe("Yesterday");
+  });
+
+  it("gives an earlier day this year no year, and one in another year its year", () => {
+    expect(dayName(noon(3), now)).not.toContain("2026");
+    expect(dayName(new Date(2025, 8, 3, 12).getTime(), now)).toContain("2025");
   });
 });
 

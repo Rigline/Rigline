@@ -179,6 +179,25 @@ function originLabel(plugin: PluginListing): string {
   return dirname(plugin.dir);
 }
 
+/** How wide a description is set, its indent included. */
+const WIDTH = 100;
+
+/** `text` as indented lines of at most `WIDTH`; a word wider than that has a line to itself. */
+function wrap(text: string, indent: string): string[] {
+  const lines: string[] = [];
+  let line = "";
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    if (line && indent.length + line.length + 1 + word.length > WIDTH) {
+      lines.push(indent + line);
+      line = word;
+    } else {
+      line = line ? `${line} ${word}` : word;
+    }
+  }
+  if (line) lines.push(indent + line);
+  return lines;
+}
+
 export function formatPlugins(listings: readonly PluginListing[]): string {
   if (listings.length === 0) return "no plugins found";
 
@@ -188,7 +207,7 @@ export function formatPlugins(listings: readonly PluginListing[]): string {
       `${plugin.name}${plugin.version ? ` ${plugin.version}` : ""} — ${originLabel(plugin)}` +
         `${plugin.enabled ? "" : ", switched off in config"}`,
     );
-    if (plugin.description) lines.push(`  ${plugin.description}`);
+    if (plugin.description) lines.push(...wrap(plugin.description, "  "));
     if (plugin.source !== null) lines.push(`  added from ${describeSource(plugin.source)}`);
     else if (plugin.origin === "home") {
       lines.push("  placed here by hand, with no record of where from, so nothing can update it");

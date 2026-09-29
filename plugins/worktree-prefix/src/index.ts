@@ -70,6 +70,9 @@ const SEPARATOR = " › ";
 /** How much of a non-ticket worktree name to show. A budget, not a hard cut — see `worktreeLabel`. */
 const SHORT_LENGTH = 8;
 
+/** Counts what a reader sees as one character, so a cut never splits an emoji or an accent. */
+const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+
 /**
  * A ticket key at the *start* of a worktree directory's name: a letter, one to nine more letters or
  * digits, a hyphen, one to six digits, and then anything that is not alphanumeric, or the end.
@@ -112,13 +115,14 @@ const SEPARATORS = /[-_. ]/;
 export function worktreeLabel(name: string): string {
   const ticket = TICKET.exec(name)?.[1];
   if (ticket !== undefined) return ticket;
-  if (name.length <= SHORT_LENGTH) return name;
+  const characters = Array.from(GRAPHEMES.segment(name), (s) => s.segment);
+  if (characters.length <= SHORT_LENGTH) return name;
 
-  const budget = name.slice(0, SHORT_LENGTH);
+  const budget = characters.slice(0, SHORT_LENGTH);
   for (let i = budget.length - 1; i > 0; i--) {
-    if (SEPARATORS.test(budget[i] as string)) return budget.slice(0, i);
+    if (SEPARATORS.test(budget[i] as string)) return budget.slice(0, i).join("");
   }
-  return budget;
+  return budget.join("");
 }
 
 /** The last non-empty segment of a Windows or POSIX path, ignoring trailing separators. */
@@ -127,10 +131,30 @@ export function lastSegment(path: string): string {
   return segments[segments.length - 1] ?? "";
 }
 
-/** The half of a tool call this plugin reads, shared by `ToolUse` and `ToolResult`. */
+/** The half of a tool result this plugin reads. */
 export interface ToolCall {
   readonly name: string;
   readonly input: Readonly<Record<string, unknown>>;
+  readonly content?: unknown;
+}
+
+/**
+ * Where `EnterWorktree`'s result says the session went: "Created worktree at PATH on branch B." and
+ * its "Entered", "Resumed" and "Reused" forms. The path stops at the branch clause or at a full stop
+ * ending the sentence, so a dot inside a directory name does not end it.
+ */
+const ENTERED = /\bworktree at ([^\n]{1,512}?)(?: on branch [^\n]{1,256}?)?\.(?: |$)/;
+
+/** A result's text: a string as it came, or its text blocks joined. */
+function resultText(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+  return content
+    .map((block) => {
+      const text = asRecord(block)?.text;
+      return typeof text === "string" ? text : "";
+    })
+    .join("\n");
 }
 
 /**
@@ -139,10 +163,12 @@ export interface ToolCall {
  * `null` for `ExitWorktree` (a positive "left the worktree" answer), `undefined` for anything
  * that says nothing about a worktree at all, and otherwise the label `EnterWorktree` supplies:
  * its `name` input verbatim when given (a new worktree), or the last segment of its `path` input
- * (an existing one, which may sit outside `.claude/worktrees/`) when `name` is absent. Tool names
- * are matched, never checked — they belong to the CLI and to whoever wrote the tool, not to this
- * extension, so a rename upstream is allowed to silently stop the prefix appearing rather than
- * throw.
+ * (an existing one, which may sit outside `.claude/worktrees/`) when `name` is absent. With
+ * neither, the CLI makes up a name, and the last segment of the path its result states is the
+ * label; a result that does not say is `null`, since the session has moved and any label held
+ * from before is wrong (P8). Tool names are matched, never checked — they belong to the CLI and
+ * to whoever wrote the tool, not to this extension, so a rename upstream is allowed to silently
+ * stop the prefix appearing rather than throw.
  */
 export function worktreeFromTool(tool: ToolCall): string | null | undefined {
   if (tool.name === "ExitWorktree") return null;
@@ -151,7 +177,8 @@ export function worktreeFromTool(tool: ToolCall): string | null | undefined {
   if (typeof name === "string" && name.length > 0) return name;
   const path = tool.input.path;
   if (typeof path === "string" && path.length > 0) return lastSegment(path);
-  return undefined;
+  const stated = ENTERED.exec(resultText(tool.content))?.[1];
+  return stated === undefined ? null : lastSegment(stated) || null;
 }
 
 /** `path`, case-folded, with every separator normalised to `/` and trailing separators stripped. */
@@ -212,11 +239,13 @@ export default definePlugin({
     // worktree, which self-corrects the moment either message arrives.
     let defaultCwd: string | null = null;
 
-    // undefined: nothing observed this session, defer to the list. null: an observed exit, a
-    // positive answer that must override a list entry still claiming a worktree. A string: the
-    // worktree last observed via a tool call, which outranks the list either way because it
-    // reflects what actually happened rather than a possibly-stale fetch.
+    // undefined: nothing observed this session, defer to the list. null: an observed exit, or an
+    // entry whose name did not read, a positive answer that must override a list entry still
+    // claiming a worktree. A string: the worktree last observed via a tool call, which outranks the
+    // list either way because it reflects what actually happened rather than a possibly-stale fetch.
     let observedWorktree: string | undefined | null;
+    /** Whether a null there is an entry whose name did not read, which only the check tells apart. */
+    let unnamed = false;
 
     function readDefaultCwd(payload: Payload): void {
       const cwd = asRecord(payload.state)?.defaultCwd;
@@ -247,7 +276,10 @@ export default definePlugin({
     });
 
     ctx.onSessionId((id) => {
-      if (id !== sessionId) observedWorktree = undefined;
+      if (id !== sessionId) {
+        observedWorktree = undefined;
+        unnamed = false;
+      }
       sessionId = id;
     });
 
@@ -263,7 +295,9 @@ export default definePlugin({
       // undefined: a tool call this plugin has no opinion about. Leaving observedWorktree alone
       // (rather than setting it to undefined) is what lets "nothing observed yet, defer to the
       // list" and "observed and it said nothing new" both read the same way.
-      if (next === undefined || next === observedWorktree) return;
+      if (next === undefined) return;
+      unnamed = next === null && result.name === "EnterWorktree";
+      if (next === observedWorktree) return;
       observedWorktree = next;
       // Entering or leaving a worktree does not itself make the app resend rename_tab, so without
       // this the new prefix would only appear whenever the app happened to rename the tab next —
@@ -290,10 +324,9 @@ export default definePlugin({
       return worktreeLabel(entry.name);
     }
 
-    /** Renames this plugin has actually prefixed, and the last marker it used. Bookkeeping for the
-     * check below, and the only thing that can distinguish a working prefix from a silent one. */
+    /** Renames this plugin has actually prefixed. Bookkeeping for the check below, and the only
+     * thing that can distinguish a working prefix from a silent one. */
     let prefixed = 0;
-    let lastMarker: string | null = null;
 
     ctx.rewrite("rename_tab", (payload) => {
       const label = prefix();
@@ -306,7 +339,6 @@ export default definePlugin({
       // bug the day that stops being true.
       if (title.startsWith(marker)) return null;
       prefixed += 1;
-      lastMarker = label;
       return { title: marker + title };
     });
 
@@ -322,21 +354,27 @@ export default definePlugin({
      * The session count is the tell for the patch specifically: a panel that has fetched a session
      * list and found no worktree on any entry is either a machine with no worktrees, or a patch that
      * did not land. It cannot tell which, and says the number rather than guessing.
+     *
+     * The label itself stays out, since it is on the tab and a detail goes into the copied report
+     * (D53); where it came from is the belief worth reading.
      */
     ctx.check("prefix applied to the tab", () => {
       const label = prefix();
       const seen = `${worktrees.size} session(s) listed with a worktree`;
       if (label === null) {
         const why =
-          observedWorktree === null
-            ? "this session left its worktree"
-            : `no worktree for this session; ${seen}`;
+          observedWorktree !== null
+            ? `no worktree for this session; ${seen}`
+            : unnamed
+              ? "this session entered a worktree whose name did not read"
+              : "this session left its worktree";
         return { verdict: "n/a", detail: why };
       }
+      const from = observedWorktree === undefined ? "from the session list" : "from EnterWorktree";
       if (prefixed === 0) {
-        return { verdict: "n/a", detail: `"${label}" ready, no rename_tab since` };
+        return { verdict: "n/a", detail: `a label ${from}, no rename_tab since` };
       }
-      return { verdict: "pass", detail: `"${lastMarker}" on ${prefixed} rename(s)` };
+      return { verdict: "pass", detail: `a label ${from}, on ${prefixed} rename(s)` };
     });
   },
 });

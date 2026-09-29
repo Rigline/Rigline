@@ -336,7 +336,8 @@ asks rather than building around it.
   nor `path` leaves a stale prefix (`worktree-prefix/src/index.ts:147-155`, *unconfirmed*).
   `worktreeLabel` slices by UTF-16 unit and can cut an emoji. time-marks shows no year on an old
   session. `list` prints each description on one line, and session-id's is about 330 characters;
-  the four do not share a voice.
+  the four do not share a voice. *All but the pill is done; the pill waits on Leo's call between
+  moving the probe's viewer into the host and a tooltip naming the failing lines.*
 
 ## List R: the release, Leo's
 

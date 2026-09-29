@@ -223,6 +223,26 @@ describe("formatPlugins", () => {
   it("says so when there is nothing to list, rather than printing nothing at all", () => {
     expect(formatPlugins([])).toBe("no plugins found");
   });
+
+  it("wraps a long description under its indent", () => {
+    const root = tempDir();
+    const description = `${"word ".repeat(40)}${"x".repeat(120)} end`;
+    writePlugin(root, "wordy", { description });
+    const text = formatPlugins(
+      listPlugins({
+        roots: [{ role: "checkout", path: root }],
+        configPath: configWith([]),
+        sourcesPath: sourcesWith(),
+      }),
+    );
+    const described = text.split("\n").filter((line) => /^ {2}[^-]/.test(line));
+    expect(described.length).toBeGreaterThan(2);
+    for (const line of described) {
+      expect(line.startsWith("  ")).toBe(true);
+      if (!line.includes("x")) expect(line.length).toBeLessThanOrEqual(100);
+    }
+    expect(described.join(" ").replace(/\s+/g, " ").trim()).toBe(description.trim());
+  });
 });
 
 describe("the bundled set", () => {

@@ -125,20 +125,19 @@ describe("chainComposeVerdict", () => {
 
 describe("leakVerdict", () => {
   it("is n/a until a rename_tab has been tapped", () => {
-    expect(leakVerdict(false, false, null).verdict).toBe("n/a");
+    expect(leakVerdict(false, false).verdict).toBe("n/a");
   });
 
   it("passes when the tap never saw the mark", () => {
-    expect(leakVerdict(true, false, "Refactor the bus")).toEqual({
-      verdict: "pass",
-      detail: "clean",
-    });
+    expect(leakVerdict(true, false)).toEqual({ verdict: "pass", detail: "clean" });
   });
 
-  it("fails and names the leaked title when the mark reached the wire", () => {
-    const result = leakVerdict(true, true, "[rigline-probe] Refactor the bus");
-    expect(result.verdict).toBe("fail");
-    expect(result.detail).toContain("[rigline-probe]");
+  // The title is the session's, and every detail goes into the copied report (D53).
+  it("fails without quoting the title when the mark reached the wire", () => {
+    expect(leakVerdict(true, true)).toEqual({
+      verdict: "fail",
+      detail: "a title carried the mark onto the wire",
+    });
   });
 });
 

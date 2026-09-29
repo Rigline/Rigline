@@ -78,6 +78,14 @@ describe("worktreeLabel", () => {
     expect(worktreeLabel("")).toBe("");
     expect(worktreeLabel("a-1")).toBe("a-1");
   });
+
+  it("counts characters as a reader does, so a cut never splits one", () => {
+    // Each of these is eight characters on screen and more than eight UTF-16 units.
+    expect(worktreeLabel("🚀🚀🚀🚀🚀🚀🚀🚀")).toBe("🚀🚀🚀🚀🚀🚀🚀🚀");
+    expect(worktreeLabel("👩‍💻-spike")).toBe("👩‍💻-spike");
+    expect(worktreeLabel("🚀🚀🚀🚀🚀🚀🚀🚀🚀")).toBe("🚀🚀🚀🚀🚀🚀🚀🚀");
+    expect(worktreeLabel("🚀🚀🚀-longer-name")).toBe("🚀🚀🚀");
+  });
 });
 
 describe("worktreeFromTool", () => {
@@ -112,10 +120,40 @@ describe("worktreeFromTool", () => {
     expect(worktreeFromTool({ name: "enterworktree", input: { name: "TD-9-y" } })).toBeUndefined();
   });
 
-  it("returns undefined for an EnterWorktree call with no usable name or path", () => {
-    expect(worktreeFromTool({ name: "EnterWorktree", input: {} })).toBeUndefined();
-    expect(worktreeFromTool({ name: "EnterWorktree", input: { name: "" } })).toBeUndefined();
-    expect(worktreeFromTool({ name: "EnterWorktree", input: { path: 12 } })).toBeUndefined();
+  // The CLI's wording, 2.1.284: a nameless call gets the session's plan slug as its name.
+  const created =
+    "Created worktree at C:\\repo\\.claude\\worktrees\\sparkling-wandering-otter on branch " +
+    "worktree-sparkling-wandering-otter. The session is now working in the worktree. Use " +
+    "ExitWorktree to leave mid-session, or exit the session to be prompted.";
+
+  it("reads a nameless EnterWorktree's worktree from the path its result states", () => {
+    expect(worktreeFromTool({ name: "EnterWorktree", input: {}, content: created })).toBe(
+      "sparkling-wandering-otter",
+    );
+    expect(
+      worktreeFromTool({
+        name: "EnterWorktree",
+        input: {},
+        content: [{ type: "text", text: created }],
+      }),
+    ).toBe("sparkling-wandering-otter");
+    // No branch clause, and a dot inside the path, which does not end the sentence.
+    expect(
+      worktreeFromTool({
+        name: "EnterWorktree",
+        input: {},
+        content: "Resumed worktree at /home/me/repo.git/.claude/worktrees/v1.2-fix. A worktree...",
+      }),
+    ).toBe("v1.2-fix");
+  });
+
+  it("returns null for a nameless EnterWorktree whose result does not say where", () => {
+    // The session moved somewhere this cannot name, so a label from before would be wrong.
+    expect(worktreeFromTool({ name: "EnterWorktree", input: {} })).toBeNull();
+    expect(worktreeFromTool({ name: "EnterWorktree", input: { name: "" } })).toBeNull();
+    expect(
+      worktreeFromTool({ name: "EnterWorktree", input: { path: 12 }, content: "Done." }),
+    ).toBeNull();
   });
 });
 

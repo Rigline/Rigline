@@ -95,14 +95,10 @@ export function chainComposeVerdict(
   return { verdict: "fail", detail: "second rewriter did not see the first's mark" };
 }
 
-/** A read tap on `rename_tab` never saw the chain's own mark on the wire. */
-export function leakVerdict(
-  seen: boolean,
-  leaked: boolean,
-  lastTitle: string | null,
-): { verdict: Verdict; detail: string } {
+/** A read tap on `rename_tab` never saw the chain's own mark on the wire. Never quotes the title. */
+export function leakVerdict(seen: boolean, leaked: boolean): { verdict: Verdict; detail: string } {
   if (!seen) return { verdict: "n/a", detail: "no rename_tab tapped yet" };
-  if (leaked) return { verdict: "fail", detail: `title carried the mark: ${lastTitle}` };
+  if (leaked) return { verdict: "fail", detail: "a title carried the mark onto the wire" };
   return { verdict: "pass", detail: "clean" };
 }
 
@@ -244,9 +240,10 @@ function previousRow(entry: Record<string, unknown>): string {
  * when, which is the difference between a report that can be correlated with VS Code's own logs and
  * one that cannot.
  *
- * It carries no message content, no titles and no transcript text, by construction rather than by
- * filtering (D53). The session id is the one identifier present, already truncated to eight
- * characters by its own check, and already on screen in the panel.
+ * It carries no message content, no titles, no transcript text and no identifier of the user's, by
+ * construction rather than by filtering (D53): the facts are counts and versions, and a check's
+ * detail says what its contributor believes, never the value it holds. A third-party plugin is
+ * asked the same in authoring.md, and nothing enforces it.
  */
 /**
  * How long a closed window stays a description of *now* before it becomes one of the past.

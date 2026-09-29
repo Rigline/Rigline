@@ -2,7 +2,7 @@
   "$schema": "node_modules/@rigline/plugin-api/schema/manifest.json",
   "api": 1,
   "name": "worktree-prefix",
-  "description": "Prefixes a session's native VS Code tab label with the worktree it belongs to: a ticket key when the worktree directory's name starts with one, otherwise as much of the name as fits in eight characters, cut where a word ends. Works by rewriting the outbound rename_tab request, the only route to a native tab's title.",
+  "description": "The worktree a session is in, as a prefix on its editor tab: a ticket key where the worktree's name starts with one.",
   "entry": "dist/index.js",
   "surfaces": ["editor", "sidebar"],
   "uses": {

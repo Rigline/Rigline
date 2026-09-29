@@ -96,6 +96,12 @@ const DAY = new Intl.DateTimeFormat(undefined, {
   day: "numeric",
   month: "long",
 });
+const DAY_IN_YEAR = new Intl.DateTimeFormat(undefined, {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
 const TIME = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" });
 
 /** One mark to draw, or null for nothing. */
@@ -121,17 +127,18 @@ function sameDay(a: number, b: number): boolean {
 }
 
 /**
- * "Today", "Yesterday", or the full weekday and date. Computed fresh against `Date.now()` on every
- * call, never cached — see the module comment. `setDate(-1)` rather than subtracting 24 hours of
- * milliseconds, so a daylight-saving change does not shift which calendar day "yesterday" names.
+ * "Today", "Yesterday", or the full weekday and date, with the year when it is not this one.
+ * Computed fresh against `Date.now()` on every call, never cached — see the module comment.
+ * `setDate(-1)` rather than subtracting 24 hours of milliseconds, so a daylight-saving change does
+ * not shift which calendar day "yesterday" names.
  */
-function dayName(at: number): string {
-  const now = new Date();
-  if (sameDay(at, now.getTime())) return "Today";
+export function dayName(at: number, now: number = Date.now()): string {
+  if (sameDay(at, now)) return "Today";
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
   if (sameDay(at, yesterday.getTime())) return "Yesterday";
-  return DAY.format(at);
+  const inThisYear = new Date(at).getFullYear() === new Date(now).getFullYear();
+  return (inThisYear ? DAY : DAY_IN_YEAR).format(at);
 }
 
 /**

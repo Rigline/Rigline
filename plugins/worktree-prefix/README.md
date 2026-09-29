@@ -2,8 +2,8 @@
 
 Prefixes a session's native VS Code tab label with the worktree it belongs to: a ticket key (e.g.
 `TD-1234`) when the worktree directory's name starts with one, and otherwise as much of the name as
-fits in eight characters, cut at a word boundary. Tabs from several worktrees of the same repo are
-then told apart at a glance:
+fits in eight characters as a reader counts them, cut at a word boundary. Tabs from several
+worktrees of the same repo are then told apart at a glance:
 
     ABCD-123 › Refactor the bus
 
@@ -55,6 +55,10 @@ subsumes the other:
 An observed tool-call move always outranks the list, and entering or leaving a worktree does not
 itself make the app resend `rename_tab` — this plugin calls `ctx.resend("rename_tab")` itself so
 the new prefix appears immediately rather than waiting for the next incidental rename.
+
+An `EnterWorktree` given neither a name nor a path makes one up, and its result states where it
+went, so the label comes from that path. A result that does not say leaves the tab bare rather
+than keeping whichever label it had.
 
 The prefix is withheld when the window itself is already rooted on the worktree in question
 (compared against `defaultCwd`, case-insensitively and separator-agnostically — a real transcript

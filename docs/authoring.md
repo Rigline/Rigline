@@ -268,7 +268,7 @@ It declares nothing, and the host hands it nothing, because nothing needs handin
 bookkeeping is in scope, and so is your own `ctx`, so a check that asks whether your anchor still
 resolves calls `ctx.anchor()` inside the closure.
 
-Three things are worth knowing.
+Four things are worth knowing.
 
 **`n/a` is a real verdict, not a soft failure.** A plugin the user switched off is not one that is
 failing, and a badge that goes red for a deliberate choice teaches people to ignore the badge. Say
@@ -290,6 +290,11 @@ counter.
 plugin, with the message as its detail, and nothing is torn down: a broken sentence about a feature
 is not evidence against the feature. So there is no reason to be defensive in one, and no reason to
 wrap it in a `try`.
+
+**A detail ends up in a public issue.** *Diagnostics → Copy report* carries every check's line, and
+people paste it into bug reports. Say what your plugin believes — "seen, stable across a restart",
+"a label from the session list" — and never the value it holds: no session name, path, title or
+anything the user wrote. The value is on screen already, where the user put it.
 
 Ask the question only your own state can answer. Whether the host derived a session id, whether
 mounts are being re-placed and whether the anchor table still resolves are already the host's lines,

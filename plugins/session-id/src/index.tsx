@@ -413,11 +413,17 @@ export default definePlugin({
      *
      * So it stays `n/a` in most sessions, and that is the honest answer rather than a defect in the
      * check: it says the scrape has had no opportunity, not that it works.
+     *
+     * The detail never carries the address, which names the session and is in the menu already:
+     * every check's detail goes into the copied report (D53).
      */
     ctx.check("messaging address observed", () => {
       const observed = stores.observed.get();
       const identity = currentAddress(observed, stores.session.get(), stores.launches.get());
-      if (identity !== null) return { verdict: "pass", detail: formatAddress(identity) };
+      if (identity !== null) {
+        const lasts = observed?.stable ? "stable across a restart" : "for this Claude process";
+        return { verdict: "pass", detail: `seen, ${lasts}` };
+      }
       if (observed !== null) {
         const gone =
           observed.sessionId === stores.session.get()

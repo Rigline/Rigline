@@ -272,16 +272,12 @@ export default definePlugin({
 
     let renameSeen = false;
     let renameLeaked = false;
-    let lastRenameTitle: string | null = null;
     ctx.onMessage("rename_tab", (payload) => {
       renameSeen = true;
       const title = payload.title;
-      lastRenameTitle = typeof title === "string" ? title : null;
-      if (lastRenameTitle?.startsWith(MARK)) renameLeaked = true;
+      if (typeof title === "string" && title.startsWith(MARK)) renameLeaked = true;
     });
-    ctx.check("read taps see the app's original", () =>
-      leakVerdict(renameSeen, renameLeaked, lastRenameTitle),
-    );
+    ctx.check("read taps see the app's original", () => leakVerdict(renameSeen, renameLeaked));
 
     ctx.check("rewrite bookkeeping", () => {
       const diag = readBridge()?.diagnostics;

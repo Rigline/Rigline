@@ -178,6 +178,16 @@ anything may change between releases.
 - A plugin whose module never finishes loading — a top-level `await` that never settles — is given
   up on after ten seconds and reported by name, and the plugins after it load. It held every later
   plugin, and Rigline's pill and menu, for the life of the panel.
+- *Diagnostics → Copy report* no longer carries your messaging address or your worktree's name,
+  which session-id's and worktree-prefix's checks put in their lines, nor a session title when the
+  probe's rewrite check fails. The lines say what each plugin found rather than the value.
+- worktree-prefix labels a worktree Claude names itself, when `EnterWorktree` is given no name. The
+  tab went without a prefix until the session list was next fetched.
+- worktree-prefix counts eight characters as they appear, so a short label no longer ends in half an
+  emoji.
+- time-marks names the year over a day from an earlier year.
+- `rigline list` wraps each plugin's description under its name, and the four bundled plugins'
+  descriptions are a sentence each.
 
 ## 1.0.0-alpha.13 — 2026-09-27
 
