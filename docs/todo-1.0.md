@@ -312,7 +312,7 @@ asks rather than building around it.
   `node_modules` or named `*.test.js` validates but is never copied (`plugins/discover.ts:104`).
   `readSources` is not given `list`'s logger (`plugins/list.ts:88`), so a source of an unknown kind
   reads as hand-placed with no reason.
-- [ ] **W38. `rigline build` and `dev` through the wrapper** resolve rolldown from the engine's
+- [x] **W38. `rigline build` and `dev` through the wrapper** resolve rolldown from the engine's
   install, where it is not (`engine/build.ts:29-38`), and advise `pnpm add -D rolldown`, which
   cannot help there. Resolve from the plugin's directory. The scaffold's own scripts are unaffected.
 - [ ] **W39. `codegen` and line endings.** `codegen --check` and settle's rewrite check

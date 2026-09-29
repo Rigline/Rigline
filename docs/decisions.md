@@ -1136,9 +1136,11 @@ convenience over rolldown (D13), and rolldown stopped being a published dependen
 lazy import — undeclared and static, it threw before the command had read its own arguments, and it
 put 20 MB of native binding in every published tarball. A scaffolded workspace had been getting it
 transitively, so it declares its own now. The lazy import is also what makes `build` work after the
-split: the engine resolves rolldown from wherever it sits, which in an author's workspace walks up
-to that workspace's own `node_modules`, and in `<RIGLINE_HOME>/engine` finds nothing and fails by
-name — correctly, because a build happens in a workspace and never against a user's engine. `__RIGLINE_RANGE__` cannot supply it: that
+split: the engine resolves rolldown from the plugin's directory, which walks up to its workspace's
+own `node_modules`, and only then from wherever the engine sits. A build happens in a workspace,
+but `rigline build` and `rigline dev` reach one from the engine in `<RIGLINE_HOME>/engine`, which
+has no rolldown, so resolving from the engine alone refused them with advice that could not help
+(amended 2026-09-29, W38). `__RIGLINE_RANGE__` cannot supply it: that
 substitution is the scaffolder's own version, and this is the bundler's. It ships in the same
 release that removed it from what a user installs, because a phase between the two is a published version where
 `pnpm build` fails on the first command the guide tells an author to run — which is the failure this

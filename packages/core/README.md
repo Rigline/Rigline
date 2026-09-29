@@ -36,8 +36,8 @@ In a plugin workspace it is what `build` and `codegen` run:
       "build": "rigline-engine build"
     }
 
-`build` resolves [rolldown](https://www.npmjs.com/package/rolldown) lazily, from wherever the engine
-sits, so a workspace that runs it declares rolldown itself.
+`build` resolves [rolldown](https://www.npmjs.com/package/rolldown) lazily, from the plugin's own
+workspace, so a workspace that runs it declares rolldown itself.
 
 ## What it does
 

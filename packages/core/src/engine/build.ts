@@ -11,27 +11,36 @@
  * `.map` fetch a gamble.
  */
 import { existsSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { join, relative, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { RUNTIME_MODULES } from "@rigline/plugin-api/internal";
 import type { build as bundle } from "rolldown";
 import { UserError } from "../errors.ts";
 
 /**
- * Rolldown, loaded when a build is actually asked for.
+ * Rolldown, loaded when a build is actually asked for, from the plugin's own workspace first.
  *
  * A static import here is a static import in `index.ts`, which means every `rigline --help` and
  * every `rigline install` pays for 20 MB of native binding — and, once rolldown is a devDependency
  * rather than a dependency, throws before the command has been read. It is a devDependency because
  * a plugin author's workspace declares its own, which is the only place a build ever happens: the
  * output contract is one browser ES module and a manifest, however it was produced (P6), so a
- * toolchain in the published CLI is a toolchain nobody asked for.
+ * toolchain in the published CLI is a toolchain nobody asked for. The engine `rigline` installs
+ * therefore has none, and the workspace's is the one to find.
  */
-async function rolldown(): Promise<typeof bundle> {
+async function rolldown(dir: string): Promise<typeof bundle> {
+  let specifier = "rolldown";
   try {
-    return (await import("rolldown")).build;
+    specifier = pathToFileURL(createRequire(join(dir, "rigline.json")).resolve("rolldown")).href;
+  } catch {
+    // Not in the plugin's workspace, so the engine's own, which a checkout of Rigline has.
+  }
+  try {
+    return ((await import(specifier)) as typeof import("rolldown")).build;
   } catch {
     throw new UserError(
-      "`rigline build` needs rolldown, which is not installed here. Add it to your workspace: " +
+      `\`rigline build\` needs rolldown, and ${dir}'s workspace has none. Add it there: ` +
         "`pnpm add -D rolldown`. A plugin is one browser ES module and a manifest however you " +
         "build it, so any bundler will do; this command is the shortcut, not the contract.",
     );
@@ -64,7 +73,7 @@ export async function buildPlugin(
   if (!existsSync(input)) throw new UserError(`no plugin source at ${input}`);
   const output = resolve(dir, manifest.entry);
 
-  const bundle = await rolldown();
+  const bundle = await rolldown(dir);
   await bundle({
     input,
     platform: "browser",

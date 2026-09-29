@@ -154,6 +154,9 @@ anything may change between releases.
   failed to load.
 - `rigline list` says when it cannot read a plugin's record in `~/.rigline/sources.json`, as the
   other commands do, where it showed that plugin as placed by hand with no reason.
+- **For plugin authors:** `rigline build` and `rigline dev` find rolldown in the plugin's workspace.
+  They looked only beside the engine, which `rigline` installs without it, so they always failed and
+  said to add rolldown to a workspace that already had it.
 
 ## 1.0.0-alpha.13 — 2026-09-27
 
