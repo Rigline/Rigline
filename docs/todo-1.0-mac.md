@@ -212,3 +212,5 @@ built from this checkout, running the released engine it acquires.
   release. Wait, or pass --now." in `cli/src/registry.ts` and core's `plugins/npm.ts` alike; tick it.
 - [ ] **Done: W47's hand-over.** `cli/test/packed.test.ts`'s `pack` runs pnpm through `cmd /d /s /c`
   on Windows; tick it once Windows CI has run it.
+- [ ] **Done: W36's hand-over.** `cli/src/lock.ts`'s `isStale` takes a lock held ten minutes
+  whatever its pid says, with the two test cases core's has, and companion.md says so; tick it.

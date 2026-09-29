@@ -83,7 +83,8 @@ Clear it to read against the released engine.
 The CLI and the companion both write `<RIGLINE_HOME>/engine`, so `withHomeLock`
 ([lock.ts](../packages/cli/src/lock.ts)) takes `<RIGLINE_HOME>/.lock` by exclusive create, writing
 the holder's pid, start time and name into it. A lock is stolen only when its process is gone *and*
-it is old, and one whose file cannot be read is judged by the file's age. It wraps `installEngine`
+it is old, or once it has been held ten minutes whatever its pid says, since Windows reuses pids
+(D105); one whose file cannot be read is judged by the file's age. It wraps `installEngine`
 rather than any command, held across the npm run, because a first run installs an engine whatever
 verb was typed. A contended lock is a reported outcome, and the companion carries on with the
 engine already there.

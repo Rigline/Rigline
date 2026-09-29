@@ -147,7 +147,8 @@ anything may change between releases.
   needed you.
 - On Windows, an engine that crashed while injecting could leave its lock held for good, once
   Windows gave its process id to some other process, and every install from then on waited and
-  refused. A lock held ten minutes is now taken whatever its process id says.
+  refused. A lock held ten minutes is now taken whatever its process id says, and so is the one
+  `rigline` and the companion take while installing the engine.
 - `rigline add` refuses a plugin package holding two files that are one file on Windows or macOS,
   such as `Index.js` and `index.js`, or a name Windows cannot hold, such as `con.js` or one ending in
   a dot. Such a plugin installed on one platform and broke on another.

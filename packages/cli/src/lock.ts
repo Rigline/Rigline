@@ -52,6 +52,8 @@ export interface LockOptions {
 
 /** A minute: longer than any install, short enough that a crash is not a lasting injury. */
 const STALE_MS = 60_000;
+/** Past any real hold, so a pid Windows has handed to another process pins the lock no longer. */
+const HELD_MAX_MS = 10 * 60_000;
 const WAIT_MS = 30_000;
 const POLL_MS = 250;
 
@@ -98,8 +100,9 @@ function writtenAt(path: string): number {
 }
 
 /**
- * Whether a lock has stopped mattering: old, and its process gone. A lock nobody can read is judged
- * by the file's own age, since it is usually a holder between its create and its write (D105).
+ * Whether a lock has stopped mattering: old and its process gone, or held past any real run whatever
+ * its pid says (D105). A lock nobody can read is judged by the file's own age, since it is usually a
+ * holder between its create and its write.
  */
 export function isStale(
   holder: LockHolder | null,
@@ -109,8 +112,8 @@ export function isStale(
   isAlive: (pid: number) => boolean,
 ): boolean {
   const since = holder === null ? fileTime : Date.parse(holder.since);
-  const old = Number.isNaN(since) || now - since >= staleMs;
-  return old && (holder === null || !isAlive(holder.pid));
+  const age = Number.isNaN(since) ? Number.POSITIVE_INFINITY : now - since;
+  return age >= HELD_MAX_MS || (age >= staleMs && (holder === null || !isAlive(holder.pid)));
 }
 
 export class HomeLockedError extends UserError {
