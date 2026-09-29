@@ -16,6 +16,7 @@ import {
   saveLayout,
   showPlugins,
 } from "./acquire.ts";
+import type { Probe } from "./node.ts";
 import type { Stamps } from "./watch.ts";
 
 // Absolute on whichever platform runs this. A Windows path is merely relative on Linux, and
@@ -47,7 +48,7 @@ const QUIET = {
 };
 
 /** Spread where a case builds its own options rather than taking `QUIET` whole. */
-const runner = (a: ReturnType<typeof acquisition>) => ({ runEngine: a.runEngine });
+const runner = (a: ReturnType<typeof acquisition>) => ({ runEngine: a.runEngine, probe: a.probe });
 
 const ENTRY = abs("home", ".rigline", "engine", "bin.js");
 
@@ -60,10 +61,11 @@ const ENTRY = abs("home", ".rigline", "engine", "bin.js");
  */
 function acquisition(
   over: Partial<AcquireOptions["acquisition"]> = {},
-  run: { code?: number; lines?: readonly string[]; onRun?: () => void } = {},
+  run: { code?: number; lines?: readonly string[]; onRun?: () => void; probe?: Probe } = {},
 ) {
   const calls: string[][] = [];
   const entries: string[] = [];
+  const nodes: string[] = [];
   const acquiring: string[] = [];
   const base: AcquireOptions["acquisition"] = {
     updateEngine: async () => {
@@ -76,14 +78,17 @@ function acquisition(
     },
     ...over,
   };
-  const runEngine: AcquireOptions["runEngine"] = async (_node, entry, argv, onLine) => {
+  const runEngine: AcquireOptions["runEngine"] = async (node, entry, argv, onLine) => {
     calls.push([...argv]);
     entries.push(entry);
+    nodes.push(node);
     run.onRun?.();
     for (const line of run.lines ?? []) onLine(line);
     return run.code ?? 0;
   };
-  return { acquisition: base, calls, entries, acquiring, runEngine };
+  // A Node that is what it was found as, and new enough.
+  const probe: Probe = run.probe ?? (async (path) => JSON.stringify([path, "26.0.0"]));
+  return { acquisition: base, calls, entries, nodes, acquiring, runEngine, probe };
 }
 
 describe("acquireAndInject", () => {
@@ -349,6 +354,95 @@ describe("acquireAndInject", () => {
     expect(e.lines[0]).toContain(chosen);
   });
 
+  it("runs the Node behind a shim, and hands the wrapper that one to pair npm with (M2)", async () => {
+    const shimDir = abs("home", ".volta", "bin");
+    const shim = join(shimDir, "node");
+    const real = abs("home", ".volta", "tools", "image", "node", "22.12.0", "bin", "node");
+    const e = editor();
+    const seen: string[] = [];
+    const a = acquisition(
+      {
+        updateEngine: async (options) => {
+          seen.push(options.nodePath);
+          return { outcome: "current" };
+        },
+        ensureEngine: async (options) => {
+          seen.push(options.nodePath);
+          return { version: "1.0.0-alpha.7", entry: ENTRY };
+        },
+      },
+      { probe: async () => JSON.stringify([real, "22.12.0"]) },
+    );
+
+    const result = await acquireAndInject({
+      editor: e.editor,
+      acquisition: a.acquisition,
+      ...runner(a),
+      ...QUIET,
+      version: "1.0.0-alpha.13",
+      exists: (p) => p === shim,
+      env: { PATH: shimDir },
+    });
+
+    expect(result).toMatchObject({ kind: "injected", runner: { nodePath: real } });
+    expect(seen).toEqual([real, real]);
+    expect(a.nodes).toEqual([real]);
+    expect(e.lines[0]).toBe(`Node: ${real}, 22.12.0 (found by PATH as ${shim})`);
+  });
+
+  it("refuses a Node below the floor by name, and runs nothing with it (M2)", async () => {
+    const e = editor();
+    const a = acquisition({}, { probe: async (path) => JSON.stringify([path, "20.15.1"]) });
+
+    const result = await acquireAndInject({
+      editor: e.editor,
+      acquisition: a.acquisition,
+      ...runner(a),
+      ...QUIET,
+      belowFloor: (running) => (running.startsWith("20.") ? "22.12.0" : null),
+      version: "1.0.0-alpha.13",
+      exists: (p) => p === NODE,
+      env: { PATH: NODE_DIR },
+    });
+
+    expect(result.kind).toBe("no-node");
+    expect(a.acquiring).toEqual([]);
+    expect(a.calls).toEqual([]);
+    expect(e.statuses.at(-1)).toMatchObject({ health: "attention", text: "Rigline: Node too old" });
+    expect(e.statuses.at(-1)?.tooltip).toBe(
+      `Rigline needs Node 22.12.0 or newer, and ${NODE} (from PATH) is Node 20.15.1. ` +
+        "Set `rigline.nodePath` to a Node executable, then reload the window.",
+    );
+  });
+
+  it("says which Node it could not run, rather than failing inside npm (M2)", async () => {
+    const e = editor();
+    const a = acquisition(
+      {},
+      {
+        probe: async () => {
+          throw new Error("spawn EACCES");
+        },
+      },
+    );
+
+    const result = await acquireAndInject({
+      editor: e.editor,
+      acquisition: a.acquisition,
+      ...runner(a),
+      ...QUIET,
+      version: "1.0.0-alpha.13",
+      exists: (p) => p === NODE,
+      env: { PATH: NODE_DIR },
+    });
+
+    expect(result.kind).toBe("no-node");
+    expect(a.acquiring).toEqual([]);
+    expect(e.statuses.at(-1)).toMatchObject({ health: "attention", text: "Rigline: no Node" });
+    expect(e.statuses.at(-1)?.tooltip).toContain(`${NODE} (from PATH)`);
+    expect(e.statuses.at(-1)?.tooltip).toContain("spawn EACCES");
+  });
+
   it("does not report success when there is nothing to inject into", async () => {
     // `vscode-setup` run before Claude Code was installed. An engine that answers that with 0 painted
     // a green badge over an absent feature, which is the failure P8 exists against.
@@ -497,6 +591,7 @@ describe("an engine named by rigline.enginePath (D94)", () => {
       editor: e.editor,
       ensureEngine: a.acquisition.ensureEngine,
       runEngine: a.runEngine,
+      probe: a.probe,
       version: "1.0.0-alpha.10",
       exists: withDev,
       env: { PATH: NODE_DIR },
@@ -532,6 +627,7 @@ describe("showPlugins", () => {
       editor: e.editor,
       ensureEngine: a.acquisition.ensureEngine,
       runEngine: a.runEngine,
+      probe: a.probe,
       version: "1.0.0-alpha.6",
       exists: (p) => p === NODE,
       env: { PATH: NODE_DIR },
@@ -552,6 +648,7 @@ describe("showPlugins", () => {
       editor: e.editor,
       ensureEngine: a.acquisition.ensureEngine,
       runEngine: a.runEngine,
+      probe: a.probe,
       version: "1.0.0-alpha.6",
       exists: () => false,
       env: { PATH: abs("nothing") },
@@ -574,6 +671,7 @@ describe("showPlugins", () => {
       editor: e.editor,
       ensureEngine: a.acquisition.ensureEngine,
       runEngine: a.runEngine,
+      probe: a.probe,
       version: "1.0.0-alpha.6",
       exists: (p) => p === NODE,
       env: { PATH: NODE_DIR },
@@ -598,12 +696,31 @@ describe("showPlugins", () => {
       editor: e.editor,
       ensureEngine: a.acquisition.ensureEngine,
       runEngine: a.runEngine,
+      probe: a.probe,
       version: "1.0.0-alpha.6",
       exists: (p) => p === NODE,
       env: { PATH: NODE_DIR },
     });
 
     expect(updateCalled).toBe(false);
+  });
+
+  it("runs the Node behind a shim too (M2)", async () => {
+    const real = abs("opt", "homebrew", "Cellar", "node", "26.10.0_1", "bin", "node");
+    const e = editor();
+    const a = acquisition({}, { probe: async () => JSON.stringify([real, "26.10.0"]) });
+
+    await showPlugins({
+      editor: e.editor,
+      ensureEngine: a.acquisition.ensureEngine,
+      runEngine: a.runEngine,
+      probe: a.probe,
+      version: "1.0.0-alpha.13",
+      exists: (p) => p === NODE,
+      env: { PATH: NODE_DIR },
+    });
+
+    expect(a.nodes).toEqual([real]);
   });
 });
 
@@ -617,6 +734,7 @@ describe("saveLayout", () => {
       editor: e.editor,
       ensureEngine: a.acquisition.ensureEngine,
       runEngine: a.runEngine,
+      probe: a.probe,
       version: "1.0.0-alpha.11",
       exists: (p) => p === NODE,
       env: { PATH: NODE_DIR },
@@ -661,6 +779,7 @@ describe("saveLayout", () => {
       editor: e.editor,
       ensureEngine: a.acquisition.ensureEngine,
       runEngine: a.runEngine,
+      probe: a.probe,
       version: "1.0.0-alpha.11",
       exists: (p) => p === NODE,
       env: { PATH: NODE_DIR },
@@ -700,6 +819,7 @@ describe("saveLayout", () => {
       editor: e.editor,
       ensureEngine: a.acquisition.ensureEngine,
       runEngine: a.runEngine,
+      probe: a.probe,
       version: "1.0.0-alpha.11",
       exists: () => false,
       env: { PATH: abs("nothing") },

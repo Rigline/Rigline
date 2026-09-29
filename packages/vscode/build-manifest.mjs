@@ -16,6 +16,7 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const dist = join(here, "dist");
 const own = JSON.parse(readFileSync(join(here, "package.json"), "utf8"));
+const wrapper = JSON.parse(readFileSync(join(here, "..", "cli", "package.json"), "utf8"));
 
 const manifest = {
   name: "rigline",
@@ -25,8 +26,13 @@ const manifest = {
   publisher: "rigline",
   license: "MIT",
   repository: { type: "git", url: "git+https://github.com/Rigline/Rigline.git" },
-  // The API the types check, which vsce would demand if it saw the devDependency (D112).
-  engines: { vscode: `^${own.devDependencies["@types/vscode"]}` },
+  // The API the types check, which vsce would demand if it saw the devDependency (D112). And the
+  // wrapper's Node floor, which the companion holds a Node it finds to; vsce and VS Code read only
+  // `vscode`.
+  engines: {
+    vscode: `^${own.devDependencies["@types/vscode"]}`,
+    node: wrapper.engines.node,
+  },
   categories: ["Other"],
   // Declared because *not* declaring it is a decision too, and a worse one: VS Code disables an
   // extension that says nothing here in an untrusted workspace, listing it all the while, so the

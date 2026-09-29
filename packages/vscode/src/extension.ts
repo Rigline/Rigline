@@ -5,13 +5,15 @@
  * `acquire.ts`, which vitest drives. Keeping the boundary this thin is what lets 8a be tested at
  * all, since nothing here can run outside an extension host.
  */
-import { type ChildProcess, type StdioOptions, spawn } from "node:child_process";
+import { type ChildProcess, execFile, type StdioOptions, spawn } from "node:child_process";
 import { existsSync, readdirSync, statSync } from "node:fs";
+import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import * as vscode from "vscode";
 import { acquireAndInject, ENGINE_SETTING, marked, saveLayout, showPlugins } from "./acquire.ts";
 import { localTime } from "./clock.ts";
 import { CLAUDE_CODE, type Editor, type Health } from "./editor.ts";
+import { PROBE_ARGS, PROBE_TIMEOUT_MS } from "./node.ts";
 import { addToProfiles } from "./profiles.ts";
 import { type ReloadOffer, reloadOffer } from "./reload.ts";
 import { injectedDir, injectsHere } from "./scope.ts";
@@ -87,6 +89,9 @@ export function activate(context: vscode.ExtensionContext): void {
   // From the manifest VS Code read, never from disk: inside a VSIX the wrapper's own lookup
   // resolves to the extensions directory, where there is no manifest to find.
   const version = String(context.extension.packageJSON.version ?? "0.0.0");
+  // The Node floor, written there from the wrapper's manifest by `build-manifest.mjs`.
+  const floor: unknown = context.extension.packageJSON.engines?.node;
+  const nodeFloor = typeof floor === "string" ? floor : undefined;
 
   const own = context.extension.extensionUri.fsPath;
   if (!injectsHere(dirname(own))) {
@@ -110,7 +115,7 @@ export function activate(context: vscode.ExtensionContext): void {
     installed: installedIn(dirname(own)),
     stamps,
     react: async (reason) => {
-      await run(editor, version, reason, offer, own, here);
+      await run(editor, version, nodeFloor, reason, offer, own, here);
     },
   });
   context.subscriptions.push(watcher);
@@ -129,6 +134,8 @@ export function activate(context: vscode.ExtensionContext): void {
         exists: existsSync,
         version,
         runEngine,
+        probe: probeNode,
+        belowFloor: (running) => wrapper.belowFloor(running, nodeFloor),
       });
     }),
   );
@@ -154,6 +161,8 @@ export function activate(context: vscode.ExtensionContext): void {
               exists: existsSync,
               version,
               runEngine,
+              probe: probeNode,
+              belowFloor: (running) => wrapper.belowFloor(running, nodeFloor),
               payload,
             });
           })
@@ -164,7 +173,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Deliberately not awaited: activation must return promptly, and every failure inside is already
   // a result rather than a rejection, so there is nothing here for a `catch` to add.
-  void run(editor, version, startingReason(editor, CLAUDE_CODE), offer, own, here);
+  void run(editor, version, nodeFloor, startingReason(editor, CLAUDE_CODE), offer, own, here);
 }
 
 /**
@@ -193,6 +202,7 @@ function profilesArgs(context: vscode.ExtensionContext, own: string): readonly s
 async function run(
   editor: Editor,
   version: string,
+  nodeFloor: string | undefined,
   reason: WatchReason,
   offer: ReloadOffer,
   own: string,
@@ -205,6 +215,8 @@ async function run(
     reason,
     stamps,
     runEngine,
+    probe: probeNode,
+    belowFloor: (running) => wrapper.belowFloor(running, nodeFloor),
     exists: existsSync,
     acquisition: {
       updateEngine: (options) => wrapper.updateEngine(options),
@@ -253,6 +265,25 @@ function spawnEngine(
   stdio: StdioOptions,
 ): ChildProcess {
   return spawn(nodePath, [entry, ...argv], { stdio, windowsHide: true });
+}
+
+/**
+ * A found Node's own binary and version (`resolveNode`). Hidden, as every spawn here is, and at home,
+ * so a version manager choosing by directory chooses the same Node wherever VS Code was started.
+ */
+function probeNode(path: string): Promise<string> {
+  return new Promise((done, fail) => {
+    execFile(
+      path,
+      PROBE_ARGS,
+      { cwd: homedir(), timeout: PROBE_TIMEOUT_MS, windowsHide: true, encoding: "utf8" },
+      (error, stdout) => {
+        if (error === null) done(stdout);
+        else if (error.killed) fail(new Error(`no answer in ${PROBE_TIMEOUT_MS / 1000} seconds`));
+        else fail(error);
+      },
+    );
+  });
 }
 
 /** The engine's stdout alone: stderr is where an engine too old for the verb prints its usage. */

@@ -15,6 +15,9 @@ import { UserError } from "./errors.ts";
 import { type LockOptions, withHomeLock } from "./lock.ts";
 import { type RegistryOptions, releaseAgeProblem, resolveVersion } from "./registry.ts";
 
+// For the companion, which reaches the wrapper only through this module (D80).
+export { belowFloor } from "./floor.ts";
+
 export const ENGINE_PACKAGE = "@rigline/core";
 export const ENGINE_BIN = "rigline-engine";
 

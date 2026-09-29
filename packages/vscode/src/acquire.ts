@@ -10,7 +10,7 @@
  * inferred from a live run.
  */
 import { CLAUDE_CODE, type Editor } from "./editor.ts";
-import { findNode, NoNodeError } from "./node.ts";
+import { type Probe, resolveNode, UnusableNodeError, type UsableNode } from "./node.ts";
 import { type Reload, reloadWanted } from "./reload.ts";
 import type { Stamps, WatchReason } from "./watch.ts";
 
@@ -60,6 +60,10 @@ export interface AcquireOptions {
     argv: readonly string[],
     onLine: (line: string) => void,
   ) => Promise<number>;
+  /** Asks the Node found what it really is, so a shim is never what runs (`resolveNode`). */
+  readonly probe: Probe;
+  /** The floor a Node version falls below: the wrapper's reading of this companion's `engines.node`. */
+  readonly belowFloor?: (version: string) => string | null;
   readonly env?: NodeJS.ProcessEnv;
   readonly platform?: NodeJS.Platform;
 }
@@ -145,22 +149,19 @@ function majorOf(version: string): string | null {
  * milestone exists to remove (P8). Every exit is a result somebody can read.
  */
 export async function acquireAndInject(options: AcquireOptions): Promise<AcquireResult> {
-  const { editor, acquisition, exists, version, reason, stamps, runEngine, env, platform } =
-    options;
+  const { editor, acquisition, exists, version, reason, stamps, runEngine } = options;
 
   let nodePath: string;
   try {
-    const found = findNode({
-      setting: editor.setting("nodePath"),
-      exists,
-      ...(env === undefined ? {} : { env }),
-      ...(platform === undefined ? {} : { platform }),
-    });
-    nodePath = found.path;
-    editor.log(`Node: ${found.path} (found by ${found.source === "setting" ? "setting" : "PATH"})`);
+    const node = await usableNode(options);
+    nodePath = node.path;
+    const by = node.source === "setting" ? "setting" : "PATH";
+    const as = node.found === node.path ? "" : ` as ${node.found}`;
+    editor.log(`Node: ${node.path}, ${node.version} (found by ${by}${as})`);
   } catch (error) {
-    const message = error instanceof NoNodeError ? error.message : String(error);
-    editor.status("attention", "Rigline: no Node", message);
+    const message = error instanceof Error ? error.message : String(error);
+    const old = error instanceof UnusableNodeError && error.floor !== null;
+    editor.status("attention", old ? "Rigline: Node too old" : "Rigline: no Node", message);
     editor.log(message);
     return { kind: "no-node", message };
   }
@@ -271,6 +272,8 @@ export interface ShowPluginsOptions {
   readonly exists: (path: string) => boolean;
   readonly version: string;
   readonly runEngine: AcquireOptions["runEngine"];
+  readonly probe: Probe;
+  readonly belowFloor?: AcquireOptions["belowFloor"];
   readonly env?: NodeJS.ProcessEnv;
   readonly platform?: NodeJS.Platform;
 }
@@ -325,19 +328,13 @@ async function onDisk(
   options: ShowPluginsOptions,
   argv: readonly string[],
 ): Promise<readonly string[] | null> {
-  const { editor, ensureEngine, exists, version, runEngine, env, platform } = options;
+  const { editor, ensureEngine, exists, version, runEngine } = options;
 
   let nodePath: string;
   try {
-    const found = findNode({
-      setting: editor.setting("nodePath"),
-      exists,
-      ...(env === undefined ? {} : { env }),
-      ...(platform === undefined ? {} : { platform }),
-    });
-    nodePath = found.path;
+    nodePath = (await usableNode(options)).path;
   } catch (error) {
-    const message = error instanceof NoNodeError ? error.message : String(error);
+    const message = error instanceof Error ? error.message : String(error);
     editor.log(message);
     void editor.ask("warn", message);
     return null;
@@ -358,4 +355,19 @@ async function onDisk(
     void editor.ask("warn", message);
     return null;
   }
+}
+
+/** The Node every spawn runs, from the setting or PATH, asked what it really is. */
+function usableNode(
+  options: Pick<AcquireOptions, "editor" | "exists" | "probe" | "belowFloor" | "env" | "platform">,
+): Promise<UsableNode> {
+  const { editor, exists, probe, belowFloor, env, platform } = options;
+  return resolveNode({
+    setting: editor.setting("nodePath"),
+    exists,
+    probe,
+    belowFloor,
+    ...(env === undefined ? {} : { env }),
+    ...(platform === undefined ? {} : { platform }),
+  });
 }

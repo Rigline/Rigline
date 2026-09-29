@@ -22,7 +22,7 @@ file.
 
 ## The companion and the wrapper finding Node and npm
 
-- [ ] **M2. A version-manager shim strands the companion.** `findNode` returns the first `node` on
+- [x] **M2. A version-manager shim strands the companion.** `findNode` returns the first `node` on
   `PATH` (`packages/vscode/src/node.ts:95-101`). Under volta, asdf, mise, nodenv, scoop or snap that
   is a shim, and `findNpmCli` finds no npm beside it, so every engine move fails, is only logged
   (`acquire.ts:258-264`), and the status stays green: engine fixes and the companion's self-update

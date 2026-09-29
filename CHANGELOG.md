@@ -84,6 +84,11 @@ anything may change between releases.
 - The engine, started by a Node older than it supports, says which Node it needs and stops, where
   it failed part-way through the command with an error naming nothing.
 - So does `rigline` itself, before it installs or runs anything, naming the Node it was started by.
+- The companion runs the Node behind a version manager's shim — volta, asdf, mise, nodenv, scoop or
+  snap — and behind Homebrew's `node`. It ran the shim and found no npm beside it, so it never
+  updated the engine or itself while the status stayed green, and on a machine with no engine yet
+  it installed nothing. A Node older than Rigline supports is named in the status, *Rigline: Node
+  too old*, rather than failing part-way through.
 - When VS Code removed an old Claude Code version while Rigline was installing into it, Rigline
   could leave a directory behind holding only its own files, and from then on every install, the
   companion's at each window start included, said it needed you. `rigline install` and `rigline

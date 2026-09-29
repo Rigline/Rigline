@@ -42,9 +42,16 @@ with and fetches nothing.
 ## Finding Node
 
 The extension host's `process.execPath` is Electron, with no npm beside it. So `node.ts` takes the
-`rigline.nodePath` setting, else `node` on `PATH`, and the wrapper then takes the npm beside *that*
-Node. That is D73's rule, with a different starting point. With no Node, the status reads
-*Rigline: no Node* and the message names the setting. `ELECTRON_RUN_AS_NODE` supplies an
+`rigline.nodePath` setting, else `node` on `PATH`, and then asks that Node what it is: one hidden
+run, at home, with ten seconds to answer, printing its own `process.execPath` and version. What was
+found may be a version manager's shim (volta, asdf, mise, nodenv, scoop, snap) or Homebrew's
+symlink, with no npm beside it, so the binary it names is the one the wrapper takes the npm beside
+and every spawn runs. That is D73's rule, with a different starting point.
+
+A Node below the floor is refused by name, and the status reads *Rigline: Node too old*. The floor
+is the wrapper's `engines.node`, which `build-manifest.mjs` writes into the companion's manifest,
+where VS Code and vsce read only `engines.vscode`. With no Node, or one that does not answer, the
+status reads *Rigline: no Node*. Both messages name the setting. `ELECTRON_RUN_AS_NODE` supplies an
 interpreter, not an npm, and does not help.
 
 ## Running a checkout's engine

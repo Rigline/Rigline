@@ -217,6 +217,9 @@ describe("the packed extension", () => {
     // An editor older than the types would load code calling an API it lacks (D112).
     const own = JSON.parse(readFileSync(join(HERE, "..", "package.json"), "utf8"));
     expect(manifest.engines?.vscode).toBe(`^${own.devDependencies["@types/vscode"]}`);
+    // The floor a Node the companion finds is held to, which is the wrapper's it bundles (M2).
+    const wrapper = JSON.parse(readFileSync(join(HERE, "..", "..", "cli", "package.json"), "utf8"));
+    expect(manifest.engines?.node).toBe(wrapper.engines.node);
     expect(manifest.activationEvents).toContain("onStartupFinished");
     // What `install` reads to decide that this companion answers a Save link (D93).
     expect(manifest.activationEvents).toContain("onUri");

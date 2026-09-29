@@ -9,6 +9,10 @@
  * D73's rule survives intact. It says npm must belong to the Node that will run it, not that PATH
  * is untouchable; PATH is used here to find the *Node*, and `findNpmCli` then takes the npm beside
  * that one. A corepack or fnm shim on PATH is still never taken for npm itself.
+ *
+ * What PATH or the setting gives may itself be a shim, from volta, asdf, mise, nodenv, scoop or snap,
+ * with no npm beside it. So the Node found is asked what it really is, and that binary is the one
+ * npm is paired to and every spawn runs (`resolveNode`).
  */
 import { delimiter, isAbsolute, join } from "node:path";
 
@@ -100,4 +104,90 @@ export function findNode(options: FindNodeOptions): FoundNode {
     }
   }
   throw new NoNodeError(dirs);
+}
+
+/** What a found Node is run with to say what it is: its own binary, and its version. */
+export const PROBE_ARGS = [
+  "-e",
+  "process.stdout.write(JSON.stringify([process.execPath, process.versions.node]))",
+] as const;
+
+/** How long it has to answer. A shim that decides a version by reading files can take a moment. */
+export const PROBE_TIMEOUT_MS = 10_000;
+
+/**
+ * Runs a Node with `PROBE_ARGS`, hidden and at home, and answers with what it printed. Rejects when
+ * it could not be run or did not answer in time. Injected, so no test spawns one.
+ */
+export type Probe = (path: string) => Promise<string>;
+
+/** A Node the companion can run npm and the engine with. */
+export interface UsableNode {
+  /** The binary itself, never a shim: npm is paired to it and every spawn runs it (D73). */
+  readonly path: string;
+  readonly version: string;
+  readonly source: NodeSource;
+  /** What the setting or PATH gave, which is not `path` when that was a shim or a symlink. */
+  readonly found: string;
+}
+
+/** Why the Node found cannot be used, with the repair: the same one as having none. */
+export class UnusableNodeError extends Error {
+  /** The floor it falls below, when that is why. */
+  readonly floor: string | null;
+
+  constructor(problem: string, floor: string | null = null) {
+    super(`${problem}. Set \`rigline.nodePath\` to a Node executable, then reload the window.`);
+    this.name = "UnusableNodeError";
+    this.floor = floor;
+  }
+}
+
+export interface ResolveNodeOptions extends FindNodeOptions {
+  readonly probe: Probe;
+  /** The floor a Node version falls below, or null. Unset, any Node that answers is taken. */
+  readonly belowFloor?: ((version: string) => string | null) | undefined;
+}
+
+/** `findNode`, then the Node it found asked what it really is, and held to the floor. */
+export async function resolveNode(options: ResolveNodeOptions): Promise<UsableNode> {
+  const { path: found, source } = findNode(options);
+  const where = `${found} (from ${source === "setting" ? "`rigline.nodePath`" : "PATH"})`;
+
+  let answer: string;
+  try {
+    answer = await options.probe(found);
+  } catch (error) {
+    const why = error instanceof Error ? error.message : String(error);
+    throw new UnusableNodeError(`Rigline could not run ${where} to ask which Node it is: ${why}`);
+  }
+  const identity = readProbe(answer);
+  if (identity === null) {
+    const said = answer.trim() === "" ? "nothing" : answer.trim().slice(0, 200);
+    throw new UnusableNodeError(`Rigline asked ${where} which Node it is, and it answered ${said}`);
+  }
+
+  const floor = options.belowFloor?.(identity.version) ?? null;
+  if (floor !== null) {
+    const runs = identity.execPath === found ? "" : `, which runs ${identity.execPath},`;
+    throw new UnusableNodeError(
+      `Rigline needs Node ${floor} or newer, and ${where}${runs} is Node ${identity.version}`,
+      floor,
+    );
+  }
+  return { path: identity.execPath, version: identity.version, source, found };
+}
+
+function readProbe(answer: string): { execPath: string; version: string } | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(answer);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(parsed) || parsed.length !== 2) return null;
+  const [execPath, version] = parsed as unknown[];
+  if (typeof execPath !== "string" || !isAbsolute(execPath)) return null;
+  if (typeof version !== "string" || !/^\d+\.\d+\.\d+/.test(version)) return null;
+  return { execPath, version };
 }
