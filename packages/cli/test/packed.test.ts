@@ -87,7 +87,14 @@ function attempt(
 }
 
 function pack(name: string): string {
-  const out = run("pnpm", ["pack", "--pack-destination", work], join(ROOT, "packages", name));
+  const dir = join(ROOT, "packages", name);
+  const args = ["pack", "--pack-destination", work];
+  // Through `cmd` on Windows, where a runner's pnpm is a `.cmd` shim that spawning `pnpm` misses,
+  // as `riglineCommand` runs `rigline` and `packages/create-plugin/test/packed.test.ts` runs pnpm.
+  const out =
+    process.platform === "win32"
+      ? run(process.env.COMSPEC ?? "cmd.exe", ["/d", "/s", "/c", "pnpm", ...args], dir)
+      : run("pnpm", args, dir);
   // pnpm prints the path it wrote as the last non-empty line.
   const path = out.trim().split(/\r?\n/).at(-1)?.trim() ?? "";
   if (!existsSync(path)) throw new Error(`pnpm pack wrote no tarball for ${name}: ${out}`);

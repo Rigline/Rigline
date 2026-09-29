@@ -210,3 +210,5 @@ built from this checkout, running the released engine it acquires.
   companion's clock does, would read "at 09:23 on 30 September".
 - [ ] **Done: W33's hand-over.** The release-age refusal ends "...is a local edit rather than a
   release. Wait, or pass --now." in `cli/src/registry.ts` and core's `plugins/npm.ts` alike; tick it.
+- [ ] **Done: W47's hand-over.** `cli/test/packed.test.ts`'s `pack` runs pnpm through `cmd /d /s /c`
+  on Windows; tick it once Windows CI has run it.
