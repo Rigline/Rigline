@@ -126,10 +126,10 @@ describe("the packed extension", () => {
       ],
       homed(dir),
     );
-    // The output channel, the status item, the watcher, the reload command, the show-plugins
-    // command and the URI handler: everything that outlives activation and would otherwise leak a
+    // The output channel, the status item, the watcher, the reload, show-output and show-plugins
+    // commands and the URI handler: everything that outlives activation and would otherwise leak a
     // timer or a stale binding into the host.
-    expect(Number(out)).toBe(6);
+    expect(Number(out)).toBe(7);
   });
 
   // A handler that is registered but ignores what it should not answer, without reaching for an
@@ -154,8 +154,9 @@ describe("the packed extension", () => {
   });
 
   // A status item whose command does not exist is a click that does nothing and says nothing,
-  // which is the whole of the offer's fallback path gone silently (D82).
-  it.skipIf(built)("registers the command its status item points at", () => {
+  // which is the whole of the offer's fallback path gone silently (D82), or a *needs you* that
+  // cannot say why.
+  it.skipIf(built)("registers the commands its status item points at", () => {
     const dir = stubbedHost();
     const out = execFileSync(
       process.execPath,
@@ -169,7 +170,7 @@ describe("the packed extension", () => {
       ],
       homed(dir),
     );
-    expect(out).toBe("rigline.reload,rigline.showPlugins");
+    expect(out).toBe("rigline.reload,rigline.showOutput,rigline.showPlugins");
   });
 
   // Anywhere else it would inject VS Code's Claude Code and report green over a panel it never

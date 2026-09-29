@@ -188,9 +188,11 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
     editor.status("working", "Rigline: injecting", `Running ${engine.version}`);
     const before = stamps(editor.extensionPath(CLAUDE_CODE));
     // `--companion`, so a `restore` holds until a person puts Rigline back (D111).
-    const code = await runEngine(nodePath, engine.entry, ["install", "--companion"], (line) =>
-      editor.log(line),
-    );
+    const said: string[] = [];
+    const code = await runEngine(nodePath, engine.entry, ["install", "--companion"], (line) => {
+      said.push(line);
+      editor.log(line);
+    });
 
     // Asked of the editor, never the exit code: `install` answers an absent Claude Code with 1, and
     // engines have answered it with 0, so the code would say either a person or green (P8).
@@ -238,9 +240,12 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
     if (code !== 0) {
       // Not "install failed": a non-zero exit means somebody is wanted, which a bundled plugin
       // patching `extension.js` used to trigger on every single update having worked perfectly.
-      const message = `the engine exited ${code}; what it said is in this output channel, above.`;
+      // The tooltip says why itself, since it cannot point at the output the way a log line can.
+      const reasons = needsYou(said);
+      const message =
+        reasons.length === 0 ? `The engine exited ${code} without saying why.` : listed(reasons);
       editor.status("attention", "Rigline: needs you", message);
-      editor.log(message);
+      editor.log(`the engine exited ${code}; what it said is above`);
       return { kind: "attention", message, reload, runner };
     }
 
@@ -326,6 +331,38 @@ export interface SaveLayoutOptions extends ShowPluginsOptions {
 
 /** How the engine prints a problem a person has to fix, which is how a refusal reaches here. */
 const ENGINE_PROBLEM = "rigline: ";
+
+/**
+ * What the engine said a person is needed for: each item under its report's *Needs you* heading,
+ * which is the report's last section, and the refusal it ended on, which is how a `restore` holding
+ * Rigline out arrives (D111). Only the last line, since a wait on a lock wears the same prefix.
+ */
+export function needsYou(lines: readonly string[]): string[] {
+  const reasons: string[] = [];
+  let under = false;
+  for (const line of lines) {
+    if (line === "Needs you:") {
+      under = true;
+    } else if (under && line.trim() === "") {
+      under = false;
+    } else if (under && line.startsWith("  - ")) {
+      reasons.push(line.slice(4));
+    } else if (under && reasons.length > 0) {
+      reasons[reasons.length - 1] += ` ${line.trim()}`;
+    }
+  }
+  const last = lines.findLast((line) => line.trim() !== "");
+  if (last?.startsWith(ENGINE_PROBLEM)) reasons.push(last.slice(ENGINE_PROBLEM.length));
+  return reasons;
+}
+
+/** At most five reasons, for a tooltip; the output has the rest. */
+function listed(reasons: readonly string[]): string {
+  if (reasons.length === 1) return reasons[0] as string;
+  const shown = reasons.slice(0, 5).map((reason) => `- ${reason}`);
+  if (reasons.length > 5) shown.push(`- and ${reasons.length - 5} more`);
+  return shown.join("\n");
+}
 
 /**
  * A Save link from the panel: run `layout save` with its payload, and say how it went in a

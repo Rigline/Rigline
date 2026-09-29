@@ -61,7 +61,7 @@ file.
   machine, which then reads *no Node* (`packages/vscode/build-manifest.mjs:56-63`). **Fix:**
   `"scope": "machine"`, as `enginePath` has (D94). stability.md keeps the setting, so this is now or
   never.
-- [ ] **M8. *Needs you* is a dead end.** The item has no command (`extension.ts:26-34`), and its
+- [x] **M8. *Needs you* is a dead end.** The item has no command (`extension.ts:26-34`), and its
   tooltip says what the engine said is "in this output channel, above" (`acquire.ts:219`), which a
   tooltip has not got. Its commonest cause is a `restore` from weeks ago (D111). **Fix:** clicking
   it shows the output channel, and the tooltip carries the engine's own reason — `runEngine`'s

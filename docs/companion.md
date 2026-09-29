@@ -124,11 +124,15 @@ Code changes directory only on Windows, and the engine reads a `generated.ts` wh
 | outcome | status item |
 | --- | --- |
 | no Claude Code installed | *Rigline: no Claude Code*, asked of the editor: `install` refuses with 1, and engines have exited 0, so the exit code is not trusted. |
-| the engine exits non-zero | *Rigline: needs you*. A person is wanted, but it may still have injected, so the reload decision runs anyway. |
+| the engine exits non-zero | *Rigline: needs you*, with what the engine listed under *Needs you*, or the refusal it ended on, in the tooltip. A person is wanted, but it may still have injected, so the reload decision runs anyway. |
 | the new engine needs a newer Node | *Rigline: needs you*, having run the engine it has (D116). |
 | `moved` | *Rigline: ready to restart*. A new version is patched behind this window (D85). |
 | `start` | *Rigline*, green. |
 | anything throws | *Rigline: failed*, with the message. A run never rejects, since nobody would see it. |
+
+Clicking any status that wants a person shows the **Rigline** output, which is where each says the
+rest. The commonest *needs you* is a `restore` still holding Rigline out (D111), which the tooltip
+names.
 
 ## Updating itself
 

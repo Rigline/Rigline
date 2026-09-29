@@ -22,14 +22,25 @@ import { type Stamps, startingReason, type WatchReason, watchExtension } from ".
 
 /** Not contributed to the palette: VS Code already has one, and this one clears our status. */
 const RELOAD_COMMAND = "rigline.reload";
+/** Not contributed either: what clicking a status that wants a person does. */
+const SHOW_OUTPUT_COMMAND = "rigline.showOutput";
 /** Contributed: nothing else lists what's installed without a terminal (8c). */
 const SHOW_PLUGINS_COMMAND = "rigline.showPlugins";
 
-const HEALTH: Record<Health, { icon: string; background?: string; command?: string }> = {
+const HEALTH: Record<
+  Health,
+  { icon: string; background?: string; command?: string; hint?: string }
+> = {
   ok: { icon: "$(check)" },
   working: { icon: "$(sync~spin)" },
   idle: { icon: "$(circle-outline)" },
-  attention: { icon: "$(warning)", background: "statusBarItem.warningBackground" },
+  // The output is where every one of these says the rest.
+  attention: {
+    icon: "$(warning)",
+    background: "statusBarItem.warningBackground",
+    command: SHOW_OUTPUT_COMMAND,
+    hint: "Click to show the Rigline output.",
+  },
   stale: { icon: "$(refresh)", command: RELOAD_COMMAND },
   // No command: unlike `stale`, there is no offer behind it to re-show.
   ready: { icon: "$(check-all)" },
@@ -54,7 +65,7 @@ export function activate(context: vscode.ExtensionContext): void {
       const look = HEALTH[health];
       const shown = marked(text, tooltip, setting(ENGINE_SETTING));
       item.text = `${look.icon} ${shown.text}`;
-      item.tooltip = shown.tooltip;
+      item.tooltip = look.hint === undefined ? shown.tooltip : `${shown.tooltip}\n\n${look.hint}`;
       item.backgroundColor =
         look.background === undefined ? undefined : new vscode.ThemeColor(look.background);
       // Cleared on every other health, so a green item is not quietly clickable.
@@ -123,6 +134,9 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand(RELOAD_COMMAND, () => {
       void offer.again();
     }),
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand(SHOW_OUTPUT_COMMAND, () => output.show()),
   );
   context.subscriptions.push(
     vscode.commands.registerCommand(SHOW_PLUGINS_COMMAND, async () => {

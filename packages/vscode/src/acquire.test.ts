@@ -13,6 +13,7 @@ import {
   acquireAndInject,
   LABEL,
   marked,
+  needsYou,
   saveLayout,
   showPlugins,
 } from "./acquire.ts";
@@ -349,6 +350,59 @@ describe("acquireAndInject", () => {
     expect(e.lines).toContain("Needs you:");
     expect(e.lines).toContain("  - a moved anchor");
     expect(result.kind).toBe("attention");
+    // And the tooltip says it too, where it said to go and read the output (M8).
+    expect(e.statuses.at(-1)?.tooltip).toBe("a moved anchor");
+  });
+
+  it("says why in the tooltip when a restore is holding Rigline out (D111)", async () => {
+    const held =
+      "nothing injected: `rigline restore` took Rigline out at 2026-09-01 10:00, and it stays " +
+      "out until you run `rigline install`";
+    const e = editor();
+    const a = acquisition({}, { code: 1, lines: [`rigline: ${held}`] });
+
+    await acquireAndInject({
+      editor: e.editor,
+      acquisition: a.acquisition,
+      ...runner(a),
+      ...QUIET,
+      version: "1.0.0-alpha.13",
+      exists: (p) => p === NODE,
+      env: { PATH: NODE_DIR },
+    });
+
+    expect(e.statuses.at(-1)).toMatchObject({ text: "Rigline: needs you", tooltip: held });
+  });
+
+  it("lists several reasons, at most five, and says when the engine gave none", async () => {
+    const seven = ["Needs you:", ...[1, 2, 3, 4, 5, 6, 7].map((n) => `  - reason ${n}`)];
+    const many = editor();
+    const a = acquisition({}, { code: 1, lines: seven });
+    await acquireAndInject({
+      editor: many.editor,
+      acquisition: a.acquisition,
+      ...runner(a),
+      ...QUIET,
+      version: "1.0.0-alpha.13",
+      exists: (p) => p === NODE,
+      env: { PATH: NODE_DIR },
+    });
+    expect(many.statuses.at(-1)?.tooltip).toBe(
+      "- reason 1\n- reason 2\n- reason 3\n- reason 4\n- reason 5\n- and 2 more",
+    );
+
+    const silent = editor();
+    const b = acquisition({}, { code: 3 });
+    await acquireAndInject({
+      editor: silent.editor,
+      acquisition: b.acquisition,
+      ...runner(b),
+      ...QUIET,
+      version: "1.0.0-alpha.13",
+      exists: (p) => p === NODE,
+      env: { PATH: NODE_DIR },
+    });
+    expect(silent.statuses.at(-1)?.tooltip).toBe("The engine exited 3 without saying why.");
   });
 
   it("offers nothing when the engine refused and moved nothing", async () => {
@@ -668,6 +722,40 @@ describe("an engine named by rigline.enginePath (D94)", () => {
       text: "Rigline: needs you",
       tooltip: "Read the output",
     });
+  });
+});
+
+describe("needsYou", () => {
+  it("reads the items under the report's Needs you heading, and nothing above it", () => {
+    const report = [
+      "2.1.283: refreshed, 4 plugins",
+      "  - a line that only looks like an item",
+      "",
+      "Reload the window to pick it up.",
+      "",
+      "Needs you:",
+      "  - config.yaml has a key this Rigline does not read: plugns",
+      '  - 2.1.283 refuses "clock": it needs the anchor footerSpacer,',
+      "    which moved",
+    ];
+    expect(needsYou(report)).toEqual([
+      "config.yaml has a key this Rigline does not read: plugns",
+      '2.1.283 refuses "clock": it needs the anchor footerSpacer, which moved',
+    ]);
+  });
+
+  it("reads the refusal the engine ended on, and not a wait that wears the same prefix", () => {
+    const lines = [
+      "rigline: waiting for rigline install (pid 4) to finish injecting",
+      "rigline: no Claude Code extension is installed",
+      "",
+    ];
+    expect(needsYou(lines)).toEqual(["no Claude Code extension is installed"]);
+    expect(needsYou(lines.slice(0, 1).concat("2.1.283: current"))).toEqual([]);
+  });
+
+  it("reads nothing from a report that wants nobody", () => {
+    expect(needsYou(["2.1.283: current", "", "nothing moved since 2.1.282"])).toEqual([]);
   });
 });
 
