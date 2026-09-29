@@ -34,6 +34,10 @@ jobs:
             node: "22.12.0"
           - os: macos-latest
             node: "22.12.0"
+    # Bash on Windows too: under PowerShell every pnpm step ran nothing and passed (docs/ci.md).
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v7
 
@@ -45,6 +49,9 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: pnpm
+
+      # A pnpm that runs nothing prints nothing, and must fail here rather than pass every step.
+      - run: test -n "$(pnpm --version)"
 
       - run: pnpm install --frozen-lockfile
 

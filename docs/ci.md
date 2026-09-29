@@ -138,6 +138,12 @@ or a `<major>.x` branch — and every pull request, over Node 22.12.0, 24 and 26
 22.12.0 on Windows and on macOS (D59). It cancels a superseded run, including on `main`, which is a deliberate
 trade: the newest commit is the one worth a verdict.
 
+Every step runs under bash, Windows included. Under the runner's default PowerShell, `pnpm` is the
+`pnpm.ps1` shim npm writes for pnpm 12's native binary, which calls that binary by a path with no
+extension; PowerShell hands such a file to the shell as a document rather than running it, so each
+step printed nothing, set no exit code and passed. The step after `setup-node` fails when
+`pnpm --version` prints nothing, so a runner where pnpm silently does nothing cannot pass.
+
 **`release.yml`** triggers on a pushed `v*` tag, and keeps `workflow_dispatch` for dry runs against
 the trusted publishers, from `main` or any line branch — checking the publishers before the first
 release on a new line is most of what a dry run is for. It re-runs the full gate on one rung rather than the matrix — a release is a

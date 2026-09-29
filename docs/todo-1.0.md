@@ -267,6 +267,11 @@ asks rather than building around it.
   needs HEAD to be the tag, where the code needs the tag in history;
   `.github/scripts/stage-summary.mjs:70-74` says approving takes one authentication, where
   releasing.md says to approve on the website.
+- [x] **W46. The Windows CI job ran nothing.** Every `pnpm` step printed nothing and passed, in every
+  run back to at least 2026-09-21: under PowerShell, npm's `pnpm.ps1` shim calls pnpm 12's native
+  binary by a path with no extension, which PowerShell does not run as a program. **Fix:** every
+  step under bash, and a first step that fails when `pnpm --version` prints nothing (docs/ci.md).
+  Expect the Windows job red on the four M5 cases handed over below until they are fixed.
 
 ### Optional, any 1.x
 
@@ -355,5 +360,11 @@ optional items.
   equal, so both lose it in one commit: "...is a local edit rather than a release. Wait, or pass
   --now."
 - [ ] **From the full suite on Windows.** Four `updateEngine` cases in `cli/src/engine.test.ts`
-  (M5's floor cases) fail here: "no npm was found beside \usr\local\bin\node, so the engine cannot
-  be installed". The test's Node path is POSIX, and the npm lookup beside it fails on Windows.
+  (M5's floor cases: the three "moves to an engine with ..." and "does not hold a first run") fail
+  on Windows and on macOS CI, which has been red since M5: "no npm was found beside
+  /usr/local/bin/node". They pass `nodePath: /usr/local/bin/node`, and `installEngine` then looks
+  for npm beside that path on the real disk, which only a machine with a Node there has — Ubuntu's
+  runners, and a Mac with nodejs.org's installer. Nothing they test is platform-specific. **Fix:**
+  `nodePath: process.execPath` in those four, keeping each `nodeVersion`: the floor still reads the
+  given version, and npm is found beside the Node running the test. The withholding cases never
+  spawn and can keep the made-up path.
