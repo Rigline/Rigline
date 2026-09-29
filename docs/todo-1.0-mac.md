@@ -89,8 +89,8 @@ file.
 - [x] **M12. The wrapper's README** (`packages/cli/README.md`): its commands leave out `watch`;
   "(a day, by default)" suggests a setting that does not exist; `npm create rigline-plugin` has no
   directory, and fails without one.
-- [ ] **M29. The wrapper's `--version` refuses extra arguments.** It ignores them
-  (`packages/cli/src/index.ts:15-18`, `commands.ts:85`). Nothing updates the wrapper, so a 1.0
+- [x] **M29. The wrapper's `--version` refuses extra arguments.** It ignores them
+  (`packages/cli/src/index.ts:15-18`, now `main.ts`, and `commands.ts:85`). Nothing updates the wrapper, so a 1.0
   wrapper lives for the major, and a later one that refused `rigline --version foo` would refuse an
   invocation 1.0 accepted: strict now or never, as the engine's verbs already are.
 - [ ] **M13.** *Optional.* **A stranded companion updates itself.** In the *not in this editor*

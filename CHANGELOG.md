@@ -18,6 +18,7 @@ anything may change between releases.
   than the one running them, and say which Node it needs: `rigline update` exits 1, and the
   companion reads *needs you*. They moved to it, and an engine that cannot start would have left the
   companion unable to update itself.
+- `rigline --version` refuses anything after it, as every other command does, where it ignored it.
 - The companion's `rigline.nodePath` setting stays on the machine it was set on. Settings Sync
   carried it to other machines, where a path from a Mac left a Windows machine with *no Node*.
 
