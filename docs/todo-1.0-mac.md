@@ -159,8 +159,15 @@ built from this checkout, running the released engine it acquires.
 
 - [ ] **M26.** The companion under Homebrew's Node, and under a version manager if one is installed:
   the output shows the engine moving, not `engine update did not happen`.
-- [ ] **M27.** VS Code started with `code .` in a scaffolded workspace, then a Claude Code update:
-  the workspace's `generated.ts` is untouched.
+- [x] **M27.** VS Code started with `code .` in a scaffolded workspace, then a Claude Code update:
+  the workspace's `generated.ts` is untouched. **Found:** untouched (hash, size and time) across the
+  update from 2.1.283 to 2.1.285, with this checkout's companion running the released engine in two
+  windows; each window's companion ran `install --companion` from `/Users/lionellpack`, while its
+  extension host's working directory was `/`. So on macOS `code .` never gave the extension host the
+  workspace: the `code` CLI starts VS Code through launchd, parent 1, from `/`, and passes the
+  workspace in `VSCODE_CWD`. M6's case needs VS Code started from a shell in the workspace, as
+  Linux's `code` may; M6's wording is corrected to say that. Each companion went *ready to restart*
+  and offered no reload, and 2.1.285 was injected by the first, found current by the second.
 - [ ] **M28.** *Needs you* after a `restore` opens the output when clicked and says why in its
   tooltip. A reload offer left to time out shows *reload to apply* while the toast waits in the
   notification centre.
@@ -177,3 +184,10 @@ built from this checkout, running the released engine it acquires.
 - [ ] **Done: the full suite's hand-over.** M5's four spawning floor cases in
   `cli/src/engine.test.ts` pass `nodePath: process.execPath`, so npm is found beside the Node running
   them; tick it in todo-1.0.md.
+- [ ] **From M27.** Two windows' companions reacting to one Claude Code update lose the drift list.
+  The first `install` writes `~/.rigline/drift.txt` and reports "since 2.1.283: identifiers moved;
+  the list is in ~/.rigline/drift.txt"; the second, seconds later, compares against the baseline the
+  first just moved, finds nothing, and `rmSync`s the file (`packages/core/src/update/flow.ts:646`).
+  Read live on 2.1.285 with two windows open, which D105 makes the ordinary case. `paths.ts:35` says
+  the file holds what moved "at the last install that found drift", which keeping it when nothing
+  moved would make true.

@@ -141,10 +141,10 @@ anything may change between releases.
   `rigline.enginePath` and *Rigline: Show Plugins*.
 - `rigline`'s README lists `watch` and `vscode-setup`, gives `npm create rigline-plugin` the
   directory it needs, and says `remove` deletes whatever is in `~/.rigline/plugins` under that name.
-- On macOS and Linux, the companion no longer runs the engine in the directory VS Code was started
-  from. After `code .` in a plugin workspace, it took that workspace's `generated.ts` for its
-  record of Claude Code's identifiers, rewrote it after each Claude Code update, and said it needed
-  you.
+- The companion runs the engine from your home directory, not the one VS Code was started from.
+  With VS Code started from a shell in a plugin workspace, it took that workspace's `generated.ts`
+  for its record of Claude Code's identifiers, rewrote it after each Claude Code update, and said it
+  needed you.
 - On Windows, an engine that crashed while injecting could leave its lock held for good, once
   Windows gave its process id to some other process, and every install from then on waited and
   refused. A lock held ten minutes is now taken whatever its process id says.
