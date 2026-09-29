@@ -72,8 +72,8 @@ describe("viewLayout", () => {
       "  rigline/edit         Edit button        can also go before footerSpacer",
       "  rigline/reload       Reload button      can also go before footerSpacer",
       "off",
-      "  session-id/short-id  Session id         yours; can also go before footerSpacer, rigRow",
-      "  session-id/full-id   Full session id    can also go rigRow",
+      "  session-id/short-id  Session id         yours; can also go before footerSpacer or in rigRow",
+      "  session-id/full-id   Full session id    can also go in rigRow",
     ]);
   });
 
@@ -87,15 +87,22 @@ describe("viewLayout", () => {
 
 describe("parseWhere", () => {
   it("reads a place as the file spells it, over one word or two", () => {
-    expect(parseWhere(["rigRow"])).toBe("rigRow");
-    expect(parseWhere(["before", "footerSpacer"])).toEqual(spacer);
-    expect(parseWhere(["off"])).toBeNull();
-    expect(parseWhere(["default"])).toBe("default");
+    expect(parseWhere(["rigRow"], false)).toBe("rigRow");
+    expect(parseWhere(["before", "footerSpacer"], false)).toEqual(spacer);
+    expect(parseWhere(["off"], false)).toBeNull();
+    expect(parseWhere(["default"], true)).toBe("default");
   });
 
-  it("refuses what is not a place, saying what one is", () => {
-    expect(() => parseWhere(["rigrow"])).toThrow(/"rigrow" is not a place/);
-    expect(() => parseWhere([])).toThrow(/a place is needed/);
+  it("refuses what is not a place, offering default only where the command takes it", () => {
+    expect(() => parseWhere(["rigrow"], true)).toThrow(
+      '"rigrow" is not a place: a place is rigRow, before, after or inside an anchor, off, or default',
+    );
+    expect(() => parseWhere(["rigrow"], false)).toThrow(
+      '"rigrow" is not a place: a place is rigRow, before, after or inside an anchor, or off',
+    );
+    expect(() => parseWhere([], true)).toThrow(/a place is needed: .*, off, or default$/);
+    expect(() => parseWhere([], false)).toThrow(/a place is needed: .*, or off$/);
+    expect(() => parseWhere(["default"], false)).toThrow(/default is not a place to fill/);
   });
 });
 

@@ -556,7 +556,7 @@ function layoutCommand(args: string[]): number {
   if (verb === "place") {
     const [name, ...where] = rest;
     if (name === undefined) throw new UserError("layout place needs an element and a place");
-    const result = placeInLayout(paths.config, discovered, name, parseWhere(where));
+    const result = placeInLayout(paths.config, discovered, name, parseWhere(where, true));
     const at = result.placement === null ? "off" : placementLabel(result.placement);
     console.log(
       !result.changed
@@ -570,12 +570,7 @@ function layoutCommand(args: string[]): number {
   } else if (verb === "order") {
     // A place may be two words and an element always has a slash, so the first slash ends it.
     const split = rest.findIndex((arg) => arg.includes("/"));
-    const where = parseWhere(split === -1 ? rest : rest.slice(0, split));
-    if (where === "default") {
-      throw new UserError(
-        "order fills a place, and default is not one: `layout place ELEMENT default` puts one back",
-      );
-    }
+    const where = parseWhere(split === -1 ? rest : rest.slice(0, split), false);
     const names = split === -1 ? [] : rest.slice(split);
     const changed = orderInLayout(paths.config, discovered, where, names);
     console.log(

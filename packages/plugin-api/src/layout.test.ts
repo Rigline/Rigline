@@ -32,7 +32,10 @@ describe("places", () => {
   });
 
   it("says why a name is not a place, with a word for `default`", () => {
-    expect(parsePlace("rigrow")).toMatchObject({ problem: expect.stringContaining('"rigrow"') });
+    expect(parsePlace("rigrow")).toEqual({
+      problem:
+        '"rigrow" is not a place: a place is rigRow, before, after or inside an anchor, or off',
+    });
     expect(parsePlace("beside footerSpacer")).toHaveProperty("problem");
     expect(parsePlace("default")).toMatchObject({
       problem: expect.stringContaining("by being in no list"),

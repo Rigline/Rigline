@@ -60,7 +60,7 @@ those your layout put there, and says where else each may go:
       session-id/address   Messaging address  yours
       session-id/full-id   Full session id    yours
     off
-      session-id/short-id  Session id         yours; can also go before footerSpacer, rigRow
+      session-id/short-id  Session id         yours; can also go before footerSpacer or in rigRow
 
 Leave an element out and it stays where its plugin puts it, and so does everything a plugin you
 install later brings. In a place, the elements you list come first, in your order, and anything else

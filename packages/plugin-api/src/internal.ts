@@ -49,6 +49,7 @@ export {
   OFF,
   parsePlace,
   placeElement,
+  placeForms,
   placeName,
   placeTitle,
   sameLayout,

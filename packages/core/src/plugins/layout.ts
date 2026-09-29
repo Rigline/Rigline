@@ -10,6 +10,7 @@ import {
   layoutView,
   type Placement,
   parsePlace,
+  placeForms,
   placementLabel,
   placeName,
   RIGLINE,
@@ -66,7 +67,7 @@ export function formatLayout(view: LayoutView): string {
     for (const element of elements) {
       const notes = [
         ...(element.listed ? ["yours"] : []),
-        ...(element.also.length > 0 ? [`can also go ${element.also.join(", ")}`] : []),
+        ...(element.also.length > 0 ? [`can also go ${element.also.map(label).join(" or ")}`] : []),
       ];
       lines.push(
         `  ${element.name.padEnd(nameWidth)}  ${element.title.padEnd(titleWidth)}  ${notes.join("; ")}`.trimEnd(),
@@ -77,16 +78,39 @@ export function formatLayout(view: LayoutView): string {
   return lines.join("\n");
 }
 
-/** `default`, or a place `parsePlace` understands; anything else is refused with why. */
-export function parseWhere(words: readonly string[]): Placement | null | "default" {
+/** A place as `checkPlace` words it, where the headings above it give the spelling to type. */
+function label(place: string): string {
+  const parsed = parsePlace(place);
+  return "problem" in parsed || parsed.placement === null
+    ? place
+    : placementLabel(parsed.placement);
+}
+
+/**
+ * A place `parsePlace` understands, or `default` where the command takes it; anything else is
+ * refused with the places there are.
+ */
+export function parseWhere(words: readonly string[], orDefault: true): Placement | null | "default";
+export function parseWhere(words: readonly string[], orDefault: false): Placement | null;
+export function parseWhere(
+  words: readonly string[],
+  orDefault: boolean,
+): Placement | null | "default" {
   const where = words.join(" ");
-  if (where === "default") return "default";
+  if (where === "default") {
+    if (orDefault) return "default";
+    throw new UserError(
+      "default is not a place to fill: `layout place ELEMENT default` puts one element back",
+    );
+  }
   const parsed = parsePlace(where);
   if ("problem" in parsed) {
     throw new UserError(
       where === ""
-        ? "a place is needed: a zone, before/after/inside ANCHOR, off or default"
-        : parsed.problem,
+        ? `a place is needed: ${placeForms(orDefault)}`
+        : orDefault
+          ? `"${where}" is not a place: a place is ${placeForms(true)}`
+          : parsed.problem,
     );
   }
   return parsed.placement;

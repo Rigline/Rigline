@@ -170,6 +170,9 @@ anything may change between releases.
   which it left out, so a type error in a test passed CI. The release workflow's dry run says it
   staged nothing and lists what it would have, where its summary said the versions awaited
   approval.
+- `rigline layout` says where else an element can go as "before footerSpacer or in rigRow", where it
+  said "can also go rigRow". `layout place` offers `default` when it refuses a place, and `layout
+  order` no longer does, since it refuses `default`.
 
 ## 1.0.0-alpha.13 — 2026-09-27
 

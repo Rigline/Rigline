@@ -42,6 +42,12 @@ export function placeTitle(place: string): string {
   return SLOT_TITLES[place] ?? place;
 }
 
+/** Every place a person can name, for a refusal, with `default` where the command takes it. */
+export function placeForms(orDefault = false): string {
+  const slots = `${SLOT_POSITIONS.slice(0, -1).join(", ")} or ${SLOT_POSITIONS.at(-1)} an anchor`;
+  return `${ZONE_NAMES.join(", ")}, ${slots}, ${orDefault ? `${OFF}, or default` : `or ${OFF}`}`;
+}
+
 /** What a place's name means, null being off, or why it means nothing. */
 export function parsePlace(
   name: string,
@@ -56,11 +62,7 @@ export function parsePlace(
         '"default" is not a place: an element is where its plugin puts it by being in no list',
     };
   }
-  return {
-    problem:
-      `"${name}" is not a place: a place is ${ZONE_NAMES.join(", ")}, ` +
-      `${SLOT_POSITIONS.join(", ")} an anchor, or ${OFF}`,
-  };
+  return { problem: `"${name}" is not a place: a place is ${placeForms()}` };
 }
 
 /** Where one element goes. */

@@ -301,7 +301,7 @@ asks rather than building around it.
   `restored` mark, so a bug report will not show Rigline held out (`check` is W23's); `restore` with
   nothing installed writes it and says nothing. `status` says "webview unknown, no backup" for a
   version Rigline never touched, and lists oldest first where `install` and `check` list newest.
-- [ ] **W35. `layout`'s wording.** "can also go rigRow"; "is not a place" lists places without
+- [x] **W35. `layout`'s wording.** "can also go rigRow"; "is not a place" lists places without
   `default` while bare `layout order` suggests `default`, which `order` refuses.
 - [x] **W36. Locks by PID alone.** Windows reuses PIDs quickly, so a crashed holder's PID can come
   back and pin a lock (`isStale` in both lock files). An absolute age cap of about ten minutes.
