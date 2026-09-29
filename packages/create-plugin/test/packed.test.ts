@@ -74,5 +74,9 @@ describe("create-rigline-plugin, installed by pnpm", () => {
 
     expect(out).toContain("Created");
     expect(existsSync(join(project, "demo", "plugins", "demo", "rigline.json"))).toBe(true);
+    // Dotfiles are where packing loses things: npm renames `.gitignore`, and keeps these.
+    for (const dotted of [".gitignore", ".gitattributes", ".github/workflows/release.yml"]) {
+      expect(existsSync(join(project, "demo", dotted)), dotted).toBe(true);
+    }
   });
 });

@@ -24,7 +24,7 @@ export {
   workspaceRoot,
 } from "./assets.ts";
 export type { Generated } from "./codegen/generate.ts";
-export { generate } from "./codegen/generate.ts";
+export { generate, sameSource } from "./codegen/generate.ts";
 export type { CarriedCompanion, CompanionStatus } from "./companion/fingerprint.ts";
 export {
   COMPANION_SIDECAR,

@@ -1,0 +1,7 @@
+# LF in the repository, and each platform's own line endings in the working tree, so a diff never
+# depends on who checked the file out.
+* text=auto
+
+# Written by `pnpm codegen`, so review tools collapse it. Still diffed: after a Claude Code update,
+# its diff is how you see what moved.
+generated.ts linguist-generated

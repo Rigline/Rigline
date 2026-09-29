@@ -142,6 +142,12 @@ whose class-map variable the harvest cannot find is *uncounted*, which is not ze
 still resolve and are reported as unverified, because an unknown read as "exactly one site" is the
 silent pass this whole layer exists to stop.
 
+**Only in Rigline's own checkout does it fail codegen (amended 2026-09-29, W39).** In a plugin
+author's workspace nobody standing there can change the table, and failing there failed a new
+scaffold's first `pnpm codegen` with advice naming a file the workspace does not have. There the
+verdict is a note naming the anchor and the two repairs, a Rigline release or
+`~/.rigline/anchors.json`, and `codegen` exits 0.
+
 **`knownSites` is the acknowledgement, and it is bounded.** The count is an upper bound — it counts
 every reference to a class, so the bundle handing one somewhere as a value reads as a site, which is
 what one of `modelPill`'s three already is. Without a way to say "I have read these and they are one

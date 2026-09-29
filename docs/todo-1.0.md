@@ -315,7 +315,7 @@ asks rather than building around it.
 - [x] **W38. `rigline build` and `dev` through the wrapper** resolve rolldown from the engine's
   install, where it is not (`engine/build.ts:29-38`), and advise `pnpm add -D rolldown`, which
   cannot help there. Resolve from the plugin's directory. The scaffold's own scripts are unaffected.
-- [ ] **W39. `codegen` and line endings.** `codegen --check` and settle's rewrite check
+- [x] **W39. `codegen` and line endings.** `codegen --check` and settle's rewrite check
   (`main.ts:923-924`, `flow.ts:582`) compare a checked-out `generated.ts` with LF output, and the
   template ships no `.gitattributes`, so a Windows author with `autocrlf` always reads "out of date",
   and the first install after a checkout rewrites the file and exits 1 over no diff. And when the

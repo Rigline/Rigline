@@ -157,6 +157,15 @@ anything may change between releases.
 - **For plugin authors:** `rigline build` and `rigline dev` find rolldown in the plugin's workspace.
   They looked only beside the engine, which `rigline` installs without it, so they always failed and
   said to add rolldown to a workspace that already had it.
+- **For plugin authors:** `rigline codegen --check` reads a `generated.ts` checked out with Windows
+  line endings as up to date, and `rigline install` no longer rewrites one over line endings alone
+  and then says it needs you. Both compared bytes, so on Windows the file was always out of date.
+- **For plugin authors:** `create-rigline-plugin` scaffolds a `.gitattributes`, so git keeps LF in
+  the repository and each platform's own endings in a checkout, as Rigline's own repository does.
+- **For plugin authors:** an ambiguous anchor in the anchor table no longer fails `rigline codegen`
+  in your workspace. It is noted, with the two ways it gets repaired, and plugins using it are
+  refused on that Claude Code version as before. It failed, and said to edit a file your workspace
+  does not have.
 
 ## 1.0.0-alpha.13 — 2026-09-27
 

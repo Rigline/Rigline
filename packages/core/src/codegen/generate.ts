@@ -114,13 +114,19 @@ export function generate(harvest: Harvest, anchorTable?: AnchorTable): Generated
 /**
  * Both renderings are multi-line template literals, so their newlines are the ones in *this file*
  * as it was checked out — which would make the bytes codegen produces a property of the machine
- * it runs on. `rigline codegen --check` compares what this returns against the committed
- * `generated.ts` byte for byte, so that would be a check passing or failing by platform. The
- * repository pins both generated artefacts to LF (`.gitattributes`) and this is the other half of
- * that: the generator writes LF wherever it runs.
+ * it runs on. The generator writes LF wherever it runs, and `sameSource` reads a checkout's endings
+ * as LF.
  */
 function lf(text: string): string {
   return text.replace(/\r\n/g, "\n");
+}
+
+/**
+ * Whether a `generated.ts` on disk says what `source` says. Its line endings are whatever git chose
+ * at checkout, so a CRLF copy of the same text is the same file.
+ */
+export function sameSource(onDisk: string, source: string): boolean {
+  return lf(onDisk) === source;
 }
 
 /**

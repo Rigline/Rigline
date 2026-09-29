@@ -115,6 +115,12 @@ describe("scaffold", () => {
     expect(read(result, ".gitignore")).toContain("node_modules/");
   });
 
+  it("normalises line endings in git, as Rigline's own repository does", () => {
+    const attributes = read(into("clock"), ".gitattributes");
+    expect(attributes).toMatch(/^\* text=auto$/m);
+    expect(attributes).toMatch(/^generated\.ts linguist-generated$/m);
+  });
+
   it("substitutes the description everywhere it lands, and defaults it", () => {
     const described = into("clock", { description: "Shows the time." });
     expect(read(described, "plugins/clock/rigline.json")).toContain("Shows the time.");

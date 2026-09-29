@@ -757,6 +757,28 @@ describe("update", () => {
     expect(report.attention.some((line) => line.includes("commit it"))).toBe(true);
   });
 
+  it("leaves a CRLF checkout of the same generated.ts alone, and needs nobody over it (W39)", () => {
+    const cwd = tempDir("rigline-cwd-");
+    const ext = fixture();
+    const crlf = generate(harvestAll(readBundles(ext)))
+      .source.split("\n")
+      .join(String.fromCharCode(13, 10));
+    writeFileSync(join(cwd, "generated.ts"), crlf);
+
+    const report = update({
+      exts: [ext],
+      payloadDir: payload(),
+      dir: cwd,
+      baselinePath: join(tempDir("rigline-home-"), "baseline.json"),
+      codegen: true,
+    });
+
+    expect(report.baseline?.kind).toBe("generated");
+    expect(report.wrote.some((p) => p.endsWith("generated.ts"))).toBe(false);
+    expect(report.attention.some((line) => line.includes("generated.ts"))).toBe(false);
+    expect(readFileSync(join(cwd, "generated.ts"), "utf8")).toBe(crlf);
+  });
+
   it("creates no generated.ts for a directory that does not keep one", () => {
     const cwd = tempDir("rigline-cwd-");
     const report = update({

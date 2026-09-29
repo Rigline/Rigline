@@ -26,7 +26,7 @@ import {
   readAnchorOverrides,
 } from "../anchors/overrides.ts";
 import { writeFileAtomic } from "../atomic.ts";
-import { type Generated, generate } from "../codegen/generate.ts";
+import { type Generated, generate, sameSource } from "../codegen/generate.ts";
 import {
   DamagedExtensionError,
   isFilesystemError,
@@ -626,7 +626,7 @@ function settle(
       // repair: baking it into a repository's record would make the next person's checkout disagree
       // with their own harvest for a reason nothing in the file could explain.
       const source = generate(newest.harvest).source;
-      if (path !== null && readFileSync(path, "utf8") !== source) {
+      if (path !== null && !sameSource(readFileSync(path, "utf8"), source)) {
         writeFileAtomic(path, source);
         wrote.push(path);
         attention.push(

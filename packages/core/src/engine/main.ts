@@ -97,6 +97,7 @@ import {
   restoredSince,
   riglinePaths,
   SKIP_PROFILES,
+  sameSource,
   saveFromPanel,
   scanOf,
   setPluginEnabled,
@@ -109,6 +110,7 @@ import {
   viewLayout,
   watch,
   withInjectionLock,
+  workspaceRoot,
 } from "../index.ts";
 import { buildPlugin } from "./build.ts";
 
@@ -1028,7 +1030,7 @@ function codegen(args: string[]): number {
 
   if (values.check) {
     const current = existsSync(out) ? readFileSync(out, "utf8") : "";
-    if (current !== generated.source) {
+    if (!sameSource(current, generated.source)) {
       console.log(`${label} is out of date for ${generated.tables.version}. Run: rigline codegen`);
       return 1;
     }
@@ -1051,21 +1053,24 @@ function codegen(args: string[]): number {
 }
 
 /**
- * Name every anchor that claims to be one element and is not, and say whether there were any.
- *
- * The one thing codegen fails over that is not a broken harvest, and it fails *here* rather than at
- * install for a reason (D7): an ambiguous singleton means this repo's anchor table is wrong, the
- * repair is a refinement somebody can write today, and a maintainer is standing here reading this.
- * On a user's machine the same verdict is an attention line and a refusal of the plugins that
- * declared the anchor, because an upstream release that starts reusing a class is not a reason to
- * leave every other plugin uninjected.
+ * Name every anchor that claims to be one element and is not, and say whether codegen fails over
+ * it: in Rigline's own checkout only, where the table being wrong is a maintainer's to fix (D7). In
+ * an author's workspace it is a note, since the repair is a Rigline release or an `anchors.json`.
  */
 function reportAmbiguousAnchors(generated: Generated): boolean {
   if (generated.anchors.ambiguous.length === 0) return false;
+  const { version } = generated.tables;
   for (const { name, sites } of generated.anchors.ambiguous) {
     console.error(
-      `  ambiguous anchor: ${name} names one element, and ${generated.tables.version} applies its class at ${sites} places`,
+      `  ambiguous anchor: ${name} names one element, and ${version} applies its class at ${sites} places`,
     );
+  }
+  if (workspaceRoot() === null) {
+    console.error(
+      `Plugins using ${generated.anchors.ambiguous.length === 1 ? "it" : "them"} are refused on ${version} until a Rigline release refines the anchor table, ` +
+        "or ~/.rigline/anchors.json does: https://github.com/Rigline/Rigline/blob/main/docs/anchors.md",
+    );
+    return false;
   }
   console.error(
     "Refine each in packages/plugin-api/src/anchors.ts, or change its kind to collection if it was never one element.",

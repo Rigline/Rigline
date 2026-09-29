@@ -14,12 +14,8 @@
 # lives outside the repo and git never sees it.
 * text=auto
 
-# The two files whose bytes we generate and then compare against what is on disk. Both are written
-# with LF by the code that produces them — `manifestSchemaJson()` ends its JSON with "\n", and
-# codegen normalises its own output — so a CRLF checkout would make `rigline codegen --check` and
-# `schema.test.ts` fail on Windows and nowhere else. Pinned so the file on disk matches what the
-# generator writes.
-generated.ts eol=lf
+# `schema.test.ts` compares the schema with what `manifestSchemaJson()` writes, byte for byte, so a
+# CRLF checkout would fail it on Windows alone.
 packages/plugin-api/schema/manifest.json eol=lf
 
 # Harvested from the extension bundle, not written by hand. Marked generated so review tools

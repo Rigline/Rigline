@@ -117,8 +117,9 @@ Written for somebody else, so don't rewrite them for us:
   them, and run `pnpm format` before `pnpm lint`: Biome's `lineEnding: "auto"` wants the platform's
   ending, so a file written with LF fails lint on Windows until it is formatted. Format before
   `pnpm build` too: it rewrites sources, and a build older than its sources is one `bundledDir()`
-  refuses, which fails every harness file at once. Only `generated.ts` and `packages/plugin-api/schema/manifest.json` are pinned to LF,
-  because we generate their bytes and then compare them against what is on disk.
+  refuses, which fails every harness file at once. Only `packages/plugin-api/schema/manifest.json`
+  is pinned to LF, because a test compares its bytes with the generator's; `codegen` reads
+  `generated.ts` in either ending, as an author's checkout needs.
 - **Code that parses a repo file must not assume LF.** The working tree carries whatever git
   checked out, which here is CRLF, so `indexOf("## Heading\n")` finds nothing and `/^\n+/` strips
   nothing — on the machine this is developed on, not somebody else's. Find the end of a line rather
