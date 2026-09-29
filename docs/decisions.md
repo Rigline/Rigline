@@ -2724,6 +2724,10 @@ So the engine holds `<RIGLINE_HOME>/inject.lock` across every run that injects, 
   a holder between its create and its write, and this lock is contended at one instant by design:
   on release, every waiter's next poll races for it. The home lock took an unreadable lock at once,
   and now has the same rule, so the two copies stay one set of rules.
+- **A lock held ten minutes is taken whatever its pid says (amended 2026-09-29, W36).** Windows
+  reuses pids quickly, so a crashed holder's pid can come back as some other process and pin the
+  lock for good. Ten minutes is past any real hold of either lock, and the price of a reused pid
+  falls to the runs inside those ten minutes, each refused after its wait, naming the holder.
 
 The second engine then runs after the first, its sample sees nothing moving, and every version reads
 *already current*. It exits 0, and its window reaches *ready to restart*, because the companion's

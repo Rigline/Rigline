@@ -184,8 +184,12 @@ describe("withInjectionLock", () => {
 describe("isStale", () => {
   const holder: LockHolder = { pid: 1, since: new Date(1_000).toISOString(), what: "x" };
 
-  it("keeps a lock whose process is alive however old it is", () => {
-    expect(isStale(holder, Number.NaN, 10_000_000, 15_000, always)).toBe(false);
+  it("keeps a lock whose process is alive until it has been held ten minutes", () => {
+    expect(isStale(holder, Number.NaN, 1_000 + 599_999, 15_000, always)).toBe(false);
+  });
+
+  it("takes a lock held ten minutes whatever its pid says, which Windows may have reused", () => {
+    expect(isStale(holder, Number.NaN, 1_000 + 600_000, 15_000, always)).toBe(true);
   });
 
   it("keeps a young lock whose process has gone", () => {

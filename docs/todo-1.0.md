@@ -303,8 +303,9 @@ asks rather than building around it.
   version Rigline never touched, and lists oldest first where `install` and `check` list newest.
 - [ ] **W35. `layout`'s wording.** "can also go rigRow"; "is not a place" lists places without
   `default` while bare `layout order` suggests `default`, which `order` refuses.
-- [ ] **W36. Locks by PID alone.** Windows reuses PIDs quickly, so a crashed holder's PID can come
+- [x] **W36. Locks by PID alone.** Windows reuses PIDs quickly, so a crashed holder's PID can come
   back and pin a lock (`isStale` in both lock files). An absolute age cap of about ten minutes.
+  core's copy has it (D105); the wrapper's is handed over.
 - [ ] **W37. Plugin files.** The tar reader declines exact duplicate names only, missing case and
   Unicode-normalisation collisions, and Windows reserved names (`con.js`) and trailing dots or
   spaces pass `safePath` (`plugins/tarball.ts:135-150`). An `entry` under a dot-directory, under
@@ -378,3 +379,9 @@ optional items.
   finds only a `pnpm.exe` and fails on the CI runner, whose pnpm is a `.cmd` shim: `spawnSync pnpm
   ENOENT`. `packages/create-plugin/test/packed.test.ts`'s `run` now goes through
   `cmd /d /s /c pnpm` on Windows, as the wrapper's own `riglineCommand` already does for `rigline`.
+- [ ] **From W36.** `isStale` in `packages/cli/src/lock.ts` takes a lock held ten minutes whatever
+  its pid says, as core's copy in `packages/core/src/inject/lock.ts` now does: a `HELD_MAX_MS`
+  constant, and `age >= HELD_MAX_MS || (age >= staleMs && (holder === null ||
+  !isAlive(holder.pid)))`, with an unparseable `since` as infinitely old. Its test "keeps a lock
+  whose process is alive however old it is" becomes the two cases core's `lock.test.ts` has.
+  `docs/companion.md`'s "stolen only when its process is gone *and* it is old" gains the cap (D105).

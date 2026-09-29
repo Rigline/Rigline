@@ -49,6 +49,8 @@ export interface InjectionLockOptions {
 const STALE_MS = 15_000;
 const WAIT_MS = 30_000;
 const POLL_MS = 100;
+/** Past any real hold, so a pid Windows has handed to another process pins the lock no longer. */
+const HELD_MAX_MS = 10 * 60_000;
 
 /** Signal 0 checks existence on both platforms; `EPERM` is a process that is there but not ours. */
 function alive(pid: number): boolean {
@@ -84,8 +86,9 @@ function writtenAt(path: string): number {
 }
 
 /**
- * Whether a lock has stopped mattering: old, and its process gone. A lock nobody can read is judged
- * by the file's own age, since it is usually a holder between its create and its write.
+ * Whether a lock has stopped mattering: old and its process gone, or held past any real run whatever
+ * its pid says (D105). A lock nobody can read is judged by the file's own age, since it is usually a
+ * holder between its create and its write.
  */
 export function isStale(
   holder: LockHolder | null,
@@ -95,8 +98,8 @@ export function isStale(
   isAlive: (pid: number) => boolean,
 ): boolean {
   const since = holder === null ? fileTime : Date.parse(holder.since);
-  const old = Number.isNaN(since) || now - since >= staleMs;
-  return old && (holder === null || !isAlive(holder.pid));
+  const age = Number.isNaN(since) ? Number.POSITIVE_INFINITY : now - since;
+  return age >= HELD_MAX_MS || (age >= staleMs && (holder === null || !isAlive(holder.pid)));
 }
 
 export class InjectionLockedError extends UserError {

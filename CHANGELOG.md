@@ -143,6 +143,9 @@ anything may change between releases.
   from. After `code .` in a plugin workspace, it took that workspace's `generated.ts` for its
   record of Claude Code's identifiers, rewrote it after each Claude Code update, and said it needed
   you.
+- On Windows, an engine that crashed while injecting could leave its lock held for good, once
+  Windows gave its process id to some other process, and every install from then on waited and
+  refused. A lock held ten minutes is now taken whatever its process id says.
 
 ## 1.0.0-alpha.13 — 2026-09-27
 
