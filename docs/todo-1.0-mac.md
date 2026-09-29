@@ -136,8 +136,12 @@ After W1 and W2 have landed and been pulled, all in a scratch `HOME` and `RIGLIN
   pnpm 12.3.4 through `dlx`'s shell shim, npm 11.19.0 through its exec cache. Against the published
   alpha.13 both exit 0 having written nothing. pnpm 12 ignores `npm_config_registry`: the registry
   had to come from `~/.npmrc`, and without it the check silently ran the published package.
-- [ ] **M23.** In that workspace, `pnpm rigline add` then `pnpm rigline dev plugins/x`: an edit
-  reaches `webview/rigline/plugins/x/dist/index.js` in a copied extension directory.
+- [x] **M23.** In that workspace, `pnpm rigline add` then `pnpm rigline dev plugins/x`: an edit
+  reaches `webview/rigline/plugins/x/dist/index.js` in a copied extension directory. **Found:** it
+  does, with the workspace on this checkout's packed `@rigline/core` and `@rigline/plugin-api`
+  (through `overrides`, which needs `blockExoticSubdeps: false`) and a vanilla copy of 2.1.283
+  under the scratch `HOME`. `dev` replaced the copy `add` made, and after the edit rebuilt, refreshed
+  `~/.rigline/plugins/x` and re-injected; both hold the edit, and Ctrl-C leaves no process.
 - [ ] **M24.** `install` then `restore` into a copy of the Mac's Claude Code directory leaves
   `webview/index.js` and `extension.js` byte-identical to the copy's originals.
 - [ ] **M25.** The full `pnpm test` passes on macOS.
