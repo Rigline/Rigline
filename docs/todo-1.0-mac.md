@@ -130,8 +130,12 @@ file.
 
 After W1 and W2 have landed and been pulled, all in a scratch `HOME` and `RIGLINE_HOME`:
 
-- [ ] **M22.** `pnpm create rigline-plugin x` and `npm create rigline-plugin x` from packed tarballs
-  create the workspace; before W1 both exit 0 having done nothing.
+- [x] **M22.** `pnpm create rigline-plugin x` and `npm create rigline-plugin x` from packed tarballs
+  create the workspace; before W1 both exit 0 having done nothing. **Found:** both create the
+  15-file workspace from `pnpm pack`'s tarball, served by a local registry that logged each fetch;
+  pnpm 12.3.4 through `dlx`'s shell shim, npm 11.19.0 through its exec cache. Against the published
+  alpha.13 both exit 0 having written nothing. pnpm 12 ignores `npm_config_registry`: the registry
+  had to come from `~/.npmrc`, and without it the check silently ran the published package.
 - [ ] **M23.** In that workspace, `pnpm rigline add` then `pnpm rigline dev plugins/x`: an edit
   reaches `webview/rigline/plugins/x/dist/index.js` in a copied extension directory.
 - [ ] **M24.** `install` then `restore` into a copy of the Mac's Claude Code directory leaves
