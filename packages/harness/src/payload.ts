@@ -91,7 +91,12 @@ export function preparePayload(dir: string, options: PreparePayloadOptions): voi
     name: plugin.name,
     entry: `./plugins/${plugin.name}/index.js`,
     surfaces: plugin.manifest.surfaces ?? SURFACES,
-    uses: { ...EMPTY_USES, ...plugin.manifest.uses },
+    // `optional` defaults key by key too, as a validated manifest's does.
+    uses: {
+      ...EMPTY_USES,
+      ...plugin.manifest.uses,
+      optional: { ...EMPTY_USES.optional, ...plugin.manifest.uses?.optional },
+    },
     elements: plugin.manifest.elements ?? {},
     patchRefusal: null,
   }));

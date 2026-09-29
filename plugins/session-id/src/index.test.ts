@@ -19,6 +19,7 @@ import {
   type Identity,
   messagingIdentity,
   type Observed,
+  survivesRestart,
 } from "./index.tsx";
 
 /** One settled tool call, as `ctx.onToolResult` hands it over. */
@@ -133,26 +134,55 @@ describe("formatAddress", () => {
   });
 });
 
+describe("survivesRestart", () => {
+  /** The CLI's own-session line when its address is keyed on the session, as it prints it. */
+  const STABLE_LINE =
+    "This session is atlas-ae [61b4a3] — the name other sessions use to message it (it is not " +
+    "listed below; a message to it would be a message to yourself). Session names and [ref]s " +
+    "listed here normally stay the same when a session restarts or is resumed; if one stops " +
+    "resolving, list again.";
+
+  it("is true where the CLI says the address outlives a restart", () => {
+    expect(survivesRestart(result(STABLE_LINE))).toBe(true);
+    expect(messagingIdentity(result(STABLE_LINE))).toEqual({ name: "atlas-ae", ref: "61b4a3" });
+  });
+
+  it("is false where it says nothing, which is the safe reading", () => {
+    const text = "This session is atlas-ae [61b4a3] — the name other sessions use to message it";
+    expect(survivesRestart(result(text))).toBe(false);
+  });
+});
+
 describe("currentAddress", () => {
   const identity: Identity = { name: "atlas-ae", ref: "61b4a3" };
-  const observed: Observed = { sessionId: "s1", identity };
+  const observed: Observed = { sessionId: "s1", launch: 1, stable: false, identity };
 
   it("is null with nothing observed yet", () => {
-    expect(currentAddress(null, "s1")).toBeNull();
+    expect(currentAddress(null, "s1", 1)).toBeNull();
   });
 
   it("returns the address when it was observed for the current session", () => {
-    expect(currentAddress(observed, "s1")).toBe(identity);
+    expect(currentAddress(observed, "s1", 1)).toBe(identity);
   });
 
   it("hides the address once the panel has switched to a different session", () => {
-    expect(currentAddress(observed, "s2")).toBeNull();
+    expect(currentAddress(observed, "s2", 1)).toBeNull();
   });
 
   it("hides an address observed before the session id had caught up", () => {
     // Observed while sessionId was still null; it must not attach to whatever session shows up next.
-    const early: Observed = { sessionId: null, identity };
-    expect(currentAddress(early, "s1")).toBeNull();
+    const early: Observed = { ...observed, sessionId: null };
+    expect(currentAddress(early, "s1", 1)).toBeNull();
+  });
+
+  it("hides the address once the panel has launched another Claude process", () => {
+    expect(currentAddress(observed, "s1", 2)).toBeNull();
+  });
+
+  it("keeps one the CLI said outlives a restart, for the same session only", () => {
+    const stable: Observed = { ...observed, stable: true };
+    expect(currentAddress(stable, "s1", 2)).toBe(identity);
+    expect(currentAddress(stable, "s2", 2)).toBeNull();
   });
 });
 

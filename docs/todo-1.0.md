@@ -7,8 +7,9 @@ marked *optional* is wanted before 1.0.0; an *optional* item can land in any 1.x
 look at them before 1.0.0. Items marked *unconfirmed* carry a reviewer's reasoning but have not been reproduced: reproduce them before
 fixing.
 
-Where things stand: lint, typecheck and all 1436 tests pass with no skips, `pnpm release major`
-takes 1.0.0-alpha.13 to 1.0.0 correctly, and every curated anchor still resolves on 2.1.283.
+Where things stand: lint and typecheck pass, and on Windows 1514 of 1518 tests do, the four being
+M5's floor cases handed over below. `pnpm release major` takes 1.0.0-alpha.13 to 1.0.0 correctly,
+and every curated anchor still resolves on 2.1.283.
 
 ## Working the lists
 
@@ -104,17 +105,16 @@ asks rather than building around it.
   filtered to `ListAgents` and `SendMessage`, the regex over `result.content`, and `tools` in place
   of `messages: ["io_message"]` in the manifest. The comment at `:106-114` saying `onToolUse` cannot
   see results is out of date.
-- [ ] **W7.** *Optional.* session-id keeps offering an address after *Reload Claude*
+- [x] **W7.** *Optional.* session-id keeps offering an address after *Reload Claude*
   (`currentAddress`, `index.tsx:127-132`). Confirmed by reading both bundles: *Reload Claude* is the
   webview's `restartClaude()`, which closes the channel and launches a new CLI process on a fresh
   random `channelId` with the same session id. The CLI's ref hashes the process's messaging socket
   unless the flag `tengu_session_stable_address` is on, when it hashes the session id instead and
   `ListAgents` adds "Session names and [ref]s listed here normally stay the same when a session
   restarts or is resumed". Off on Leo's account on 2026-09-29, so today the offered address names
-  a dead process; once the flag is on, the present keying is right. The fix is not the plugin's
-  alone: `ToolResult` carries no channel (D51), so it needs an additive per-process key on it,
-  which stays safe under the flag, where it only hides a valid address until the next
-  `ListAgents`.
+  a dead process. **Fixed without a plugin-api change:** session-id counts `launch_claude`, declared
+  optional, and drops an address at the next launch unless its result carried that sentence. When
+  the CLI prints the stable form alone, retire the sentence match and key on the session id.
 - [x] **W8. time-marks says "Today" over yesterday's rows** in a panel open past midnight: the day
   name is fixed when the node is built (`plugins/time-marks/src/index.tsx:124-131`), and the host
   rebuilds only when entries differ. **Fix:** re-register the decorator at local midnight, which
@@ -350,6 +350,10 @@ optional items.
 - [x] **From W43.** `packages/cli/README.md:73` says `rigline remove` deletes "a plugin rigline
   installed". It deletes whatever is in `~/.rigline/plugins` under that name, and refuses a link
   there; the engine's usage now says "Delete a plugin from ~/.rigline/plugins, however it got there".
-- [ ] **From W33.** The release-age refusal in `packages/cli/src/registry.ts:131` ends "(D44)"; core's
-  copy in `packages/core/src/plugins/npm.ts` no longer does, and reads "...is a local edit rather
-  than a release. Wait, or pass --now."
+- [ ] **From W33.** The release-age refusal ends "(D44)", in `packages/cli/src/registry.ts:131` and
+  in core's copy, `packages/core/src/plugins/npm.ts:196`. `cli/src/registry.test.ts` holds the two
+  equal, so both lose it in one commit: "...is a local edit rather than a release. Wait, or pass
+  --now."
+- [ ] **From the full suite on Windows.** Four `updateEngine` cases in `cli/src/engine.test.ts`
+  (M5's floor cases) fail here: "no npm was found beside \usr\local\bin\node, so the engine cannot
+  be installed". The test's Node path is POSIX, and the npm lookup beside it fails on Windows.

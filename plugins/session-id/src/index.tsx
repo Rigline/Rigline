@@ -58,9 +58,13 @@ export interface Identity {
   readonly ref: string;
 }
 
-/** An address, stamped with the session it was seen for — never with the session id alone. */
+/** An address, stamped with the session and the CLI process it was seen for. */
 export interface Observed {
   readonly sessionId: string | null;
+  /** How many CLI processes the panel had launched when it was seen. */
+  readonly launch: number;
+  /** Whether the result that stated it said it survives a restart. */
+  readonly stable: boolean;
   readonly identity: Identity;
 }
 
@@ -80,6 +84,12 @@ export type Entry =
  * peer's ref past six when two collide on the prefix.
  */
 const ADDRESS = /This (?:process's main )?session is (.{1,64}?) \[([0-9a-f]{6,})\]/;
+
+/**
+ * What the CLI appends to the own-session sentence when the address is keyed on the session rather
+ * than on its process. Without it, an address is taken to die with the process that stated it.
+ */
+const STABLE = /normally stay the same when a session restarts/;
 
 /** The tools whose result states this session's address. Any other result is text anybody wrote. */
 const ADDRESSING_TOOLS: ReadonlySet<string> = new Set(["ListAgents", "SendMessage"]);
@@ -106,6 +116,11 @@ export function messagingIdentity(result: ToolResult): Identity | null {
   return name && ref ? { name, ref } : null;
 }
 
+/** Whether a result that states an address also says it survives the CLI restarting. */
+export function survivesRestart(result: ToolResult): boolean {
+  return STABLE.test(resultText(result.content));
+}
+
 /** The display form of an address: `name [ref]`. */
 export function formatAddress(identity: Identity): string {
   return `${identity.name} [${identity.ref}]`;
@@ -114,21 +129,21 @@ export function formatAddress(identity: Identity): string {
 /**
  * The address to show right now, or null.
  *
- * An address belongs to a CLI *process*, not to a session: both the name and the ref are re-rolled
- * when the process restarts, while the session id is the one thing that survives, so nothing about
- * an address may ever be looked up by session id alone. Worse, the panel is a session switcher and
- * the webview outlives a switch, so an address observed for a session the panel has since left must
- * stop being offered — silently, since nothing errors when a stale value gets pasted into the wrong
- * agent's conversation. `observed` is therefore held as the (address, session) pair it was seen
- * with, compared against the *current* session on every read rather than cleared on change, so an
- * address that arrives before `ctx.onSessionId` has caught up cannot be attributed to the wrong
- * session either — it simply never matches until the id it was seen with is the id showing.
+ * An address dies with the CLI process that stated it — *Reload Claude* starts another under the
+ * same session id — unless the result said addresses "stay the same when a session restarts".
+ * Either way it belongs to one session: the panel switches sessions, the webview outlives a switch,
+ * and a stale address pasted into the wrong conversation fails silently. So `observed` keeps the
+ * session and launch it was seen under and is compared with the current ones on every read, never
+ * cleared on change: an address that arrives before `ctx.onSessionId` has caught up never matches
+ * until the id it was seen with is the id showing.
  */
 export function currentAddress(
   observed: Observed | null,
   sessionId: string | null,
+  launch: number,
 ): Identity | null {
-  return observed !== null && observed.sessionId === sessionId ? observed.identity : null;
+  if (observed === null || observed.sessionId !== sessionId) return null;
+  return observed.stable || observed.launch === launch ? observed.identity : null;
 }
 
 /**
@@ -247,7 +262,16 @@ function copy(value: string, flash: (text: string) => void): void {
 
 interface Stores {
   readonly session: Store<string | null>;
+  readonly launches: Store<number>;
   readonly observed: Store<Observed | null>;
+}
+
+function useAddress(props: Stores): Identity | null {
+  return currentAddress(
+    useStore(props.observed),
+    useStore(props.session),
+    useStore(props.launches),
+  );
 }
 
 /** One identifier in the menu: choosing it copies the value and flashes the outcome in its place. */
@@ -274,7 +298,7 @@ function CopyRow(props: { readonly label: string; readonly value: string }): Rea
 
 function Identifiers(props: Stores): ReactNode {
   const sessionId = useStore(props.session);
-  const address = currentAddress(useStore(props.observed), sessionId);
+  const address = useAddress(props);
   return (
     <Submenu label="Session identifiers" description={headlineText(sessionId)}>
       {buildEntries(address, sessionId).map((entry) =>
@@ -294,7 +318,7 @@ function Identifiers(props: Stores): ReactNode {
  */
 function ShortId(props: Stores): ReactNode {
   const sessionId = useStore(props.session);
-  const address = currentAddress(useStore(props.observed), sessionId);
+  const address = useAddress(props);
   const [flash, setFlash] = useFlash();
   return (
     <Pill
@@ -334,7 +358,7 @@ function FullId(props: Stores): ReactNode {
 }
 
 function Address(props: Stores): ReactNode {
-  const address = currentAddress(useStore(props.observed), useStore(props.session));
+  const address = useAddress(props);
   return (
     <Identifier
       label="Messaging address"
@@ -351,13 +375,23 @@ export default definePlugin({
     // plugin only consumes the answer. Made here, in setup, so the store catches the replay.
     const stores: Stores = {
       session: storeFrom(ctx.onSessionId, null),
+      launches: store(0),
       observed: store<Observed | null>(null),
     };
 
+    // Before the results, so the replayed boot launch is counted ahead of any result it preceded.
+    const stopLaunches = ctx.onMessage("launch_claude", () => {
+      stores.launches.set(stores.launches.get() + 1);
+    });
     const stopResults = ctx.onToolResult((result) => {
       const identity = messagingIdentity(result);
       if (identity !== null) {
-        stores.observed.set({ sessionId: stores.session.get(), identity });
+        stores.observed.set({
+          sessionId: stores.session.get(),
+          launch: stores.launches.get(),
+          stable: survivesRestart(result),
+          identity,
+        });
       }
     });
 
@@ -381,14 +415,22 @@ export default definePlugin({
      * check: it says the scrape has had no opportunity, not that it works.
      */
     ctx.check("messaging address observed", () => {
-      const identity = currentAddress(stores.observed.get(), stores.session.get());
+      const observed = stores.observed.get();
+      const identity = currentAddress(observed, stores.session.get(), stores.launches.get());
       if (identity !== null) return { verdict: "pass", detail: formatAddress(identity) };
-      if (stores.observed.get() !== null) {
-        return { verdict: "n/a", detail: "one was seen, for a session this panel has left" };
+      if (observed !== null) {
+        const gone =
+          observed.sessionId === stores.session.get()
+            ? "a Claude process since restarted"
+            : "a session this panel has left";
+        return { verdict: "n/a", detail: `one was seen, for ${gone}` };
       }
       return { verdict: "n/a", detail: "none yet — it appears once this session runs ListAgents" };
     });
 
-    return stopResults;
+    return () => {
+      stopLaunches();
+      stopResults();
+    };
   },
 });

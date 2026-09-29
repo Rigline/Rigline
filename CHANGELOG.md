@@ -101,6 +101,10 @@ anything may change between releases.
 - `rigline install --ext DIR` injects DIR and changes nothing else. It recorded DIR as the baseline
   the next install compares against, rewrote a `generated.ts` in the directory you ran it from, and
   undid a `rigline restore`, so the companion put Rigline back into the extension you had restored.
+- session-id stops offering a messaging address after *Reload Claude*, which starts a new Claude
+  process with a new address under the same session, unless Claude Code said its addresses outlive
+  a restart. It reads `launch_claude` to see the restart, declared optional, so a Claude Code
+  without it leaves the plugin as it was.
 - `rigline status` and `rigline doctor` say when a `rigline restore` is holding Rigline out.
   `status` lists the newest version first, as `install` and `check` do, and a version Rigline never
   injected reads "not injected" rather than "unknown, no backup". `rigline restore` with no Claude

@@ -52,6 +52,9 @@ in the menu, which is where you go when you actually want to copy it.
   labelling. Which bus message actually carries that, and why three tempting alternatives are each
   wrong, is answered once in `packages/plugin-api/src/session.ts`.
 - **`menu: true`** (required): the Session identifiers submenu in Rigline's menu.
+- **`launch_claude`** (optional, under `messages`): the message the panel sends to start a CLI
+  process, which is how the plugin knows *Reload Claude* happened. Without it, an address is offered
+  until the panel switches session, as though every address outlived a restart.
 
 ## What it cannot see
 
@@ -59,10 +62,12 @@ in the menu, which is where you go when you actually want to copy it.
   `~/.claude/sessions/<pid>.json`, and the extension host's own registry parser drops the relevant
   field before anything reaches the webview. This plugin reads it out of tool-result text instead,
   which is why the pill is built to work without it and treats the address as a bonus once seen.
-- An address belongs to a CLI *process*, not to a session (both halves of it are re-rolled when the
-  process restarts), so it is held only in memory, stamped with the session it was observed for, and
-  is never shown once the panel has switched to a different session — even if that switch happens
-  before the new session's id has arrived.
+- An address is taken to belong to a CLI *process*: its ref is re-rolled when the process restarts,
+  which *Reload Claude* does under the same session id. So it is held only in memory, stamped with
+  the session and the process it was observed for, and stops being shown once the panel launches
+  another process or switches session — even if that switch happens before the new session's id has
+  arrived. Where the result that stated it says addresses "stay the same when a session restarts",
+  which the CLI prints when it keys them on the session instead, it outlives a restart.
 - No `navigator.clipboard`: copies go through `document.execCommand("copy")` over a detached
   textarea, because the async Clipboard API needs a permission this webview does not necessarily
   hold and fails silently (a rejected promise) rather than throwing.

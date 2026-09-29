@@ -8,7 +8,10 @@
   "uses": {
     "tools": true,
     "session": true,
-    "menu": true
+    "menu": true,
+    "optional": {
+      "messages": ["launch_claude"]
+    }
   },
   "elements": {
     "short-id": {

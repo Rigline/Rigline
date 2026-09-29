@@ -16,10 +16,19 @@ const PLUGIN_DIR = new URL("../../../plugins/session-id/", import.meta.url);
 /** Where the short id renders: the slot the host places before the footer spacer. */
 const SHORT_ID = '[data-rigline-slot="session-id/short-id"] .rigline-ui-pill';
 
+/** The CLI's sentence for an address keyed on the session, which outlives a restart. */
+const STABLE =
+  " Session names and [ref]s listed here normally stay the same when a session restarts or is resumed.";
+
 /** A tool call and its result, which states an address in the CLI's exact wording. */
-async function pushAddress(page: Page, tool = "ListAgents", ref = "fa26a5"): Promise<void> {
+async function pushAddress(
+  page: Page,
+  tool = "ListAgents",
+  ref = "fa26a5",
+  tail = "",
+): Promise<void> {
   await page.evaluate(
-    ({ tool, ref }) => {
+    ({ tool, ref, tail }) => {
       const push = (window as unknown as { __harness?: { push: (m: unknown) => void } }).__harness
         ?.push;
       if (!push) throw new Error("harness push missing");
@@ -47,14 +56,32 @@ async function pushAddress(page: Page, tool = "ListAgents", ref = "fa26a5"): Pro
               {
                 type: "tool_result",
                 tool_use_id: id,
-                content: `This session is abcd-1234-ticket-work-46 [${ref}] - the name others use.`,
+                content: `This session is abcd-1234-ticket-work-46 [${ref}] - the name others use.${tail}`,
               },
             ],
           },
         }),
       );
     },
-    { tool, ref },
+    { tool, ref, tail },
+  );
+}
+
+/** What the panel sends to start a CLI process, as *Reload Claude* does under the same session. */
+async function pushLaunch(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const push = (window as unknown as { __harness?: { push: (m: unknown) => void } }).__harness
+      ?.push;
+    if (!push) throw new Error("harness push missing");
+    push({ type: "launch_claude", channelId: "harness-relaunch" });
+  });
+}
+
+/** The short id's tooltip, which names the address while one is offered. */
+function tooltip(page: Page): Promise<string> {
+  return page.evaluate(
+    (selector) => (document.querySelector(selector) as HTMLElement | null)?.title ?? "",
+    SHORT_ID,
   );
 }
 
@@ -186,6 +213,41 @@ describe.skipIf(skip !== null)(
         );
         expect(title).toContain("[fa26a5]");
         expect(title).not.toContain("bbbbbb");
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
+    it("stops offering an address once another Claude process launches, unless it outlives one", async () => {
+      const booted = await boot({ plugins: [sessionIdPlugin as FixturePlugin] });
+      const { page } = booted;
+      try {
+        await page.waitForSelector(SHORT_ID);
+        await pushAddress(page);
+        await page.waitForFunction(
+          (selector) =>
+            (document.querySelector(selector) as HTMLElement | null)?.title.includes("fa26a5"),
+          SHORT_ID,
+        );
+        await pushLaunch(page);
+        await page.waitForFunction(
+          (selector) =>
+            !(document.querySelector(selector) as HTMLElement | null)?.title.includes("fa26a5"),
+          SHORT_ID,
+        );
+
+        await pushAddress(page, "ListAgents", "cccccc", STABLE);
+        await page.waitForFunction(
+          (selector) =>
+            (document.querySelector(selector) as HTMLElement | null)?.title.includes("cccccc"),
+          SHORT_ID,
+        );
+        await pushLaunch(page);
+        await page.waitForTimeout(500);
+        expect(await tooltip(page)).toContain("[cccccc]");
+
+        const d = await booted.diagnostics();
+        expect(d.errors).toEqual([]);
       } finally {
         await booted.close();
       }
