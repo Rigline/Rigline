@@ -2951,3 +2951,20 @@ report: a script reads a report's output, and failing to report is the only fail
 (D111), which it says instead, with 0: a person who ran `restore` meant it. `update` counts a failed
 companion addition. Both land before 1.0, since moving an exit status to 1 is a tightening no 1.x
 can make afterwards.
+
+**D116. A move of the engine is held to the Node that would run it (2026-09-29, Leo).** A minor
+release may drop a Node version (stability.md), and nothing read an engine's `engines.node` before
+moving to it. So a 1.0 wrapper or companion would move to an engine its Node cannot run, and a
+companion, which updates itself by asking the engine (D99), would then be stranded for good. Only
+1.0's acquisition code can prevent it: nothing updates the wrapper, and a stranded companion never
+runs newer acquisition code. `updateEngine` reads `engines.node` from the packument it already
+fetches, and withholds a move the running Node falls below, as the release-age gate withholds one
+(D48), naming the floor and the Node. The wrapper's Node is its own process; the companion's is the
+one it found and asked what it is.
+
+Three things differ from the age gate. It is checked first, since waiting does not mend it. It needs
+you: `update` exits 1 over it (D115), and the companion says *needs you* rather than carrying on
+green, as it does over a major it cannot follow (D99). And as with the age gate, a first run is not
+held: there is nothing to stay on, and an engine installed below its floor refuses at start with the
+same sentence, which the install would only have said sooner. Only a `>=MAJOR.MINOR.PATCH` range is
+read, as the engine's own start check reads one; any other is let through rather than guessed at.

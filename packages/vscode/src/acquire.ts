@@ -24,16 +24,23 @@ import type { Stamps, WatchReason } from "./watch.ts";
  * should use is the one VS Code already hands it, so it is passed rather than discovered.
  */
 export interface Acquisition {
-  updateEngine(options: {
-    readonly nodePath: string;
-    readonly label: string;
-    readonly version: string;
-  }): Promise<{ readonly outcome: string; readonly to?: string; readonly reason?: string }>;
-  ensureEngine(options: {
-    readonly nodePath: string;
-    readonly label: string;
-    readonly version: string;
-  }): Promise<{ readonly version: string; readonly entry: string }>;
+  updateEngine(options: AcquisitionOptions): Promise<{
+    readonly outcome: string;
+    readonly to?: string;
+    readonly reason?: string;
+    readonly by?: string;
+  }>;
+  ensureEngine(
+    options: AcquisitionOptions,
+  ): Promise<{ readonly version: string; readonly entry: string }>;
+}
+
+interface AcquisitionOptions {
+  readonly nodePath: string;
+  /** What the Node at `nodePath` said it is, which a move is held to the engine's floor with. */
+  readonly nodeVersion: string;
+  readonly label: string;
+  readonly version: string;
 }
 
 export interface AcquireOptions {
@@ -151,10 +158,9 @@ function majorOf(version: string): string | null {
 export async function acquireAndInject(options: AcquireOptions): Promise<AcquireResult> {
   const { editor, acquisition, exists, version, reason, stamps, runEngine } = options;
 
-  let nodePath: string;
+  let node: UsableNode;
   try {
-    const node = await usableNode(options);
-    nodePath = node.path;
+    node = await usableNode(options);
     const by = node.source === "setting" ? "setting" : "PATH";
     const as = node.found === node.path ? "" : ` as ${node.found}`;
     editor.log(`Node: ${node.path}, ${node.version} (found by ${by}${as})`);
@@ -166,12 +172,18 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
     return { kind: "no-node", message };
   }
 
+  const nodePath = node.path;
   try {
     const named = namedEngine(editor, exists);
-    const { engine, majorAhead } =
+    const { engine, majorAhead, belowFloor } =
       named === undefined
-        ? await acquired(editor, acquisition, { nodePath, label: LABEL, version })
-        : { engine: named, majorAhead: null };
+        ? await acquired(editor, acquisition, {
+            nodePath,
+            nodeVersion: node.version,
+            label: LABEL,
+            version,
+          })
+        : { engine: named, majorAhead: null, belowFloor: null };
     const runner: Runner = { nodePath, entry: engine.entry };
     editor.status("working", "Rigline: injecting", `Running ${engine.version}`);
     const before = stamps(editor.extensionPath(CLAUDE_CODE));
@@ -214,6 +226,15 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
       return { kind: "attention", message, reload, runner };
     }
 
+    if (belowFloor !== null) {
+      // Green here would be this companion and its engine stopping where they are, unseen (D116).
+      const message =
+        `${belowFloor} Set \`rigline.nodePath\` to it if it is not first on PATH, then reload ` +
+        "the window.";
+      editor.status("attention", "Rigline: needs you", message);
+      return { kind: "attention", message, reload, runner };
+    }
+
     if (code !== 0) {
       // Not "install failed": a non-zero exit means somebody is wanted, which a bundled plugin
       // patching `extension.js` used to trigger on every single update having worked perfectly.
@@ -244,18 +265,28 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
 }
 
 /**
- * The acquired engine, moved first if its tag has, and the version of a newer major the wrapper
- * refused to move it to, if that is why it did not.
+ * The acquired engine, moved first if its tag has, and why it was not moved where a person has to
+ * do something about it: the version of a newer major the wrapper refused, or the Node floor it was
+ * withheld by.
  */
 async function acquired(
   editor: Editor,
   acquisition: Acquisition,
-  options: Parameters<Acquisition["ensureEngine"]>[0],
-): Promise<{ readonly engine: Runnable; readonly majorAhead: string | null }> {
+  options: AcquisitionOptions,
+): Promise<{
+  readonly engine: Runnable;
+  readonly majorAhead: string | null;
+  readonly belowFloor: string | null;
+}> {
   editor.status("working", "Rigline: updating", "Checking for a newer Rigline engine");
   const update = await acquisition.updateEngine(options);
   editor.log(`engine: ${update.outcome}${update.to === undefined ? "" : ` ${update.to}`}`);
   let majorAhead: string | null = null;
+  let belowFloor: string | null = null;
+  if (update.outcome === "withheld") {
+    editor.log(`engine update withheld: ${update.reason ?? "no reason given"}`);
+    if (update.by === "node") belowFloor = update.reason ?? null;
+  }
   if (update.outcome === "failed") {
     // Reported, not thrown, and not fatal: a contended lock lands here, and the right answer is
     // to carry on with the engine already present rather than to give up on this update (D80).
@@ -263,7 +294,7 @@ async function acquired(
     const theirs = update.to === undefined ? null : majorOf(update.to);
     if (theirs !== null && theirs !== majorOf(options.version)) majorAhead = update.to ?? null;
   }
-  return { engine: await acquisition.ensureEngine(options), majorAhead };
+  return { engine: await acquisition.ensureEngine(options), majorAhead, belowFloor };
 }
 
 export interface ShowPluginsOptions {
@@ -330,9 +361,9 @@ async function onDisk(
 ): Promise<readonly string[] | null> {
   const { editor, ensureEngine, exists, version, runEngine } = options;
 
-  let nodePath: string;
+  let node: UsableNode;
   try {
-    nodePath = (await usableNode(options)).path;
+    node = await usableNode(options);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     editor.log(message);
@@ -342,9 +373,15 @@ async function onDisk(
 
   try {
     const engine =
-      namedEngine(editor, exists) ?? (await ensureEngine({ nodePath, label: LABEL, version }));
+      namedEngine(editor, exists) ??
+      (await ensureEngine({
+        nodePath: node.path,
+        nodeVersion: node.version,
+        label: LABEL,
+        version,
+      }));
     const lines: string[] = [];
-    await runEngine(nodePath, engine.entry, argv, (line) => {
+    await runEngine(node.path, engine.entry, argv, (line) => {
       lines.push(line);
       editor.log(line);
     });

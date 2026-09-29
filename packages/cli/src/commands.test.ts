@@ -121,6 +121,29 @@ describe("updateCommand", () => {
     expect(calls).toEqual([[entry, "update"]]);
   });
 
+  it("exits 1 when the new engine needs a newer Node, and still hands off (D115, D116)", async () => {
+    const { entry, calls, options } = machine("1.2.0");
+    const code = await updateCommand([], {
+      ...options,
+      nodeVersion: "22.12.0",
+      registry: npm("1.3.0", undefined, ">=24.0.0"),
+    });
+
+    expect(code).toBe(1);
+    expect(calls).toEqual([[entry, "update"]]);
+    expect(log.mock.calls[0]?.[0]).toContain("needs Node 24.0.0 or newer");
+  });
+
+  it("exits with the engine's code when a release is only too young (D48)", async () => {
+    const { options } = machine("1.2.0");
+    const code = await updateCommand([], {
+      ...options,
+      registry: npm("1.3.0", new Date().toISOString()),
+    });
+    expect(code).toBe(0);
+    expect(log.mock.calls[0]?.[0]).toContain("engine: staying on 1.2.0");
+  });
+
   it("passes the engine's exit code through", async () => {
     const { options } = machine("1.0.0-alpha.13", null, 1);
     expect(await updateCommand([], { ...options, registry: npm("1.0.0-alpha.13") })).toBe(1);

@@ -14,6 +14,10 @@ anything may change between releases.
 
 - The companion's output shows each line's time in your own time zone, with its offset, where it
   showed UTC.
+- `rigline update` and the companion stay on the engine you have when a newer one needs a newer Node
+  than the one running them, and say which Node it needs: `rigline update` exits 1, and the
+  companion reads *needs you*. They moved to it, and an engine that cannot start would have left the
+  companion unable to update itself.
 
 ### Fixed
 

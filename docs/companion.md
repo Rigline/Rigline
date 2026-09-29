@@ -115,13 +115,15 @@ next poll. A directory going away is logged and reacted to not at all (D85).
 ## A run
 
 A run is a `start`, on activation, or a `moved`, when a directory arrives. It finds Node, moves the
-engine if the tag has (the release-age gate applies, D48), stamps the bytes, runs `install` with its
-output piped into the **Rigline** output channel a line at a time, and then decides.
+engine if the tag has (the release-age gate and the Node floor apply, D48, D116), stamps the bytes,
+runs `install` with its output piped into the **Rigline** output channel a line at a time, and then
+decides.
 
 | outcome | status item |
 | --- | --- |
 | no Claude Code installed | *Rigline: no Claude Code*, asked of the editor: `install` refuses with 1, and engines have exited 0, so the exit code is not trusted. |
 | the engine exits non-zero | *Rigline: needs you*. A person is wanted, but it may still have injected, so the reload decision runs anyway. |
+| the new engine needs a newer Node | *Rigline: needs you*, having run the engine it has (D116). |
 | `moved` | *Rigline: ready to restart*. A new version is patched behind this window (D85). |
 | `start` | *Rigline*, green. |
 | anything throws | *Rigline: failed*, with the message. A run never rejects, since nobody would see it. |

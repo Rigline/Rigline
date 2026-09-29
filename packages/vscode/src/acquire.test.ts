@@ -142,7 +142,7 @@ describe("acquireAndInject", () => {
 
   it("hands the wrapper the Node it found and the companion's lock label (D80)", async () => {
     const e = editor();
-    const seen: { nodePath: string; label: string }[] = [];
+    const seen: { nodePath: string; nodeVersion: string; label: string }[] = [];
     const a = acquisition({
       updateEngine: async (options) => {
         seen.push(options);
@@ -168,8 +168,8 @@ describe("acquireAndInject", () => {
     // `../package.json` beside its module, which bundling rewrites to the extensions directory —
     // so a companion that let it default would throw ENOENT on the first run of every install.
     expect(seen).toEqual([
-      { nodePath: NODE, label: LABEL, version: "1.0.0-alpha.6" },
-      { nodePath: NODE, label: LABEL, version: "1.0.0-alpha.6" },
+      { nodePath: NODE, nodeVersion: "26.0.0", label: LABEL, version: "1.0.0-alpha.6" },
+      { nodePath: NODE, nodeVersion: "26.0.0", label: LABEL, version: "1.0.0-alpha.6" },
     ]);
   });
 
@@ -215,6 +215,62 @@ describe("acquireAndInject", () => {
     expect(result).toMatchObject({ kind: "injected", engine: "1.0.0-alpha.7", reload: null });
     expect(a.calls).toEqual([["install", "--companion"]]);
     expect(e.lines.join("\n")).toMatch(/pid 4/);
+  });
+
+  it("wants a person when the new engine needs a newer Node, and runs the one it has (D116)", async () => {
+    const reason =
+      "@rigline/core 1.3.0 needs Node 24.0.0 or newer, and /usr/bin/node is Node 22.12.0. " +
+      "Install a newer Node to move to it.";
+    const e = editor();
+    const a = acquisition({
+      updateEngine: async () => ({ outcome: "withheld", to: "1.3.0", reason, by: "node" }),
+    });
+
+    const result = await acquireAndInject({
+      editor: e.editor,
+      acquisition: a.acquisition,
+      ...runner(a),
+      ...QUIET,
+      version: "1.2.0",
+      exists: (p) => p === NODE,
+      env: { PATH: NODE_DIR },
+    });
+
+    expect(result.kind).toBe("attention");
+    expect(a.calls).toEqual([["install", "--companion"]]);
+    expect(e.lines).toContain(`engine update withheld: ${reason}`);
+    expect(e.statuses.at(-1)).toMatchObject({ health: "attention", text: "Rigline: needs you" });
+    expect(e.statuses.at(-1)?.tooltip).toBe(
+      `${reason} Set \`rigline.nodePath\` to it if it is not first on PATH, then reload the window.`,
+    );
+  });
+
+  it("stays green over a release only too young, saying why in the output (D48)", async () => {
+    const e = editor();
+    const a = acquisition({
+      updateEngine: async () => ({
+        outcome: "withheld",
+        to: "1.3.0",
+        reason: "@rigline/core@1.3.0 was published 40 minutes ago",
+        by: "age",
+      }),
+    });
+
+    const result = await acquireAndInject({
+      editor: e.editor,
+      acquisition: a.acquisition,
+      ...runner(a),
+      ...QUIET,
+      version: "1.2.0",
+      exists: (p) => p === NODE,
+      env: { PATH: NODE_DIR },
+    });
+
+    expect(result.kind).toBe("injected");
+    expect(e.lines).toContain(
+      "engine update withheld: @rigline/core@1.3.0 was published 40 minutes ago",
+    );
+    expect(e.statuses.at(-1)).toMatchObject({ health: "ok", text: "Rigline" });
   });
 
   it("reports a non-zero install rather than claiming success", async () => {

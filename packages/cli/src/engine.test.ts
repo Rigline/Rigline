@@ -381,7 +381,85 @@ describe("updateEngine", () => {
       outcome: "withheld",
       from: "1.0.0-alpha.6",
       to: "1.0.0-alpha.7",
+      by: "age",
     });
+  });
+
+  it("withholds a version whose Node floor this Node is below, and says which (D116)", async () => {
+    const prefix = temp();
+    writeEngine(engineDir(prefix), core("1.2.0"));
+    const node = join("/usr", "local", "bin", "node");
+    const update = await updateEngine({
+      home: prefix,
+      version: "1.2.0",
+      nodePath: node,
+      nodeVersion: "22.12.0",
+      registry: npm("1.3.0", undefined, ">=24.0.0"),
+      spawnImpl: () => {
+        throw new Error("nothing should have been spawned");
+      },
+    });
+    expect(update).toEqual({
+      outcome: "withheld",
+      from: "1.2.0",
+      to: "1.3.0",
+      by: "node",
+      reason:
+        `${ENGINE_PACKAGE} 1.3.0 needs Node 24.0.0 or newer, and ${node} is Node 22.12.0. ` +
+        "Install a newer Node to move to it.",
+    });
+    expect(formatEngineUpdate(update, prefix)).toContain("engine: staying on 1.2.0 — ");
+  });
+
+  it("holds this process's own Node to the floor when it is given none (D116)", async () => {
+    const prefix = temp();
+    writeEngine(engineDir(prefix), core("1.2.0"));
+    const update = await updateEngine({
+      home: prefix,
+      version: "1.2.0",
+      registry: npm("1.3.0", undefined, ">=999.0.0"),
+    });
+    expect(update).toMatchObject({ outcome: "withheld", by: "node" });
+    expect(update.outcome === "withheld" && update.reason).toContain(
+      `${process.execPath} is Node ${process.versions.node}`,
+    );
+  });
+
+  it.each([
+    ["a floor it meets", { nodeVersion: "24.1.0" }, ">=24.0.0"],
+    ["no floor", { nodeVersion: "22.12.0" }, undefined],
+    ["a Node it was not told the version of", {}, ">=24.0.0"],
+  ])("moves to an engine with %s", async (_what, node, floor) => {
+    const prefix = temp();
+    writeEngine(engineDir(prefix), core("1.2.0"));
+    const update = await updateEngine({
+      home: prefix,
+      version: "1.2.0",
+      nodePath: join("/usr", "local", "bin", "node"),
+      ...node,
+      registry: npm("1.3.0", undefined, floor),
+      spawnImpl: () => {
+        writeEngine(engineDir(prefix), core("1.3.0"));
+        return fakeChild(0);
+      },
+    });
+    expect(update).toEqual({ outcome: "moved", from: "1.2.0", to: "1.3.0" });
+  });
+
+  it("does not hold a first run to the floor, which the engine says itself (D116)", async () => {
+    const prefix = temp();
+    const update = await updateEngine({
+      home: prefix,
+      version: "1.3.0",
+      nodePath: join("/usr", "local", "bin", "node"),
+      nodeVersion: "22.12.0",
+      registry: npm("1.3.0", undefined, ">=24.0.0"),
+      spawnImpl: () => {
+        writeEngine(engineDir(prefix), core("1.3.0"));
+        return fakeChild(0);
+      },
+    });
+    expect(update).toEqual({ outcome: "installed", to: "1.3.0" });
   });
 
   it("refuses a major of its own rather than installing one it cannot run", async () => {

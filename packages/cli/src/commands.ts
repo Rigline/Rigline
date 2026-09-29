@@ -66,7 +66,10 @@ export async function updateCommand(
   if (problem !== null) throw new UserError(problem);
   notice(engine.version, wrapper);
   const code = await engine.run(["update", ...forward]);
-  return moved.outcome === "failed" ? 1 : code;
+  // A Node below the new engine's floor needs you; a release too young only needs waiting (D115).
+  const needsYou =
+    moved.outcome === "failed" || (moved.outcome === "withheld" && moved.by === "node");
+  return needsYou ? 1 : code;
 }
 
 /** On stderr, before the engine writes, so the report's tail stays last (D98). */

@@ -71,6 +71,17 @@ describe("resolveVersion", () => {
     expect(resolved.integrity).toBe(INTEGRITY);
   });
 
+  it("reads the release's Node floor, and null where it declares none (D116)", async () => {
+    const dist = { tarball: `${REGISTRY}/clock/-/clock-1.2.0.tgz`, integrity: INTEGRITY };
+    const declared = registry({ versions: { "1.2.0": { engines: { node: ">=24.0.0" }, dist } } });
+    const odd = registry({ versions: { "1.2.0": { engines: { node: 24 }, dist } } });
+    expect((await resolveVersion(LATEST, options({ fetchImpl: declared }))).enginesNode).toBe(
+      ">=24.0.0",
+    );
+    expect((await resolveVersion(LATEST, options({ fetchImpl: odd }))).enginesNode).toBeNull();
+    expect((await resolveVersion(LATEST, options())).enginesNode).toBeNull();
+  });
+
   it("records no tag when a version was named", async () => {
     const resolved = await resolveVersion({ ...LATEST, version: "1.1.0" }, options());
     expect(resolved.version).toBe("1.1.0");
@@ -166,7 +177,9 @@ describe("the engine's copy", () => {
     const given = options({ fetchImpl: registry(packument) });
     const ours = await resolveVersion(spec, given);
     const theirs = await core.resolveVersion(spec, given);
-    expect(theirs).toEqual(ours);
+    // The wrapper's alone: only a move of the engine is held to a Node floor (D116).
+    const { enginesNode: _floor, ...shared } = ours;
+    expect(theirs).toEqual(shared);
     expect(core.releaseAgeProblem(theirs, given)).toBe(releaseAgeProblem(ours, given));
   });
 

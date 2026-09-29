@@ -64,6 +64,8 @@ export interface ResolvedVersion {
   readonly integrity: string;
   /** How long ago it was published, in minutes, or null when the registry does not say. */
   readonly ageMinutes: number | null;
+  /** Its `engines.node`, which a move to it is held to, or null when it declares none. */
+  readonly enginesNode: string | null;
 }
 
 /** The version this spec names today, and where to get it. Consults the registry; writes nothing. */
@@ -90,6 +92,7 @@ export async function resolveVersion(
   if (typeof tarball !== "string" || tarball.length === 0) {
     throw new UserError(`${spec.name}@${version} has no tarball on ${registryOf(options)}`);
   }
+  const node = release.engines?.node;
   return {
     name: spec.name,
     version,
@@ -97,6 +100,7 @@ export async function resolveVersion(
     tarball,
     integrity: integrityOf(release, `${spec.name}@${version}`),
     ageMinutes,
+    enginesNode: typeof node === "string" ? node : null,
   };
 }
 
@@ -146,6 +150,7 @@ interface Packument {
 }
 
 interface Release {
+  readonly engines?: { readonly node?: unknown };
   readonly dist?: {
     readonly tarball?: string;
     /** Subresource integrity, on anything published this decade. */

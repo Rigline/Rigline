@@ -12,6 +12,7 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { UserError } from "./errors.ts";
+import { belowFloor } from "./floor.ts";
 import { type LockOptions, withHomeLock } from "./lock.ts";
 import { type RegistryOptions, releaseAgeProblem, resolveVersion } from "./registry.ts";
 
@@ -252,6 +253,11 @@ export interface EngineOptions {
    * run the engine's entry (D80).
    */
   readonly nodePath?: string;
+  /**
+   * That Node's version, which a move is held to the engine's floor with (D116). This process's
+   * where `nodePath` is unset too; a path given without it is not guessed at, and nothing is held.
+   */
+  readonly nodeVersion?: string;
   /** What this process calls itself in the home lock, for whoever is waiting on it (D80). */
   readonly label?: string;
   /** The lock's timings, for tests. Its `home` and `what` are this call's. */
@@ -392,6 +398,8 @@ export type EngineUpdate =
       readonly from: string;
       readonly to: string;
       readonly reason: string;
+      /** Too young, which waiting mends (D48), or above this Node's floor, which only a person can. */
+      readonly by: "age" | "node";
     }
   | {
       readonly outcome: "failed";
@@ -439,13 +447,23 @@ export async function updateEngine(options: EngineOptions = {}): Promise<EngineU
     };
   }
 
-  // The gate needs something to stay on, so it does not apply where there is no engine (D48, D73).
-  // `ensureEngine` installs one regardless a moment later — a first run has to produce a working
-  // command — so gating here would only have this run refuse and then contradict itself.
+  // The gates need something to stay on, so they do not apply where there is no engine (D48, D73,
+  // D116). `ensureEngine` installs one regardless a moment later — a first run has to produce a
+  // working command — so gating here would only have this run refuse and then contradict itself.
   if (installed !== null) {
-    const withheld = releaseAgeProblem(resolved, options.registry);
-    if (withheld !== null) {
-      return { outcome: "withheld", from: installed, to: resolved.version, reason: withheld };
+    const node = nodeFloorProblem(resolved, options);
+    if (node !== null) {
+      return {
+        outcome: "withheld",
+        from: installed,
+        to: resolved.version,
+        reason: node,
+        by: "node",
+      };
+    }
+    const age = releaseAgeProblem(resolved, options.registry);
+    if (age !== null) {
+      return { outcome: "withheld", from: installed, to: resolved.version, reason: age, by: "age" };
     }
   }
 
@@ -462,6 +480,22 @@ export async function updateEngine(options: EngineOptions = {}): Promise<EngineU
   return installed === null
     ? { outcome: "installed", to: resolved.version }
     : { outcome: "moved", from: installed, to: resolved.version };
+}
+
+/** Why the Node that would run this engine is below its floor, or null (D116). */
+function nodeFloorProblem(
+  resolved: { readonly version: string; readonly enginesNode: string | null },
+  options: EngineOptions,
+): string | null {
+  const running =
+    options.nodeVersion ?? (options.nodePath === undefined ? process.versions.node : null);
+  if (running === null || resolved.enginesNode === null) return null;
+  const floor = belowFloor(running, resolved.enginesNode);
+  if (floor === null) return null;
+  return (
+    `${ENGINE_PACKAGE} ${resolved.version} needs Node ${floor} or newer, and ` +
+    `${options.nodePath ?? process.execPath} is Node ${running}. Install a newer Node to move to it.`
+  );
 }
 
 /** One line about the engine, naming the version it came from so a rollback has its argument. */

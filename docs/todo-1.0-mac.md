@@ -42,7 +42,7 @@ file.
 - [x] **M4. A Node floor check where the wrapper starts.** Below 22.12 the engine dies mid-install
   with a `TypeError` (`entry.parentPath` is undefined before Node 20.12). One sentence naming the
   floor and the Node found, before anything runs. W22 is the engine's half.
-- [ ] **M5. The engine's Node floor at acquisition.** Nothing reads `engines.node` when the wrapper
+- [x] **M5. The engine's Node floor at acquisition.** Nothing reads `engines.node` when the wrapper
   or the companion moves the engine, so when a minor drops a Node version, as stability.md allows,
   a 1.0 wrapper or companion moves to an engine that cannot run — and the companion then cannot
   update itself, since that asks the engine. Only 1.0.0's acquisition code can prevent it. **Fix:**
@@ -157,3 +157,4 @@ built from this checkout, running the released engine it acquires.
   which reads `engines.node` the same way (D69). Its header should name that path, as the cli copy
   names it, per CLAUDE.md's *Code kept twice*; `packages/cli/src/floor.test.ts` holds the two
   readings together.
+- [ ] **From M5.** `CLAUDE.md:28` says decisions.md runs "D1 to D115"; M5 took D116.

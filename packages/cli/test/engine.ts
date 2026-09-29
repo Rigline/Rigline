@@ -26,12 +26,19 @@ export function core(version: string): Record<string, unknown> {
 }
 
 /** A registry serving one version of `@rigline/core`, with no network anywhere. */
-export function npm(version: string, publishedAt = "2026-09-01T12:00:00.000Z"): RegistryOptions {
+export function npm(
+  version: string,
+  publishedAt = "2026-09-01T12:00:00.000Z",
+  enginesNode?: string,
+): RegistryOptions {
   const packument = {
     "dist-tags": { latest: version },
     time: { [version]: publishedAt },
     versions: {
-      [version]: { dist: { tarball: "https://example/core.tgz", integrity: "sha512-x" } },
+      [version]: {
+        ...(enginesNode === undefined ? {} : { engines: { node: enginesNode } }),
+        dist: { tarball: "https://example/core.tgz", integrity: "sha512-x" },
+      },
     },
   };
   const fetchImpl: FetchLike = async () => ({
