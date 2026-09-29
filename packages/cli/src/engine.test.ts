@@ -438,7 +438,7 @@ describe("updateEngine", () => {
     const update = await updateEngine({
       home: prefix,
       version: "1.2.0",
-      nodePath: join("/usr", "local", "bin", "node"),
+      nodePath: process.execPath,
       ...node,
       registry: npm("1.3.0", undefined, floor),
       spawnImpl: () => {
@@ -454,7 +454,7 @@ describe("updateEngine", () => {
     const update = await updateEngine({
       home: prefix,
       version: "1.3.0",
-      nodePath: join("/usr", "local", "bin", "node"),
+      nodePath: process.execPath,
       nodeVersion: "22.12.0",
       registry: npm("1.3.0", undefined, ">=24.0.0"),
       spawnImpl: () => {

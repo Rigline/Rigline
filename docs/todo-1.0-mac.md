@@ -174,3 +174,6 @@ built from this checkout, running the released engine it acquires.
 - [ ] **From M5.** `CLAUDE.md:28` says decisions.md runs "D1 to D115"; M5 took D116.
 - [ ] **Done: W43's hand-over.** `packages/cli/README.md`'s `remove` line now reads "delete a plugin
   from ~/.rigline/plugins", in M12's commit; tick it in todo-1.0.md's *Handed over to the Mac*.
+- [ ] **Done: the full suite's hand-over.** M5's four spawning floor cases in
+  `cli/src/engine.test.ts` pass `nodePath: process.execPath`, so npm is found beside the Node running
+  them; tick it in todo-1.0.md.
