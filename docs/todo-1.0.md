@@ -104,9 +104,17 @@ asks rather than building around it.
   filtered to `ListAgents` and `SendMessage`, the regex over `result.content`, and `tools` in place
   of `messages: ["io_message"]` in the manifest. The comment at `:106-114` saying `onToolUse` cannot
   see results is out of date.
-- [ ] **W7.** *Optional; unconfirmed.* session-id keeps offering an address after *Reload Claude*,
-  which keeps the session id (`currentAddress`, `index.tsx:160-165`), though the plugin says an
-  address is per process. Stamp the observation with the envelope's `channelId`.
+- [ ] **W7.** *Optional.* session-id keeps offering an address after *Reload Claude*
+  (`currentAddress`, `index.tsx:127-132`). Confirmed by reading both bundles: *Reload Claude* is the
+  webview's `restartClaude()`, which closes the channel and launches a new CLI process on a fresh
+  random `channelId` with the same session id. The CLI's ref hashes the process's messaging socket
+  unless the flag `tengu_session_stable_address` is on, when it hashes the session id instead and
+  `ListAgents` adds "Session names and [ref]s listed here normally stay the same when a session
+  restarts or is resumed". Off on Leo's account on 2026-09-29, so today the offered address names
+  a dead process; once the flag is on, the present keying is right. The fix is not the plugin's
+  alone: `ToolResult` carries no channel (D51), so it needs an additive per-process key on it,
+  which stays safe under the flag, where it only hides a valid address until the next
+  `ListAgents`.
 - [x] **W8. time-marks says "Today" over yesterday's rows** in a panel open past midnight: the day
   name is fixed when the node is built (`plugins/time-marks/src/index.tsx:124-131`), and the host
   rebuilds only when entries differ. **Fix:** re-register the decorator at local midnight, which
@@ -145,7 +153,12 @@ asks rather than building around it.
 - [ ] **W14.** *Optional.* **A lost `extension.js.orig` leaves the host patch for good**, and
   `restore`, `status` and `doctor` all say vanilla (`inject.ts:176-177`, `:229-231`, `:738`).
   Reverse it from the baked manifests under `webview/rigline/plugins/*/rigline.json`, which carry
-  each patch's find and replace. It needs the backup deleted.
+  each patch's find and replace. It needs the backup deleted. Only a person or another tool can
+  cause it: the backup is written before the live file, and nothing of Rigline's deletes one. It
+  lasts until the next Claude Code update replaces the directory, and `install` meanwhile reports
+  the patch as refused, since `find` matches nowhere. **The reversal is unsafe**: with no backup it
+  cannot tell a lost backup from a Claude Code build that ships the `replace` bytes itself, and
+  would write the old bytes into that build. A report in `status` and `doctor` is the safe half.
 - [x] **W43. `remove`, and replacing a plugin, over a link.** `remove` deletes a plugin's directory
   in `~/.rigline/plugins` whether or not `add` put it there (`plugins/manage.ts:298`), which is
   right, since the directory is Rigline's; its usage says such a plugin is only switched off, which
@@ -274,8 +287,12 @@ asks rather than building around it.
   unknown manifest key or `api: 2` could suggest a later Rigline, as the config message does.
   `rigline help`, the engine's `--version` and `VERB --help` all say "unknown". The usage opens with
   the maintainer verbs.
-- [ ] **W34. The engine's behaviour.** `install --ext COPY` moves the real `baseline.json` to the copy's version and
-  clears the restore mark, and `--ext` is not resolved. `status` and `doctor` never mention the
+- [ ] **W34. The engine's behaviour.** `install --ext DIR` injects DIR alone but keeps the global
+  bookkeeping of a full install (`flow.ts:616-643`, `main.ts:307`): `baseline.json` and `drift.txt`
+  move to DIR's version, a `generated.ts` in the working directory is rewritten from it, and the
+  `restored` mark is cleared with "this puts it back", so the companion re-injects the real
+  extension a person restored (D111). `--ext` writing none of the four is the fix. (Resolving
+  `--ext` was W10's.) `status` and `doctor` never mention the
   `restored` mark, so a bug report will not show Rigline held out (`check` is W23's); `restore` with
   nothing installed writes it and says nothing. `status` says "webview unknown, no backup" for a
   version Rigline never touched, and lists oldest first where `install` and `check` list newest.
