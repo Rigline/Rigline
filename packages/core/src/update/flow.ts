@@ -193,6 +193,11 @@ export interface UpdateOptions extends FlowOptions {
    */
   readonly codegen?: boolean;
   /**
+   * Record the baseline and `drift.txt`, which describe the installed set. False for a directory
+   * named on the command line, which may be any copy (D118). Defaults to true.
+   */
+  readonly recordBaseline?: boolean;
+  /**
    * The mark `restore` leaves, given by the companion's installs: while it is there the run injects
    * nothing. Read under the lock, so a `restore` that finishes first is honoured (D111).
    */
@@ -629,18 +634,20 @@ function settle(
         );
       }
     }
-    // Written before the baseline moves, because after it nothing can say what moved (D98).
-    const driftPath = options.driftPath ?? riglinePaths().drift;
-    if (baseline && scansDiffer(diffs)) {
-      mkdirSync(dirname(driftPath), { recursive: true });
-      writeFileAtomic(driftPath, `${formatDiff(baseline.scan, scan, diffs, Infinity)}\n`);
-      wrote.push(driftPath);
-      driftFile = driftPath;
-    } else {
-      rmSync(driftPath, { force: true });
+    if (writeOptions.recordBaseline !== false) {
+      // Written before the baseline moves, because after it nothing can say what moved (D98).
+      const driftPath = options.driftPath ?? riglinePaths().drift;
+      if (baseline && scansDiffer(diffs)) {
+        mkdirSync(dirname(driftPath), { recursive: true });
+        writeFileAtomic(driftPath, `${formatDiff(baseline.scan, scan, diffs, Infinity)}\n`);
+        wrote.push(driftPath);
+        driftFile = driftPath;
+      } else {
+        rmSync(driftPath, { force: true });
+      }
+      writeBaseline(baselinePath, scan);
+      wrote.push(baselinePath);
     }
-    writeBaseline(baselinePath, scan);
-    wrote.push(baselinePath);
   }
 
   return {

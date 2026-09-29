@@ -21,6 +21,8 @@ import {
   installedFingerprint,
 } from "../companion/fingerprint.ts";
 import { EXTENSIONS_DIR, installedExtensions } from "../extension/locate.ts";
+import { restoredSince } from "../inject/restored.ts";
+import { riglinePaths } from "../paths.ts";
 import { CORE_VERSION } from "../version.ts";
 import { type InstallState, installStates } from "./install.ts";
 
@@ -44,6 +46,8 @@ export interface DoctorReport {
    */
   readonly anchorOverrides: AnchorOverrides;
   readonly companion: CompanionReport;
+  /** When `restore` took Rigline out, while its mark holds it out (D111), or null. */
+  readonly restoredSince: string | null;
   /** Problems with the collection itself, not with anything it found. */
   readonly problems: readonly string[];
 }
@@ -58,6 +62,8 @@ export interface DoctorOptions {
   readonly anchorsPath?: string;
   /** The engine's `dist/bundled`, for the companion it carries. Defaults to this engine's. */
   readonly bundled?: string;
+  /** Where `restore`'s mark is. Defaults to `~/.rigline/restored`. */
+  readonly restoredPath?: string;
 }
 
 export function collect(options: DoctorOptions = {}): DoctorReport {
@@ -104,6 +110,7 @@ export function collect(options: DoctorOptions = {}): DoctorReport {
     installs,
     anchorOverrides: readAnchorOverrides(options.anchorsPath),
     companion: { carried, installed },
+    restoredSince: restoredSince(options.restoredPath ?? riglinePaths().restored),
     problems,
   };
 }

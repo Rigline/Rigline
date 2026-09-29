@@ -94,6 +94,7 @@ import {
   removePlugin,
   resetLayout,
   restoreAll,
+  restoredSince,
   riglinePaths,
   SKIP_PROFILES,
   saveFromPanel,
@@ -124,9 +125,10 @@ const USAGE = `rigline ${CORE_VERSION}
       in ~/.rigline/anchors.json is applied and named, with what this version makes of it.
       What moved since the baseline is listed in ~/.rigline/drift.txt. Rewrites the
       ./generated.ts rigline codegen wrote, when the directory has one, and records the new
-      baseline; never commits either. The report ends with what to reload, then anything
-      that needs you. --verbose adds paths, harvest counts, each host patch and the full
-      drift. Run it after an extension update. Exits 1 when a person is needed.
+      baseline; never commits either. --ext does neither, and does not undo a restore for
+      the installed versions. The report ends with what to reload, then anything that
+      needs you. --verbose adds paths, harvest counts, each host patch and the full drift.
+      Run it after an extension update. Exits 1 when a person is needed.
 
   rigline check [--ext DIR] [--verbose]
       Read-only. Per installed version (or DIR): whether it is injected and by which
@@ -333,6 +335,16 @@ function putBack(): void {
   }
 }
 
+/** What `status` and an `--ext` install say while a `restore` holds Rigline out (D111, D118). */
+function heldOut(): void {
+  const since = restoredSince(riglinePaths().restored);
+  if (since !== null) {
+    console.log(
+      `Rigline is out since \`rigline restore\` at ${since}; \`rigline install\` puts it back.`,
+    );
+  }
+}
+
 /**
  * Inject into every installed version and print the report.
  *
@@ -345,7 +357,10 @@ function putBack(): void {
  * about to create by installing the extension.
  */
 function reinject(options: ReinjectOptions = {}): number {
-  if (!options.companion) putBack();
+  // A directory named with `--ext` may be any copy, so it moves nothing kept about the installed set.
+  const named = options.exts !== undefined;
+  if (named) heldOut();
+  else if (!options.companion) putBack();
   const targets = options.exts ?? installedExtensions();
   if (targets.length === 0) {
     if (options.required) throw new UserError(noExtension());
@@ -362,7 +377,8 @@ function reinject(options: ReinjectOptions = {}): number {
     plugins: pluginOptions(),
     // Only where the directory already has one; this never creates a harvest for somebody who has
     // not asked for one, and it never commits what it rewrites (D30).
-    codegen: true,
+    codegen: !named,
+    recordBaseline: !named,
     lock: lockWait,
     ...(options.companion ? { restoredMark: riglinePaths().restored } : {}),
   });
@@ -861,12 +877,19 @@ function statusCommand(args: string[]): number {
   parseArgs({ args, options: {}, allowPositionals: false });
   const targets = installedExtensions();
   if (targets.length === 0) throw new UserError(noExtension());
-  for (const ext of targets) {
+  heldOut();
+  // Newest first, as `install` and `check` list them.
+  for (const ext of [...targets].reverse()) {
     try {
       const state = inspect(ext);
+      // A backup is written before the first injection, so neither it nor the loader means none.
+      const webview =
+        !state.backupExists && !state.markerPresent
+          ? "not injected"
+          : `${verdict(state)}${state.markerPresent ? " (marker present)" : ""}` +
+            `${state.backupExists ? "" : ", no backup"}`;
       console.log(
-        `${extensionVersion(ext)}: webview ${verdict(state)}${state.markerPresent ? " (marker present)" : ""}` +
-          `${state.backupExists ? "" : ", no backup"}; host ${hostVerdict(state)}` +
+        `${extensionVersion(ext)}: webview ${webview}; host ${hostVerdict(state)}` +
           `${state.hostBackupExists ? " (backup present)" : ""}`,
       );
     } catch (error) {
@@ -921,6 +944,11 @@ function restoreCommand(args: string[]): number {
   });
   for (const dir of cleared) {
     console.log(`removed: ${dir} (left by an install after VS Code deleted that version)`);
+  }
+  if (results.length === 0) {
+    console.log(
+      `No Claude Code extension is installed in ${EXTENSIONS_DIR}, so there was nothing to restore.`,
+    );
   }
   let notRestored = 0;
   let hostFailed = 0;

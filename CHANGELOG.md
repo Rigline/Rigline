@@ -98,6 +98,13 @@ anything may change between releases.
   `ERR_MODULE_NOT_FOUND`, and "no Claude Code extension is installed" says where it looked.
 - **For plugin authors:** a manifest key, capability or `api` this Rigline does not know says the
   plugin may have been written for a later Rigline, as an unknown `config.yaml` key does.
+- `rigline install --ext DIR` injects DIR and changes nothing else. It recorded DIR as the baseline
+  the next install compares against, rewrote a `generated.ts` in the directory you ran it from, and
+  undid a `rigline restore`, so the companion put Rigline back into the extension you had restored.
+- `rigline status` and `rigline doctor` say when a `rigline restore` is holding Rigline out.
+  `status` lists the newest version first, as `install` and `check` do, and a version Rigline never
+  injected reads "not injected" rather than "unknown, no backup". `rigline restore` with no Claude
+  Code installed says so.
 - The engine, started by a Node older than it supports, says which Node it needs and stops, where
   it failed part-way through the command with an error naming nothing.
 - So does `rigline` itself, before it installs or runs anything, naming the Node it was started by.

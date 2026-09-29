@@ -260,6 +260,24 @@ describe("a host patch that did not apply", () => {
   });
 });
 
+describe("recordBaseline: false (D118)", () => {
+  it("injects, and writes neither the baseline nor drift.txt", () => {
+    const ext = fixture();
+    const home = tempDir("rigline-home-");
+    const report = update({
+      exts: [ext],
+      dir: tempDir("rigline-cwd-"),
+      payloadDir: payload(),
+      baselinePath: join(home, "baseline.json"),
+      driftPath: join(home, "drift.txt"),
+      recordBaseline: false,
+    });
+    expect(report.versions[0]?.injected).toBe(true);
+    expect(report.wrote).toEqual([]);
+    expect(existsSync(join(home, "baseline.json"))).toBe(false);
+  });
+});
+
 describe("check", () => {
   it("writes nothing, and says so by leaving wrote empty", () => {
     const ext = fixture();

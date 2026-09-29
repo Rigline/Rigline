@@ -186,6 +186,81 @@ describe("a version that is not whole (W9, W10)", () => {
   });
 });
 
+describe("a directory named with --ext (W34, D118)", () => {
+  const copy = join(home, "copies", "anthropic.claude-code-2.1.263-win32-x64");
+  const rigline = (): string => join(home, ".rigline");
+  const generated = join(process.cwd(), "generated.ts");
+  const read = (path: string): string | null =>
+    existsSync(path) ? readFileSync(path, "utf8") : null;
+
+  beforeEach(() => {
+    writeFixtureExtension(copy);
+  });
+
+  afterEach(() => {
+    rmSync(join(home, "copies"), { recursive: true, force: true });
+    rmSync(rigline(), { recursive: true, force: true });
+  });
+
+  it("is injected, and moves nothing kept about the installed set", async () => {
+    const before = read(generated);
+    await runEngine(["install", "--ext", copy]);
+    expect(existsSync(join(copy, "webview", "rigline", "registry.js"))).toBe(true);
+    expect(existsSync(join(rigline(), "baseline.json"))).toBe(false);
+    expect(existsSync(join(rigline(), "drift.txt"))).toBe(false);
+    expect(read(generated)).toBe(before);
+  }, 60_000);
+
+  it("leaves a restore holding the installed versions out, and says so", async () => {
+    await runEngine(["restore"]);
+    await runEngine(["install", "--ext", copy]);
+    expect(existsSync(join(rigline(), "restored"))).toBe(true);
+    const lines = log.mock.calls.flat().map(String);
+    expect(
+      lines.some((line) => line.startsWith("Rigline is out since `rigline restore` at ")),
+    ).toBe(true);
+    expect(lines).not.toContain("Rigline was out since `rigline restore`; this puts it back.");
+  }, 60_000);
+});
+
+describe("status and restore (W34)", () => {
+  const older = join(EXTENSIONS_DIR, "anthropic.claude-code-2.1.263-win32-x64");
+  const newer = join(EXTENSIONS_DIR, "anthropic.claude-code-2.1.280-win32-x64");
+
+  afterEach(() => {
+    rmSync(EXTENSIONS_DIR, { recursive: true, force: true });
+    rmSync(join(home, ".rigline"), { recursive: true, force: true });
+  });
+
+  it("lists versions newest first, and one never injected as that", async () => {
+    writeFixtureExtension(older);
+    writeFixtureExtension(newer, "2.1.280");
+    expect(await runEngine(["status"])).toBe(0);
+    const lines = log.mock.calls.flat().map(String);
+    expect(lines.filter((line) => line.startsWith("2.1."))).toEqual([
+      "2.1.280: webview not injected; host vanilla",
+      "2.1.263: webview not injected; host vanilla",
+    ]);
+  });
+
+  it("says a restore is holding Rigline out", async () => {
+    writeFixtureExtension(older);
+    mkdirSync(join(home, ".rigline"), { recursive: true });
+    writeFileSync(join(home, ".rigline", "restored"), "2026-09-29T01:00:00.000Z\n");
+    expect(await runEngine(["status"])).toBe(0);
+    expect(log.mock.calls[0]?.[0]).toBe(
+      "Rigline is out since `rigline restore` at 2026-09-29T01:00:00.000Z; `rigline install` puts it back.",
+    );
+  });
+
+  it("says when there was nothing to restore", async () => {
+    expect(await runEngine(["restore"])).toBe(0);
+    expect(log.mock.calls.flat()).toContain(
+      `No Claude Code extension is installed in ${EXTENSIONS_DIR}, so there was nothing to restore.`,
+    );
+  });
+});
+
 describe("dev (W2)", () => {
   const plugins = (): string => join(home, ".rigline", "plugins");
   const ext = join(EXTENSIONS_DIR, "anthropic.claude-code-2.1.263-win32-x64");

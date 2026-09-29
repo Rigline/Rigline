@@ -20,7 +20,7 @@ takes 1.0.0-alpha.13 to 1.0.0 correctly, and every curated anchor still resolves
 - **Both lists commit to `main`.** Pull before starting and before each batch; commit small, tick
   the item (`[x]`) in the same commit as its fix, and push straight after, so the other machine sees
   it. A conflict in `CHANGELOG.md`'s `## Unreleased` keeps both entries.
-- **Decision numbers.** The next free one is D118. Pull before taking one, and push the commit that
+- **Decision numbers.** The next free one is D119. Pull before taking one, and push the commit that
   takes it at once. A fix that moves a recorded decision amends it and says so.
 - **The repo's rules hold**: root `CLAUDE.md`, and planning a batch before coding it (its plan in
   `.local/plans/` on the machine doing it). The Mac has no corpus at `c:/dev/kb`, so the corpus tier
@@ -281,7 +281,7 @@ asks rather than building around it.
   unknown manifest key or `api: 2` could suggest a later Rigline, as the config message does.
   `rigline help`, the engine's `--version` and `VERB --help` all say "unknown". The usage opens with
   the maintainer verbs.
-- [ ] **W34. The engine's behaviour.** `install --ext DIR` injects DIR alone but keeps the global
+- [x] **W34. The engine's behaviour.** `install --ext DIR` injects DIR alone but keeps the global
   bookkeeping of a full install (`flow.ts:616-643`, `main.ts:307`): `baseline.json` and `drift.txt`
   move to DIR's version, a `generated.ts` in the working directory is rewritten from it, and the
   `restored` mark is cleared with "this puts it back", so the companion re-injects the real

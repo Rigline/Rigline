@@ -2843,7 +2843,8 @@ standing offer, and it failed to recover three ways.
   nothing while the mark is there, says why, and exits 1: to the companion that means only that a
   person is wanted (D82). `layout save`, which only the companion runs, saves and does not inject.
   Every injection a person runs takes the mark away and says so: `install`, each command that
-  re-injects, `watch` and `dev`. The mark is written and read under the injection lock, so a
+  re-injects, `watch` and `dev`, but not `install --ext` (D118). The mark is written and read under
+  the injection lock, so a
   companion install that waited on a `restore` finds it. `--companion` is part of what the
   companion relies on, for the major.
 - **No backup blanked a working panel.** An injection is exactly `PRE + original + POST`, so the
@@ -2983,3 +2984,15 @@ edit — `config.yaml`, `anchors.json`, a plugin's `rigline.json` — with a sen
 Rigline's: the backups, the payload, `baseline.json`, `sources.json`. What a person deletes or edits
 there is neither detected nor repaired, and reinstalling Claude Code, then running `install`, is the
 way back.
+
+**D118. A directory named with `--ext` is all an install touches (2026-09-29, Leo).** `install --ext
+DIR` injected DIR alone, then kept the bookkeeping of a full install: it recorded DIR's harvest as
+the baseline, with `drift.txt`, rewrote a `generated.ts` in the working directory from it, and took
+`restore`'s mark away with "this puts it back". DIR is usually a copy, since that is what a test or
+a rehearsal against somebody else's bundle points at. So the next install reported drift against a
+version nobody had installed, a checkout's committed `generated.ts` moved to the copy's version, and
+at the next window start the companion put Rigline back into an extension a person had restored.
+
+With `--ext`, `install` still reads the baseline and reports what moved, and writes none of the
+three. The mark stays, and the report says Rigline is still out. This narrows D111: an injection
+that names its directory is not the one that puts Rigline back.

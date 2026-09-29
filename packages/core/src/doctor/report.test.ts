@@ -25,6 +25,7 @@ function reportWith(overrides: Partial<DoctorReport> = {}): DoctorReport {
     installs: [],
     anchorOverrides: NO_ANCHOR_OVERRIDES,
     companion: { carried: null, installed: [] },
+    restoredSince: null,
     problems: [],
     ...overrides,
   };
@@ -51,6 +52,15 @@ describe("formatDoctor", () => {
     expect(text.startsWith("# rigline doctor\n")).toBe(true);
     expect(text).toContain("rigline 1.0.0-alpha.0 on win32, node v26.5.0");
     expect(text).toContain("No Claude Code extension directory was found.");
+  });
+
+  it("says when a restore is holding Rigline out, in local time", () => {
+    expect(formatDoctor(reportWith())).not.toContain("held out");
+    const text = formatDoctor(reportWith({ restoredSince: new Date(AT).toISOString() }));
+    expect(text).toContain(
+      `- held out: \`rigline restore\` took Rigline out at ${formatTime(AT)} (local time), ` +
+        "and it stays out until a person injects",
+    );
   });
 
   it("shortens the home directory in every spelling a path takes", () => {

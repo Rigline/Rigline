@@ -200,6 +200,14 @@ export function formatDoctor(report: DoctorReport): string {
     `- rigline ${report.riglineVersion} on ${report.platform}, node ${report.nodeVersion}`,
   );
   lines.push("- home paths are shortened to `~`");
+  if (report.restoredSince !== null) {
+    const at = Date.parse(report.restoredSince);
+    lines.push(
+      `- held out: \`rigline restore\` took Rigline out at ` +
+        `${Number.isNaN(at) ? report.restoredSince : `${formatTime(at)} (local time)`}, and it ` +
+        "stays out until a person injects",
+    );
+  }
   lines.push("");
   for (const problem of report.problems) lines.push(`> ${abbreviate(problem, home)}`, "");
 
