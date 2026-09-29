@@ -99,7 +99,10 @@ describe("readEngineState", () => {
 describe("majorProblem", () => {
   it("passes a matching major and refuses a different one by name", () => {
     expect(majorProblem("1.0.0-alpha.6", "1.2.3")).toBeNull();
-    expect(majorProblem("1.0.0", "2.0.0")).toContain("rigline 1.x cannot run engine 2.x");
+    expect(majorProblem("1.0.0", "2.0.0")).toBe(
+      `rigline 1.x cannot run engine 2.x (${ENGINE_PACKAGE} 2.0.0). Run npm i -g rigline@latest, ` +
+        "then rigline vscode-setup if you use the companion.",
+    );
   });
 
   it("says nothing about a version it cannot read, rather than guessing", () => {

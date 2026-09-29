@@ -110,6 +110,8 @@ anything may change between releases.
   green over an unpatched panel until the notification was answered, which one left in the
   notification centre never is. Taking the reload from that notification and from the one a click
   on the status put up reloads once.
+- `rigline`, refusing an engine of another major version, names both steps, as the companion
+  does: `npm i -g rigline@latest`, then `rigline vscode-setup` if you use the companion.
 - On macOS and Linux, the companion no longer runs the engine in the directory VS Code was started
   from. After `code .` in a plugin workspace, it took that workspace's `generated.ts` for its
   record of Claude Code's identifiers, rewrote it after each Claude Code update, and said it needed

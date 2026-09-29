@@ -77,7 +77,7 @@ file.
   the first toast is pending, clicking the item asks again, so answering both could reload twice:
   after the `await`, act only if the offer answered is still the outstanding one. A test leaves a
   toast pending. companion.md's "Dismissed, the status item reads…" becomes "Once offered…".
-- [ ] **M10. The wrong-major message omits the second step.** stability.md's *A major version*
+- [x] **M10. The wrong-major message omits the second step.** stability.md's *A major version*
   promises the wrapper and the companion each say "`npm i -g rigline@latest`, then `rigline
   vscode-setup`"; the wrapper says only the first.
 - [ ] **M11. The companion's README and messages.** Its install step is `code --install-extension

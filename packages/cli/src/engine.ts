@@ -98,9 +98,11 @@ export function majorProblem(wrapper: string, engine: string): string | null {
   const ours = majorOf(wrapper);
   const theirs = majorOf(engine);
   if (ours === null || theirs === null || ours === theirs) return null;
+  // Both steps, as stability.md promises, and the second only for somebody who uses the companion,
+  // since declining it must cost nothing (D80).
   return (
     `rigline ${ours}.x cannot run engine ${theirs}.x (${ENGINE_PACKAGE} ${engine}). ` +
-    "Run npm i -g rigline@latest."
+    "Run npm i -g rigline@latest, then rigline vscode-setup if you use the companion."
   );
 }
 
