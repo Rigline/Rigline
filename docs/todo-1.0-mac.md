@@ -148,7 +148,9 @@ After W1 and W2 have landed and been pulled, all in a scratch `HOME` and `RIGLIN
   checkout's engine: `install` injected the bundle and patched `extension.js`, and after `restore`
   the directory differs from the vanilla copy only by the two backups, which equal the originals.
   M23's copy, after `add` and a `dev` cycle, restores to the same bytes.
-- [ ] **M25.** The full `pnpm test` passes on macOS.
+- [x] **M25.** The full `pnpm test` passes on macOS. **Found:** at `4189e35`, after `pnpm format`,
+  `lint`, `typecheck` and `build`, all clean: 84 files and 1345 tests pass, 6 files and 148 tests
+  skip, every one of them for the corpus at `c:/dev/kb`, which the harness also needs.
 
 ## Live reads, with Leo
 
