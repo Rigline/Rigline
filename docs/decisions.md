@@ -2968,3 +2968,18 @@ green, as it does over a major it cannot follow (D99). And as with the age gate,
 held: there is nothing to stay on, and an engine installed below its floor refuses at start with the
 same sentence, which the install would only have said sooner. Only a `>=MAJOR.MINOR.PATCH` range is
 read, as the engine's own start check reads one; any other is let through rather than guessed at.
+
+**D117. What a person breaks by hand in Rigline's own files is unsupported (2026-09-29, Leo).**
+W14 asked `restore` to reverse a host patch whose `extension.js.orig` had gone, working from the
+manifests baked into the payload. Rigline cannot lose that backup: it is written before the patch
+lands, atomically, and nothing of Rigline's deletes one. Only a person or another tool can, and what
+can be done by hand is unbounded, so handling it covers only the cases somebody thought of. This one
+would also have been wrong: with no backup, a reversal cannot tell a lost backup from a Claude Code
+build that ships the replaced bytes itself, and would write the old bytes into that build.
+
+So Rigline recovers from its own failures, such as a write cut short (D114) or a version VS Code
+deleted under an install (D113), and meets whatever a person writes into the files it tells them to
+edit — `config.yaml`, `anchors.json`, a plugin's `rigline.json` — with a sentence. The rest is
+Rigline's: the backups, the payload, `baseline.json`, `sources.json`. What a person deletes or edits
+there is neither detected nor repaired, and reinstalling Claude Code, then running `install`, is the
+way back.

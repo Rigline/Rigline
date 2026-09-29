@@ -20,7 +20,7 @@ takes 1.0.0-alpha.13 to 1.0.0 correctly, and every curated anchor still resolves
 - **Both lists commit to `main`.** Pull before starting and before each batch; commit small, tick
   the item (`[x]`) in the same commit as its fix, and push straight after, so the other machine sees
   it. A conflict in `CHANGELOG.md`'s `## Unreleased` keeps both entries.
-- **Decision numbers.** The next free one is D116. Pull before taking one, and push the commit that
+- **Decision numbers.** The next free one is D118. Pull before taking one, and push the commit that
   takes it at once. A fix that moves a recorded decision amends it and says so.
 - **The repo's rules hold**: root `CLAUDE.md`, and planning a batch before coding it (its plan in
   `.local/plans/` on the machine doing it). The Mac has no corpus at `c:/dev/kb`, so the corpus tier
@@ -150,15 +150,8 @@ asks rather than building around it.
   it (`baseline.ts:84-91`), and it is rewritten at every companion window start. **Fix:** write it
   as W12 does, and treat an unreadable one as absent, since it is bookkeeping stability.md does not
   keep. The same write for `config.yaml` and `sources.json` (`plugins/config.ts:120,263,280,283`).
-- [ ] **W14.** *Optional.* **A lost `extension.js.orig` leaves the host patch for good**, and
-  `restore`, `status` and `doctor` all say vanilla (`inject.ts:176-177`, `:229-231`, `:738`).
-  Reverse it from the baked manifests under `webview/rigline/plugins/*/rigline.json`, which carry
-  each patch's find and replace. It needs the backup deleted. Only a person or another tool can
-  cause it: the backup is written before the live file, and nothing of Rigline's deletes one. It
-  lasts until the next Claude Code update replaces the directory, and `install` meanwhile reports
-  the patch as refused, since `find` matches nowhere. **The reversal is unsafe**: with no backup it
-  cannot tell a lost backup from a Claude Code build that ships the `replace` bytes itself, and
-  would write the old bytes into that build. A report in `status` and `doctor` is the safe half.
+- [x] **W14.** *Closed as unsupported (D117).* A lost `extension.js.orig` leaves the host patch in
+  place, and only hand damage loses one.
 - [x] **W43. `remove`, and replacing a plugin, over a link.** `remove` deletes a plugin's directory
   in `~/.rigline/plugins` whether or not `add` put it there (`plugins/manage.ts:298`), which is
   right, since the directory is Rigline's; its usage says such a plugin is only switched off, which
@@ -353,6 +346,6 @@ optional items.
 
 ## Handed over to the Mac
 
-- [ ] **From W43.** `packages/cli/README.md:73` says `rigline remove` deletes "a plugin rigline
+- [x] **From W43.** `packages/cli/README.md:73` says `rigline remove` deletes "a plugin rigline
   installed". It deletes whatever is in `~/.rigline/plugins` under that name, and refuses a link
   there; the engine's usage now says "Delete a plugin from ~/.rigline/plugins, however it got there".

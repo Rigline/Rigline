@@ -1,6 +1,8 @@
 /**
  * The Node floor, asked before anything else loads: below it the engine dies part-way through a
  * command, naming nothing. The one module that runs on an old Node, so it stays plain.
+ *
+ * The wrapper reads `engines.node` the same way in `packages/cli/src/floor.ts` (D69).
  */
 import { readFileSync } from "node:fs";
 
