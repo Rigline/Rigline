@@ -229,6 +229,11 @@ superseded versions, so snapshot a new one there before it goes, from its `.orig
 [docs/verification.md](docs/verification.md) has the recipe. Older VSIXs can be fetched from
 the Marketplace.
 
+The CLI is in none of them. It is `resources/native-binary/claude.exe` in the installed extension,
+a Bun build whose JavaScript `grep -a -o '.{300}some phrase.{300}'` reads, and each running CLI
+process describes itself in `~/.claude/sessions/<pid>.json`. Read the CLI there before inferring
+its behaviour from what reaches the panel.
+
 ## Workflow
 
 Work on `main` and commit straight to it; commit at each checkpoint rather than accumulating a

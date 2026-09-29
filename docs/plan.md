@@ -553,3 +553,5 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
 - 2026-09-28: `SECURITY.md`, through GitHub's private vulnerability reporting.
 - 2026-09-29: List W's required items (D114, D115; D44, D56, D61, D104 and D110 amended), and the
   compliance page and plugin policy say what a plugin may change on the machine (D77 amended).
+- 2026-09-29: Optional W7, W33 and W34 (D118, D111 narrowed), W14 closed as unsupported (D117), and
+  the Windows CI job runs under bash, having run nothing under PowerShell (W46, W47).
