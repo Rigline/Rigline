@@ -283,6 +283,13 @@ describe("readAnchorOverrides", () => {
     expect(result.table.composer?.refine).toBe("[data-composer]");
     expect(ANCHORS.composer).not.toHaveProperty("refine");
   });
+
+  it("reads one written with a byte order mark, as PowerShell 5 and Notepad write it", () => {
+    const body = JSON.stringify({ anchors: { composer: { refine: "[data-composer]", why: "x" } } });
+    const result = readAnchorOverrides(fileWith(`${String.fromCharCode(0xfeff)}${body}`));
+    expect(result.problems).toEqual([]);
+    expect(result.names).toEqual(["composer"]);
+  });
 });
 
 describe("anchorOverrideOutcomes", () => {

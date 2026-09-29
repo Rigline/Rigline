@@ -8,6 +8,8 @@ import {
 } from "./manifest.ts";
 
 const minimal = { api: 1, name: "demo", entry: "dist/index.js" };
+const LATER =
+  "; fix it if it is a typo, or run `rigline update` if the plugin was written for a later Rigline";
 
 describe("validateManifest", () => {
   it("fills every uses key and all surfaces for a minimal manifest", () => {
@@ -61,11 +63,11 @@ describe("validateManifest", () => {
     );
     expect(manifest).toBeNull();
     expect(problems).toEqual([
-      '"api" must be 1, got 2',
+      '"api" is 2, which this version of Rigline does not know; the plugin was written for a later Rigline',
       '"name" must be a lowercase package-name segment, got "Demo"',
       '"entry" must be a non-empty relative path',
       '"surfaces" contains "popup"; expected editor, sidebar, sessionList',
-      '"uses.bogus" is not a capability this version of Rigline knows',
+      `"uses.bogus" is not a capability this version of Rigline knows${LATER}`,
       '"uses.anchors" must be an array of anchor names',
       '"uses.tools" must be true or false, got "yes"',
       '"patches[0]" needs a non-empty string "why"',
@@ -92,7 +94,7 @@ describe("validateManifest", () => {
 
   it("refuses a top-level key it does not know, as a later 1.x's plugin would carry one", () => {
     expect(validateManifest({ ...minimal, settings: {} }, "demo").problems).toEqual([
-      '"settings" is not a key this version of Rigline knows',
+      `"settings" is not a key this version of Rigline knows${LATER}`,
     ]);
   });
 
@@ -133,7 +135,7 @@ describe("validateManifest and uses.optional", () => {
 
   it("refuses an unknown key on either side, and refuses to nest optional inside itself", () => {
     expect(withOptional({ nonsense: [] }).problems).toEqual([
-      '"uses.optional.nonsense" is not a capability this version of Rigline knows',
+      `"uses.optional.nonsense" is not a capability this version of Rigline knows${LATER}`,
     ]);
     expect(withOptional({ optional: {} }).problems).toEqual([
       '"uses.optional.optional" is not a capability this version of Rigline knows',

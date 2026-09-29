@@ -15,7 +15,14 @@
  * with its stack, so a bug is never dressed up as advice.
  */
 import { spawn } from "node:child_process";
-import { existsSync, watch as fsWatch, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  watch as fsWatch,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
@@ -111,21 +118,6 @@ const lockWait: InjectionLockOptions = {
 
 const USAGE = `rigline ${CORE_VERSION}
 
-  rigline codegen [DIR] [--check] [--out FILE]
-      Harvest the installed extension (or DIR) and write ./generated.ts: the identifier
-      augmentation your plugins compile against, and the baseline install diffs. Commit it.
-      --check compares instead of writing and exits 1 when the file is out of date. Either
-      way it exits 1 if a curated anchor claims to name one element and this version
-      applies its class in more than one place. It reads the shipped anchor table, never
-      ~/.rigline/anchors.json: its verdict is about this repository's table.
-
-  rigline diff DIR_A DIR_B
-      Compare the identifier layers of two extension directories.
-
-  rigline build [DIR] [--source FILE]
-      Bundle a plugin's src/index.ts or src/index.tsx (or --source) into the entry its
-      rigline.json names.
-
   rigline install [--ext DIR] [--verbose]
       Inject the loader into every installed extension version (or DIR), baking the enabled
       plugins, and report which plugins each version loads and which it refuses. Any entry
@@ -145,11 +137,6 @@ const USAGE = `rigline ${CORE_VERSION}
   rigline watch [--interval SECONDS] [--verbose]
       install, and again whenever the set of installed extension directories changes,
       which is what an extension update looks like from outside VS Code.
-
-  rigline dev DIR...
-      Build each plugin directory, install it as add does, and re-inject; then again on
-      every source change. Reload webviews after each one. The last build stays installed
-      when it stops.
 
   rigline add PATH|SPEC [--now]
       Install a plugin into ~/.rigline/plugins, say what it can do, and re-inject. PATH is a
@@ -217,7 +204,57 @@ const USAGE = `rigline ${CORE_VERSION}
       patched, what the payload holds, which plugins are baked in and what any host patch
       did. For what the panel itself was doing, use Diagnostics, then Copy report, in
       Rigline's menu.
+
+For writing plugins:
+
+  rigline build [DIR] [--source FILE]
+      Bundle a plugin's src/index.ts or src/index.tsx (or --source) into the entry its
+      rigline.json names.
+
+  rigline dev DIR...
+      Build each plugin directory, install it as add does, and re-inject; then again on
+      every source change. Reload webviews after each one. The last build stays installed
+      when it stops.
+
+  rigline codegen [DIR] [--check] [--out FILE]
+      Harvest the installed extension (or DIR) and write ./generated.ts: the identifier
+      augmentation your plugins compile against, and the baseline install diffs. Commit it.
+      --check compares instead of writing and exits 1 when the file is out of date. Either
+      way it exits 1 if a curated anchor claims to name one element and this version
+      applies its class in more than one place. It reads the shipped anchor table, never
+      ~/.rigline/anchors.json: its verdict is about this repository's table.
+
+  rigline diff DIR_A DIR_B
+      Compare the identifier layers of two extension directories.
 `;
+
+/** The usage's block for `verb`, or null for a verb it leaves out. */
+function usageFor(verb: string): string | null {
+  const heading = `rigline ${verb}`;
+  const block = USAGE.split("\n\n").find((lines) =>
+    lines.split("\n").some((line) => {
+      const text = line.trim();
+      return text === heading || text.startsWith(`${heading} `);
+    }),
+  );
+  return block ?? null;
+}
+
+function helpCommand(args: string[]): number {
+  const { positionals } = parseArgs({ args, options: {}, allowPositionals: true });
+  if (positionals.length > 1) throw new UserError("help takes at most one command");
+  const [verb] = positionals;
+  const text = verb === undefined ? USAGE : usageFor(verb);
+  if (text === null) throw new UserError(`unknown command "${verb}"\n\n${USAGE}`);
+  console.log(text);
+  return 0;
+}
+
+function versionCommand(args: string[]): number {
+  parseArgs({ args, options: {}, allowPositionals: false });
+  console.log(`@rigline/core ${CORE_VERSION}`);
+  return 0;
+}
 
 /**
  * Every discovery root, in precedence and load order (D56, D71).
@@ -285,6 +322,10 @@ interface ReinjectOptions {
   readonly companion?: boolean;
 }
 
+function noExtension(): string {
+  return `no Claude Code extension is installed in ${EXTENSIONS_DIR}`;
+}
+
 /** A person's injection puts Rigline back after a `restore`, and says so (D111). */
 function putBack(): void {
   if (clearRestored(riglinePaths().restored)) {
@@ -307,8 +348,10 @@ function reinject(options: ReinjectOptions = {}): number {
   if (!options.companion) putBack();
   const targets = options.exts ?? installedExtensions();
   if (targets.length === 0) {
-    if (options.required) throw new UserError("no Claude Code extension is installed");
-    console.log("No Claude Code extension is installed, so nothing was injected.");
+    if (options.required) throw new UserError(noExtension());
+    console.log(
+      `No Claude Code extension is installed in ${EXTENSIONS_DIR}, so nothing was injected.`,
+    );
     if (options.reload !== undefined) console.log(`\n${options.reload}`);
     return 0;
   }
@@ -817,7 +860,7 @@ function companionStatusCommand(args: string[]): number {
 function statusCommand(args: string[]): number {
   parseArgs({ args, options: {}, allowPositionals: false });
   const targets = installedExtensions();
-  if (targets.length === 0) throw new UserError("no Claude Code extension is installed");
+  if (targets.length === 0) throw new UserError(noExtension());
   for (const ext of targets) {
     try {
       const state = inspect(ext);
@@ -861,6 +904,7 @@ function doctorCommand(args: string[]): number {
     return 0;
   }
   const out = resolve(values.out);
+  mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, markdown);
   const versions = report.installs.length;
   console.log(`wrote ${out}: ${versions} extension ${versions === 1 ? "version" : "versions"}`);
@@ -954,6 +998,7 @@ function codegen(args: string[]): number {
     return ambiguous ? 1 : 0;
   }
 
+  mkdirSync(dirname(resolve(out)), { recursive: true });
   writeFileSync(out, generated.source);
   console.log(`source: ${ext}`);
   console.log(`${generated.tables.version}: ${generated.counts}`);
@@ -1088,7 +1133,7 @@ async function dev(args: string[]): Promise<number> {
   if (dirs.length === 0) throw new UserError("no plugin directories to develop");
 
   const exts = installedExtensions();
-  if (exts.length === 0) throw new UserError("no Claude Code extension is installed");
+  if (exts.length === 0) throw new UserError(noExtension());
   putBack();
 
   // `install`, `check` and `watch` read `~/.rigline/anchors.json` through the flow, which owns user
@@ -1220,6 +1265,11 @@ const SETTINGS_VERBS = new Set([
 
 async function main(argv: string[]): Promise<number> {
   const [command, ...rest] = argv;
+  const verbUsage = command === undefined ? null : usageFor(command);
+  if (verbUsage !== null && (rest.includes("--help") || rest.includes("-h"))) {
+    console.log(verbUsage);
+    return 0;
+  }
   if (command !== undefined && SETTINGS_VERBS.has(command)) {
     const paths = riglinePaths();
     // On stderr, so `list --json` and `doctor` still print only what they are for.
@@ -1271,6 +1321,11 @@ async function main(argv: string[]): Promise<number> {
       return restoreCommand(rest);
     case "doctor":
       return doctorCommand(rest);
+    case "help":
+      return helpCommand(rest);
+    case "--version":
+    case "-v":
+      return versionCommand(rest);
     case undefined:
     case "--help":
     case "-h":

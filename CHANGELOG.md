@@ -21,6 +21,9 @@ anything may change between releases.
 - `rigline --version` refuses anything after it, as every other command does, where it ignored it.
 - The companion's `rigline.nodePath` setting stays on the machine it was set on. Settings Sync
   carried it to other machines, where a path from a Mac left a Windows machine with *no Node*.
+- `rigline help` prints the usage, and `rigline help COMMAND` or `rigline COMMAND --help` prints
+  that command's part of it, where each said the command was unknown. The usage lists the commands
+  you use before the ones for writing plugins.
 
 ### Fixed
 
@@ -88,6 +91,13 @@ anything may change between releases.
 - A layout place in `config.yaml` that Rigline does not know — a typo, or a place a later Rigline
   added — is named under *Needs you*, and the command exits 1, as an unknown key already was. It
   was only noted, while the elements under it went back to their defaults.
+- `rigline doctor --out` and `rigline codegen --out` make the directory they write into, where they
+  stopped with a stack trace. An `anchors.json` or `rigline.json` saved with a byte order mark, as
+  PowerShell 5 and Notepad save them, is read, where it was refused over a character nobody could
+  see. An engine missing one of its own packages says how to mend it, where Node printed
+  `ERR_MODULE_NOT_FOUND`, and "no Claude Code extension is installed" says where it looked.
+- **For plugin authors:** a manifest key, capability or `api` this Rigline does not know says the
+  plugin may have been written for a later Rigline, as an unknown `config.yaml` key does.
 - The engine, started by a Node older than it supports, says which Node it needs and stops, where
   it failed part-way through the command with an error naming nothing.
 - So does `rigline` itself, before it installs or runs anything, naming the Node it was started by.

@@ -136,6 +136,9 @@ export const MANIFEST_KEYS = [
 /** Every key a `patches` entry may carry, likewise. */
 export const PATCH_KEYS: readonly string[] = ["find", "replace", "why", "required"];
 const NAME = new RegExp(NAME_PATTERN);
+/** After a key a later 1.x may have added, as D110 words it for `config.yaml`. */
+const LATER =
+  "; fix it if it is a typo, or run `rigline update` if the plugin was written for a later Rigline";
 
 /** One half of `uses`, shape-checked contract by contract, with every omitted key left empty. */
 function declarationsOf(
@@ -218,11 +221,18 @@ export function validateManifest(
   // of loading without the key it relies on (docs/stability.md).
   for (const key of Object.keys(value)) {
     if (!(MANIFEST_KEYS as readonly string[]).includes(key)) {
-      problems.push(`"${key}" is not a key this version of Rigline knows`);
+      problems.push(`"${key}" is not a key this version of Rigline knows${LATER}`);
     }
   }
 
-  if (value.api !== 1) problems.push(`"api" must be 1, got ${JSON.stringify(value.api)}`);
+  if (typeof value.api === "number" && Number.isInteger(value.api) && value.api > 1) {
+    problems.push(
+      `"api" is ${value.api}, which this version of Rigline does not know; the plugin was ` +
+        "written for a later Rigline",
+    );
+  } else if (value.api !== 1) {
+    problems.push(`"api" must be 1, got ${JSON.stringify(value.api)}`);
+  }
 
   const name = value.name;
   if (typeof name !== "string" || !NAME.test(name)) {
@@ -276,7 +286,7 @@ export function validateManifest(
     const known = new Set<string>([...CONTRACTS.map((c) => c.key), "optional"]);
     for (const key of Object.keys(rawUses)) {
       if (!known.has(key)) {
-        problems.push(`"uses.${key}" is not a capability this version of Rigline knows`);
+        problems.push(`"uses.${key}" is not a capability this version of Rigline knows${LATER}`);
       }
     }
     required = declarationsOf(rawUses, "uses", problems);
@@ -287,7 +297,10 @@ export function validateManifest(
     } else if (rawOptional !== undefined) {
       for (const key of Object.keys(rawOptional)) {
         if (key === "optional" || !known.has(key)) {
-          problems.push(`"uses.optional.${key}" is not a capability this version of Rigline knows`);
+          problems.push(
+            `"uses.optional.${key}" is not a capability this version of Rigline knows` +
+              (key === "optional" ? "" : LATER),
+          );
         }
       }
       optional = declarationsOf(rawOptional, "uses.optional", problems);

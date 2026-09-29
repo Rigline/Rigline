@@ -30,6 +30,7 @@ import {
   type ValidManifest,
 } from "@rigline/plugin-api/internal";
 import { UserError } from "../errors.ts";
+import { parseJson } from "../json.ts";
 import {
   addToList,
   editConfig,
@@ -359,7 +360,7 @@ function declaredName(dir: string): string {
 /** The `name` a manifest text gives itself, or null when there is nothing readable to take. */
 function nameInJson(json: string): string | null {
   try {
-    const value: unknown = JSON.parse(json);
+    const value: unknown = parseJson(json);
     const name = (value as { name?: unknown } | null)?.name;
     return typeof name === "string" ? name : null;
   } catch {

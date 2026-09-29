@@ -21,6 +21,7 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import { ANCHORS, type AnchorSpec, SURFACES } from "@rigline/plugin-api/internal";
+import { parseJson } from "../json.ts";
 import type { Classes } from "../layers/index.ts";
 import { riglinePaths } from "../paths.ts";
 import { type AnchorTable, resolveAnchors } from "./resolve.ts";
@@ -102,7 +103,7 @@ export function readAnchorOverrides(path: string = riglinePaths().anchors): Anch
   }
   let raw: unknown;
   try {
-    raw = JSON.parse(readFileSync(path, "utf8"));
+    raw = parseJson(readFileSync(path, "utf8"));
   } catch (error) {
     return {
       ...NO_ANCHOR_OVERRIDES,

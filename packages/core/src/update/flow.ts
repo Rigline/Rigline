@@ -34,7 +34,7 @@ import {
   UserError,
 } from "../errors.ts";
 import { readBundles, wholenessProblem } from "../extension/bundles.ts";
-import { extensionVersion, installedExtensions } from "../extension/locate.ts";
+import { EXTENSIONS_DIR, extensionVersion, installedExtensions } from "../extension/locate.ts";
 import {
   verdict as bundleVerdict,
   clearLeftovers,
@@ -510,7 +510,7 @@ function settle(
       wrote: [],
       cleared,
       attention: [
-        "no Claude Code extension is installed",
+        `no Claude Code extension is installed in ${options.extensionsDir ?? EXTENSIONS_DIR}`,
         ...configProblems,
         ...overrides.problems,
         ...unloaded,

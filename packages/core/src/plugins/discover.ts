@@ -26,6 +26,7 @@ import {
 } from "@rigline/plugin-api/internal";
 import { ManifestError, UserError } from "../errors.ts";
 import { type DeclaredPatch, type PatchOutcome, patchRefusal } from "../inject/hostpatch.ts";
+import { parseJson } from "../json.ts";
 import { CORE_VERSION } from "../version.ts";
 import type { PluginsConfig } from "./config.ts";
 
@@ -97,7 +98,7 @@ export interface ManifestCheck {
 export function checkManifest(check: ManifestCheck): ValidManifest {
   let value: unknown;
   try {
-    value = JSON.parse(check.json);
+    value = parseJson(check.json);
   } catch (error) {
     throw new UserError(`${check.label} is not valid JSON: ${(error as Error).message}`);
   }

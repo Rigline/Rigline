@@ -472,7 +472,7 @@ describe("the report a person reads", () => {
     expect(report.versions[0]?.action).toBe("injected");
     expect(report.versions[0]?.enabled).toEqual(["fine"]);
     expect(report.attention).toContainEqual(
-      `"newer" is not loaded: ${manifest} does not hold: "later" is not a key this version of Rigline knows`,
+      `"newer" is not loaded: ${manifest} does not hold: "later" is not a key this version of Rigline knows; fix it if it is a typo, or run \`rigline update\` if the plugin was written for a later Rigline`,
     );
   });
 

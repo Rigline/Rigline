@@ -185,7 +185,7 @@ describe("discoverPlugins", () => {
 
     expect(found.map((p) => p.name)).toEqual(["alpha", "zeta"]);
     expect(refused).toEqual([
-      `"newer" is not loaded: ${join(root, "newer", "rigline.json")} does not hold: "settings" is not a key this version of Rigline knows`,
+      `"newer" is not loaded: ${join(root, "newer", "rigline.json")} does not hold: "settings" is not a key this version of Rigline knows; fix it if it is a typo, or run \`rigline update\` if the plugin was written for a later Rigline`,
     ]);
   });
 

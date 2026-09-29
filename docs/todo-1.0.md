@@ -270,8 +270,9 @@ asks rather than building around it.
 
 ### Optional, any 1.x
 
-- [ ] **W33. The engine's messages.** `doctor --out` and `codegen --out` to a missing directory
-  throw `ENOENT` (`main.ts:843`, `:932`), and `doctor` prints a raw `ENOENT` as a problem. An engine
+- [x] **W33. The engine's messages.** `doctor --out` and `codegen --out` to a missing directory
+  throw `ENOENT` (`main.ts:843`, `:932`), and `doctor` prints a raw `ENOENT` as a problem (W9's
+  already). An engine
   missing a dependency dies with `ERR_MODULE_NOT_FOUND` rather than the README's "delete it and run
   again". The release-age refusal ends "(D44)" (`core/src/plugins/npm.ts:196`, and the wrapper's
   copy at `cli/src/registry.ts:127`, which is list M's). "No Claude Code extension is installed"
@@ -349,3 +350,6 @@ optional items.
 - [x] **From W43.** `packages/cli/README.md:73` says `rigline remove` deletes "a plugin rigline
   installed". It deletes whatever is in `~/.rigline/plugins` under that name, and refuses a link
   there; the engine's usage now says "Delete a plugin from ~/.rigline/plugins, however it got there".
+- [ ] **From W33.** The release-age refusal in `packages/cli/src/registry.ts:131` ends "(D44)"; core's
+  copy in `packages/core/src/plugins/npm.ts` no longer does, and reads "...is a local edit rather
+  than a release. Wait, or pass --now."

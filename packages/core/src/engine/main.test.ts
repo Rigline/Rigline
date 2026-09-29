@@ -73,6 +73,49 @@ describe("runEngine", () => {
   });
 });
 
+describe("help and the version (W33)", () => {
+  const printed = (): string => log.mock.calls.flat().join("\n");
+
+  it("lists a user's verbs before the ones for writing plugins", async () => {
+    expect(await runEngine(["help"])).toBe(0);
+    const usage = printed();
+    expect(usage.indexOf("rigline install")).toBeLessThan(usage.indexOf("rigline codegen"));
+    expect(usage.indexOf("For writing plugins:")).toBeLessThan(usage.indexOf("rigline build"));
+  });
+
+  it.each([[["help", "remove"]], [["remove", "--help"]], [["remove", "NAME", "-h"]]])(
+    "prints one verb's part of the usage for %j",
+    async (argv) => {
+      expect(await runEngine(argv)).toBe(0);
+      expect(printed()).toMatch(/^ {2}rigline remove NAME\n/);
+      expect(printed()).not.toContain("rigline install");
+    },
+  );
+
+  it("prints both verbs a shared block documents", async () => {
+    expect(await runEngine(["enable", "--help"])).toBe(0);
+    expect(printed()).toContain("rigline disable NAME");
+  });
+
+  it("refuses help for a verb there is none of", async () => {
+    expect(await runEngine(["help", "nonsense"])).toBe(1);
+    expect(error.mock.calls[0]?.[0]).toMatch(/^rigline: unknown command "nonsense"/);
+  });
+
+  it("prints the engine's version", async () => {
+    expect(await runEngine(["--version"])).toBe(0);
+    expect(printed()).toMatch(/^@rigline\/core \d+\.\d+\.\d+/);
+  });
+});
+
+describe("--out (W33)", () => {
+  it("makes the directory a doctor report is written into", async () => {
+    const out = join(home, "reports", "today", "doctor.md");
+    expect(await runEngine(["doctor", "--out", out])).toBe(0);
+    expect(readFileSync(out, "utf8")).toMatch(/^# rigline doctor/);
+  });
+});
+
 describe("the mark restore leaves (D111)", () => {
   const mark = (): string => join(home, ".rigline", "restored");
 
@@ -105,7 +148,9 @@ describe("the mark restore leaves (D111)", () => {
 
     // No extension is installed here, so both stop there; what differs is the mark.
     expect(await runEngine(["install", "--companion"])).toBe(1);
-    expect(error.mock.calls.flat()).toEqual(["rigline: no Claude Code extension is installed"]);
+    expect(error.mock.calls.flat()).toEqual([
+      `rigline: no Claude Code extension is installed in ${EXTENSIONS_DIR}`,
+    ]);
     expect(existsSync(mark())).toBe(true);
     expect(await runEngine(["install"])).toBe(1);
     expect(existsSync(mark())).toBe(false);
