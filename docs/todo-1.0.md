@@ -322,7 +322,7 @@ asks rather than building around it.
   shipped anchor table is ambiguous for an author's Claude Code version, `codegen` writes the file,
   exits 1, and tells them to edit `packages/plugin-api/src/anchors.ts` (`main.ts:963`), which can
   fail the scaffold's first `pnpm codegen`.
-- [ ] **W40. The scaffold.** It never typechecks its tests (`plugins/__NAME__/tsconfig.json`
+- [x] **W40. The scaffold.** It never typechecks its tests (`plugins/__NAME__/tsconfig.json`
   excludes them), which is how alpha.3's type error went green. A release dry run reports "Staged,
   and awaiting approval" (`release.yml:108-130`); branch on `inputs.dry_run`.
 - [ ] **W41. The host.** Plugins load one after another (`post.ts:380-386`) and the `import` is

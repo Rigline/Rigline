@@ -82,15 +82,12 @@ describe("worktreeLabel", () => {
 
 describe("worktreeFromTool", () => {
   it("returns an EnterWorktree call's name input verbatim", () => {
-    expect(worktreeFromTool({ id: "t1", name: "EnterWorktree", input: { name: "TD-9-y" } })).toBe(
-      "TD-9-y",
-    );
+    expect(worktreeFromTool({ name: "EnterWorktree", input: { name: "TD-9-y" } })).toBe("TD-9-y");
   });
 
   it("returns the last path segment of an EnterWorktree call's path input", () => {
     expect(
       worktreeFromTool({
-        id: "t1",
         name: "EnterWorktree",
         input: { path: "C:\\repo\\.claude\\worktrees\\TD-9-y" },
       }),
@@ -99,7 +96,6 @@ describe("worktreeFromTool", () => {
     // and a trailing separator must not leave an empty final segment.
     expect(
       worktreeFromTool({
-        id: "t1",
         name: "EnterWorktree",
         input: { path: "/home/me/elsewhere/spike/" },
       }),
@@ -107,25 +103,19 @@ describe("worktreeFromTool", () => {
   });
 
   it("returns null for ExitWorktree, a positive 'left' answer rather than an absence", () => {
-    expect(worktreeFromTool({ id: "t1", name: "ExitWorktree", input: {} })).toBeNull();
+    expect(worktreeFromTool({ name: "ExitWorktree", input: {} })).toBeNull();
   });
 
   it("returns undefined for any tool call that says nothing about a worktree", () => {
-    expect(worktreeFromTool({ id: "t1", name: "Bash", input: { command: "ls" } })).toBeUndefined();
+    expect(worktreeFromTool({ name: "Bash", input: { command: "ls" } })).toBeUndefined();
     // Tool names are matched, never checked: a differently-cased name matches nothing.
-    expect(
-      worktreeFromTool({ id: "t1", name: "enterworktree", input: { name: "TD-9-y" } }),
-    ).toBeUndefined();
+    expect(worktreeFromTool({ name: "enterworktree", input: { name: "TD-9-y" } })).toBeUndefined();
   });
 
   it("returns undefined for an EnterWorktree call with no usable name or path", () => {
-    expect(worktreeFromTool({ id: "t1", name: "EnterWorktree", input: {} })).toBeUndefined();
-    expect(
-      worktreeFromTool({ id: "t1", name: "EnterWorktree", input: { name: "" } }),
-    ).toBeUndefined();
-    expect(
-      worktreeFromTool({ id: "t1", name: "EnterWorktree", input: { path: 12 } }),
-    ).toBeUndefined();
+    expect(worktreeFromTool({ name: "EnterWorktree", input: {} })).toBeUndefined();
+    expect(worktreeFromTool({ name: "EnterWorktree", input: { name: "" } })).toBeUndefined();
+    expect(worktreeFromTool({ name: "EnterWorktree", input: { path: 12 } })).toBeUndefined();
   });
 });
 

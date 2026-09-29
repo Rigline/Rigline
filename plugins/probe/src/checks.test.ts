@@ -165,6 +165,7 @@ describe("formatReport", () => {
   const NOW = Date.parse("2026-09-14T06:26:41Z");
   const facts = {
     extension: "2.1.270",
+    engine: "1.0.0",
     surface: "editor",
     preAt: 12,
     postAt: 486,

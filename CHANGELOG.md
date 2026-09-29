@@ -166,6 +166,10 @@ anything may change between releases.
   in your workspace. It is noted, with the two ways it gets repaired, and plugins using it are
   refused on that Claude Code version as before. It failed, and said to edit a file your workspace
   does not have.
+- **For plugin authors:** a scaffolded workspace's `pnpm typecheck` covers the plugin's tests,
+  which it left out, so a type error in a test passed CI. The release workflow's dry run says it
+  staged nothing and lists what it would have, where its summary said the versions awaited
+  approval.
 
 ## 1.0.0-alpha.13 — 2026-09-27
 

@@ -107,6 +107,8 @@ jobs:
       # went up and the one command that finishes the job.
       - name: Summarise
         if: always()
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
         run: |
           if [ ! -f pnpm-publish-summary.json ]; then
             echo "## Nothing was staged" >> "$GITHUB_STEP_SUMMARY"
@@ -118,11 +120,13 @@ jobs:
             const s = JSON.parse(require("fs").readFileSync("pnpm-publish-summary.json", "utf8"));
             const out = [];
             const staged = s.publishedPackages ?? [];
+            const table = ["| package | version |", "| --- | --- |", ...staged.map((p) => `| \`${p.name}\` | \`${p.version}\` |`)];
             if (staged.length === 0) {
               out.push("## Nothing was staged", "", "Every version is already on the registry. Bump one to release it.");
+            } else if (process.env.DRY_RUN === "true") {
+              out.push("## Dry run: nothing was staged", "", "A run without the dry run would stage these:", "", ...table);
             } else {
-              out.push("## Staged, and awaiting approval", "", "| package | version |", "| --- | --- |");
-              for (const p of staged) out.push(`| \`${p.name}\` | \`${p.version}\` |`);
+              out.push("## Staged, and awaiting approval", "", ...table);
               out.push("", "**Nobody can install these yet.** Approve them on npmjs.com, under Staged Packages in your profile, or from a terminal:", "", "```", "npm stage list", "npm stage approve <id>", "```", "",
                 "A version you would rather not ship needs no action — do not approve it, and it expires.");
             }
