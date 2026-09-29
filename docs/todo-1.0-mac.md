@@ -49,7 +49,7 @@ file.
   read `versions[v].engines.node` from the registry data `updateEngine` already fetches
   (`packages/cli/src/engine.ts:408-462`), and withhold a move the running Node cannot satisfy the
   way the age gate withholds one, saying why. The companion needs the found Node's version from M2.
-- [ ] **M6. The companion's engine runs in VS Code's launch directory.** VS Code changes directory
+- [x] **M6. The companion's engine runs in VS Code's launch directory.** VS Code changes directory
   only on Windows, and `spawnEngine` passes no `cwd` (`packages/vscode/src/extension.ts:249-256`).
   So on macOS and Linux, after `code .` in a plugin workspace, the companion's `install` takes that
   workspace's `generated.ts` as its baseline, rewrites it after each Claude Code update, and says

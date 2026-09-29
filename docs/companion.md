@@ -117,7 +117,8 @@ next poll. A directory going away is logged and reacted to not at all (D85).
 A run is a `start`, on activation, or a `moved`, when a directory arrives. It finds Node, moves the
 engine if the tag has (the release-age gate and the Node floor apply, D48, D116), stamps the bytes,
 runs `install` with its output piped into the **Rigline** output channel a line at a time, and then
-decides.
+decides. Every engine run, this one and the one-off commands', starts in the home directory: VS
+Code changes directory only on Windows, and the engine reads a `generated.ts` where it runs.
 
 | outcome | status item |
 | --- | --- |

@@ -101,6 +101,10 @@ anything may change between releases.
   installs keep npm, so its first run failed to install the engine and every later `rigline update`
   said `engine: FAILED`. The command it suggests when there is no npm now quotes the engine's
   directory, so it works for a home directory with a space in it.
+- On macOS and Linux, the companion no longer runs the engine in the directory VS Code was started
+  from. After `code .` in a plugin workspace, it took that workspace's `generated.ts` for its
+  record of Claude Code's identifiers, rewrote it after each Claude Code update, and said it needed
+  you.
 
 ## 1.0.0-alpha.13 — 2026-09-27
 

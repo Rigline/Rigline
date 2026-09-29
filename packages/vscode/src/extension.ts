@@ -256,7 +256,9 @@ async function run(
 
 /**
  * Every engine run starts here. Hidden, because the extension host has no console, and Windows would
- * open a window for a console program started from it.
+ * open a window for a console program started from it. At home, because VS Code changes directory
+ * only on Windows: elsewhere the engine ran wherever `code .` was typed, and took a plugin
+ * workspace's `generated.ts` there for its baseline.
  */
 function spawnEngine(
   nodePath: string,
@@ -264,7 +266,7 @@ function spawnEngine(
   argv: readonly string[],
   stdio: StdioOptions,
 ): ChildProcess {
-  return spawn(nodePath, [entry, ...argv], { stdio, windowsHide: true });
+  return spawn(nodePath, [entry, ...argv], { stdio, windowsHide: true, cwd: homedir() });
 }
 
 /**
