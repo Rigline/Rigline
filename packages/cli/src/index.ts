@@ -5,37 +5,20 @@
  * It installs the engine under `<RIGLINE_HOME>/engine` and runs it, forwarding every verb verbatim —
  * including one neither package knows, because the wrapper holds no verb list and the engine prints
  * the usage for all of it. `update` moves the engine first and then hands over (D69, D73, D106).
+ *
+ * `main.ts` is imported only after the Node floor is checked, as the engine's `bin.ts` does, so a
+ * Node too old for the rest never loads it.
  */
-import { notice, updateCommand, versionCommand } from "./commands.ts";
-import { ensureEngine } from "./engine.ts";
-import { UserError } from "./errors.ts";
+import { belowFloor, enginesNode } from "./floor.ts";
 
-async function main(argv: readonly string[]): Promise<number> {
-  const [command, ...rest] = argv;
-  switch (command) {
-    case "--version":
-    case "-v":
-      return versionCommand();
-    case "update":
-      return await updateCommand(rest);
-    default: {
-      const engine = await ensureEngine();
-      notice(engine.version);
-      return await engine.run(argv);
-    }
-  }
+const floor = belowFloor(process.versions.node, enginesNode());
+if (floor === null) {
+  const { runWrapper } = await import("./main.ts");
+  process.exitCode = await runWrapper(process.argv.slice(2));
+} else {
+  console.error(
+    `rigline: Rigline needs Node ${floor} or newer, and ${process.execPath} is Node ` +
+      `${process.versions.node}; https://nodejs.org has one.`,
+  );
+  process.exitCode = 1;
 }
-
-main(process.argv.slice(2)).then(
-  (code) => {
-    process.exitCode = code;
-  },
-  (error: unknown) => {
-    if (error instanceof UserError) {
-      console.error(`rigline: ${error.message}`);
-      process.exitCode = 1;
-      return;
-    }
-    throw error;
-  },
-);

@@ -39,7 +39,7 @@ file.
   `../libexec/lib/node_modules/npm`, which is still the npm belonging to that Node (D73). In the
   same function, quote the `--prefix` path in the fallback line, which breaks on a home with a
   space.
-- [ ] **M4. A Node floor check where the wrapper starts.** Below 22.12 the engine dies mid-install
+- [x] **M4. A Node floor check where the wrapper starts.** Below 22.12 the engine dies mid-install
   with a `TypeError` (`entry.parentPath` is undefined before Node 20.12). One sentence naming the
   floor and the Node found, before anything runs. W22 is the engine's half.
 - [ ] **M5. The engine's Node floor at acquisition.** Nothing reads `engines.node` when the wrapper
@@ -153,4 +153,7 @@ built from this checkout, running the released engine it acquires.
 
 ## Handed over to Windows
 
-Nothing yet.
+- [ ] **From M4.** `packages/core/src/engine/floor.ts` has a copy, `packages/cli/src/floor.ts`,
+  which reads `engines.node` the same way (D69). Its header should name that path, as the cli copy
+  names it, per CLAUDE.md's *Code kept twice*; `packages/cli/src/floor.test.ts` holds the two
+  readings together.

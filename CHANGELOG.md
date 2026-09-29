@@ -83,6 +83,7 @@ anything may change between releases.
   was only noted, while the elements under it went back to their defaults.
 - The engine, started by a Node older than it supports, says which Node it needs and stops, where
   it failed part-way through the command with an error naming nothing.
+- So does `rigline` itself, before it installs or runs anything, naming the Node it was started by.
 - When VS Code removed an old Claude Code version while Rigline was installing into it, Rigline
   could leave a directory behind holding only its own files, and from then on every install, the
   companion's at each window start included, said it needed you. `rigline install` and `rigline
