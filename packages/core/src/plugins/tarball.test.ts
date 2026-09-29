@@ -115,6 +115,52 @@ describe("readPackageTarball", () => {
     ).toThrow(/carries "a.js" twice/);
   });
 
+  it("refuses two names that one file answers to where case or normalisation is ignored", () => {
+    const pair = (a: string, b: string) => () =>
+      read(
+        tarball([
+          { name: `package/${a}`, body: "first" },
+          { name: `package/${b}`, body: "second" },
+        ]),
+      );
+    expect(pair("dist/Index.js", "dist/index.js")).toThrow(
+      /"dist\/Index.js" and "dist\/index.js", which are one file on Windows and macOS/,
+    );
+    const composed = `caf${String.fromCharCode(0xe9)}.js`;
+    const decomposed = `cafe${String.fromCharCode(0x301)}.js`;
+    expect(pair(composed, decomposed)).toThrow(/which are one file/);
+  });
+
+  it("refuses a name that is a file and a directory at once", () => {
+    expect(() =>
+      read(
+        tarball([
+          { name: "package/dist", body: "a file" },
+          { name: "package/Dist/index.js", body: "code" },
+        ]),
+      ),
+    ).toThrow(/carries "dist" as a file and as a directory of "Dist\/index.js"/);
+  });
+
+  it("refuses a name Windows cannot hold, on every platform", () => {
+    for (const name of [
+      "con.js",
+      "dist/NUL",
+      "lpt1.txt",
+      "a.js.",
+      "a.js ",
+      "a.js:stream",
+      "a?.js",
+    ]) {
+      expect(() => read(tarball([{ name: `package/${name}`, body: "x" }]))).toThrow(
+        /which Windows cannot hold as a file name/,
+      );
+    }
+    expect(read(packageTarball({ "console.js": "x", "contrib/aux-tools.js": "y" }))).toHaveLength(
+      2,
+    );
+  });
+
   it("refuses an archive that ends inside an entry", () => {
     expect(() =>
       readPackageTarball(

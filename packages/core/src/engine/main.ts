@@ -661,7 +661,11 @@ function extOption(ext: string | undefined): string[] | undefined {
 }
 
 /** The same roots `pluginOptions` discovers from, named for a report rather than for a loader. */
-function listing(paths: RiglinePaths, refuse?: (line: string) => void): PluginListing[] {
+function listing(
+  paths: RiglinePaths,
+  refuse?: (line: string) => void,
+  note?: (line: string) => void,
+): PluginListing[] {
   const checkout = checkoutPluginsDir();
   return listPlugins({
     roots: [
@@ -673,16 +677,22 @@ function listing(paths: RiglinePaths, refuse?: (line: string) => void): PluginLi
     configPath: paths.config,
     sourcesPath: paths.sources,
     ...(refuse === undefined ? {} : { refuse }),
+    ...(note === undefined ? {} : { note }),
   });
 }
 
 function listCommand(args: string[]): number {
   const { values } = parseArgs({ args, options: { json: { type: "boolean", default: false } } });
   const unloaded: string[] = [];
-  const listings = listing(riglinePaths(), (line) => unloaded.push(line));
+  const unread: string[] = [];
+  const listings = listing(
+    riglinePaths(),
+    (line) => unloaded.push(line),
+    (line) => unread.push(line),
+  );
   console.log(values.json ? JSON.stringify(listJson(listings)) : formatPlugins(listings));
   // On stderr, so `--json` stays data. `check` is what exits 1 for it.
-  for (const line of unloaded) console.error(line);
+  for (const line of [...unloaded, ...unread]) console.error(line);
   return 0;
 }
 

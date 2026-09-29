@@ -132,7 +132,10 @@ function strip(members: readonly TarFile[], label: string): TarFile[] {
   }
   const root = first.path.split("/")[0] as string;
   const files: TarFile[] = [];
-  const seen = new Set<string>();
+  // Keyed as a filesystem that ignores case and Unicode normalisation sees a name, which is how
+  // Windows and macOS see one.
+  const seen = new Map<string, string>();
+  const key = (path: string): string => path.normalize("NFC").toLowerCase();
   for (const member of members) {
     const segments = member.path.split("/");
     if (segments[0] !== root) {
@@ -143,16 +146,32 @@ function strip(members: readonly TarFile[], label: string): TarFile[] {
     }
     const path = segments.slice(1).join("/");
     if (path.length === 0) continue;
-    if (seen.has(path)) {
+    const earlier = seen.get(key(path));
+    if (earlier !== undefined) {
       // Two members of a name is how an archive says one thing to a reader that keeps the first and
       // another to a reader that keeps the last. Neither answer is worth having.
-      throw new UserError(`${label} carries "${path}" twice`);
+      throw new UserError(
+        earlier === path
+          ? `${label} carries "${path}" twice`
+          : `${label} carries "${earlier}" and "${path}", which are one file on Windows and macOS`,
+      );
     }
-    seen.add(path);
+    seen.set(key(path), path);
     files.push({ path, bytes: member.bytes });
   }
   if (files.length === 0) {
     throw new UserError(`${label} has nothing under "${root}/"`);
+  }
+  for (const file of files) {
+    const segments = key(file.path).split("/");
+    for (let depth = 1; depth < segments.length; depth++) {
+      const dir = seen.get(segments.slice(0, depth).join("/"));
+      if (dir !== undefined) {
+        throw new UserError(
+          `${label} carries "${dir}" as a file and as a directory of "${file.path}"`,
+        );
+      }
+    }
   }
   return files;
 }
@@ -216,5 +235,34 @@ function safePath(name: string, label: string): string | null {
       `${label} carries "${name}", which does not stay inside the directory it unpacks into`,
     );
   }
+  // Refused on every platform: a plugin that installs on one and not another is a broken plugin.
+  if (segments.some((segment) => !windowsCanHold(segment))) {
+    throw new UserError(
+      `${label} carries "${name}", which Windows cannot hold as a file name, and a plugin has to ` +
+        "install everywhere",
+    );
+  }
   return path;
+}
+
+/** Device names Windows keeps in every directory, with or without an extension. */
+const DEVICES = new Set([
+  "con",
+  "prn",
+  "aux",
+  "nul",
+  "conin$",
+  "conout$",
+  ...Array.from({ length: 10 }, (_, i) => `com${i}`),
+  ...Array.from({ length: 10 }, (_, i) => `lpt${i}`),
+]);
+
+/** Characters NTFS refuses in a name; a colon names an alternate data stream instead. */
+const FORBIDDEN = '<>:"|?*';
+
+function windowsCanHold(segment: string): boolean {
+  if (segment.endsWith(".") || segment.endsWith(" ")) return false;
+  if ([...segment].some((c) => c.charCodeAt(0) < 32 || FORBIDDEN.includes(c))) return false;
+  const stem = (segment.split(".")[0] as string).trimEnd().toLowerCase();
+  return !DEVICES.has(stem);
 }

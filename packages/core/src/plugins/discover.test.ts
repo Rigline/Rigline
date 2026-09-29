@@ -98,6 +98,24 @@ describe("readManifest", () => {
     );
     expect(() => readManifest(dir)).toThrow(/does not exist/);
   });
+
+  it("refuses an entry the plugin's copy would leave out, and takes one written with ./", () => {
+    const root = tempDir();
+    const dir = join(root, "sample");
+    for (const entry of [".out/index.js", "node_modules/x/index.js", "dist/index.test.js"]) {
+      mkdirSync(join(dir, entry, ".."), { recursive: true });
+      writeFileSync(join(dir, entry), "export default 1;");
+      writeFileSync(join(dir, "rigline.json"), JSON.stringify({ api: 1, name: "sample", entry }));
+      expect(() => readManifest(dir)).toThrow(/which a plugin's copy leaves out/);
+    }
+    mkdirSync(join(dir, "dist"), { recursive: true });
+    writeFileSync(join(dir, "dist", "index.js"), "export default 1;");
+    writeFileSync(
+      join(dir, "rigline.json"),
+      JSON.stringify({ api: 1, name: "sample", entry: "./dist/index.js" }),
+    );
+    expect(readManifest(dir).entry).toBe("./dist/index.js");
+  });
 });
 
 describe("discoverPlugins", () => {

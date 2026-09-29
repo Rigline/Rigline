@@ -306,7 +306,7 @@ asks rather than building around it.
 - [x] **W36. Locks by PID alone.** Windows reuses PIDs quickly, so a crashed holder's PID can come
   back and pin a lock (`isStale` in both lock files). An absolute age cap of about ten minutes.
   core's copy has it (D105); the wrapper's is handed over.
-- [ ] **W37. Plugin files.** The tar reader declines exact duplicate names only, missing case and
+- [x] **W37. Plugin files.** The tar reader declines exact duplicate names only, missing case and
   Unicode-normalisation collisions, and Windows reserved names (`con.js`) and trailing dots or
   spaces pass `safePath` (`plugins/tarball.ts:135-150`). An `entry` under a dot-directory, under
   `node_modules` or named `*.test.js` validates but is never copied (`plugins/discover.ts:104`).

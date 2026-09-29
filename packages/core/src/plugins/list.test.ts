@@ -100,6 +100,20 @@ describe("listPlugins", () => {
     expect(text.split("placed here by hand")).toHaveLength(2);
   });
 
+  it("says why a plugin with a source it cannot read looks placed by hand", () => {
+    const managed = tempDir();
+    writePlugin(managed, "later");
+    const notes: string[] = [];
+    const listed = listPlugins({
+      roots: [{ role: "home", path: managed }],
+      configPath: configWith([]),
+      sourcesPath: sourcesWith({ later: { kind: "git", url: "https://example.com/later.git" } }),
+      note: (line) => notes.push(line),
+    });
+    expect(listed[0]?.source).toBeNull();
+    expect(notes).toEqual([expect.stringMatching(/the source recorded for "later" is .*ignored/)]);
+  });
+
   it("lists in the order plugins load, `last` included, so it cannot disagree with the registry", () => {
     const root = tempDir();
     writePlugin(root, "alpha");

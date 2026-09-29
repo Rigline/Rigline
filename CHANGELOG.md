@@ -146,6 +146,14 @@ anything may change between releases.
 - On Windows, an engine that crashed while injecting could leave its lock held for good, once
   Windows gave its process id to some other process, and every install from then on waited and
   refused. A lock held ten minutes is now taken whatever its process id says.
+- `rigline add` refuses a plugin package holding two files that are one file on Windows or macOS,
+  such as `Index.js` and `index.js`, or a name Windows cannot hold, such as `con.js` or one ending in
+  a dot. Such a plugin installed on one platform and broke on another.
+- **For plugin authors:** a manifest whose `entry` is a test file, or under `node_modules` or a
+  dot-directory, is refused by name. Rigline never copies those, so it passed every check and then
+  failed to load.
+- `rigline list` says when it cannot read a plugin's record in `~/.rigline/sources.json`, as the
+  other commands do, where it showed that plugin as placed by hand with no reason.
 
 ## 1.0.0-alpha.13 — 2026-09-27
 

@@ -75,6 +75,8 @@ export interface ListOptions {
   readonly last?: readonly string[];
   /** A plugin whose manifest does not hold, which is not listed, as the line naming it. */
   readonly refuse?: (line: string) => void;
+  /** A source record this engine cannot read, which leaves its plugin looking hand-placed. */
+  readonly note?: (line: string) => void;
 }
 
 export function listPlugins(options: ListOptions): PluginListing[] {
@@ -85,7 +87,7 @@ export function listPlugins(options: ListOptions): PluginListing[] {
   );
   const config = readConfig(options.configPath);
   const disabled = new Set(config.disabled);
-  const sources = readSources(options.sourcesPath);
+  const sources = readSources(options.sourcesPath, options.note);
   const role = new Map(options.roots.map((r) => [r.path, r.role]));
 
   return discovered.map((plugin: DiscoveredPlugin) => {

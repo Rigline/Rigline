@@ -8,7 +8,7 @@
  * job is to say what broke, by name, before anything runs.
  */
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, join, posix } from "node:path";
 
 import {
   capabilityUse,
@@ -104,6 +104,12 @@ export function checkManifest(check: ManifestCheck): ValidManifest {
   }
   const { manifest, problems } = validateManifest(value, check.expectedName);
   if (manifest === null) throw new ManifestError(check.label, problems);
+  if (!isPluginOutput(posix.normalize(manifest.entry.replaceAll("\\", "/")))) {
+    throw new UserError(
+      `${check.label} names entry "${manifest.entry}", which a plugin's copy leaves out: ` +
+        "tests, node_modules and anything under a dot are never installed",
+    );
+  }
   if (!check.hasFile(manifest.entry)) {
     throw new UserError(`${check.label} names entry "${manifest.entry}", which does not exist`);
   }
