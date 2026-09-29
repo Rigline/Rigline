@@ -128,7 +128,7 @@ export function releaseAgeProblem(
     `${resolved.name}@${resolved.version} was published ${describeAge(resolved.ageMinutes)} ago, ` +
     `and rigline waits ${describeAge(minimum)} before installing a version. That window is where ` +
     "a compromised publish is usually caught, and it costs little here because the urgent repair " +
-    "— an anchor an extension update retired — is a local edit rather than a release (D44). " +
+    "— an anchor an extension update retired — is a local edit rather than a release. " +
     "Wait, or pass --now."
   );
 }

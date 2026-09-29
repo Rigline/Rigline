@@ -208,3 +208,5 @@ built from this checkout, running the released engine it acquires.
   Rigline out at 2026-09-29T23:23:38.853Z" (`packages/core/src/update/flow.ts:398`), which the
   companion's tooltip now shows a person whose output lines are in local time. Local time, as the
   companion's clock does, would read "at 09:23 on 30 September".
+- [ ] **Done: W33's hand-over.** The release-age refusal ends "...is a local edit rather than a
+  release. Wait, or pass --now." in `cli/src/registry.ts` and core's `plugins/npm.ts` alike; tick it.
