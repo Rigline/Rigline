@@ -551,3 +551,5 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
 - 2026-09-28: What an install leaves in a version VS Code deleted under it is removed by `install`
   and `restore`, and passed over by every listing (D113); read live on the leftover 2.1.280.
 - 2026-09-28: `SECURITY.md`, through GitHub's private vulnerability reporting.
+- 2026-09-29: List W's required items (D114, D115; D44, D56, D61, D104 and D110 amended), and the
+  compliance page and plugin policy say what a plugin may change on the machine (D77 amended).
