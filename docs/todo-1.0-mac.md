@@ -174,9 +174,16 @@ built from this checkout, running the released engine it acquires.
   workspace in `VSCODE_CWD`. M6's case needs VS Code started from a shell in the workspace, as
   Linux's `code` may; M6's wording is corrected to say that. Each companion went *ready to restart*
   and offered no reload, and 2.1.285 was injected by the first, found current by the second.
-- [ ] **M28.** *Needs you* after a `restore` opens the output when clicked and says why in its
+- [x] **M28.** *Needs you* after a `restore` opens the output when clicked and says why in its
   tooltip. A reload offer left to time out shows *reload to apply* while the toast waits in the
-  notification centre.
+  notification centre. **Found:** both, read by Leo on 2.1.285. After `restore`, the start read
+  *Rigline: needs you*, its tooltip the engine's hold line and the click hint, and clicking opened
+  the output. With the mark removed, the next start injected behind the window and offered *Reload
+  window*; the status read *reload to apply* as the offer went up and stayed so once the toast had
+  gone to the notification centre, and clicking it asked again. VS Code resolved the first toast as
+  dismissed when the same one was asked again, which the output calls "declined"; the offer stayed
+  outstanding, and the second toast's *Reload window* took one reload, after which the start was
+  green.
 
 ## Handed over to Windows
 
@@ -197,3 +204,7 @@ built from this checkout, running the released engine it acquires.
   Read live on 2.1.285 with two windows open, which D105 makes the ordinary case. `paths.ts:35` says
   the file holds what moved "at the last install that found drift", which keeping it when nothing
   moved would make true.
+- [ ] **From M28.** The restore hold's sentence gives the mark's time as the raw ISO instant, "took
+  Rigline out at 2026-09-29T23:23:38.853Z" (`packages/core/src/update/flow.ts:398`), which the
+  companion's tooltip now shows a person whose output lines are in local time. Local time, as the
+  companion's clock does, would read "at 09:23 on 30 September".
