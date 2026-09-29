@@ -22,7 +22,7 @@ import {
   rmSync,
   statSync,
 } from "node:fs";
-import { basename, join, relative, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import {
   describeElements,
   describeUses,
@@ -335,10 +335,13 @@ export function removePlugin(options: RemoveOptions): RemoveResult {
   return { name, dir, hadSource, wasDisabled };
 }
 
-/** Where `dir` points when it is a symlink or a junction, which `lstat` reports alike, or null. */
+/**
+ * Where `dir` points when it is a symlink or a junction, which `lstat` reports alike, or null.
+ * Resolved: a relative target is relative to the link, and a junction's can end in a separator.
+ */
 function linkTarget(dir: string): string | null {
   try {
-    return lstatSync(dir).isSymbolicLink() ? readlinkSync(dir) : null;
+    return lstatSync(dir).isSymbolicLink() ? resolve(dirname(dir), readlinkSync(dir)) : null;
   } catch {
     return null;
   }

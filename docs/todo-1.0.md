@@ -272,6 +272,12 @@ asks rather than building around it.
   binary by a path with no extension, which PowerShell does not run as a program. **Fix:** every
   step under bash, and a first step that fails when `pnpm --version` prints nothing (docs/ci.md).
   Expect the Windows job red on the four M5 cases handed over below until they are fixed.
+- [x] **W47. What W46 found on the Windows runner.** The packed tests spawn `pnpm` with no shell,
+  which on Windows finds only a `pnpm.exe` on PATH; the runner has pnpm's `.cmd` shim, as does any
+  machine that installed pnpm through npm or corepack, so both fail with `spawnSync pnpm ENOENT`.
+  create-plugin's now runs pnpm through `cmd /d /s /c`, as the wrapper's test runs `rigline`; the
+  wrapper's own `pack` is handed over. And W43's refusal named a junction's target with a trailing
+  `\` there; the target is now resolved.
 
 ### Optional, any 1.x
 
@@ -368,3 +374,7 @@ optional items.
   `nodePath: process.execPath` in those four, keeping each `nodeVersion`: the floor still reads the
   given version, and npm is found beside the Node running the test. The withholding cases never
   spawn and can keep the made-up path.
+- [ ] **From W47.** `packages/cli/test/packed.test.ts:90` runs `run("pnpm", ...)`, which on Windows
+  finds only a `pnpm.exe` and fails on the CI runner, whose pnpm is a `.cmd` shim: `spawnSync pnpm
+  ENOENT`. `packages/create-plugin/test/packed.test.ts`'s `run` now goes through
+  `cmd /d /s /c pnpm` on Windows, as the wrapper's own `riglineCommand` already does for `rigline`.

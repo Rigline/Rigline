@@ -16,9 +16,16 @@ const PACKAGE = fileURLToPath(new URL("../", import.meta.url));
 
 let work: string;
 
+/**
+ * pnpm however it was installed. On Windows through `cmd`, which finds a `.cmd` shim or an `.exe`
+ * where spawning `pnpm` finds only an `.exe`, as `packages/cli/test/packed.test.ts` runs `rigline`.
+ */
 function run(args: readonly string[], cwd: string): string {
+  const options = { cwd, encoding: "utf8", stdio: "pipe" } as const;
   try {
-    return execFileSync("pnpm", args, { cwd, encoding: "utf8", stdio: "pipe" });
+    return process.platform === "win32"
+      ? execFileSync(process.env.COMSPEC ?? "cmd.exe", ["/d", "/s", "/c", "pnpm", ...args], options)
+      : execFileSync("pnpm", args, options);
   } catch (error) {
     const e = error as { stdout?: string; stderr?: string; message?: string };
     throw new Error(
