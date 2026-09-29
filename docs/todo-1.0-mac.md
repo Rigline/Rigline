@@ -86,7 +86,7 @@ file.
   The no-Node message (`node.ts:70-75`) should end "then reload the window", since settings are read
   at activation. Its "until you run `rigline install`" after a restore (`README.md:18-19`) should
   match the rest: any command that injects puts Rigline back.
-- [ ] **M12. The wrapper's README** (`packages/cli/README.md`): its commands leave out `watch`;
+- [x] **M12. The wrapper's README** (`packages/cli/README.md`): its commands leave out `watch`;
   "(a day, by default)" suggests a setting that does not exist; `npm create rigline-plugin` has no
   directory, and fails without one.
 - [ ] **M29. The wrapper's `--version` refuses extra arguments.** It ignores them
@@ -158,3 +158,5 @@ built from this checkout, running the released engine it acquires.
   names it, per CLAUDE.md's *Code kept twice*; `packages/cli/src/floor.test.ts` holds the two
   readings together.
 - [ ] **From M5.** `CLAUDE.md:28` says decisions.md runs "D1 to D115"; M5 took D116.
+- [ ] **Done: W43's hand-over.** `packages/cli/README.md`'s `remove` line now reads "delete a plugin
+  from ~/.rigline/plugins", in M12's commit; tick it in todo-1.0.md's *Handed over to the Mac*.

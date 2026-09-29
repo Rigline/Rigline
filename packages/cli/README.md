@@ -66,11 +66,13 @@ your injection alone, and `rigline restore` is what undoes the injection itself.
 
     rigline install    inject every version, bake plugins, report drift, record the baseline
     rigline check      the same report, writing nothing
+    rigline watch      install, and again whenever an extension update lands, until stopped
     rigline status     per version: vanilla or patched, by backup
     rigline restore    every version back to the extension's own bytes
+    rigline vscode-setup  install the companion into VS Code; --remove takes it out
 
     rigline add SPEC   install a plugin from a directory or npm, and re-inject
-    rigline remove N   delete a plugin rigline installed, and re-inject
+    rigline remove N   delete a plugin from ~/.rigline/plugins, and re-inject
     rigline disable N  switch a plugin off, and re-inject
     rigline enable N   switch it back on, and re-inject
     rigline update     move the engine and every npm plugin to what its tag resolves to
@@ -87,9 +89,8 @@ your injection alone, and `rigline restore` is what undoes the injection itself.
     rigline --help     the whole surface, from the engine
 
 `add` never runs a package manager for a plugin: a published plugin is one bundled ES module and a
-manifest, so there is nothing to resolve. A version must reach a minimum age (a day, by default)
-before `add` or `update` will take it, and a withheld version is named rather than skipped in
-silence. `update` applies the same rule to the engine, and says which version it moved from so
+manifest, so there is nothing to resolve. A version must be a day old before `add` or `update` will
+take it, unless you pass `--now`, and a withheld version is named rather than skipped in silence. `update` applies the same rule to the engine, and says which version it moved from so
 going back is one command.
 
 ## How it is put together
@@ -106,7 +107,7 @@ project that can declare dependencies does not need a delivery mechanism.
 
 ## Writing a plugin
 
-    npm create rigline-plugin
+    npm create rigline-plugin my-plugin
 
 [The authoring guide](https://github.com/Rigline/Rigline/blob/main/docs/authoring.md) is the long
 form. [Anchors](https://github.com/Rigline/Rigline/blob/main/docs/anchors.md) is what to read when
