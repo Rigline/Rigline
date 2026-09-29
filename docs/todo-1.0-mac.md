@@ -57,7 +57,7 @@ file.
 
 ## The companion's surface
 
-- [ ] **M7. `rigline.nodePath` has no `scope`**, so Settings Sync carries a Mac's path to a Windows
+- [x] **M7. `rigline.nodePath` has no `scope`**, so Settings Sync carries a Mac's path to a Windows
   machine, which then reads *no Node* (`packages/vscode/build-manifest.mjs:56-63`). **Fix:**
   `"scope": "machine"`, as `enginePath` has (D94). stability.md keeps the setting, so this is now or
   never.

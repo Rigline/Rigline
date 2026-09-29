@@ -51,8 +51,9 @@ and every spawn runs. That is D73's rule, with a different starting point.
 A Node below the floor is refused by name, and the status reads *Rigline: Node too old*. The floor
 is the wrapper's `engines.node`, which `build-manifest.mjs` writes into the companion's manifest,
 where VS Code and vsce read only `engines.vscode`. With no Node, or one that does not answer, the
-status reads *Rigline: no Node*. Both messages name the setting. `ELECTRON_RUN_AS_NODE` supplies an
-interpreter, not an npm, and does not help.
+status reads *Rigline: no Node*. Both messages name the setting, which is machine-scoped, as
+`rigline.enginePath` is, so Settings Sync does not carry one machine's path to another.
+`ELECTRON_RUN_AS_NODE` supplies an interpreter, not an npm, and does not help.
 
 ## Running a checkout's engine
 

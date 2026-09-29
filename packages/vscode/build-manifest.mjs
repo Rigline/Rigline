@@ -59,9 +59,11 @@ const manifest = {
     configuration: {
       title: "Rigline",
       properties: {
+        // Machine scope, as `enginePath` has: a path synced from another machine names nothing here.
         "rigline.nodePath": {
           type: "string",
           default: "",
+          scope: "machine",
           markdownDescription:
             "Absolute path to a Node executable for running npm and the Rigline engine. " +
             "Leave blank to search `PATH`. Needed where a GUI-launched VS Code does not inherit " +
