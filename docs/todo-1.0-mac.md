@@ -211,6 +211,12 @@ built from this checkout, running the released engine it acquires.
 - [ ] **Done: W33's hand-over.** The release-age refusal ends "...is a local edit rather than a
   release. Wait, or pass --now." in `cli/src/registry.ts` and core's `plugins/npm.ts` alike; tick it.
 - [ ] **Done: W47's hand-over.** `cli/test/packed.test.ts`'s `pack` runs pnpm through `cmd /d /s /c`
-  on Windows; tick it once Windows CI has run it.
+  on Windows, and Windows CI's `pnpm pack` passes since (run 36646313018); tick it.
+- [ ] **From W47's fix, for Windows to finish.** The same file's next step fails on Windows CI:
+  `run("npm", ["install", "--prefix", prefix, ...])` for the wrapper's tarball
+  (`packages/cli/test/packed.test.ts:160-172`) is `spawnSync npm ENOENT`, since `npm` is a `.cmd`
+  there too. **Fix:** `run(process.execPath, [findNpmCli(), "install", ...], work)`, as the engine's
+  install just above it already runs npm, with no shell on any platform. Windows owns this one
+  outright, file included: it needs Windows CI, or a local Windows run, to see what fails after it.
 - [ ] **Done: W36's hand-over.** `cli/src/lock.ts`'s `isStale` takes a lock held ten minutes
   whatever its pid says, with the two test cases core's has, and companion.md says so; tick it.
