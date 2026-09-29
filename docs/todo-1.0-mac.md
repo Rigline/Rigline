@@ -157,8 +157,14 @@ After W1 and W2 have landed and been pulled, all in a scratch `HOME` and `RIGLIN
 `rigline.enginePath` skips acquisition (D94), so M2 to M5 are read with it cleared: a companion
 built from this checkout, running the released engine it acquires.
 
-- [ ] **M26.** The companion under Homebrew's Node, and under a version manager if one is installed:
-  the output shows the engine moving, not `engine update did not happen`.
+- [x] **M26.** The companion under Homebrew's Node, and under a version manager if one is installed:
+  the output shows the engine moving, not `engine update did not happen`. **Found:** with no
+  Homebrew `node` here (M1), Leo chose Homebrew's shape instead: `rigline.nodePath` set to a symlink
+  to nvm's Node in a directory with nothing beside it, and `~/.rigline/engine` moved aside. The output
+  read `Node: <nvm's node>, 26.8.1 (found by setting as ~/.rigline-m26/bin/node)`, then `engine:
+  installed 1.0.0-alpha.13`, pinned exactly, and green. Set to the nodejs.org Node 20.15.1, the
+  status read *Rigline: Node too old*, with the floor, path and version in the tooltip and nothing
+  run; clicking it opened the output. nvm puts real binaries on `PATH`, so it has no shim to read.
 - [x] **M27.** VS Code started with `code .` in a scaffolded workspace, then a Claude Code update:
   the workspace's `generated.ts` is untouched. **Found:** untouched (hash, size and time) across the
   update from 2.1.283 to 2.1.285, with this checkout's companion running the released engine in two
