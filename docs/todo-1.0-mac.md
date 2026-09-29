@@ -142,8 +142,12 @@ After W1 and W2 have landed and been pulled, all in a scratch `HOME` and `RIGLIN
   (through `overrides`, which needs `blockExoticSubdeps: false`) and a vanilla copy of 2.1.283
   under the scratch `HOME`. `dev` replaced the copy `add` made, and after the edit rebuilt, refreshed
   `~/.rigline/plugins/x` and re-injected; both hold the edit, and Ctrl-C leaves no process.
-- [ ] **M24.** `install` then `restore` into a copy of the Mac's Claude Code directory leaves
-  `webview/index.js` and `extension.js` byte-identical to the copy's originals.
+- [x] **M24.** `install` then `restore` into a copy of the Mac's Claude Code directory leaves
+  `webview/index.js` and `extension.js` byte-identical to the copy's originals. **Found:** so they
+  are, for a vanilla copy of 2.1.283 (the live directory with its backups put back), through the
+  checkout's engine: `install` injected the bundle and patched `extension.js`, and after `restore`
+  the directory differs from the vanilla copy only by the two backups, which equal the originals.
+  M23's copy, after `add` and a `dev` cycle, restores to the same bytes.
 - [ ] **M25.** The full `pnpm test` passes on macOS.
 
 ## Live reads, with Leo
