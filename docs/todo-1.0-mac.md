@@ -80,7 +80,7 @@ file.
 - [x] **M10. The wrong-major message omits the second step.** stability.md's *A major version*
   promises the wrapper and the companion each say "`npm i -g rigline@latest`, then `rigline
   vscode-setup`"; the wrapper says only the first.
-- [ ] **M11. The companion's README and messages.** Its install step is `code --install-extension
+- [x] **M11. The companion's README and messages.** Its install step is `code --install-extension
   rigline.vsix` from nowhere; make it `rigline vscode-setup`, which also passes `--do-not-sync` and
   covers every profile. Its *Settings* list lacks `rigline.enginePath` and *Rigline: Show Plugins*.
   The no-Node message (`node.ts:70-75`) should end "then reload the window", since settings are read

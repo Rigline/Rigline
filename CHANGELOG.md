@@ -112,6 +112,9 @@ anything may change between releases.
   on the status put up reloads once.
 - `rigline`, refusing an engine of another major version, names both steps, as the companion
   does: `npm i -g rigline@latest`, then `rigline vscode-setup` if you use the companion.
+- The companion's *no Node* message says to reload the window after setting `rigline.nodePath`,
+  which is read when a window starts. Its README installs it with `rigline vscode-setup`, and lists
+  `rigline.enginePath` and *Rigline: Show Plugins*.
 - On macOS and Linux, the companion no longer runs the engine in the directory VS Code was started
   from. After `code .` in a plugin workspace, it took that workspace's `generated.ts` for its
   record of Claude Code's identifiers, rewrote it after each Claude Code update, and said it needed

@@ -75,7 +75,7 @@ export class NoNodeError extends Error {
       "Rigline could not find a Node to run npm and the engine with. " +
         `Looked on PATH in ${searched.length} director${searched.length === 1 ? "y" : "ies"}. ` +
         "Set `rigline.nodePath` to a Node executable, or launch VS Code from a shell that has one " +
-        "on PATH.",
+        "on PATH, then reload the window.",
     );
     this.name = "NoNodeError";
     this.searched = searched;

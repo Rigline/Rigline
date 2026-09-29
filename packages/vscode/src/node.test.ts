@@ -116,7 +116,7 @@ describe("findNode", () => {
     // The macOS case this exists for: a GUI-launched VS Code inherits a login shell's PATH only
     // sometimes, so "no Node" usually means "not visible from here" rather than "not installed".
     expect(() => findNode({ exists: () => false, env: { PATH: abs("usr", "bin") } })).toThrow(
-      /Set `rigline\.nodePath`/,
+      /Set `rigline\.nodePath`.*, then reload the window\.$/,
     );
   });
 });
