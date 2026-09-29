@@ -207,9 +207,12 @@ window, and the next reload comes up patched. The offer is for a host that came 
 unpatched directory, and VS Code's own *Restart Extensions* accepted before the companion finished
 is the usual way to get one.
 
-Dismissed, the status item reads *Rigline: reload to apply*, and clicking it re-opens the same
-notification (`rigline.reload`, deliberately not on the palette). A payload that moved under a
-working loader is never an offer.
+Once offered, the status item reads *Rigline: reload to apply*, unless the run wants a person, and
+clicking it re-opens the same notification (`rigline.reload`, deliberately not on the palette). It
+goes stale when the notification goes up rather than when it is answered, since one left alone
+waits in the notification centre and never answers. Only one answer acts on an offer, so taking
+the reload from both notifications reloads once, and a taken reload clears the item. A payload
+that moved under a working loader is never an offer.
 
 ## Show Plugins
 

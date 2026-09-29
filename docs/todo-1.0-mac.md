@@ -66,7 +66,7 @@ file.
   tooltip has not got. Its commonest cause is a `restore` from weeks ago (D111). **Fix:** clicking
   it shows the output channel, and the tooltip carries the engine's own reason — `runEngine`'s
   `onLine` sees every line, so keep the *Needs you* lines.
-- [ ] **M9. A reload offer nobody answers leaves the status green over a stale panel.** D82 says the
+- [x] **M9. A reload offer nobody answers leaves the status green over a stale panel.** D82 says the
   offer is "asked once, then it lives in the status bar", but `put()` goes stale only once `ask`
   resolves (`reload.ts:85-94`), and a toast that times out stays pending
   (`c:\dev\knowledge\vscode-extension-internals.md`, *A notification's promise waits for a

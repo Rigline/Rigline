@@ -106,6 +106,10 @@ anything may change between releases.
 - The companion's *needs you* says why in its tooltip — what the engine listed, or that a
   `rigline restore` is holding Rigline out — and clicking it, or any status wanting you, shows the
   Rigline output. It said to read an output it gave no way to open.
+- The companion's status reads *reload to apply* as soon as it offers a reload, where it stayed
+  green over an unpatched panel until the notification was answered, which one left in the
+  notification centre never is. Taking the reload from that notification and from the one a click
+  on the status put up reloads once.
 - On macOS and Linux, the companion no longer runs the engine in the directory VS Code was started
   from. After `code .` in a plugin workspace, it took that workspace's `generated.ts` for its
   record of Claude Code's identifiers, rewrote it after each Claude Code update, and said it needed

@@ -8,6 +8,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { stubEditor } from "../test/editor.ts";
+import type { Editor } from "./editor.ts";
 import { reloadOffer, reloadWanted } from "./reload.ts";
 import type { Stamps } from "./watch.ts";
 
@@ -67,6 +68,16 @@ describe("reloadWanted", () => {
     expect(wanted).toBeNull();
   });
 });
+
+/** Notifications that wait to be answered, as VS Code's do: `open[i]` answers the i-th. */
+function toasts() {
+  const open: ((answer: string | undefined) => void)[] = [];
+  const ask = (() =>
+    new Promise<string | undefined>((answer) => {
+      open.push(answer);
+    })) as Editor["ask"];
+  return { open, ask };
+}
 
 describe("reloadOffer", () => {
   it("asks before reloading, as information rather than as a warning", async () => {
@@ -152,6 +163,56 @@ describe("reloadOffer", () => {
 
     expect(stub.reloads).toEqual(["window"]);
     expect(stub.statuses).toEqual([]);
+  });
+
+  // What a notification does when nobody answers it: it waits in the notification centre, and its
+  // promise never settles. The status has to say stale while it waits, not once it is answered.
+  it("says reload to apply as soon as the offer goes up, while its notification waits", async () => {
+    const pending = toasts();
+    const stub = stubEditor({ ask: pending.ask });
+    void reloadOffer(stub.editor).settle("webviews", "1.0.0");
+    await Promise.resolve();
+
+    expect(pending.open).toHaveLength(1);
+    expect(stub.statuses.at(-1)).toMatchObject({
+      health: "stale",
+      text: "Rigline: reload to apply",
+    });
+  });
+
+  it("reloads once when both the first notification and the one a click put up are answered", async () => {
+    const pending = toasts();
+    const stub = stubEditor({ ask: pending.ask });
+    const offer = reloadOffer(stub.editor);
+    const first = offer.settle("webviews", "1.0.0");
+    const second = offer.again();
+    await Promise.resolve();
+    expect(pending.open).toHaveLength(2);
+
+    pending.open[1]?.("Reload webviews");
+    await second;
+    pending.open[0]?.("Reload webviews");
+    await first;
+
+    expect(stub.reloads).toEqual(["webviews"]);
+  });
+
+  it("reloads when the second notification is taken after the first was declined", async () => {
+    const pending = toasts();
+    const stub = stubEditor({ ask: pending.ask });
+    const offer = reloadOffer(stub.editor);
+    const first = offer.settle("window", "1.0.0");
+    const second = offer.again();
+    await Promise.resolve();
+
+    pending.open[0]?.("Not now");
+    await first;
+    expect(stub.statuses.at(-1)?.health).toBe("stale");
+    pending.open[1]?.("Reload window");
+    await second;
+
+    expect(stub.reloads).toEqual(["window"]);
+    expect(stub.statuses.at(-1)?.health).toBe("ok");
   });
 
   it("stops saying stale once the reload has been taken", async () => {

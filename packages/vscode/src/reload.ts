@@ -83,19 +83,23 @@ export function reloadOffer(editor: Editor): ReloadOffer {
   let outstanding: { reload: Reload; engine: string; keepStatus: boolean } | null = null;
 
   async function put(): Promise<void> {
-    if (outstanding === null) return;
-    const { reload, engine, keepStatus } = outstanding;
+    const offer = outstanding;
+    if (offer === null) return;
+    const { reload, engine, keepStatus } = offer;
     const { message, action } = OFFER[reload];
+    // Stale as it goes up, not once answered: a notification left alone never answers (D82).
+    stale();
     const chosen = await editor.ask("info", message, action, LATER);
+    // Clicking the item while this one waits asks again, and only one answer may act on an offer.
+    if (outstanding !== offer) return;
     if (chosen !== action) {
       editor.log(`reload offered (${reload}) and declined`);
-      stale();
       return;
     }
     // Only here, and only for the button that was pressed.
+    outstanding = null;
     if (reload === "window") await editor.reloadWindow();
     else await editor.reloadWebviews();
-    outstanding = null;
     if (keepStatus) return;
     editor.status("ok", "Rigline", `Injected by engine ${engine}, and this window has caught up`);
   }
