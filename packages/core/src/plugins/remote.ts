@@ -29,6 +29,8 @@ export interface RemoteOptions {
   readonly add: Placement;
   readonly registry?: RegistryOptions;
   readonly now?: () => Date;
+  /** Where the tarball is unpacked; the system temp directory unless set. */
+  readonly staging?: string;
 }
 
 /**
@@ -50,7 +52,7 @@ async function fetchAndAdd(resolved: ResolvedVersion, options: RemoteOptions): P
   const label = `${resolved.name}@${resolved.version}`;
   const files = readPackageTarball(await fetchTarball(resolved, options.registry), label);
 
-  const staged = mkdtempSync(join(tmpdir(), "rigline-add-"));
+  const staged = mkdtempSync(join(options.staging ?? tmpdir(), "rigline-add-"));
   try {
     for (const file of files) {
       const target = join(staged, file.path);

@@ -101,11 +101,6 @@ function serve(status: number, body: unknown) {
   };
 }
 
-/** Staging directories left in the temp directory, which `add` must clean up after itself. */
-function staged(): string[] {
-  return readdirSync(tmpdir()).filter((name) => name.startsWith("rigline-add-"));
-}
-
 describe("addFromNpm", () => {
   it("adds the unpacked tarball and records the npm source it came from", async () => {
     const add = home();
@@ -133,9 +128,11 @@ describe("addFromNpm", () => {
   });
 
   it("deletes its staging directory once the plugin is placed", async () => {
-    const before = staged();
-    await addFromNpm("clock", { add: home(), registry: npm() });
-    expect(staged()).toEqual(before);
+    // Its own, since other test files stage in the shared temp directory concurrently.
+    const staging = mkdtempSync(join(tmpdir(), "rigline-staging-"));
+    made.push(staging);
+    await addFromNpm("clock", { add: home(), registry: npm(), staging });
+    expect(readdirSync(staging)).toEqual([]);
   });
 
   it("refuses a version younger than the release-age gate, and places nothing", async () => {
