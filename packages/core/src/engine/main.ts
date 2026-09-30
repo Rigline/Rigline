@@ -94,6 +94,7 @@ import {
   removePlugin,
   resetLayout,
   restoreAll,
+  restoredAt,
   restoredSince,
   riglinePaths,
   SKIP_PROFILES,
@@ -342,7 +343,7 @@ function heldOut(): void {
   const since = restoredSince(riglinePaths().restored);
   if (since !== null) {
     console.log(
-      `Rigline is out since \`rigline restore\` at ${since}; \`rigline install\` puts it back.`,
+      `Rigline is out since \`rigline restore\` at ${restoredAt(since)}; \`rigline install\` puts it back.`,
     );
   }
 }

@@ -17,7 +17,7 @@
  * `check` and `update` differ in exactly one way: `check` writes nothing. Everything either of them
  * would say, `check` says, which is what makes it safe to run from a hook or from a watch loop.
  */
-import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import {
   type AnchorOverrideOutcome,
@@ -47,7 +47,7 @@ import {
   pluginVerdicts,
 } from "../inject/inject.ts";
 import { type InjectionLockOptions, withInjectionLock } from "../inject/lock.ts";
-import { restoredSince } from "../inject/restored.ts";
+import { restoredAt, restoredSince } from "../inject/restored.ts";
 import { diffScans, formatDiff, type Scan, scansDiffer, type ViewDiff } from "../layers/diff.ts";
 import { type Harvest, harvestAll } from "../layers/index.ts";
 import { HarvestError } from "../layers/types.ts";
@@ -400,7 +400,7 @@ function updateHeld(options: UpdateOptions): FlowReport {
   const since = options.restoredMark === undefined ? null : restoredSince(options.restoredMark);
   if (since !== null) {
     throw new UserError(
-      `nothing injected: \`rigline restore\` took Rigline out at ${since}, and it stays out ` +
+      `nothing injected: \`rigline restore\` took Rigline out at ${restoredAt(since)}, and it stays out ` +
         "until you run `rigline install`",
     );
   }
@@ -615,7 +615,10 @@ function settle(
   }
   const heldOutNotes =
     heldOut !== null && versions.some((version) => !version.injected)
-      ? [`Rigline is out since \`rigline restore\` at ${heldOut}; \`rigline install\` puts it back`]
+      ? [
+          `Rigline is out since \`rigline restore\` at ${restoredAt(heldOut)}; ` +
+            "`rigline install` puts it back",
+        ]
       : [];
 
   if (writeOptions && newest && scan) {
@@ -635,15 +638,14 @@ function settle(
       }
     }
     if (writeOptions.recordBaseline !== false) {
-      // Written before the baseline moves, because after it nothing can say what moved (D98).
+      // Written before the baseline moves, because after it nothing can say what moved; and kept
+      // when nothing did, since a second window installing seconds later finds nothing (D98).
       const driftPath = options.driftPath ?? riglinePaths().drift;
       if (baseline && scansDiffer(diffs)) {
         mkdirSync(dirname(driftPath), { recursive: true });
         writeFileAtomic(driftPath, `${formatDiff(baseline.scan, scan, diffs, Infinity)}\n`);
         wrote.push(driftPath);
         driftFile = driftPath;
-      } else {
-        rmSync(driftPath, { force: true });
       }
       writeBaseline(baselinePath, scan);
       wrote.push(baselinePath);

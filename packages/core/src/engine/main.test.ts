@@ -16,6 +16,7 @@ import {
 } from "vitest";
 import { writeFixtureExtension } from "../../test/fixtures.ts";
 import { EXTENSIONS_DIR } from "../extension/locate.ts";
+import { restoredAt } from "../inject/restored.ts";
 import { runEngine } from "./main.ts";
 
 const home = await vi.hoisted(async () => {
@@ -249,7 +250,8 @@ describe("status and restore (W34)", () => {
     writeFileSync(join(home, ".rigline", "restored"), "2026-09-29T01:00:00.000Z\n");
     expect(await runEngine(["status"])).toBe(0);
     expect(log.mock.calls[0]?.[0]).toBe(
-      "Rigline is out since `rigline restore` at 2026-09-29T01:00:00.000Z; `rigline install` puts it back.",
+      `Rigline is out since \`rigline restore\` at ${restoredAt("2026-09-29T01:00:00.000Z")}; ` +
+        "`rigline install` puts it back.",
     );
   });
 

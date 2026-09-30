@@ -7,8 +7,9 @@ marked *optional* is wanted before 1.0.0; an *optional* item can land in any 1.x
 look at them before 1.0.0. Items marked *unconfirmed* carry a reviewer's reasoning but have not been reproduced: reproduce them before
 fixing.
 
-Where things stand: lint and typecheck pass, and on Windows 1514 of 1518 tests do, the four being
-M5's floor cases handed over below. `pnpm release major` takes 1.0.0-alpha.13 to 1.0.0 correctly,
+Where things stand: lint and typecheck pass, and on Windows all 1541 tests do; this machine's npm
+and pnpm are `.exe`, so a bare spawn that fails on the CI runner passes here, and Windows CI is the
+read for those. `pnpm release major` takes 1.0.0-alpha.13 to 1.0.0 correctly,
 and every curated anchor still resolves on 2.1.283.
 
 ## Working the lists
@@ -362,11 +363,11 @@ optional items.
 - [x] **From W43.** `packages/cli/README.md:73` says `rigline remove` deletes "a plugin rigline
   installed". It deletes whatever is in `~/.rigline/plugins` under that name, and refuses a link
   there; the engine's usage now says "Delete a plugin from ~/.rigline/plugins, however it got there".
-- [ ] **From W33.** The release-age refusal ends "(D44)", in `packages/cli/src/registry.ts:131` and
+- [x] **From W33.** The release-age refusal ends "(D44)", in `packages/cli/src/registry.ts:131` and
   in core's copy, `packages/core/src/plugins/npm.ts:196`. `cli/src/registry.test.ts` holds the two
   equal, so both lose it in one commit: "...is a local edit rather than a release. Wait, or pass
   --now."
-- [ ] **From the full suite on Windows.** Four `updateEngine` cases in `cli/src/engine.test.ts`
+- [x] **From the full suite on Windows.** Four `updateEngine` cases in `cli/src/engine.test.ts`
   (M5's floor cases: the three "moves to an engine with ..." and "does not hold a first run") fail
   on Windows and on macOS CI, which has been red since M5: "no npm was found beside
   /usr/local/bin/node". They pass `nodePath: /usr/local/bin/node`, and `installEngine` then looks
@@ -375,13 +376,17 @@ optional items.
   `nodePath: process.execPath` in those four, keeping each `nodeVersion`: the floor still reads the
   given version, and npm is found beside the Node running the test. The withholding cases never
   spawn and can keep the made-up path.
-- [ ] **From W47.** `packages/cli/test/packed.test.ts:90` runs `run("pnpm", ...)`, which on Windows
+- [x] **From W47.** `packages/cli/test/packed.test.ts:90` runs `run("pnpm", ...)`, which on Windows
   finds only a `pnpm.exe` and fails on the CI runner, whose pnpm is a `.cmd` shim: `spawnSync pnpm
   ENOENT`. `packages/create-plugin/test/packed.test.ts`'s `run` now goes through
   `cmd /d /s /c pnpm` on Windows, as the wrapper's own `riglineCommand` already does for `rigline`.
-- [ ] **From W36.** `isStale` in `packages/cli/src/lock.ts` takes a lock held ten minutes whatever
+- [x] **From W36.** `isStale` in `packages/cli/src/lock.ts` takes a lock held ten minutes whatever
   its pid says, as core's copy in `packages/core/src/inject/lock.ts` now does: a `HELD_MAX_MS`
   constant, and `age >= HELD_MAX_MS || (age >= staleMs && (holder === null ||
   !isAlive(holder.pid)))`, with an unparseable `since` as infinitely old. Its test "keeps a lock
   whose process is alive however old it is" becomes the two cases core's `lock.test.ts` has.
   `docs/companion.md`'s "stolen only when its process is gone *and* it is old" gains the cap (D105).
+- [ ] **Done: M27, M28 and the packed test's npm step.** `drift.txt` is kept by an install that
+  finds nothing (D98 amended); the restore hold's sentences give local time, "09:23 on 30
+  September"; `cli/test/packed.test.ts` installs the wrapper through `findNpmCli()`, and no bare
+  spawn is left in either packed test. Tick them in todo-1.0-mac.md.

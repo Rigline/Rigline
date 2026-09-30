@@ -2388,10 +2388,16 @@ found, a shadowed plugin) are said once, and exit 0: D92 keeps an unresolved ent
 exiting 1 over a deliberate state would leave the companion reading *needs you* for good.
 
 Drift is one line. `install` writes the full listing, with D45's successors, to
-`~/.rigline/drift.txt` and names it, and removes the file when nothing moved: `--verbose` could not
-bring the listing back later, because the baseline moves with every install and the old extension
-directory is gone. `check` moves nothing, so its line points at `check --verbose`. The line carries
-no count, since one class sits in several views.
+`~/.rigline/drift.txt` and names it: `--verbose` could not bring the listing back later, because
+the baseline moves with every install and the old extension directory is gone. `check` moves
+nothing, so its line points at `check --verbose`. The line carries no count, since one class sits in
+several views.
+
+**An install that finds nothing leaves the file alone (amended 2026-09-30).** It removed it, so the
+file never described a run that was over. But two windows' companions install seconds apart after
+one update, which D105 makes the ordinary case, and the second found nothing and removed the list the
+first one's report had just named. The file's first line names the two versions it compares, so a
+kept one says which update it describes.
 
 A host patch is a verdict, as the kernel treats it: a required patch that did not apply refuses its
 plugin, and an optional one is a gap. So an optional patch whose anchor Claude Code moves has every

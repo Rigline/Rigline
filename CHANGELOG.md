@@ -181,6 +181,11 @@ anything may change between releases.
 - `rigline layout` says where else an element can go as "before footerSpacer or in rigRow", where it
   said "can also go rigRow". `layout place` offers `default` when it refuses a place, and `layout
   order` no longer does, since it refuses `default`.
+- Two windows installing after one Claude Code update no longer lose the list of what moved. The
+  second found nothing and removed `~/.rigline/drift.txt`, which the first one's report had just
+  named; an install that finds nothing now leaves it.
+- The line saying `rigline restore` is holding Rigline out gives its time as "09:23 on 30
+  September", in your own time zone, where it gave an instant in UTC.
 - A plugin whose module never finishes loading — a top-level `await` that never settles — is given
   up on after ten seconds and reported by name, and the plugins after it load. It held every later
   plugin, and Rigline's pill and menu, for the life of the panel.

@@ -157,9 +157,12 @@ beforeAll(() => {
     work,
   );
 
+  // npm's own script under this Node, as the engine's install above, since a runner's npm is a
+  // `.cmd` shim that spawning `npm` misses on Windows.
   run(
-    "npm",
+    process.execPath,
     [
+      findNpmCli(),
       "install",
       "--prefix",
       prefix,

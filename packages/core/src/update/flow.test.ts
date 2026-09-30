@@ -25,6 +25,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { harvestableHostReplies, harvestableWebview, writePayload } from "../../test/fixtures.ts";
 import { generate } from "../codegen/generate.ts";
 import { readBundles, sleepSync } from "../extension/bundles.ts";
+import { restoredAt } from "../inject/restored.ts";
 import { harvestAll } from "../layers/index.ts";
 import { RIGLINE_HOME_VARIABLE } from "../paths.ts";
 import { readBaseline, readGeneratedScan, writeBaseline } from "./baseline.ts";
@@ -369,7 +370,8 @@ describe("check", () => {
     });
     expect(report.attention.some((line) => line.includes("not injected"))).toBe(false);
     expect(report.configNotes).toContain(
-      "Rigline is out since `rigline restore` at 2026-09-29T00:00:00.000Z; `rigline install` puts it back",
+      `Rigline is out since \`rigline restore\` at ${restoredAt("2026-09-29T00:00:00.000Z")}; ` +
+        "`rigline install` puts it back",
     );
   });
 });
@@ -592,7 +594,7 @@ describe("the mark restore leaves (D111)", () => {
     };
 
     expect(() => update({ ...options, restoredMark })).toThrow(
-      "nothing injected: `rigline restore` took Rigline out at 2026-09-27T00:00:00.000Z",
+      `nothing injected: \`rigline restore\` took Rigline out at ${restoredAt("2026-09-27T00:00:00.000Z")}`,
     );
     expect(readFileSync(join(ext, "webview", "index.js")).equals(before)).toBe(true);
     expect(existsSync(join(ext, "webview", "rigline"))).toBe(false);
@@ -712,7 +714,8 @@ describe("update", () => {
     expect(formatFlow(report, { verbose: true })).toContain("local3_f00000");
     expect(readFileSync(report.driftFile ?? "", "utf8")).toContain("local3_f00000");
 
-    // And gone once nothing has moved, so it never describes a run that is over.
+    // And kept by an install that finds nothing, as a second window's does seconds later: the
+    // first one's report names the file. Its first line says which update it describes.
     const again = update({
       exts: [after],
       payloadDir: payload(),
@@ -720,7 +723,7 @@ describe("update", () => {
       baselinePath,
     });
     expect(again.driftFile).toBeNull();
-    expect(existsSync(report.driftFile ?? "")).toBe(false);
+    expect(readFileSync(report.driftFile ?? "", "utf8")).toMatch(/^2\.1\.268 -> /);
   });
 
   it("points check at --verbose, since check writes no list", () => {

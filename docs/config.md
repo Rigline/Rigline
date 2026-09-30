@@ -131,8 +131,8 @@ says when you need one.
 
 `~/.rigline/drift.txt` lists what changed inside Claude Code the last time `rigline install` found
 anything had: the names plugins are built against, gone and new. It is there for working out why a
-plugin stopped after a Claude Code update. Each install rewrites it, or removes it when nothing
-moved.
+plugin stopped after a Claude Code update, and its first line says which update. An install that
+finds something moved rewrites it; one that finds nothing leaves it.
 
 `~/.rigline/token` is a random value `rigline install` makes once and never changes. It goes into
 the panel, so a save made from the panel can show it came from one of your own. Leave it alone. If

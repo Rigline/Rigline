@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { clearRestored, markRestored, restoredSince } from "./restored.ts";
+import { clearRestored, markRestored, restoredAt, restoredSince } from "./restored.ts";
 
 const dirs: string[] = [];
 
@@ -32,5 +32,25 @@ describe("the restored mark", () => {
     markRestored(path);
     writeFileSync(path, "");
     expect(restoredSince(path)).toBe("an unrecorded time");
+  });
+});
+
+describe("restoredAt", () => {
+  const now = new Date(2026, 8, 30, 12);
+
+  it("says a time this year as a person reads a clock, in local time", () => {
+    expect(restoredAt(new Date(2026, 8, 30, 9, 23).toISOString(), now)).toBe(
+      "09:23 on 30 September",
+    );
+  });
+
+  it("adds the year when it is not this one", () => {
+    expect(restoredAt(new Date(2025, 11, 31, 23, 5).toISOString(), now)).toBe(
+      "23:05 on 31 December 2025",
+    );
+  });
+
+  it("leaves text that is not a time as it was", () => {
+    expect(restoredAt("an unrecorded time", now)).toBe("an unrecorded time");
   });
 });
