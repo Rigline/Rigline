@@ -7,10 +7,10 @@ marked *optional* is wanted before 1.0.0; an *optional* item can land in any 1.x
 look at them before 1.0.0. Items marked *unconfirmed* carry a reviewer's reasoning but have not been reproduced: reproduce them before
 fixing.
 
-Where things stand: lint and typecheck pass, and on Windows all 1541 tests do; CI is green on all
+Where things stand: lint and typecheck pass, and on Windows all 1567 tests do; CI is green on all
 five jobs, Windows and macOS included, since 6a4be88. This machine's npm and pnpm are `.exe`, so a
 bare spawn that fails on the CI runner passes here, and Windows CI is the read for those. `pnpm release major` takes 1.0.0-alpha.13 to 1.0.0 correctly,
-and every curated anchor still resolves on 2.1.283.
+and every curated anchor still resolves on 2.1.285.
 
 ## Working the lists
 
@@ -283,12 +283,16 @@ asks rather than building around it.
 
 ### The corpus
 
-- [ ] **W48. The corpus and the harness on the newest Claude Code.** The anchor claim above is for
+- [x] **W48. The corpus and the harness on the newest Claude Code.** The anchor claim above is for
   2.1.283, and Claude Code is at 2.1.285 (read live on the Mac). 2.1.284 is snapshotted at
   `c:\dev\kb\vscode-claude-code-versions\2.1.284` but not in `CORPUS_VERSIONS`, and `install` found
   identifiers moved since 2.1.283. Add the newest installed version by verification.md's *Adding a
   version to the corpus*, 2.1.284 on the way, move `HARNESS_VERSION` and the root `generated.ts`, and
-  see what codegen says of the curated anchors there.
+  see what codegen says of the curated anchors there. **Found:** every anchor resolves on both;
+  2.1.285 came from the Marketplace, since this machine had only 2.1.284. 2.1.284 added the
+  `open_held_session` notification. 2.1.285 keys transcript rows by what a message is rather than by
+  index, so the harness's row-reuse case now reuses the row through a shared API message id, which
+  is how 2.1.285 still hands a row to a different record (D22 amended). No host change.
 
 ### Optional, any 1.x
 
@@ -352,7 +356,10 @@ asks rather than building around it.
 ## List R: the release, Leo's
 
 Alphas ship as there are things to test, as they have; 1.0.0 comes after lists M and W, bar their
-optional items.
+optional items. Leo holds a final gate before R6 and may want another alpha after it, so nothing
+before R6 may make an alpha wrong: `main` is public once pushed, and an alpha rolls `## Unreleased`
+into its own section. R3's text and R4's lead wait on the local branch `release-1.0-text`, rebased
+onto `main`, and merge only at the gate.
 
 - [ ] **R1. The alpha reads.** On an alpha carrying lists M and W: M26 to M28, and the Mac's first
   install through the released wrapper under Homebrew's Node. The alpha carrying W1 ships at least a

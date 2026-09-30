@@ -393,6 +393,11 @@ Transcript rows are keyed by index upstream and React reuses elements when the l
 identity is the host's problem, and keeping it there lets the mechanism change without any plugin
 noticing.
 
+*Amended 2026-09-30.* From 2.1.285 rows are keyed by what a message is, not by index
+([transcript.md](transcript.md)). That does not make an element safe to hand out: a record arriving
+under the API message id a row already has still takes the row over, which is how a streamed row,
+built before it has a uuid, becomes the record completing it. And older versions stay installed.
+
 **D23. Mounts sharing an anchor are ordered by the host in registry order, and every host-placed
 node is stamped `data-rigline-mount`.** The naive insert gives the slot to whichever plugin mounted
 last, which is invisible to authors and was observed to displace a decoration.
@@ -2650,12 +2655,12 @@ Rejected:
 - An element-to-fiber map built by walking each commit. Commits fire once per streamed token.
 
 **The fiber on the element can be the stale one (amended 2026-09-26).** React keeps two fibers per
-element and writes `__reactFiber$` only when it creates the element. Rows are keyed by index, so a
-row reused for another message can hand back the stale half, whose `.return` parents still carry the
+element and writes `__reactFiber$` only when it creates the element. So a row reused for another
+message (D22) can hand back the stale half, whose `.return` parents still carry the
 old message. A harness case read it: an assistant record superseding the one at index 1 left the
 row showing the new message and the host reporting the old uuid, and so the old time (P5). It lasts
-until the row renders again, and by the bundle's code the 600-row cap evicts from the front, so a
-long session reuses every row on each new message. The element's `__reactProps$` does not tell the halves apart: the
+until the row renders again, and by the bundle's code the 600-row cap evicts from the front, so up
+to 2.1.284, which keys rows by index, a long session reuses every row on each new message. The element's `__reactProps$` does not tell the halves apart: the
 div's own props had not changed, so React never rewrote them. So `rowIdentity` reads `alternate`
 too, and where the halves disagree takes the one whose root its `FiberRoot` calls current, React's
 own test, or neither when that does not settle it. The React layer asserts `alternate` and

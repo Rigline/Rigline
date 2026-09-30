@@ -9,9 +9,8 @@
  * matched to its message through the fiber react-dom keeps on the element (D103).
  * `@rigline/plugin-api` owns the three derivations; this owns the plumbing and the cost.
  *
- * Rows are keyed by index upstream, so React reuses one element for a different message when the
- * list is spliced. Identity is therefore re-read from scratch on every sweep, and plugins are
- * handed data, never elements.
+ * React hands one row element to a different message (D22), so identity is re-read from scratch on
+ * every sweep, and plugins are handed data, never elements.
  */
 import {
   entriesDiffer,

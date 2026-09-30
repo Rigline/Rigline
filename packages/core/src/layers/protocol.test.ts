@@ -204,12 +204,14 @@ describe("harvestProtocol against the corpus", () => {
       expect(protocol.outboundRequests).toContain(name);
     }
 
+    const heldSessions = CORPUS_VERSIONS.indexOf(version) >= CORPUS_VERSIONS.indexOf("2.1.284");
     expect(protocol.outboundNotifications).toEqual([
       "cancel_request",
       "close_channel",
       "interrupt_claude",
       "io_message",
       "launch_claude",
+      ...(heldSessions ? ["open_held_session"] : []),
       "request",
       "response",
       "start_speech_to_text",

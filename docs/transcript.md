@@ -88,9 +88,9 @@ For each candidate: read its fiber, take its identity, look up its time, and pus
 the decorations**. That comparison is what makes the whole thing affordable: React commits fire per
 streamed token, so the list is rebuilt far more often than it changes.
 
-Order is part of the comparison, because rows are keyed by index upstream: the same ids in a
-different order is a different transcript, and comparing sets would leave every decoration one row
-out of place.
+Order is part of the comparison. Up to 2.1.284 rows are keyed by index, so the same ids in a
+different order leave each element showing another message, and comparing sets would leave every
+decoration one row out of place.
 
 `diagnostics.transcript` carries the four numbers that describe this. `entries` against `timed` is
 the health of the join — a row whose time no record has supplied yet is normal for a moment and
@@ -105,9 +105,11 @@ again against the current entries. The list changes once per message, not once p
 simple thing is also the cheap thing.
 
 `build(entry, entries)` returns an `Element` or `null`. It is handed **data, never an element**
-(D22). Rows are keyed by index upstream and React reuses one element for a different message when
-the list is spliced, so identity is re-read from scratch on every sweep and there is nothing a
-plugin could safely hold onto. Keeping that inside the host is also what lets the mechanism change
+(D22). React hands one row element to a different message. Up to 2.1.284 rows are keyed by index,
+so any splice does it. From 2.1.285 they are keyed by what a message is — its tool use's id, else
+its API message id, else its uuid — so a record arriving under the API message id a row already
+has takes that row over, as the record completing a streamed row does. Identity is re-read from
+scratch on every sweep, and there is nothing a plugin could safely hold onto. Keeping that inside the host is also what lets the mechanism change
 without any plugin noticing.
 
 Each returned node is mounted `inside` its row through the ordinary mount service, with the plugin's

@@ -555,3 +555,6 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   compliance page and plugin policy say what a plugin may change on the machine (D77 amended).
 - 2026-09-29: Optional W7, W33 and W34 (D118, D111 narrowed), W14 closed as unsupported (D117), and
   the Windows CI job runs under bash, having run nothing under PowerShell (W46, W47).
+- 2026-09-30: 2.1.284 and 2.1.285 snapshotted, `generated.ts` regenerated and the harness moved to
+  2.1.285; every anchor resolves. 2.1.285 keys transcript rows by message rather than by index, and
+  still hands a row to another record under one API message id (D22 amended).

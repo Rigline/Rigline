@@ -190,9 +190,9 @@ export function messageTimes(message: unknown): MessageTime[] {
  * Whether two entry lists differ in anything a decoration could be drawn from. The sweep runs
  * after every React commit, and commits fire per streamed token, so the list is rebuilt far more
  * often than it changes; this is what stops a decoration being torn down and rebuilt on every one
- * of them. Order is part of the comparison because rows are keyed by index upstream: the same ids
- * in a different order is a different transcript, and comparing sets would leave every decoration
- * one row out of place.
+ * of them. Order is part of the comparison because up to 2.1.284 rows are keyed by index: the same
+ * ids in a different order is a different transcript, and comparing sets would leave every
+ * decoration one row out of place.
  */
 export function entriesDiffer(
   a: readonly TranscriptEntry[],

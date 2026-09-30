@@ -78,7 +78,7 @@ next plain pull fast-forwards.
 
 `bash -ic` rather than `-lc`: nvm installs into `.bashrc`, which a login shell does not read. The
 corpus lives at a Windows path so its tests skip there with a reason, which is the designed
-behaviour and not a failure — expect 145 skipped. The count grows with every corpus version and
+behaviour and not a failure — expect 171 skipped. The count grows with every corpus version and
 harness test. To re-measure it on Windows, point `CORPUS` in `packages/core/test/corpus.ts` at a
 directory that does not exist for one `pnpm test`, then put it back with an edit, not `git checkout`,
 which would also drop any change to that file you have not committed. Nothing skips by platform, so

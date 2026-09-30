@@ -83,14 +83,16 @@ const FAKE_HOST = `
         message: { role: "user", content: "hello from the harness" },
       },
     });
+    const reply = harnessUuid();
     sendFromExtension({
       type: "io_message",
       channelId,
       message: {
         type: "assistant",
-        uuid: harnessUuid(),
+        uuid: reply,
         timestamp: now,
-        message: { role: "assistant", content: [{ type: "text", text: "hello back" }] },
+        // The API message id every real one carries, derived so a test can supersede it under it.
+        message: { id: "msg_" + reply, role: "assistant", content: [{ type: "text", text: "hello back" }] },
       },
     });
   }

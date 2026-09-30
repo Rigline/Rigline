@@ -159,7 +159,7 @@ export const ANCHORS = {
     kind: "collection",
     refine: "[data-transcript-message]",
     description:
-      "Every transcript row, user and assistant alike. The transcript capability finds rows by this class. Rows are keyed by index upstream, so one element is reused for a different message when the list is spliced; hold nothing against an element. The refinement is the app's own row marker, which it queries itself; without it the focus view's todo item comes back as a row.",
+      "Every transcript row, user and assistant alike. The transcript capability finds rows by this class. React can hand one element to a different message, so hold nothing against an element. The refinement is the app's own row marker, which it queries itself; without it the focus view's todo item comes back as a row.",
     surfaces: ["editor", "sidebar"],
   },
   assistantRow: {

@@ -222,7 +222,7 @@ describe("entriesDiffer", () => {
   });
 
   it("is true when the same ids appear with their index swapped", () => {
-    // Rows are keyed by index upstream, so comparing sets rather than sequences would call this
+    // Up to 2.1.284 rows are keyed by index, so comparing sets rather than sequences would call this
     // unchanged and leave every decoration one row out of place.
     const swapped: readonly TranscriptEntry[] = [
       { id: B, role: "assistant", at: null, index: 0 },

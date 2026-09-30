@@ -429,10 +429,10 @@ export default { setup() {} };`,
     }, 20000);
 
     it("identifies a row React reused for a different message by the message it now shows", async () => {
-      // Rows are keyed by index, so an assistant record superseding the one at index 1 leaves the
-      // list two long and hands the same row element a different message. React writes an
-      // element's fiber only when it creates it, so a stale read reports the old message, and its
-      // time, on the new one (P5).
+      // An assistant record superseding the one at index 1 under its API message id takes over its
+      // row element whether rows are keyed by index or by that id (D22). React writes an element's
+      // fiber only when it creates it, so a stale read reports the old message, and its time, on
+      // the new one (P5).
       const identifier: FixturePlugin = {
         name: "identifier",
         manifest: { uses: { transcript: true } },
@@ -474,7 +474,11 @@ export default { setup() {} };`,
               uuid,
               timestamp: new Date().toISOString(),
               supersedes: [old],
-              message: { role: "assistant", content: [{ type: "text", text: "a later answer" }] },
+              message: {
+                id: `msg_${old}`,
+                role: "assistant",
+                content: [{ type: "text", text: "a later answer" }],
+              },
             });
           },
           { uuid: superseding, old: before?.id },

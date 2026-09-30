@@ -46,4 +46,6 @@ export const CORPUS_VERSIONS = [
   "2.1.280",
   "2.1.282",
   "2.1.283",
+  "2.1.284",
+  "2.1.285",
 ] as const;
