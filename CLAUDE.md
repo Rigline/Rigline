@@ -145,6 +145,10 @@ Written for somebody else, so don't rewrite them for us:
 - **A plugin's problem never blocks the install.** Report it by name, inject around it, refuse it
   at load. A collapsed harvest refuses its one version and leaves it as it was (D104); only
   Rigline's own build failure stops the run.
+- **Never spawn `npm` or `pnpm` by bare name.** On the Windows runner each is a `.cmd`, which a
+  spawn without a shell never finds, while this machine's nvm puts `.exe`s on PATH, so it passes
+  here and fails only in CI. Run npm as `process.execPath` with `findNpmCli()`, and pnpm through
+  `cmd /d /s /c` on Windows, as the packed tests do. `c:\dev\knowledge\node-tooling.md` has the why.
 
 ## Working on the live extension
 
@@ -185,6 +189,11 @@ second vitest copy and so finds no runner (`reading 'config'`). The detail is in
 Rebuilding the payload or a plugin and running `install` again refreshes the files in place
 without rewriting the bundle. `restore` is the undo and the recovery from a blank panel; it needs
 only Node and this checkout.
+
+`install` from this checkout also rewrites the root `generated.ts` from the newest Claude Code
+installed, and says it needs you. When that is newer than the harness's `HARNESS_VERSION`, `git
+checkout -- generated.ts` unless you are moving the harness: `page.test.ts` holds the two together,
+and [verification.md](docs/verification.md)'s *Adding a version to the corpus* is the whole move.
 
 `install` is the one write command about the injection, and `check` is its read-only half. `add`,
 `remove`, `disable` and `enable` change the plugin set and re-inject afterwards, so a plugin is one

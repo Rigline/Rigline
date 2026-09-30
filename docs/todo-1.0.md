@@ -18,7 +18,8 @@ and every curated anchor still resolves on 2.1.283.
   `docs/companion.md` and `todo-1.0-mac.md`. List W owns everything else, this file included. Each
   machine edits only its own to-do file. Work that turns out to need a file the other machine owns
   goes under *Handed over* at the end of your own list, naming the file; each machine reads the
-  other's *Handed over* after every pull.
+  other's *Handed over* after every pull. Having done one handed to you, add a *Done* line to your
+  own *Handed over* naming it, and the machine that handed it over ticks its entry.
 - **Both lists commit to `main`.** Pull before starting and before each batch; commit small, tick
   the item (`[x]`) in the same commit as its fix, and push straight after, so the other machine sees
   it. A conflict in `CHANGELOG.md`'s `## Unreleased` keeps both entries.
@@ -279,6 +280,15 @@ asks rather than building around it.
   create-plugin's now runs pnpm through `cmd /d /s /c`, as the wrapper's test runs `rigline`; the
   wrapper's own `pack` is handed over. And W43's refusal named a junction's target with a trailing
   `\` there; the target is now resolved.
+
+### The corpus
+
+- [ ] **W48. The corpus and the harness on the newest Claude Code.** The anchor claim above is for
+  2.1.283, and Claude Code is at 2.1.285 (read live on the Mac). 2.1.284 is snapshotted at
+  `c:\dev\kb\vscode-claude-code-versions\2.1.284` but not in `CORPUS_VERSIONS`, and `install` found
+  identifiers moved since 2.1.283. Add the newest installed version by verification.md's *Adding a
+  version to the corpus*, 2.1.284 on the way, move `HARNESS_VERSION` and the root `generated.ts`, and
+  see what codegen says of the curated anchors there.
 
 ### Optional, any 1.x
 
