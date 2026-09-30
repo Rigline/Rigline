@@ -7,9 +7,9 @@ marked *optional* is wanted before 1.0.0; an *optional* item can land in any 1.x
 look at them before 1.0.0. Items marked *unconfirmed* carry a reviewer's reasoning but have not been reproduced: reproduce them before
 fixing.
 
-Where things stand: lint and typecheck pass, and on Windows all 1541 tests do; this machine's npm
-and pnpm are `.exe`, so a bare spawn that fails on the CI runner passes here, and Windows CI is the
-read for those. `pnpm release major` takes 1.0.0-alpha.13 to 1.0.0 correctly,
+Where things stand: lint and typecheck pass, and on Windows all 1541 tests do; CI is green on all
+five jobs, Windows and macOS included, since 6a4be88. This machine's npm and pnpm are `.exe`, so a
+bare spawn that fails on the CI runner passes here, and Windows CI is the read for those. `pnpm release major` takes 1.0.0-alpha.13 to 1.0.0 correctly,
 and every curated anchor still resolves on 2.1.283.
 
 ## Working the lists
