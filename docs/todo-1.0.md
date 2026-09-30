@@ -361,10 +361,14 @@ before R6 may make an alpha wrong: `main` is public once pushed, and an alpha ro
 into its own section. R3's text and R4's lead wait on the local branch `release-1.0-text`, rebased
 onto `main`, and merge only at the gate.
 
-- [ ] **R1. The alpha reads.** On an alpha carrying lists M and W: M26 to M28, and the Mac's first
-  install through the released wrapper under Homebrew's Node. The alpha carrying W1 ships at least a
-  day before 1.0.0, since pnpm 12's `dlx` applies the one-day release age and so serves the version
-  before on the day one ships.
+- [ ] **R1. The alpha reads.** On `1.0.0-alpha.14`, carrying lists M and W: on the Mac with
+  `rigline.enginePath` cleared, M26 and M28 through the released companion, and M27 if Claude Code
+  updates meanwhile; and `pnpm create rigline-plugin@1.0.0-alpha.14 x`, which reads W1 as
+  published. The version is named so the read needs no wait: pnpm's default release-age gate falls
+  back from a young `latest`, but takes a young version asked for exactly. Homebrew's Node is not
+  read for real (Leo): M1 and M26 stand for it. The alpha still ships at least a day before 1.0.0,
+  since authoring.md's `pnpm create rigline-plugin` resolves `latest` through that gate, and for
+  that day it serves alpha.13, which scaffolds nothing.
 - [ ] **R2. A last look at the optional items** on both lists: which, if any, 1.0.0 takes.
 - [ ] **R3. The release text**, which `release.mjs` does not touch and which must be committed
   before it runs, since it refuses a dirty tree: `README.md:26`, "1.0 is under construction"; the
