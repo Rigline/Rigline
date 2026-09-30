@@ -4,10 +4,11 @@ Rigline's tests answer four different kinds of question, against four different 
 of the work is putting a question in the right place. A question about a regex against a real bundle
 belongs to the corpus; a question about whether a decoration survives a re-render belongs to a
 browser; a question about what a person who installed from npm actually gets belongs to the tarball;
-and a question about whether the whole thing works in the actual extension belongs to the probe, and
-nothing else can answer it. The reasoning is D36 and D39 in [decisions.md](decisions.md).
+and a question about whether the whole thing works in the actual extension belongs to the live
+panel's *Diagnostics*, and nothing else can answer it. The reasoning is D36 and D39 in
+[decisions.md](decisions.md).
 
-Everything but the probe runs under one `pnpm test`.
+Everything but the live panel runs under one `pnpm test`.
 
 A tier's number is what it is called, not how close it is to a real editor. Tier 4 arrived last and
 is the cheapest of the four; it sits at the end because that is where a new one goes.
@@ -215,28 +216,28 @@ reason says which.
 
 ## Tier 3: the panel, in the real extension
 
-`plugins/probe` renders Rigline's diagnostics panel in the actual webview, and is the only tier that
-exercises the real extension host, the real CSP, the real React build and the real install.
+*Diagnostics*, Rigline's own entry in its menu, shows every contributor's checks in the actual
+webview, and is the only tier that exercises the real extension host, the real CSP, the real React
+build and the real install.
 
-**A check is contributed, not written into the probe** (D63). The kernel and each capability module
-contribute the host's lines under `rigline`; every plugin contributes its own through `ctx.check`, under
-its own name. So the panel answers *which part of this is broken* — and a plugin, which is precisely
-the thing whose failure was invisible, now has somewhere to say what working would look like.
+**A check is contributed** (D63). The kernel and each capability module contribute the host's lines
+under `rigline`; every plugin contributes its own through `ctx.check`, under its own name. So the
+panel answers *which part of this is broken* — and a plugin, which is precisely the thing whose
+failure was invisible, now has somewhere to say what working would look like.
 
-The probe is one contributor among several, which is the test of whether the shape is right. It keeps
-only what is an experiment rather than a reading: register a tap and check the tap saw the app's
-original, rewrite twice and check the chain composed. Everything it can reach through `ctx` it
-reaches through `ctx`, exactly as a third-party plugin would, which is what makes an all-green badge
-evidence rather than self-assessment. The one exception is `globalThis.__rigline`, read directly and
-by nothing else: rendering every contributor's verdict, and the diagnostics the copied report
-carries, is not a capability a manifest could sanely declare.
+`plugins/probe` is one contributor among several, which is the test of whether the shape is right. It
+keeps only what is an experiment rather than a reading: register a tap and check the tap saw the
+app's original, rewrite twice and check the chain composed. It reaches everything through `ctx`,
+exactly as a third-party plugin would, which is what makes an all-green badge evidence rather than
+self-assessment. *Diagnostics* itself is the host's, so the lines behind the badge's count are there
+with the probe switched off (D119).
 
 The verdict logic behind `rigline` is pure and tested in Node, in
 [verdicts.test.ts](../packages/host/test/verdicts.test.ts), with the registry's own behaviour — a
-throwing check, a malformed one, the grouping — beside it in `checks.test.ts`. Tier 2 proves the
-registry end to end through the real `ctx`, in
-[kernel.test.ts](../packages/harness/test/kernel.test.ts). What is left for this tier is the thing
-none of them can answer: whether the lines are true of a real panel.
+throwing check, a malformed one, the grouping — beside it in `checks.test.ts`, and the report's text
+in `report.test.ts`. Tier 2 proves the registry and *Diagnostics* end to end through the real `ctx`,
+in [kernel.test.ts](../packages/harness/test/kernel.test.ts). What is left for this tier is the
+thing none of them can answer: whether the lines are true of a real panel.
 
 Three verdicts, and **`n/a` is a real state**: a check that cannot apply on this surface, or has had
 no opportunity yet, says so instead of guessing. The panel, the badge count and the clipboard are
@@ -388,8 +389,8 @@ then the same number in the workspace root and the scaffolder's template (D59).
 | does this node land in the right place, survive a re-render, keep its order | the harness |
 | what happens to a plugin the day an identifier goes | the harness, with `remove` |
 | is it in the tarball, and does it work from there | tier 4, the packed install |
-| does it work in the actual extension | the probe, and only the probe |
+| does it work in the actual extension | *Diagnostics* in the live panel, and only there |
 
 When a tier cannot answer a question, say so rather than approximating it in a cheaper one. The
 harness cannot tell you whether the real composer reflows around your decoration; the corpus cannot
-tell you whether react-dom injected. Both of those are probe questions, and were found by the probe.
+tell you whether react-dom injected. Both of those are live-panel questions, and were found there.

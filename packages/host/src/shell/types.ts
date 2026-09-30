@@ -2,7 +2,9 @@
  * What the kernel hands the shell. Types only: post.js loads `runtime/shell.js` and never bundles
  * it, so the shell shares React and `@rigline/plugin-api/ui` with the plugins it renders (D88).
  */
-import type { ElementComponent, MenuComponent, Store } from "@rigline/plugin-api/internal";
+import type { ElementComponent, MenuComponent, Store, Surface } from "@rigline/plugin-api/internal";
+import type { Diagnostics } from "../kernel/bridge.ts";
+import type { CheckGroup } from "../kernel/checks.ts";
 import type { LayoutEditor } from "../kernel/layout.ts";
 import type { ElementReading } from "../kernel/shell.ts";
 
@@ -48,6 +50,11 @@ export interface ShellOptions {
   readonly elements: Store<readonly PlacedElement[]>;
   /** How many checks were failing at the last run. */
   readonly failing: Store<number>;
+  /** The last run itself, which Diagnostics shows (D119). */
+  readonly checks: Store<readonly CheckGroup[]>;
+  /** The bridge's diagnostics, which Copy report reads. */
+  readonly diagnostics: Diagnostics;
+  readonly surface: Surface;
   /** The layout editor the Layout submenu drives (D93). */
   readonly editor: LayoutEditor;
   /** What became of each bound element, keyed `plugin/element`. */

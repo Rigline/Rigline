@@ -68,8 +68,8 @@ harvested identifier and reads no generated table. What it does:
   plugin's own React, or Rigline's — is counted in `diagnostics.react.foreign` and otherwise
   ignored. A row's fiber is read off the element itself, by the `__reactFiber$` prefix (D103).
 - Publishes all of this on `globalThis.__rigline` as the bridge the post hook drives, with a
-  `diagnostics` object the probe reads. The bridge is host-internal and not part of `ctx`; the probe
-  is the one plugin that reads it.
+  `diagnostics` object the shell's *Diagnostics* reports. The bridge is host-internal and not part
+  of `ctx`, and no plugin reads it (D119).
 
 ## post.js: the kernel
 
@@ -127,6 +127,11 @@ mount when the menu opens and unmount when it closes. A submenu portals its leve
 only the top level shows, so the levels beneath keep their state. The panel listens for keys on
 `window`, in capture, and stops the ones it takes, so the app's own `document` listeners never see
 an Escape that closed the menu.
+
+After every plugin's entries come Rigline's own: *Diagnostics*, always, then Layout while any element
+is declared. *Diagnostics* shows the run the pill's count came from, grouped by contributor, and
+Copy report puts [report.ts](../packages/host/src/shell/report.ts)'s text on the clipboard (D53,
+D119).
 
 ### Elements and zones
 
@@ -392,7 +397,7 @@ sorted, with the probe last. It is the order mounts sharing an anchor appear in 
 rewriters compose in.
 
 `engine` is the payload's stamp (D75), and it is here rather than in a file of its own because the
-webview cannot fetch: anything the probe reads has to be a module the post hook already imports, and
+webview cannot fetch: anything the panel reads has to be a module the post hook already imports, and
 this is the one `install` bakes. The kernel copies it onto `diagnostics.engine`, so a plugin reads
 it the way it reads every other host-provided value and never imports the host (D18, D63). Node-side,
 `parseRegistry` reads it back out with a bounded regex and `doctor` reports it against `CORE_VERSION`;
@@ -401,13 +406,13 @@ problem with the registry.
 
 ## Diagnostics
 
-`globalThis.__rigline.diagnostics` carries what the probe reports: timing of the two hooks, whether
-the wrapper was installed and called, inbound and outbound counts, buffer size and sealed state,
-clone counts and the worst clone by type, resend count, the per-plugin status list, the rewrite
-log (plugin, type, fields, ran, applied, missed), the recorded patch outcomes, the version the
-tables were harvested from, the React hook state and commit and notice counts, the transcript
+`globalThis.__rigline.diagnostics` is what the copied report is made of: timing of the two hooks,
+whether the wrapper was installed and called, inbound and outbound counts, buffer size and sealed
+state, clone counts and the worst clone by type, resend count, the per-plugin status list, the
+rewrite log (plugin, type, fields, ran, applied, missed), the recorded patch outcomes, the version
+the tables were harvested from, the React hook state and commit and notice counts, the transcript
 sweep counters, the mount counters, a per-second peak for every hot path (D53), and the storage
-ring's own state. It is read by the probe and by nothing a plugin can declare.
+ring's own state. It is read by the shell and by nothing a plugin can declare.
 
 Two of those are findings rather than numbers to weigh, and both are empty in the ordinary case.
 `mounts.multiple` names an anchor declared to mean one element whose selector matched several, so a
@@ -433,9 +438,10 @@ returns something that is not a verdict, becomes one failing line naming its con
 nothing else happens — no disable, and nothing in `diagnostics.errors`, which would count one fault
 twice under the wrong layer's name (D65).
 
-The cadence belongs to whoever renders. The probe asks once a second, for the life of the window,
+The cadence belongs to whoever renders. The shell asks once a second, for the life of the window,
 because the badge's failing count is on screen whether or not the panel is open — which is what
-makes *a check reads, it does not compute* a rule rather than a preference (D64).
+makes *a check reads, it does not compute* a rule rather than a preference (D64). *Diagnostics*
+shows that same run, so it never runs the checks a second time.
 
 ## Verification
 
@@ -445,12 +451,12 @@ written only on change, restore round-trip, status verdicts); discovery and regi
 built `pre.js` against a stubbed `acquireVsCodeApi` (immutability, unwrapping, buffer, chain,
 resend, counts); every contract's `gaps` and `summary`.
 
-The probe plugin, live: every contributor's lines under its own heading, `n/a` where a check cannot
-apply on a surface, and the `RIG` badge green or red with the total count. Leo reloads webviews and
-reads the badge on the full editor, the sidebar and the session list. The probe renders the registry
-and contributes six of its own; the verdict logic behind `rigline` is unit-tested in
-`packages/host/test/verdicts.test.ts` and the registry's own behaviour in `checks.test.ts` beside it,
-because neither needs a browser to be argued about.
+*Diagnostics*, live: every contributor's lines under its own heading, the probe's experiments among
+them, `n/a` where a check cannot apply on a surface, and the `RIG` badge green or red with the total
+count. Leo reloads webviews and reads the badge on the full editor, the sidebar and the session list.
+The verdict logic behind `rigline` is unit-tested in `packages/host/test/verdicts.test.ts`, the
+registry's own behaviour in `checks.test.ts` beside it and the report's text in `report.test.ts`,
+because none of them needs a browser to be argued about.
 
 The Playwright spike, if it boots the real bundle: a third tier for host and plugin DOM behaviour
 that needs no VS Code.

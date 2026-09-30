@@ -42,8 +42,8 @@ it finds them itself, so there's nothing to point it at.
     pnpm rigline install
 
 This injects the loader and bakes in the first-party plugins (session id, worktree prefix, time
-marks, and the probe, whose *Diagnostics* in Rigline's menu, behind the `RIG` pill, confirm it
-worked). Then reload:
+marks, and the probe); *Diagnostics*, in Rigline's menu behind the `RIG` pill, confirms it worked.
+Then reload:
 
 - **Developer: Reload Webviews** (Command Palette) if only the webview payload changed — this
   affects the current window only, but ends any Claude Code turn that's in flight in it.

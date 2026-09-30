@@ -9,8 +9,6 @@
   },
   "devDependencies": {
     "@rigline/core": "workspace:*",
-    "@rigline/plugin-api": "workspace:*",
-    "@types/react": "^19.3.0",
-    "react": "^19.3.0"
+    "@rigline/plugin-api": "workspace:*"
   }
 }

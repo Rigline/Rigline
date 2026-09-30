@@ -26,6 +26,11 @@ anything may change between releases.
   you use before the ones for writing plugins.
 - *Diagnostics* heads Rigline's own checks `rigline`, where it said `core`. A plugin may be named
   `core`, and its checks then read as Rigline's; no plugin may be named `rigline`.
+- *Diagnostics* is Rigline's own entry in its menu, above Layout, rather than the probe's, so it is
+  there with the probe switched off. With the probe off, the pill counted failures that nothing
+  could show. The probe keeps its self-tests, whose lines appear under its name as before, and its
+  *rewrite bookkeeping* line is gone: every plugin's rewrite counts are in the copied report
+  instead, which now starts "rigline report".
 
 ### Fixed
 

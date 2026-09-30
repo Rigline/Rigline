@@ -21,7 +21,7 @@ and every curated anchor still resolves on 2.1.283.
 - **Both lists commit to `main`.** Pull before starting and before each batch; commit small, tick
   the item (`[x]`) in the same commit as its fix, and push straight after, so the other machine sees
   it. A conflict in `CHANGELOG.md`'s `## Unreleased` keeps both entries.
-- **Decision numbers.** The next free one is D119. Pull before taking one, and push the commit that
+- **Decision numbers.** The next free one is D120. Pull before taking one, and push the commit that
   takes it at once. A fix that moves a recorded decision amends it and says so.
 - **The repo's rules hold**: root `CLAUDE.md`, and planning a batch before coding it (its plan in
   `.local/plans/` on the machine doing it). The Mac has no corpus at `c:/dev/kb`, so the corpus tier
@@ -330,14 +330,13 @@ asks rather than building around it.
   buffer's seal and the shell. Race it against a timeout and report it by name. A plugin named
   `core` shows its checks as the host's (`host/src/kernel/checks.ts:36`); rename the host's
   contributor to `rigline`, which is reserved.
-- [ ] **W42. The plugins.** With the probe disabled, the pill still counts failures the menu cannot
+- [x] **W42. The plugins.** With the probe disabled, the pill still counts failures the menu cannot
   show (`shell/index.tsx:144-158`). The copied probe report carries the messaging address and the
   worktree label (against `probe/src/checks.ts:247-249`, D53). `EnterWorktree` with neither `name`
   nor `path` leaves a stale prefix (`worktree-prefix/src/index.ts:147-155`, *unconfirmed*).
   `worktreeLabel` slices by UTF-16 unit and can cut an emoji. time-marks shows no year on an old
   session. `list` prints each description on one line, and session-id's is about 330 characters;
-  the four do not share a voice. *All but the pill is done; the pill waits on Leo's call between
-  moving the probe's viewer into the host and a tooltip naming the failing lines.*
+  the four do not share a voice. *The pill: Diagnostics moved into the host (D119).*
 
 ## List R: the release, Leo's
 

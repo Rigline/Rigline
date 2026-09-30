@@ -25,7 +25,7 @@ no new plans. Update the plan before writing code; log status there, not here.
   `Atomics.wait` rather than making `install` async. Carries a negative result worth not
   re-proposing: a content check on the bundle's tail was evidenced against the corpus and rejected,
   because a rule that fits today's bundler refuses every install the day it changes.
-- [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D118.
+- [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D119.
 
 The internals, for a contributor to Rigline itself. The shape, not the argument — the argument is in
 decisions.md, and each doc cites the decisions it rests on.
@@ -46,7 +46,7 @@ decisions.md, and each doc cites the decisions it rests on.
   profile trap, and how to reproduce each case live.
 - [docs/transcript.md](docs/transcript.md): the three-way join behind an entry, row identity through
   React, the sweep, and what a decoration must never do to a row.
-- [docs/verification.md](docs/verification.md): the four tiers, the corpus, the harness, the probe,
+- [docs/verification.md](docs/verification.md): the four tiers, the corpus, the harness, the live panel,
   the packed install, and which tier a question belongs to.
 - [docs/ci.md](docs/ci.md): the delivery model. The branching rule, why versions and both dist-tags
   are derived rather than chosen, the three release commands, the two workflows, and what is still
@@ -204,7 +204,7 @@ every profile's companion writes the same Claude Code directories. Unset, every 
 Code — has the companion run `install` with the released engine, whose payload silently replaces
 this checkout's while every check passes, and everything it runs for the panel, Save included, is
 released code. Set, the status item reads *Rigline (dev)*. The tell that it is not working is a
-probe report without what you just built; compare the installed `post.js` with
+copied report without what you just built; compare the installed `post.js` with
 `packages/core/dist/bundled/post.js`. Re-run `vscode-setup` after changing the companion itself, or
 after giving another profile Claude Code: while `rigline.enginePath` is set, the companion neither
 updates itself nor adds itself to other profiles (D99, D100).

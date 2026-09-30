@@ -2,10 +2,9 @@
   "$schema": "node_modules/@rigline/plugin-api/schema/manifest.json",
   "api": 1,
   "name": "probe",
-  "description": "Rigline's diagnostics in its menu: every check Rigline and its plugins run, and a report to copy into an issue.",
+  "description": "Live self-tests of Rigline's plugin API, whose lines join the rest under Diagnostics in Rigline's menu.",
   "entry": "dist/index.js",
   "uses": {
-    "menu": true,
     "optional": {
       "messages": ["request", "rename_tab"],
       "rewrites": {

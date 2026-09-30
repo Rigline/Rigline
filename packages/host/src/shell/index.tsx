@@ -12,6 +12,7 @@ import { FaultContext, MENU_CSS, MenuPanel, PILL_CSS } from "@rigline/plugin-api
 import { Component, type ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
+import { diagnosticsMenu } from "./diagnostics.tsx";
 import { EDIT_CSS, EditLayer } from "./edit.tsx";
 import { layoutMenu } from "./layout.tsx";
 import { OWN_CSS } from "./own.tsx";
@@ -119,8 +120,13 @@ function Elements(props: { readonly elements: readonly PlacedElement[] }): React
   );
 }
 
-function Shell(props: ShellOptions & { readonly own: Contribution }): ReactNode {
-  const { pill, contributions, elements, failing, editor, own } = props;
+function Shell(
+  props: ShellOptions & {
+    readonly diagnosticsEntry: Contribution;
+    readonly layoutEntry: Contribution;
+  },
+): ReactNode {
+  const { pill, contributions, elements, failing, editor, diagnosticsEntry, layoutEntry } = props;
   const [open, setOpen] = useState<"first" | "menu" | null>(null);
   const button = useRef<HTMLElement>(null);
   const close = useCallback((restoreFocus: boolean) => {
@@ -135,10 +141,10 @@ function Shell(props: ShellOptions & { readonly own: Contribution }): ReactNode 
   const contributed = useStore(contributions);
   const laidOut = useStore(editor.view).length > 0;
   const editing = useStore(editor.editing);
-  // Rigline's own entry after every plugin's, which the menu divides from them by owner.
+  // Rigline's own entries after every plugin's, which the menu divides from them by owner.
   const items = useMemo(
-    () => (laidOut ? [...contributed, own] : contributed),
-    [contributed, own, laidOut],
+    () => [...contributed, diagnosticsEntry, ...(laidOut ? [layoutEntry] : [])],
+    [contributed, diagnosticsEntry, layoutEntry, laidOut],
   );
   const placed = useStore(elements);
   const summary = count > 0 ? `${count} failing` : "all checks pass";
@@ -186,13 +192,22 @@ export function startShell(options: ShellOptions): () => void {
     onCaughtError: () => {},
     onUncaughtError: (error) => options.onError(message(error)),
   });
-  const own: Contribution = {
-    key: -1,
+  const own = (key: number, component: Contribution["component"]): Contribution => ({
+    key,
     owner: "rigline",
-    component: layoutMenu(options.editor, options.readings, options.places),
+    component,
     onError: options.onError,
-  };
-  root.render(<Shell {...options} own={own} />);
+  });
+  root.render(
+    <Shell
+      {...options}
+      diagnosticsEntry={own(
+        -1,
+        diagnosticsMenu(options.checks, options.diagnostics, options.surface),
+      )}
+      layoutEntry={own(-2, layoutMenu(options.editor, options.readings, options.places))}
+    />,
+  );
   return () => {
     root.unmount();
     style.remove();

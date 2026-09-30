@@ -718,6 +718,46 @@ export default { setup(ctx) { ctx.menu(() => { ${body} }); } };`,
       }
     }, 20000);
 
+    it("shows every contributor's checks under Diagnostics, Rigline's own, and copies the report", async () => {
+      // No plugin contributes to the menu: what explains the pill's count is the host's (D119).
+      const failing: FixturePlugin = {
+        name: "failing",
+        manifest: {},
+        source: `export default { setup(ctx) {
+    ctx.check("always fails", () => ({ verdict: "fail", detail: "on purpose" }));
+  } };`,
+      };
+      const booted = await boot({ plugins: [failing] });
+      const { page } = booted;
+      try {
+        await page.waitForSelector(".rigline-pill-failing");
+        await page.evaluate(() => {
+          const w = window as unknown as { __copied?: string };
+          document.execCommand = (command: string) => {
+            w.__copied = (document.activeElement as HTMLTextAreaElement).value;
+            return command === "copy";
+          };
+        });
+        await page.click(".rigline-pill");
+        await page.getByRole("menuitem", { name: /^Diagnostics.*failing/ }).click();
+        const lines = await page.locator(".rigline-menu pre").textContent();
+        expect(lines?.split("\n")[0]).toMatch(/^rigline/);
+        expect(lines).toContain("failing  (1 failing)\n  FAIL  always fails — on purpose");
+
+        await page.getByRole("menuitem", { name: /^Copy report/ }).click();
+        await page.getByRole("menuitem", { name: /^Copied/ }).waitFor();
+        const copied = await page.evaluate(
+          () => (window as unknown as { __copied?: string }).__copied,
+        );
+        expect(copied?.split("\n")[0]).toBe("rigline report");
+        expect(copied).toContain(`extension  ${VERSION}, surface editor`);
+        expect(copied).toContain("FAIL  always fails — on purpose");
+        expect(booted.consoleErrors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
     it("moves focus across two plugins' entries, drills in and out, and keeps Escape from the app", async () => {
       const alpha: FixturePlugin = {
         name: "alpha",
@@ -763,13 +803,17 @@ export default { setup(ctx) {
         expect(await focused()).toBe("Alpha one");
         await page.keyboard.press("ArrowDown");
         expect(await focused()).toContain("Beta sub");
-        // Rigline's own Layout entry, after every plugin's.
+        // Rigline's own entries, Diagnostics then Layout, after every plugin's.
+        await page.keyboard.press("ArrowDown");
+        expect(await focused()).toContain("Diagnostics");
         await page.keyboard.press("ArrowDown");
         expect(await focused()).toContain("Layout");
         await page.keyboard.press("ArrowDown");
         expect(await focused()).toBe("Alpha one");
         await page.keyboard.press("ArrowUp");
         expect(await focused()).toContain("Layout");
+        await page.keyboard.press("ArrowUp");
+        expect(await focused()).toContain("Diagnostics");
         await page.keyboard.press("ArrowUp");
         expect(await focused()).toContain("Beta sub");
 

@@ -394,7 +394,7 @@ async function main(): Promise<void> {
       meter,
     ),
     checks,
-    shell: createShellService(tables, surface, editor, mounts, checks, (reason) => {
+    shell: createShellService(tables, surface, editor, mounts, checks, diagnostics, (reason) => {
       diagnostics.errors.push(`shell: ${reason}`);
       console.error(`[rigline] shell: ${reason}`);
     }),

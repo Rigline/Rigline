@@ -237,8 +237,10 @@ split is the whole of D2, and it is why a plugin can be arbitrarily broken witho
 `post.js` imports `generated.js` and `registry.js`, builds the kernel services, and walks the
 registry in order: patch verdict, declaration check, surface check, dynamic import, `ctx` from the
 capability modules, `setup()`. Then it seals the replay buffer in a `finally`, and starts the shell:
-Rigline's one React root, which draws the RIG pill, the menu, every element where it is placed, and,
-while the layout is edited in place, the handles over them (D88, D90, D95). [host.md](host.md) has the step list and the diagnostics the probe reads.
+Rigline's one React root, which draws the RIG pill, the menu with Rigline's own *Diagnostics* and
+Layout after every plugin's entries, every element where it is placed, and, while the layout is
+edited in place, the handles over them (D88, D90, D95, D119). [host.md](host.md) has the step list
+and what the diagnostics record.
 
 ## Failure isolation, by layer
 

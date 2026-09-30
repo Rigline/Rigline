@@ -48,7 +48,7 @@ app's own code (D79).
 Inbound, a `message` listener registered at static-import time precedes the app's own.
 
 If `acquireVsCodeApi` is not there to wrap, `diagnostics.acquireWrapped` is false and nothing here
-can post. That is a real state the probe reports rather than an assumption.
+can post. That is a real state *Diagnostics* reports rather than an assumption.
 
 ## Reading: a tap gets a frozen clone
 

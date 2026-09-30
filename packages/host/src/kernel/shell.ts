@@ -35,7 +35,8 @@ import type {
   RiglineElements,
   StartShell,
 } from "../shell/types.ts";
-import type { CheckService } from "./checks.ts";
+import type { Diagnostics } from "./bridge.ts";
+import type { CheckGroup, CheckService } from "./checks.ts";
 import type { LayoutEditor } from "./layout.ts";
 import type { MountService } from "./mounts.ts";
 
@@ -45,7 +46,7 @@ const OWNER = RIGLINE;
 /** After every plugin's mount at the same anchor, so the pill sits nearest the spacer. */
 const PILL_ORDER = Number.MAX_SAFE_INTEGER;
 
-/** How often the failing count on the pill is refreshed, which is how often every check runs. */
+/** How often every check runs, for the pill's count and for Diagnostics alike. */
 const POLL_MS = 1000;
 
 export interface ShellState {
@@ -118,6 +119,7 @@ export function createShellService(
   editor: LayoutEditor,
   mounts: MountService,
   checks: CheckService,
+  diagnostics: Diagnostics,
   fail: (reason: string) => void,
 ): ShellService {
   const pill = document.createElement("span");
@@ -134,6 +136,7 @@ export function createShellService(
   /** The zones held in place while the panel is edited, so an empty one shows (D95). */
   let held: string[] = [];
   const failing = store(0);
+  const ran = store<readonly CheckGroup[]>([]);
   let next = 0;
 
   function publish(): void {
@@ -270,7 +273,9 @@ export function createShellService(
   }
 
   function poll(): void {
-    failing.set(checks.run().reduce((total, group) => total + group.failing, 0));
+    const groups = checks.run();
+    ran.set(groups);
+    failing.set(groups.reduce((total, group) => total + group.failing, 0));
   }
 
   /** Places `b` where `layout` puts it, and does nothing when that has not moved. */
@@ -410,6 +415,9 @@ export function createShellService(
           contributions,
           elements,
           failing,
+          checks: ran,
+          diagnostics,
+          surface,
           editor,
           readings: bound,
           places,

@@ -1417,6 +1417,9 @@ baked at install time (D14) and nothing changes until the payload is rewritten. 
 name no root has, rather than writing a rule about a typo into `config.json` while the plugin the
 person meant goes on loading.
 
+Narrowed by D119: *Diagnostics*, which the probe drew, is the host's, and the probe is its
+experiments.
+
 **D75. The payload records the engine version that wrote it (2026-09-21).** `install` bakes
 `export const engine` into `registry.js`, so a stale injection stops looking identical to a current
 one — nothing else on disk distinguishes a payload three releases old from the one this engine would
@@ -1856,7 +1859,8 @@ disabled or cleared must cost a diagnostic, never a panel.
 **`rigline doctor` reports Rigline's own install state, and nothing else** (amended 2026-09-18,
 Leo). Per installed version: patched or vanilla by backup, the payload directories present, which
 plugins are discovered and enabled, and which this version's tables refuse and by which identifier.
-That plus the probe's copied report is what a bug report needs, and both come from files we wrote.
+That plus the report *Diagnostics* copies (D119) is what a bug report needs, and both come from files
+we wrote.
 
 VS Code's own logs are deliberately out of scope, having been in it and cut. Parsing them took more
 code than the harvest that is the reason this project exists, against five formats nobody documents,
@@ -3008,3 +3012,22 @@ at the next window start the companion put Rigline back into an extension a pers
 With `--ext`, `install` still reads the baseline and reports what moved, and writes none of the
 three. The mark stays, and the report says Rigline is still out. This narrows D111: an injection
 that names its directory is not the one that puts Rigline back.
+
+**D119. Diagnostics is the host's; the probe is its experiments (2026-09-30, Leo).** The pill's
+failing count is the host's and always on screen (D64), and the only thing that showed the lines
+behind it was the probe's menu entry, a plugin D72 lets a person switch off. With the probe off,
+refused, failing its import or shadowed by a fork, the pill counted what nothing could show, and
+Copy report, half of every bug report (D53), went with it. Refusing `disable probe` would have
+closed none of those, and switching the probe off is the one way to shed what it costs a panel: a
+copy of every `request` for its tap, a transcript sweep on every commit for its decorator, two
+rewriters on every `rename_tab`.
+
+The probe was two things. The viewer read `globalThis.__rigline` directly, as nothing else may, and
+used nothing a manifest could declare; the experiments are what D72 keeps it a plugin for. So the
+viewer is the shell's: *Diagnostics* is Rigline's own menu entry, before Layout, drawn from the one
+run a second that sets the pill's count, so the two cannot disagree and an open menu adds no second
+run. Copy report reads the bridge's diagnostics as host code. The probe keeps its tap, its rewriters
+and its decorator, reads nothing off the bridge, and stays switchable.
+
+Its *rewrite bookkeeping* check went with the viewer. It was a reading of host state rather than an
+experiment, which is D63's own test, and the rewrite records are in the report now, for every plugin.
