@@ -10,6 +10,8 @@ anything may change between releases.
 
 ## Unreleased
 
+## 1.0.0-alpha.14 — 2026-10-01
+
 ### Changed
 
 - The companion's output shows each line's time in your own time zone, with its offset, where it
