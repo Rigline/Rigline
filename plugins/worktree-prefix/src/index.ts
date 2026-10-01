@@ -118,11 +118,11 @@ export function worktreeLabel(name: string): string {
   const characters = Array.from(GRAPHEMES.segment(name), (s) => s.segment);
   if (characters.length <= SHORT_LENGTH) return name;
 
-  const budget = characters.slice(0, SHORT_LENGTH);
-  for (let i = budget.length - 1; i > 0; i--) {
-    if (SEPARATORS.test(budget[i] as string)) return budget.slice(0, i).join("");
+  // From one past the budget, so a word ending exactly at it is kept whole.
+  for (let i = SHORT_LENGTH; i > 0; i--) {
+    if (SEPARATORS.test(characters[i] as string)) return characters.slice(0, i).join("");
   }
-  return budget.join("");
+  return characters.slice(0, SHORT_LENGTH).join("");
 }
 
 /** The last non-empty segment of a Windows or POSIX path, ignoring trailing separators. */

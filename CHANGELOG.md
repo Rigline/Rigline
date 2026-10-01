@@ -10,6 +10,11 @@ anything may change between releases.
 
 ## Unreleased
 
+### Fixed
+
+- `worktree-prefix` keeps a worktree name's last word when it ends exactly at eight characters, so
+  `at-least-once-delivery` labels its tab `at-least` where it showed `at`.
+
 ## 1.0.0-alpha.15 — 2026-10-01
 
 ### Fixed

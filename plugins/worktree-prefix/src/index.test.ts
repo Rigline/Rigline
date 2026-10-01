@@ -28,8 +28,8 @@ describe("worktreeLabel", () => {
     // widened key length safe: an alphanumeric-first pattern of the same width takes "2026-09".
     expect(worktreeLabel("2026-09-14-spike")).toBe("2026-09");
     // Alphanumerics running on past the digits: TD-1234x is its own thing, not TD-1234. It is not
-    // a key, so it takes the ordinary boundary cut, which is terse here and never a wrong number.
-    expect(worktreeLabel("TD-1234x-tail")).toBe("TD");
+    // a key, so it takes the ordinary boundary cut.
+    expect(worktreeLabel("TD-1234x-tail")).toBe("TD-1234x");
     expect(worktreeLabel("TD-1234x")).toBe("TD-1234x");
     // A key found in the middle is not this worktree's key.
     expect(worktreeLabel("revert-ABC-123")).toBe("revert");
@@ -37,8 +37,12 @@ describe("worktreeLabel", () => {
 
   it("cuts a long name at a word boundary rather than mid-token", () => {
     expect(worktreeLabel("spike-new-parser")).toBe("spike");
-    expect(worktreeLabel("atlas-wt-extra")).toBe("atlas");
     expect(worktreeLabel("some_snake_case_name")).toBe("some");
+  });
+
+  it("keeps a word that ends exactly at the budget", () => {
+    expect(worktreeLabel("at-least-once-delivery")).toBe("at-least");
+    expect(worktreeLabel("atlas-wt-extra")).toBe("atlas-wt");
   });
 
   it("never invents a ticket number by truncating one", () => {
