@@ -33,10 +33,11 @@ export const OUTBOUND_REQUEST = /sendRequest\(\{\s*type:\s*["'`]([a-z][a-z0-9_]*
 export const OUTBOUND_NOTIFY = /[.\s]send\(\{\s*type:\s*["'`]([a-z][a-z0-9_]*)["'`]/g;
 
 /**
- * The literal that opens the inbound-push dispatch loop: `for await (<ident> of this.fromHost)
- * switch (<ident>.type) {`. A plain string, not a regex, because nothing about it varies.
+ * The head of the inbound-push dispatch loop, `for await (<ident> of this.fromHost)`. It stops at
+ * the property name: the loop body is a bare `switch` in one build and a block holding it in the
+ * next, so its switch is found by proximity, as the inbound-request one is.
  */
-const INBOUND_PUSH_ANCHOR = "of this.fromHost)switch(";
+const INBOUND_PUSH_ANCHOR = "of this.fromHost)";
 
 /**
  * The inbound-request dispatch method's signature, with any parameter names. This is the *Inner*
@@ -171,14 +172,11 @@ export function harvestProtocol(js: string): Protocol {
   if (pushAnchor === -1) {
     throw new HarvestError(LAYER, `inbound-push anchor not found: '${INBOUND_PUSH_ANCHOR}'`);
   }
-  const pushOpen = js.indexOf("{", pushAnchor);
-  if (pushOpen === -1) {
-    throw new HarvestError(
-      LAYER,
-      "inbound-push anchor matched but its switch has no opening brace",
-    );
-  }
-  const inboundPushes = topLevelSwitchCases(js, pushOpen);
+  const inboundPushes = switchCasesAfter(
+    js,
+    pushAnchor + INBOUND_PUSH_ANCHOR.length,
+    "inbound-push",
+  );
 
   const requestAnchor = INBOUND_REQUEST_ANCHOR.exec(js);
   if (requestAnchor === null) {

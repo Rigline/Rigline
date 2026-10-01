@@ -558,3 +558,6 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
 - 2026-09-30: 2.1.284 and 2.1.285 snapshotted, `generated.ts` regenerated and the harness moved to
   2.1.285; every anchor resolves. 2.1.285 keys transcript rows by message rather than by index, and
   still hands a row to another record under one API message id (D22 amended).
+- 2026-10-01: 2.1.286 refused under D104, the first update to break a harvest: the push loop's body
+  became a block, defeating `of this.fromHost)switch(`. The push switch is now found by proximity,
+  as the request switch was. Snapshotted, codegen and the harness moved to 2.1.286, and injected live.

@@ -21,12 +21,17 @@ function notifySites(n: number, prefix = "note"): string {
   return out;
 }
 
-/** The inbound-push dispatch loop, one case per entry, each case body given verbatim. */
-function pushSwitch(cases: Record<string, string>): string {
+/**
+ * The inbound-push dispatch loop, one case per entry, each case body given verbatim. `braced` is
+ * 2.1.286's shape: the loop body a block, with a call after the switch.
+ */
+function pushSwitch(cases: Record<string, string>, braced = false): string {
   const body = Object.entries(cases)
     .map(([name, block]) => `case"${name}":{${block}}break;`)
     .join("");
-  return `async readMessages(){for await(let $ of this.fromHost)switch($.type){${body}}}`;
+  const dispatch = `switch($.type){${body}}`;
+  const loop = braced ? `{${dispatch}this.hostMessageHandled()}` : dispatch;
+  return `async readMessages(){for await(let $ of this.fromHost)${loop}}`;
 }
 
 /** The inbound-request dispatch switch, one case per entry, each case body given verbatim. */
@@ -48,6 +53,7 @@ function webviewBundle(opts?: {
   requestCount?: number;
   notifyCount?: number;
   pushCases?: Record<string, string>;
+  bracedPush?: boolean;
   requestCases?: Record<string, string>;
 }): string {
   const requestCount = opts?.requestCount ?? 70;
@@ -58,7 +64,7 @@ function webviewBundle(opts?: {
     "var minifiedPreamble=1;function noop(){}",
     requestSites(requestCount),
     notifySites(notifyCount),
-    pushSwitch(pushCases),
+    pushSwitch(pushCases, opts?.bracedPush),
     requestSwitch(requestCases),
   ].join("\n");
 }
@@ -71,6 +77,11 @@ describe("harvestProtocol", () => {
     expect(protocol.inboundPushes).toHaveLength(8);
     expect(protocol.inboundRequests).toHaveLength(12);
     expect(protocol.outboundRequests).toEqual([...protocol.outboundRequests].sort());
+  });
+
+  it("finds the push switch inside a braced loop body, with a statement after it", () => {
+    const protocol = harvestProtocol(webviewBundle({ bracedPush: true }));
+    expect(protocol.inboundPushes).toEqual(Object.keys(namedCases("push", 8)).sort());
   });
 
   it("dedupes a type sent from more than one site", () => {
