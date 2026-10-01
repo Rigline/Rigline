@@ -10,6 +10,8 @@ anything may change between releases.
 
 ## Unreleased
 
+## 1.0.0-alpha.15 — 2026-10-01
+
 ### Fixed
 
 - Rigline reads Claude Code 2.1.286, which it refused as a version it could not read. Earlier
