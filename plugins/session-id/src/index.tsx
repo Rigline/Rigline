@@ -14,13 +14,11 @@
  * can rely on; the address lives in the menu, and in `rigRow` for whoever places it there.
  *
  * The address (`atlas-ae [61b4a3]`-shaped: a name plus a hex ref) is what `ListAgents` prints and
- * what `SendMessage`'s `to` takes. It never reaches the webview as a declared field: the CLI writes
- * it to `~/.claude/sessions/<pid>.json`, the extension host's own registry parser drops it before
- * anything downstream sees it, and `ctx.rewrite`/`ctx.resend` can only shape what the app already
- * sends, never originate a request that might answer for it. The one place it survives to the
- * webview is inside the plain text of a `ListAgents`/`SendMessage` tool result, which the host
- * relays verbatim — so that is where this plugin reads it from, for the menu, and from no other
- * tool's: a Read or a Grep of text holding the sentence is not this session speaking.
+ * what `SendMessage`'s `to` takes. The CLI writes it to `~/.claude/sessions/<pid>.json`, and the
+ * extension host's registry parser drops it; `get_status` carries all of it only for a renamed
+ * session, too rare to ask for (D120). So this plugin reads it from the plain text of a
+ * `ListAgents`/`SendMessage` tool result, which the host relays verbatim, and from no other tool's:
+ * a Read or a Grep of text holding the sentence is not this session speaking.
  *
  * Because the address is scraped rather than declared, `messagingIdentity` and the regex it runs
  * are this plugin's one piece of "derived from a bundle" risk, and are pinned by src/index.test.ts

@@ -402,6 +402,15 @@ what a plugin is written against.
 - **A JSON Schema for the layout**, generated at install from the installed elements, so an editor
   with a YAML language server completes element and place names. Triggered by hand-edited layouts
   going wrong.
+- **session-id's messaging address at launch** (D120). Triggered by Claude Code making stable
+  addresses unconditional, which today hang on the GrowthBook flag `tengu_session_stable_address`:
+  the flag's name leaving the CLI binary of a new corpus version is the tell. Until then the panel
+  cannot see the flag, and deriving the stable form while the CLI uses the per-process one hands out
+  a wrong address with nothing to say so. Stable, the ref is the first six hex of
+  `sha256("session:sid:" + sessionId)`; a name nobody chose is the directory's basename, sanitised,
+  a hyphen and a suffix from `sha256(sessionId)` by a function still to be read; a chosen name is
+  the session's `customTitle`. Today's ref is `sha256("session:" + messagingSocketPath)`, the path
+  being in `~/.claude/sessions/<pid>.json`, and the name's suffix is a random byte.
 - **The RIG pill as an element** (D97). Triggered by somebody asking to move it; weigh a person
   switching off the one control that always reaches the menu.
 - **Colour on `Pill`** (D89): any colour allowed, the theme's own the easy choice. Triggered by the
@@ -561,3 +570,5 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
 - 2026-10-01: 2.1.286 refused under D104, the first update to break a harvest: the push loop's body
   became a block, defeating `of this.fromHost)switch(`. The push switch is now found by proximity,
   as the request switch was. Snapshotted, codegen and the harness moved to 2.1.286, and injected live.
+- 2026-10-06: The host may send read-only requests the panel already sends (D120); session-id's
+  messaging address at launch is deferred to Claude Code's stable addresses.

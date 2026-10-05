@@ -46,8 +46,8 @@ in the menu, which is where you go when you actually want to copy it.
   since any other tool's output — a Read of this plugin's own tests, say — may quote the sentence
   the address is taken from. Why the address is scraped from text at all, rather than read from a
   declared field, is answered in the header comment of `src/index.tsx`: the CLI writes it to a
-  session file, the extension host's own registry parser drops it before anything downstream sees
-  it, and the one place it survives to the webview is the plain text of a tool result.
+  session file, the extension host's own registry parser drops it, and the one place it reaches the
+  webview for every session is the plain text of a tool result.
 - **`session: true`** (required): `ctx.onSessionId`, so the pill knows which session it is
   labelling. Which bus message actually carries that, and why three tempting alternatives are each
   wrong, is answered once in `packages/plugin-api/src/session.ts`.
@@ -58,10 +58,11 @@ in the menu, which is where you go when you actually want to copy it.
 
 ## What it cannot see
 
-- The address itself never crosses the bus as a declared field — the CLI writes it to
-  `~/.claude/sessions/<pid>.json`, and the extension host's own registry parser drops the relevant
-  field before anything reaches the webview. This plugin reads it out of tool-result text instead,
-  which is why the pill is built to work without it and treats the address as a bonus once seen.
+- The address is not something the panel can ask for. The CLI writes it to
+  `~/.claude/sessions/<pid>.json`, the extension host's own registry parser drops it, and the
+  status the panel can ask for holds all of it only once a session has been renamed. This plugin
+  reads it out of tool-result text instead, which is why the pill is built to work without it and
+  treats the address as a bonus once seen.
 - An address is taken to belong to a CLI *process*: its ref is re-rolled when the process restarts,
   which *Reload Claude* does under the same session id. So it is held only in memory, stamped with
   the session and the process it was observed for, and stops being shown once the panel launches

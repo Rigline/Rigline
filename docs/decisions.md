@@ -3042,3 +3042,30 @@ and its decorator, reads nothing off the bridge, and stays switchable.
 
 Its *rewrite bookkeeping* check went with the viewer. It was a reading of host state rather than an
 experiment, which is D63's own test, and the rewrite records are in the report now, for every plugin.
+
+**D120. The host may ask the extension for what the panel already asks for (2026-10-06, Leo).** D21
+put general emit out of scope so that no plugin could invent a type, a field value or an envelope.
+That is a property of plugins, and it survives the host sending a request of its own, so long as:
+
+- the request only reads: nothing that writes, launches a process or reaches the model, and never
+  `io_message`;
+- its type is one the app sends, harvested, so a version that renames it refuses the service rather
+  than misfiring;
+- it is on a list in host code, which no manifest can add to;
+- a plugin gets only what the host derives from the answer, through a service, never the answer;
+- it is not tapped, and is recorded in diagnostics, as a resend is.
+
+The app meets the reply with a console warning that no handler matched, and drops it, as it does a
+resend's (D21). The compliance page changes with the first request the host actually sends, since
+it says what Rigline does and today the host sends none (D77).
+
+A prompt is never such a request. Rigline sending `/peers` would be a user turn, kept in the
+transcript and in the model's context from then on, carrying every other session's title into
+every conversation, and `/list-agents` never states the session's own address anyway.
+
+The case that raised this was declined. `get_status`, behind the panel's `/status`, carries the
+socket the messaging address's ref is hashed from, but the name only once a session is renamed:
+otherwise its "Session name" is the AI title, and people rarely rename. The CLI's stable-address
+flag will make the whole address derivable in the panel with no request at all. So session-id still
+reads the address from a `ListAgents` or `SendMessage` result, and the address at launch waits for
+that flag ([plan.md](plan.md), *Deferred*).
