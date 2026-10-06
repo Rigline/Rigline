@@ -34,9 +34,12 @@ export function store<T>(initial: T): Store<T> {
 /**
  * A store fed by a `ctx.on*` subscription, subscribed as this is called — so called in `setup`, it
  * sees what the host replays from boot. The subscription lasts as long as the plugin, like any other.
+ * A subscription that takes only the handler, such as `ctx.onSessionId`, is passed as it is.
  *
- *     const sessionId = storeFrom(ctx.onSessionId, null);
  *     const renames = storeFrom((handler) => ctx.onMessage("rename_tab", handler), null);
+ *
+ * Bundled into every plugin that uses it, so no example here may look like a call to a switch:
+ * `install`'s source scan would report it as one the plugin never declared (D16).
  */
 export function storeFrom<T, I = T>(
   subscribe: (handler: (value: T) => void) => Teardown,

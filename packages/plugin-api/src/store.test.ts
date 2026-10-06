@@ -1,4 +1,8 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { capabilityUse, undeclaredUse } from "./capabilities/index.ts";
+import { EMPTY_USES } from "./manifest.ts";
 import { store, storeFrom } from "./store.ts";
 
 describe("store", () => {
@@ -51,5 +55,10 @@ describe("storeFrom", () => {
     expect(latest.get()).toBeNull();
     push(7);
     expect(latest.get()).toBe(7);
+  });
+
+  it("carries no prose the install's scan would read as an undeclared switch", () => {
+    const source = readFileSync(fileURLToPath(new URL("./store.ts", import.meta.url)), "utf8");
+    expect(undeclaredUse(EMPTY_USES, capabilityUse(source))).toEqual([]);
   });
 });

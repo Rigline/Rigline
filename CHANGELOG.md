@@ -23,6 +23,8 @@ anything may change between releases.
 
 ### Fixed
 
+- `rigline install` no longer says a plugin calls `onSessionId()` without declaring `session` when
+  all it does is use `storeFrom`.
 - `worktree-prefix` keeps a worktree name's last word when it ends exactly at eight characters, so
   `at-least-once-delivery` labels its tab `at-least` where it showed `at`.
 
