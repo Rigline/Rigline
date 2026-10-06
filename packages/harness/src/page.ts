@@ -91,7 +91,7 @@ const FAKE_HOST = `
         type: "assistant",
         uuid: reply,
         timestamp: now,
-        // The API message id every real one carries, derived so a test can supersede it under it.
+        // The API message id every real one carries.
         message: { id: "msg_" + reply, role: "assistant", content: [{ type: "text", text: "hello back" }] },
       },
     });

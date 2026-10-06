@@ -224,12 +224,14 @@ describe("corpus", () => {
       it.skipIf(missing(version))("counts the application sites D7 measured", () => {
         const { sites } = harvestClasses(corpusBundles(version).webview);
         // modelPill was applied twice until the agent-map button arrived in 2.1.269, which is the
-        // drift `classes.reused` exists to report; the rest have held across the corpus.
+        // drift `classes.reused` exists to report. timelineMessage gained the focus view's
+        // focus-run-in-background-row in 2.1.289, which assistantRow's testid refines out.
+        const since289 = CORPUS_VERSIONS.indexOf(version) >= CORPUS_VERSIONS.indexOf("2.1.289");
         expect(sites.gGYT1w?.modelPill).toBe(version === "2.1.268" ? 2 : 3);
         expect(sites["07S1Yg"]?.message).toBe(3);
         expect(sites["07S1Yg"]?.userMessageContainer).toBe(3);
         expect(sites.OOQiHg?.sessionName).toBe(2);
-        expect(sites["07S1Yg"]?.timelineMessage).toBe(version === "2.1.268" ? 6 : 8);
+        expect(sites["07S1Yg"]?.timelineMessage).toBe(version === "2.1.268" ? 6 : since289 ? 9 : 8);
       });
     });
   }

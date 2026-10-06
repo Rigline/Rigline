@@ -106,11 +106,11 @@ simple thing is also the cheap thing.
 
 `build(entry, entries)` returns an `Element` or `null`. It is handed **data, never an element**
 (D22). React hands one row element to a different message. Up to 2.1.284 rows are keyed by index,
-so any splice does it. From 2.1.285 they are keyed by what a message is — its tool use's id, else
-its API message id, else its uuid — so a record arriving under the API message id a row already
-has takes that row over, as the record completing a streamed row does. Identity is re-read from
-scratch on every sweep, and there is nothing a plugin could safely hold onto. Keeping that inside the host is also what lets the mechanism change
-without any plugin noticing.
+so any splice does it. From 2.1.285 they are keyed by what a message is, and the record completing a
+streamed row keys as that row did — by API message id up to 2.1.286, by the block index it inherits
+from 2.1.289 — so it takes the streamed row's element over. Identity is re-read from scratch on
+every sweep, and there is nothing a plugin could safely hold onto. Keeping that inside the host is
+also what lets the mechanism change without any plugin noticing.
 
 Each returned node is mounted `inside` its row through the ordinary mount service, with the plugin's
 registry order, so several plugins decorating the same row stay in a stable order and each node is

@@ -7,10 +7,10 @@ marked *optional* is wanted before 1.0.0; an *optional* item can land in any 1.x
 look at them before 1.0.0. Items marked *unconfirmed* carry a reviewer's reasoning but have not been reproduced: reproduce them before
 fixing.
 
-Where things stand: lint and typecheck pass, and on Windows all 1567 tests do; CI is green on all
+Where things stand: lint and typecheck pass, and on Windows all 1595 tests do; CI is green on all
 five jobs, Windows and macOS included, since 6a4be88. This machine's npm and pnpm are `.exe`, so a
 bare spawn that fails on the CI runner passes here, and Windows CI is the read for those. `pnpm release major` takes 1.0.0-alpha.13 to 1.0.0 correctly,
-and every curated anchor still resolves on 2.1.285.
+and every curated anchor still resolves on 2.1.289.
 
 ## Working the lists
 
@@ -368,8 +368,13 @@ onto `main`, and merge only at the gate.
   back from a young `latest`, but takes a young version asked for exactly. Homebrew's Node is not
   read for real (Leo): M1 and M26 stand for it. The alpha still ships at least a day before 1.0.0,
   since authoring.md's `pnpm create rigline-plugin` resolves `latest` through that gate, and for
-  that day it serves alpha.13, which scaffolds nothing.
-- [ ] **R2. A last look at the optional items** on both lists: which, if any, 1.0.0 takes.
+  that day it serves alpha.13, which scaffolds nothing. **Found:** unversioned, on 2026-10-06, it
+  took alpha.15 and wrote the 16-file workspace.
+- [x] **R2. A last look at the optional items** on both lists: which, if any, 1.0.0 takes.
+  **None.** W's are all done, and each of M13 to M21 can land in any 1.x without breaking what
+  stability.md keeps: the companion's reach everybody through its self-update, and the wrapper's
+  are wording, a refusal that already happens, dead code or a proxy feature. M13 is the one only
+  1.0.0's code could do, and `rigline vscode-setup` already mends a stranded companion.
 - [ ] **R3. The release text**, which `release.mjs` does not touch and which must be committed
   before it runs, since it refuses a dirty tree: `README.md:26`, "1.0 is under construction"; the
   CHANGELOG preamble, "While the line is `1.0.0-alpha.*`"; `stability.md:7`, "Until 1.0.0 ships".

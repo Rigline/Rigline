@@ -143,7 +143,7 @@ async function chromiumLaunchFailure(): Promise<string | null> {
  * corpus keeps every version, so an old pin costs reproducibility nothing and buys testing a bundle
  * nobody runs.
  */
-export const HARNESS_VERSION = "2.1.286";
+export const HARNESS_VERSION = "2.1.289";
 
 /** Rigline's own elements switched off, for a case about what `rigRow` holds or whether it is there. */
 export const RIGLINE_OFF: Layout = { off: ["rigline/edit", "rigline/reload"] };

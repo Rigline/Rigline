@@ -429,8 +429,8 @@ export default { setup() {} };`,
     }, 20000);
 
     it("identifies a row React reused for a different message by the message it now shows", async () => {
-      // An assistant record superseding the one at index 1 under its API message id takes over its
-      // row element whether rows are keyed by index or by that id (D22). React writes an element's
+      // The record completing a streamed response takes over the streamed row's element, whether
+      // rows are keyed by index, API message id or block index (D22). React writes an element's
       // fiber only when it creates it, so a stale read reports the old message, and its time, on
       // the new one (P5).
       const identifier: FixturePlugin = {
@@ -459,37 +459,50 @@ export default { setup() {} };`,
         await page.waitForFunction(
           () => document.getElementsByClassName("harness-id").length === 2,
         );
-        const [, before] = await shown();
-        const sweeps = (await booted.diagnostics()).transcript.sweeps;
-        const superseding = "20000000-2000-4000-8000-200000000002";
-        await page.evaluate(
-          ({ uuid, old }) => {
-            const w = window as unknown as {
-              __row?: Element;
-              __harness: { pushRecord(message: unknown): void };
-            };
-            w.__row = document.getElementsByClassName("message_07S1Yg")[1];
-            w.__harness.pushRecord({
-              type: "assistant",
-              uuid,
-              timestamp: new Date().toISOString(),
-              supersedes: [old],
-              message: {
-                id: `msg_${old}`,
-                role: "assistant",
-                content: [{ type: "text", text: "a later answer" }],
-              },
-            });
-          },
-          { uuid: superseding, old: before?.id },
+        await page.evaluate(() => {
+          const w = window as unknown as { __harness: { pushRecord(message: unknown): void } };
+          const stream = (event: unknown) =>
+            w.__harness.pushRecord({ type: "stream_event", event, parent_tool_use_id: null });
+          stream({
+            type: "message_start",
+            message: { id: "msg_streamed", role: "assistant", usage: { input_tokens: 1 } },
+          });
+          stream({
+            type: "content_block_start",
+            index: 0,
+            content_block: { type: "text", text: "a later" },
+          });
+        });
+        await page.waitForFunction(() =>
+          document.getElementsByClassName("message_07S1Yg")[2]?.textContent?.includes("a later"),
         );
+        const sweeps = (await booted.diagnostics()).transcript.sweeps;
+        const completing = "20000000-2000-4000-8000-200000000002";
+        await page.evaluate((uuid) => {
+          const w = window as unknown as {
+            __row?: Element;
+            __harness: { pushRecord(message: unknown): void };
+          };
+          w.__row = document.getElementsByClassName("message_07S1Yg")[2];
+          w.__harness.pushRecord({
+            type: "assistant",
+            uuid,
+            timestamp: new Date().toISOString(),
+            parent_tool_use_id: null,
+            message: {
+              id: "msg_streamed",
+              role: "assistant",
+              content: [{ type: "text", text: "a later answer" }],
+            },
+          });
+        }, completing);
         await page.waitForFunction(() =>
           document
-            .getElementsByClassName("message_07S1Yg")[1]
+            .getElementsByClassName("message_07S1Yg")[2]
             ?.textContent?.includes("a later answer"),
         );
-        // The splice's own commit and nothing after it: another render of the row flips React's
-        // fiber pair back and hides the stale read. Commits reach the sweep once per frame.
+        // The completion's own commit and nothing after it: another render of the row flips
+        // React's fiber pair back and hides the stale read. Commits reach the sweep once per frame.
         await page.evaluate(
           () =>
             new Promise<void>((done) =>
@@ -501,12 +514,12 @@ export default { setup() {} };`,
         const reused = await page.evaluate(
           () =>
             (window as unknown as { __row?: Element }).__row ===
-            document.getElementsByClassName("message_07S1Yg")[1],
+            document.getElementsByClassName("message_07S1Yg")[2],
         );
         expect(reused).toBe(true);
         const rows = await shown();
-        expect(rows[1]?.text).toContain("a later answer");
-        expect(rows[1]?.id).toBe(superseding);
+        expect(rows[2]?.text).toContain("a later answer");
+        expect(rows[2]?.id).toBe(completing);
         expect(booted.consoleErrors).toEqual([]);
       } finally {
         await booted.close();

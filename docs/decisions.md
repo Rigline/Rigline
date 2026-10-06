@@ -393,10 +393,10 @@ Transcript rows are keyed by index upstream and React reuses elements when the l
 identity is the host's problem, and keeping it there lets the mechanism change without any plugin
 noticing.
 
-*Amended 2026-09-30.* From 2.1.285 rows are keyed by what a message is, not by index
-([transcript.md](transcript.md)). That does not make an element safe to hand out: a record arriving
-under the API message id a row already has still takes the row over, which is how a streamed row,
-built before it has a uuid, becomes the record completing it. And older versions stay installed.
+*Amended 2026-09-30 and 2026-10-06.* From 2.1.285 rows are keyed by what a message is, not by index
+([transcript.md](transcript.md)). That does not make an element safe to hand out: the record
+completing a streamed row keys as the streamed row did, so React hands it that row's element, on
+every version since. And older versions stay installed.
 
 **D23. Mounts sharing an anchor are ordered by the host in registry order, and every host-placed
 node is stamped `data-rigline-mount`.** The naive insert gives the slot to whichever plugin mounted
