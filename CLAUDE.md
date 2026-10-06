@@ -59,7 +59,9 @@ Written for somebody else, so don't rewrite them for us:
 - [docs/anthropic-compliance.md](docs/anthropic-compliance.md): what Rigline does and does not do to
   Anthropic's extension, how we read their terms, and the standing invitation to correct us. Written
   for Anthropic, linked from the top of the README. The position it commits to is D77; changing what
-  it claims is a decision, not an edit.
+  it claims is a decision, not an edit. It describes what Rigline can do, which bounds every plugin:
+  never a count of the bundled plugins, and those only as examples, since they reach no further than
+  anybody's. A new bundled plugin should never need it to change; a new capability may.
 - [docs/plugin-policy.md](docs/plugin-policy.md): what the host makes impossible for a plugin, what
   is asked of an author, and what we explicitly do not police. Written for a plugin author. Keep the
   two halves apart — a guarantee the architecture backs, and an obligation nobody is checking. We do
