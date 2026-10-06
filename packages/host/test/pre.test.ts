@@ -674,6 +674,7 @@ describe("an ask (D120)", () => {
     const tapped: unknown[] = [];
     h.bridge.bus.on("request", (payload) => tapped.push(payload));
     void h.bridge.bus.ask("ch-1", "get_context_usage");
+    await null;
 
     const sent = h.sent[0] as AskEnvelope;
     expect(sent).toMatchObject({
@@ -692,6 +693,7 @@ describe("an ask (D120)", () => {
     h.bridge.bus.on("response", (payload) => tapped.push(payload));
     h.bridge.bus.on("get_context_usage_response", (payload) => tapped.push(payload));
     const answer = h.bridge.bus.ask("ch-1", "get_context_usage");
+    await null;
 
     const { requestId } = h.sent[0] as AskEnvelope;
     const response = { type: "get_context_usage_response", usage: { totalTokens: 9 } };
@@ -720,6 +722,17 @@ describe("an ask (D120)", () => {
     expect(h.bridge.diagnostics.errors.some((e) => e.startsWith("ask:get_context_usage:"))).toBe(
       true,
     );
+  });
+
+  it("goes out after the message whose tap asked, so it never overtakes a launch", async () => {
+    const h = await boot();
+    h.bridge.bus.on("launch_claude", (payload) => {
+      void h.bridge.bus.ask((payload as { channelId: string }).channelId, "get_context_usage");
+    });
+    h.api.postMessage({ type: "launch_claude", channelId: "ch-1" });
+    await null;
+
+    expect(h.sent.map((m) => (m as { type: string }).type)).toEqual(["launch_claude", "request"]);
   });
 });
 

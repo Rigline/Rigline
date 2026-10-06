@@ -179,7 +179,9 @@ registering from a promise or a timer, after `setup` returned.
 
 The host may send a request the app itself sends, read-only and from a list in host code (D120).
 `bus.ask(channelId, type)` posts `{ type: "request", channelId, requestId, request: { type } }`
-with a fresh id, outside the rewrite chain and untapped. The inbound listener settles the ask by
+with a fresh id, outside the rewrite chain and untapped, and in a microtask, so an ask a tap makes
+goes out after the message it tapped: asked synchronously, one about a `launch_claude` reached the
+extension before the launch and was answered "Channel not found". The inbound listener settles the ask by
 `requestId` before anything is recorded, so the reply reaches no tap and no replay; the app still
 receives it, warns that no handler matched, and drops it. Eight may await a reply at once, each for
 a minute, after which it resolves to null. `diagnostics.asked` and the `ask` meter count them.

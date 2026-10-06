@@ -61,7 +61,7 @@ harvested identifier and reads no generated table. What it does:
   rewriter does (D20). Keeps the app's last original message per outbound type for `resend`, mints
   a fresh request id for it, and refuses a resend while the chain is running.
 - Sends the host's own asks (D120): a request on a named channel with a fresh id, untapped and
-  outside the chain. Its reply settles the ask by request id and never reaches a tap; the app still
+  outside the chain, after whatever message is being posted when it is asked. Its reply settles the ask by request id and never reaches a tap; the app still
   receives it and drops it. At most eight await a reply, each for a minute.
 - Counts outbound sends per type at the egress, so a rewriter registering late can be told how many
   it missed.

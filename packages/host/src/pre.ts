@@ -869,14 +869,18 @@ try {
           asks.set(requestId, settle);
           bridge.diagnostics.asked++;
           meter("ask");
-          try {
-            post({ type: "request", channelId, requestId, request: { type } });
-          } catch (e) {
-            bridge.diagnostics.errors.push(
-              `ask:${type}:${e instanceof Error ? e.message : String(e)}`,
-            );
-            settle(null);
-          }
+          // After the message being tapped, if a tap asked: an ask about a launch must not reach
+          // the extension ahead of the launch.
+          queueMicrotask(() => {
+            try {
+              post({ type: "request", channelId, requestId, request: { type } });
+            } catch (e) {
+              bridge.diagnostics.errors.push(
+                `ask:${type}:${e instanceof Error ? e.message : String(e)}`,
+              );
+              settle(null);
+            }
+          });
         });
       },
     },
