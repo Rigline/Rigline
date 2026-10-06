@@ -130,6 +130,7 @@ the whole plugin. Resolve an optional name through `ctx.optional.anchor()`, whic
 | `session` | `ctx.onSessionId` |
 | `transcript` | `ctx.decorateTranscript` |
 | `menu` | `ctx.menu(Component)` — a React component in Rigline's menu, behind the RIG pill |
+| `context` | `ctx.onContextUsage` — how full the context is, against where it compacts |
 
 Calling one you did not declare throws and disables the plugin. That is deliberate: a declaration
 you can forget is a declaration the install cannot check. `rigline install` scans your built source

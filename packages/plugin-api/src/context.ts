@@ -15,6 +15,7 @@ import type { CheckVerdict } from "./checks.ts";
 import type { MessageType, ModuleClasses, ModuleId, OutboundFields } from "./identifiers.ts";
 import type { ToolResult, ToolUse } from "./stream.ts";
 import type { TranscriptEntry } from "./transcript.ts";
+import type { ContextUsage } from "./usage.ts";
 
 /** Undo whatever a registration did. Returned by everything that adds a listener or DOM. */
 export type Teardown = () => void;
@@ -218,6 +219,13 @@ export interface PluginContext {
    * again on every change. Host-derived through the farewell rule. Requires `uses.session`.
    */
   onSessionId(handler: (sessionId: string | null) => void): Teardown;
+
+  /**
+   * How full the panel's session's context is: called at once and again on every change, once per
+   * API call at most. `limit` is where Claude Code compacts on its own, the same threshold the
+   * panel's own indicator counts against. Host-derived (D121). Requires `uses.context`.
+   */
+  onContextUsage(handler: (usage: ContextUsage) => void): Teardown;
 
   /**
    * Draw on every transcript entry. `build` runs once per entry whenever the entry list changes

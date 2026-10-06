@@ -42,7 +42,7 @@ it finds them itself, so there's nothing to point it at.
     pnpm rigline install
 
 This injects the loader and bakes in the first-party plugins (session id, worktree prefix, time
-marks, and the probe); *Diagnostics*, in Rigline's menu behind the `RIG` pill, confirms it worked.
+marks, the context meter, and the probe); *Diagnostics*, in Rigline's menu behind the `RIG` pill, confirms it worked.
 Then reload:
 
 - **Developer: Reload Webviews** (Command Palette) if only the webview payload changed — this

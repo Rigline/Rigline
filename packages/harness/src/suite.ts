@@ -46,6 +46,7 @@ export interface HarnessDiagnostics {
   readonly outboundCount: number;
   readonly inboundCount: number;
   readonly bufferSealed: boolean;
+  readonly asked: number;
   readonly identifiersFor: string | null;
   readonly errors: readonly string[];
   readonly react: {

@@ -2,7 +2,7 @@
  * The assets core ships beside its own code: the injected payload, and the bundled plugins
  * (decisions.md, D71).
  *
- * `pre.js`, `post.js` and the four first-party plugins are published inside `@rigline/core`, under
+ * `pre.js`, `post.js` and the first-party plugins are published inside `@rigline/core`, under
  * `dist/bundled/`, because core is what injects and what discovers — and because a payload that
  * only exists in this checkout is a payload nobody who installed from npm has ever had, which is
  * the whole of what milestone 7 exists to end.

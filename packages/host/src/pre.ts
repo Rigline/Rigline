@@ -100,8 +100,10 @@ interface RiglineBridge {
     tapCloneMs: number;
     tapCloneMaxMs: number;
     tapCloneMaxType: string | null;
-    /** Messages a plugin asked to be sent again — the only traffic here the app did not cause. */
+    /** Messages a plugin asked to be sent again — traffic the app did not cause. */
     resent: number;
+    /** Requests the host sent of its own (D120), the other traffic the app did not cause. */
+    asked: number;
     readonly plugins: {
       name: string;
       status: "loaded" | "refused" | "error" | "inactive";
@@ -315,6 +317,12 @@ interface RiglineBridge {
        */
       outboundSeen(type: string): number;
     };
+    /**
+     * Send a request of the host's own on `channelId`, and resolve with its reply's payload, or
+     * null if none comes. Which types may be asked is post.ts's list (D120); this side owns only
+     * that the request is not tapped and its reply never reaches a tap.
+     */
+    ask(channelId: string, type: string): Promise<unknown>;
   };
   /**
    * What React tells us, through the devtools hook installed below.
@@ -512,8 +520,13 @@ try {
   /** Set while the chain is running, so a rewriter cannot resend into its own chain forever. */
   let rewriting = false;
 
-  /** The real postMessage, once the app has acquired the api. A resend is the only other user. */
+  /** The real postMessage, once the app has acquired the api. A resend and an ask also use it. */
   let realPost: ((message: unknown) => void) | null = null;
+
+  /** The host's asks awaiting a reply, by request id. Bounded, and each times out to null. */
+  const asks = new Map<string, (reply: unknown) => void>();
+  const ASK_LIMIT = 8;
+  const ASK_TIMEOUT_MS = 60_000;
 
   /**
    * The message to actually post: the app's own object, or a copy carrying the chain's patches.
@@ -594,6 +607,7 @@ try {
     "inbound",
     "tapClone",
     "resend",
+    "ask",
     "commit",
     "notify",
     "sweep",
@@ -744,6 +758,7 @@ try {
       tapCloneMaxMs: 0,
       tapCloneMaxType: null,
       resent: 0,
+      asked: 0,
       plugins: [],
       rewrites: [],
       hostPatches: [],
@@ -835,6 +850,34 @@ try {
         outboundSeen(type) {
           return outboundByType.get(type) ?? 0;
         },
+      },
+      ask(channelId, type) {
+        const post = realPost;
+        if (!post) return Promise.resolve(null);
+        if (asks.size >= ASK_LIMIT) {
+          bridge.diagnostics.errors.push(`ask:${type}:${ASK_LIMIT} already awaiting a reply`);
+          return Promise.resolve(null);
+        }
+        const requestId = Math.random().toString(36).slice(2);
+        return new Promise((resolve) => {
+          const timer = setTimeout(() => settle(null), ASK_TIMEOUT_MS);
+          function settle(reply: unknown): void {
+            clearTimeout(timer);
+            asks.delete(requestId);
+            resolve(reply);
+          }
+          asks.set(requestId, settle);
+          bridge.diagnostics.asked++;
+          meter("ask");
+          try {
+            post({ type: "request", channelId, requestId, request: { type } });
+          } catch (e) {
+            bridge.diagnostics.errors.push(
+              `ask:${type}:${e instanceof Error ? e.message : String(e)}`,
+            );
+            settle(null);
+          }
+        });
       },
     },
     react: {
@@ -956,6 +999,20 @@ try {
     if (data?.type !== "from-extension") return;
     bridge.diagnostics.inboundCount++;
     meter("inbound");
+    // The reply to an ask is the host's alone (D120). The app still receives it, and drops it.
+    const reply = data.message as {
+      type?: unknown;
+      requestId?: unknown;
+      response?: unknown;
+    } | null;
+    const settle =
+      reply?.type === "response" && typeof reply.requestId === "string"
+        ? asks.get(reply.requestId)
+        : undefined;
+    if (settle) {
+      settle(reply?.response ?? null);
+      return;
+    }
     tap(data.message);
   });
 } catch {

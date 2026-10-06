@@ -12,6 +12,7 @@ import {
   anchorUniqueVerdict,
   bufferSealedVerdict,
   busTrafficVerdict,
+  contextUsageVerdict,
   elementsVerdict,
   hostErrorsVerdict,
   mountReplacementVerdict,
@@ -316,6 +317,34 @@ describe("toolCallsVerdict", () => {
     const result = toolCallsVerdict(true, 3, "Read");
     expect(result.verdict).toBe("pass");
     expect(result.detail).toContain('last "Read"');
+  });
+});
+
+describe("contextUsageVerdict", () => {
+  const stats = { readings: 3, asked: 1, answered: 1, canAsk: true, limitFrom: "Claude Code" };
+
+  it("is n/a until both a reading and a limit have arrived", () => {
+    expect(contextUsageVerdict(false, { used: 1, limit: 2 }, stats).detail).toContain(
+      "no plugin here",
+    );
+    expect(contextUsageVerdict(true, { used: null, limit: 160_000 }, stats)).toEqual({
+      verdict: "n/a",
+      detail: "no reading yet; 1 of 1 asks answered",
+    });
+  });
+
+  it("passes with the percentage and where the limit came from", () => {
+    expect(contextUsageVerdict(true, { used: 40_000, limit: 160_000 }, stats)).toEqual({
+      verdict: "pass",
+      detail: "25%, limit from Claude Code; 3 readings, 1 of 1 asks answered",
+    });
+  });
+
+  it("says when this version cannot be asked", () => {
+    const formula = { ...stats, canAsk: false, limitFrom: "the panel's formula" };
+    expect(contextUsageVerdict(true, { used: 40_000, limit: 160_000 }, formula).detail).toContain(
+      "cannot be asked",
+    );
   });
 });
 

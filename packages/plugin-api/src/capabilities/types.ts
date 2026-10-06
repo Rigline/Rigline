@@ -35,6 +35,8 @@ export interface Declarations {
   readonly transcript: boolean;
   /** Whether the plugin adds to Rigline's menu through `ctx.menu()`. */
   readonly menu: boolean;
+  /** Whether the plugin follows how full the context is through `ctx.onContextUsage()`. */
+  readonly context: boolean;
 }
 
 /** Everything a plugin declared under `uses`: the required half, plus the optional half nested. */
@@ -96,7 +98,7 @@ export function booleanShape(value: unknown): string | null {
  * A contract for a switch that expands to fixed message types and anchors the host taps for it, and
  * with `react`, to what react-dom must still have.
  */
-export function switchContract<K extends "tools" | "session" | "transcript">(spec: {
+export function switchContract<K extends "tools" | "session" | "transcript" | "context">(spec: {
   readonly key: K;
   readonly grants: readonly string[];
   readonly messages: readonly string[];

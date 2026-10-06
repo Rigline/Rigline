@@ -41,3 +41,4 @@ export type { Store } from "./store.ts";
 export { store, storeFrom } from "./store.ts";
 export type { ToolResult, ToolUse } from "./stream.ts";
 export type { MessageTime, TranscriptEntry } from "./transcript.ts";
+export type { ContextUsage } from "./usage.ts";

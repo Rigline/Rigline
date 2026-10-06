@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/@rigline/plugin-api/schema/manifest.json",
+  "api": 1,
+  "name": "context-meter",
+  "description": "How full the session's context is, as a bar under the composer and a percentage in its footer: tokens used against where Claude Code compacts on its own.",
+  "entry": "dist/index.js",
+  "surfaces": ["editor", "sidebar"],
+  "uses": {
+    "context": true
+  },
+  "elements": {
+    "bar": {
+      "title": "Context bar",
+      "placements": ["rigRow"],
+      "default": "rigRow"
+    },
+    "percent": {
+      "title": "Context percentage",
+      "placements": [{ "anchor": "footerSpacer", "at": "before" }, "rigRow"],
+      "default": { "anchor": "footerSpacer", "at": "before" }
+    }
+  }
+}

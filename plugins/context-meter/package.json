@@ -1,0 +1,16 @@
+{
+  "name": "rigline-context-meter",
+  "version": "1.0.0-alpha.15",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "rigline-engine build",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@rigline/core": "workspace:*",
+    "@rigline/plugin-api": "workspace:*",
+    "@types/react": "^19.3.0",
+    "react": "^19.3.0"
+  }
+}

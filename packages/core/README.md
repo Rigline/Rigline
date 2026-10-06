@@ -6,7 +6,7 @@ Code VS Code extension.
 **If you want to use Rigline, install [`rigline`](https://www.npmjs.com/package/rigline) instead.**
 It fetches this package for you and runs it; that is the whole of what it does.
 
-This is the engine. It carries the loader that gets injected, the four first-party plugins, and
+This is the engine. It carries the loader that gets injected, the five first-party plugins, and
 every command that reads or drives an installed extension. `rigline` is a retrieval layer above it,
 because a process cannot replace the package it is running out of.
 

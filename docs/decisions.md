@@ -3069,3 +3069,42 @@ otherwise its "Session name" is the AI title, and people rarely rename. The CLI'
 flag will make the whole address derivable in the panel with no request at all. So session-id still
 reads the address from a `ListAgents` or `SendMessage` result, and the address at launch waits for
 that flag ([plan.md](plan.md), *Deferred*).
+
+The first request the host sends is `get_context_usage` (D121).
+
+**D121. How full the context is, as a host service, and the host's first ask (2026-10-06, Leo).**
+The panel's own indicator shows only past half full, and only once a turn has finished in that
+panel, since its window size arrives with a `result`. A plugin showing it at all times needs both
+counts from a cold start, and every step of deriving them fails silently, which is P5's case for the
+host: which records count, how one API message's records combine, which `modelUsage` entry is the
+main model's, and arithmetic copied from the CLI. So `uses.context` grants `ctx.onContextUsage`,
+handing `{ used, limit, autoCompact, stale }`, and `context-meter` draws it.
+
+- **Used** is one API message's `input + cache_creation + cache_read + output`, from the main
+  conversation's records only: `message_start` and `message_delta` where the extension streams
+  (not in a remote window), and assistant records everywhere. More of one message only raises the
+  count; a new message replaces it. `<synthetic>` records carry zeroes and are skipped.
+- **Limit** is Claude Code's own answer where it has given one: `autoCompactThreshold`, or the whole
+  window when auto-compact is off. Otherwise it is the panel's arithmetic, `contextWindow -
+  min(maxOutputTokens, 20000) - 13000`, over the `result`'s `modelUsage` entry for the model
+  `system/init` named. The two agree except that the answer applies
+  `CLAUDE_CODE_AUTO_COMPACT_WINDOW`; neither applies `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`, and neither
+  does `/context`.
+- **The ask** is `get_context_usage`, under D120: it reads, and counting tokens is not inference.
+  It goes when a channel starts, after a compaction, and when the main model changes, one at a
+  time, and never on a timer: the bus form is always `detail: "full"`, which counts each category
+  with Anthropic's token-counting endpoint, as `/context` does. A live reading that arrives while
+  it is in flight beats the answer's count. Its reply reaches no tap, by request id, in `pre.ts`.
+- **Stale** runs from a compaction to the next reading. The panel zeroes its count there, which an
+  always-on meter cannot: the context after a compaction is the summary and the system prompt, so
+  the meter shows nothing rather than either number.
+
+Seeding the count from the loaded history was not built: the ask answers a cold start with a count
+as well as a limit, and whether the history the panel loads keeps each record's `usage` has not
+been read.
+
+**Amends D77: the machine's edge, for the host.** Answering the ask, Claude Code calls Anthropic's
+token-counting endpoint, with the person's own credentials, as it does when they open `/context`.
+That is the one thing Rigline causes to leave the machine, and
+[anthropic-compliance.md](anthropic-compliance.md) says so. A plugin still may not cross that line:
+only the host asks, from a list no manifest reaches.

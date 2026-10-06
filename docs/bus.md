@@ -175,9 +175,20 @@ and the wrong one: the buffer stops recording at the seal, records both directio
 an envelope type, and would freeze the number for exactly the plugin whose window is widest — one
 registering from a promise or a timer, after `setup` returned.
 
+## Asking: the host's own requests
+
+The host may send a request the app itself sends, read-only and from a list in host code (D120).
+`bus.ask(channelId, type)` posts `{ type: "request", channelId, requestId, request: { type } }`
+with a fresh id, outside the rewrite chain and untapped. The inbound listener settles the ask by
+`requestId` before anything is recorded, so the reply reaches no tap and no replay; the app still
+receives it, warns that no handler matched, and drops it. Eight may await a reply at once, each for
+a minute, after which it resolves to null. `diagnostics.asked` and the `ask` meter count them.
+
+The one request on the list is `get_context_usage`, asked by the context service below.
+
 ## Services derived from the bus
 
-Two capabilities are not taps a plugin could write itself, because the derivation behind them is
+Three capabilities are not taps a plugin could write itself, because the derivation behind them is
 read off minified code and inverts silently (P5). The host owns them, one tap serves every plugin,
 and the tap is subscribed on first use rather than at boot — the pre hook clones a message only when
 a tap exists, so an unconditional tap would charge every panel for a stream no plugin read.
@@ -213,9 +224,18 @@ tool, so a misspelled name matches nothing, silently. That is the accepted trade
 existing at all, and it is why everything above the name — the envelope, the block shape, the id and
 the input — is pinned where it can be tested.
 
+**Context** (`ctx.onContextUsage`). How full the panel's session's context is, and where it
+compacts (D121). The service follows one channel, the last `launch_claude`, and starts from nothing
+on a new one. *Used* is one API message's tokens from the main conversation's records: a
+`message_start` stream event, then `message_delta`, then the assistant records, each raising the
+count, and a new message replacing it. *Limit* is Claude Code's answer to an ask where it has
+given one, and the panel's own arithmetic over the `result`'s `modelUsage` otherwise. It asks when
+a channel starts, after a compaction and when `system/init`'s model changes, one at a time. From a
+compaction to the next reading the usage is *stale*. The pure half is `plugin-api/src/usage.ts`.
+
 ## Rates
 
-`outbound`, `inbound`, `tapClone` and `resend` each carry a per-second peak and when it happened, as
+`outbound`, `inbound`, `tapClone`, `resend` and `ask` each carry a per-second peak and when it happened, as
 every hot path does (D53). A cumulative counter cannot be read: an hour of ordinary work and four
 bad seconds are written identically. When a panel misbehaves, the peaks are the numbers that
 separate them.

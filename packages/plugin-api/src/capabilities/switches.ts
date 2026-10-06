@@ -67,3 +67,12 @@ export const transcriptContract = switchContract({
   react: true,
   summary: "reads every transcript entry's identity and time, and draws on transcript rows",
 });
+
+/** How full the session's context is, derived by the host from the stream and its asks (D121). */
+export const contextContract = switchContract({
+  key: "context",
+  grants: ["onContextUsage"],
+  messages: ["io_message"],
+  anchors: [],
+  summary: "follows how full the session's context is",
+});

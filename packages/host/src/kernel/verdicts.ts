@@ -381,6 +381,33 @@ export function toolCallsVerdict(
   return { verdict: "pass", detail: `${seen} seen, last "${lastName}"` };
 }
 
+/** A context reading and a limit have both arrived, once some plugin here follows the context. */
+export function contextUsageVerdict(
+  used: boolean,
+  usage: { readonly used: number | null; readonly limit: number | null },
+  stats: {
+    readonly readings: number;
+    readonly asked: number;
+    readonly answered: number;
+    readonly canAsk: boolean;
+    readonly limitFrom: string | null;
+  },
+): CheckVerdict {
+  if (!used) return { verdict: "n/a", detail: "no plugin here follows the context" };
+  const asks = stats.canAsk
+    ? `${stats.answered} of ${stats.asked} asks answered`
+    : "this version cannot be asked";
+  if (usage.used === null || usage.limit === null) {
+    const missing = usage.used === null ? "no reading" : "no limit";
+    return { verdict: "n/a", detail: `${missing} yet; ${asks}` };
+  }
+  const percent = Math.round((usage.used / usage.limit) * 100);
+  return {
+    verdict: "pass",
+    detail: `${percent}%, limit from ${stats.limitFrom}; ${stats.readings} readings, ${asks}`,
+  };
+}
+
 /** A session id has arrived, once some plugin on this surface is following one. */
 export function sessionIdVerdict(used: boolean, id: string | null): CheckVerdict {
   if (!used) return { verdict: "n/a", detail: "no plugin here follows the session" };

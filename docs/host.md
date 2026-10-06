@@ -60,6 +60,9 @@ harvested identifier and reads no generated table. What it does:
   never an edit of the app's object; the app's message goes to the extension host whatever a
   rewriter does (D20). Keeps the app's last original message per outbound type for `resend`, mints
   a fresh request id for it, and refuses a resend while the chain is running.
+- Sends the host's own asks (D120): a request on a named channel with a fresh id, untapped and
+  outside the chain. Its reply settles the ask by request id and never reaches a tap; the app still
+  receives it and drops it. At most eight await a reply, each for a minute.
 - Counts outbound sends per type at the egress, so a rewriter registering late can be told how many
   it missed.
 - Installs or chains the React devtools hook, and coalesces the app's commit notices to one per
@@ -283,6 +286,7 @@ not going to install it anyway.
 | `session` | `true` | `onSessionId(handler)` | `update_session_state` |
 | `transcript` | `true` | `decorateTranscript(build)` | `get_session_response`, `io_message`, anchor `transcriptRow` |
 | `menu` | `true` | `menu(Component)` | nothing |
+| `context` | `true` | `onContextUsage(handler)` | `io_message` |
 
 `decorateTranscript` registers nothing on a surface where `transcriptRow` is measured as not
 rendering, the same reading `watch` makes of its own anchor (D68). Not merely tidy: the sweep runs on

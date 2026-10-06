@@ -43,15 +43,15 @@ about whose product it is.
 
 ## What Rigline actually does
 
-Rigline adds to the interface of Claude Code's VS Code extension. The four plugins it ships put a
+Rigline adds to the interface of Claude Code's VS Code extension. The five plugins it ships put a
 session's id beside the composer, the time on each transcript row, the worktree a session is in on
-its tab, and diagnostics in a menu of Rigline's own; anybody else can write a plugin that adds
+its tab, how full the context is under the composer, and diagnostics in a menu of Rigline's own; anybody else can write a plugin that adds
 something of theirs. That is the whole of the ambition: things you can see, in the panel, that were
 not there before.
 
 It does that on one person's machine, on an installation they made, and changes nothing anywhere
 else. Inside the installed extension's directory it changes two files: `webview/index.js`, and
-`extension.js` when a plugin declares a patch to it. One of the four does, so a default install
+`extension.js` when a plugin declares a patch to it. One of the five does, so a default install
 changes both. Beside each it keeps a byte-faithful backup of the original,
 `index.js.orig` and `extension.js.orig`, and it adds one directory of its own,
 `webview/rigline/`, holding the loader and the plugins. `rigline restore` puts every installed
@@ -62,11 +62,18 @@ being a promise.
 The modification is an injected loader. It runs inside the extension's existing webview and hands
 each plugin a capability-scoped context to add to the interface through.
 
-One of the four reaches past drawing, in two ways, and both stay on the machine. The worktree prefix
+One of the five reaches past drawing, in two ways, and both stay on the machine. The worktree prefix
 rewrites the title the panel sends the extension when it names a tab, since that message is the only
 way to a native tab's label. And its patch to `extension.js` flips one flag in how the extension
 lists sessions for the panel, so sessions in a git worktree are listed too — a listing the extension
 already makes, from the session files on the user's disk, and already uses elsewhere.
+
+Rigline itself asks the extension one thing: the breakdown of the context that the panel's own
+`/context` dialog asks for, so the context meter can show how full a session is before its first
+turn. It asks when a session starts, after a compaction and when the model changes, and never on a
+timer. To answer, Claude Code counts the tokens in each part of the context with Anthropic's
+token-counting endpoint, using the person's own credentials, as it does whenever they open
+`/context`. That request is the one thing Rigline causes to leave the machine.
 
 ## What Rigline does not do
 
@@ -85,14 +92,16 @@ with Anthropic. Rigline is not a harness and does not host one.
 open a socket, or contact any server, Anthropic's or ours. This one is stronger than a claim about
 our own code: the webview's CSP is `default-src 'none'` with no `connect-src`, so nothing running in
 the panel can make a request of its own — ours, a plugin's, or anybody's. There is no telemetry and no analytics,
-because there is no mechanism by which there could be.
+because there is no mechanism by which there could be. What the panel can do is ask the extension,
+and Rigline's one ask, with the request answering it makes, is set out above.
 
 **It does not redistribute Claude Code.** Rigline ships no Anthropic code, no bundle, no fragment of
 one. It is installed alongside an extension the user obtained from the Marketplace themselves, and
 it is inert without it.
 
 **It does not remove, disable or restrict any authentication method**, degrade any feature, alter
-any model behaviour, or change what the extension sends off the machine or what comes back to it.
+any model behaviour, or change any request the extension sends off the machine or what comes back
+to it. Its one ask, above, causes a request of a kind the extension already makes, and changes none.
 What passes between the panel and the extension on the machine, a plugin may change — the two
 above do — and that is the line: the panel and the extension are the user's to arrange between
 themselves; what reaches Anthropic is not ours to touch.
@@ -106,8 +115,8 @@ something of ours is broken. A user who forgets Rigline is installed is a user w
 Rigline is a plugin layer, so everything above invites the question of what a plugin could do that
 Rigline promises not to. We would rather answer it than be asked.
 
-**Four plugins ship with Rigline** — a session-id pill, timestamps on transcript rows, a worktree
-prefix on tab labels, and the diagnostics in Rigline's menu. They are ours, they are what the claims
+**Five plugins ship with Rigline** — a session-id pill, timestamps on transcript rows, a worktree
+prefix on tab labels, a context meter, and the diagnostics in Rigline's menu. They are ours, they are what the claims
 above are about, and they are all that an install puts on a machine. Anything third-party is installed by the
 user, by name, one plugin at a time.
 

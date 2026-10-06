@@ -84,3 +84,12 @@ export { stylesheetNames } from "./stylesheet.ts";
 export type { IdentifierTables, ReactGap } from "./tables.ts";
 export type { FiberLike } from "./transcript.ts";
 export { entriesDiffer, messageTimes, rowIdentity } from "./transcript.ts";
+export type { ContextAnswer, ContextReading, MessageTokens, ModelWindow } from "./usage.ts";
+export {
+  contextAnswer,
+  contextReading,
+  formulaLimit,
+  ioChannel,
+  mergeTokens,
+  UNKNOWN_USAGE,
+} from "./usage.ts";

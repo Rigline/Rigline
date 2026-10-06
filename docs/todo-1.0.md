@@ -23,7 +23,7 @@ and every curated anchor still resolves on 2.1.289.
 - **Both lists commit to `main`.** Pull before starting and before each batch; commit small, tick
   the item (`[x]`) in the same commit as its fix, and push straight after, so the other machine sees
   it. A conflict in `CHANGELOG.md`'s `## Unreleased` keeps both entries.
-- **Decision numbers.** The next free one is D120. Pull before taking one, and push the commit that
+- **Decision numbers.** The next free one is D122. Pull before taking one, and push the commit that
   takes it at once. A fix that moves a recorded decision amends it and says so.
 - **The repo's rules hold**: root `CLAUDE.md`, and planning a batch before coding it (its plan in
   `.local/plans/` on the machine doing it). The Mac has no corpus at `c:/dev/kb`, so the corpus tier

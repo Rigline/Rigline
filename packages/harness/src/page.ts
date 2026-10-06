@@ -45,6 +45,17 @@ export const REPLY_TABLE: Readonly<Record<string, Readonly<Record<string, unknow
   webview_focused: { type: "webview_focused_response" },
   get_mcp_servers: { type: "get_mcp_servers_response", mcpServers: [] },
   rename_tab: { type: "rename_tab_response" },
+  // What the host asks for the context meter (D121): 15% of the way to auto-compact.
+  get_context_usage: {
+    type: "get_context_usage_response",
+    usage: {
+      totalTokens: 24_000,
+      maxTokens: 200_000,
+      rawMaxTokens: 200_000,
+      autoCompactThreshold: 160_000,
+      isAutoCompactEnabled: true,
+    },
+  },
 };
 
 /**

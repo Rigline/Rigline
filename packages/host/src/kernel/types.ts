@@ -19,6 +19,7 @@ import type {
 } from "@rigline/plugin-api/internal";
 import type { Bus, Diagnostics, ReactBridge } from "./bridge.ts";
 import type { Check, CheckService } from "./checks.ts";
+import type { ContextService } from "./context.ts";
 import type { MountService } from "./mounts.ts";
 import type { SessionService } from "./session.ts";
 import type { ShellService } from "./shell.ts";
@@ -47,6 +48,7 @@ export interface Kernel {
   readonly mounts: MountService;
   readonly session: SessionService;
   readonly tools: ToolService;
+  readonly context: ContextService;
   readonly transcript: TranscriptService;
   readonly checks: CheckService;
   readonly shell: ShellService;

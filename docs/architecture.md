@@ -53,7 +53,7 @@ each host patch is carried into `registry.js` rather than derived: nothing in a 
 | `packages/create-plugin` | `create-rigline-plugin` | The scaffold, as real files under `template/`. |
 | `packages/vscode` | `@rigline/vscode` (private) | The companion extension: a second retrieval layer that acquires the engine and spawns it when an extension update lands (D80). Built to `rigline.vsix`. |
 | `packages/harness` | (private) | Playwright over the real bundle. See [verification.md](verification.md). |
-| `plugins/*` | first-party plugins | `session-id`, `worktree-prefix`, `time-marks`, `probe`. |
+| `plugins/*` | first-party plugins | `session-id`, `worktree-prefix`, `time-marks`, `context-meter`, `probe`. |
 
 **Core carries the assets, in `dist/bundled/`** (D71): `pre.js`, `post.js`, `runtime/`, and each
 first-party plugin's `rigline.json` and built entry. `@rigline/host` is private and `plugins/*` are not

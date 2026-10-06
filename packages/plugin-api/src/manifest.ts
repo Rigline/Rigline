@@ -79,6 +79,7 @@ export interface DeclaredUses {
   readonly session?: boolean;
   readonly transcript?: boolean;
   readonly menu?: boolean;
+  readonly context?: boolean;
 }
 
 export const SURFACES: readonly Surface[] = ["editor", "sidebar", "sessionList"];
@@ -107,6 +108,7 @@ export const EMPTY_DECLARATIONS: Declarations = Object.freeze({
   session: false,
   transcript: false,
   menu: false,
+  context: false,
 });
 
 export const EMPTY_USES: Uses = Object.freeze({

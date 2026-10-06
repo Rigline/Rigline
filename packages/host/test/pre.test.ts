@@ -35,6 +35,7 @@ interface Diagnostics {
   tapCloneMaxMs: number;
   tapCloneMaxType: string | null;
   resent: number;
+  asked: number;
   react: {
     hook: "installed" | "chained";
     version: string | null;
@@ -63,6 +64,7 @@ interface Bridge {
       resend(type: string): boolean;
       outboundSeen(type: string): number;
     };
+    ask(channelId: string, type: string): Promise<unknown>;
   };
 }
 
@@ -656,6 +658,68 @@ describe("resending the app's last message", () => {
 
     expect(h.sent[1]).toEqual({ type: "log_event", name: "original" });
     expect((h.sent[1] as Record<string, unknown>).request).toBeUndefined();
+  });
+});
+
+describe("an ask (D120)", () => {
+  interface AskEnvelope {
+    type: "request";
+    channelId: string;
+    requestId: string;
+    request: { type: string };
+  }
+
+  it("sends a request of its own on the channel named, untapped and counted", async () => {
+    const h = await boot();
+    const tapped: unknown[] = [];
+    h.bridge.bus.on("request", (payload) => tapped.push(payload));
+    void h.bridge.bus.ask("ch-1", "get_context_usage");
+
+    const sent = h.sent[0] as AskEnvelope;
+    expect(sent).toMatchObject({
+      type: "request",
+      channelId: "ch-1",
+      request: { type: "get_context_usage" },
+    });
+    expect(sent.requestId).toEqual(expect.any(String));
+    expect(tapped).toHaveLength(0);
+    expect(h.bridge.diagnostics.asked).toBe(1);
+  });
+
+  it("resolves with the reply, which no tap sees and the app still receives", async () => {
+    const h = await boot();
+    const tapped: unknown[] = [];
+    h.bridge.bus.on("response", (payload) => tapped.push(payload));
+    h.bridge.bus.on("get_context_usage_response", (payload) => tapped.push(payload));
+    const answer = h.bridge.bus.ask("ch-1", "get_context_usage");
+
+    const { requestId } = h.sent[0] as AskEnvelope;
+    const response = { type: "get_context_usage_response", usage: { totalTokens: 9 } };
+    h.receive({ type: "response", requestId, response });
+
+    expect(await answer).toEqual(response);
+    expect(tapped).toHaveLength(0);
+    expect(h.appReceived).toHaveLength(1);
+  });
+
+  it("leaves the app's own replies to the taps", async () => {
+    const h = await boot();
+    const tapped: unknown[] = [];
+    h.bridge.bus.on("response", (payload) => tapped.push(payload));
+    void h.bridge.bus.ask("ch-1", "get_context_usage");
+    h.receive({ type: "response", requestId: "the-apps-own", response: { type: "init_response" } });
+
+    expect(tapped).toHaveLength(1);
+  });
+
+  it("refuses past its bound rather than queueing", async () => {
+    const h = await boot();
+    for (let i = 0; i < 8; i++) void h.bridge.bus.ask("ch-1", "get_context_usage");
+    expect(await h.bridge.bus.ask("ch-1", "get_context_usage")).toBeNull();
+    expect(h.sent).toHaveLength(8);
+    expect(h.bridge.diagnostics.errors.some((e) => e.startsWith("ask:get_context_usage:"))).toBe(
+      true,
+    );
   });
 });
 

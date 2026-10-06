@@ -27,6 +27,7 @@ import {
 import { MODULES } from "./capabilities/index.ts";
 import { type Bridge, bridge as findBridge, type PluginStatus } from "./kernel/bridge.ts";
 import { createCheckService, HOST, kernelChecks } from "./kernel/checks.ts";
+import { createContextService } from "./kernel/context.ts";
 import { createLayoutEditor } from "./kernel/layout.ts";
 import { guardLinks } from "./kernel/links.ts";
 import { createMountService } from "./kernel/mounts.ts";
@@ -384,6 +385,7 @@ async function main(): Promise<void> {
     mounts,
     session: createSessionService(bus),
     tools: createToolService(bus),
+    context: createContextService(bus, tables.messageTypes),
     transcript: createTranscriptService(
       bus,
       react,

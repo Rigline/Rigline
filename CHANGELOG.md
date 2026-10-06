@@ -10,6 +10,17 @@ anything may change between releases.
 
 ## Unreleased
 
+### Added
+
+- A fifth bundled plugin, `context-meter`: how full the session's context is, at all times, as a bar
+  under the composer and a percentage in its footer, green to yellow to red as it nears the point
+  where Claude Code compacts. It reads the same percentage as the panel's own indicator, which shows
+  only past half full. To know that point before a session's first turn, Rigline asks Claude Code
+  for the breakdown `/context` shows; Claude Code counts it with Anthropic's token-counting
+  endpoint, as it does for `/context`.
+- `@rigline/plugin-api`: `uses.context` and `ctx.onContextUsage`, how full the context is and where
+  it compacts.
+
 ### Fixed
 
 - `worktree-prefix` keeps a worktree name's last word when it ends exactly at eight characters, so

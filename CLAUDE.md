@@ -25,7 +25,7 @@ no new plans. Update the plan before writing code; log status there, not here.
   `Atomics.wait` rather than making `install` async. Carries a negative result worth not
   re-proposing: a content check on the bundle's tail was evidenced against the corpus and rejected,
   because a rule that fits today's bundler refuses every install the day it changes.
-- [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D120.
+- [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D121.
 
 The internals, for a contributor to Rigline itself. The shape, not the argument — the argument is in
 decisions.md, and each doc cites the decisions it rests on.
@@ -201,7 +201,7 @@ reload away rather than one reload and a command a person has to know about (D55
 update` is split: the wrapper moves the engine, then the engine moves the plugins and re-injects
 behind both (D55, D69, D106).
 
-The four first-party plugins are bundled inside `@rigline/core` and discovered in place, so this
+The five first-party plugins are bundled inside `@rigline/core` and discovered in place, so this
 checkout's `plugins/` shadows them and `disable` is the only way to decline one (D71, D72). In a
 published install they are the only root that has them; here they are found twice, quietly.
 

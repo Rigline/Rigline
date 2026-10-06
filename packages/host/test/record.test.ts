@@ -29,6 +29,7 @@ function diagnostics(over: Partial<Diagnostics> = {}): Diagnostics {
     tapCloneMaxMs: 0.9,
     tapCloneMaxType: "list_sessions_response",
     resent: 0,
+    asked: 0,
     plugins: [],
     rewrites: [],
     hostPatches: [],
