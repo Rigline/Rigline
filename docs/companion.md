@@ -304,7 +304,7 @@ and these reproduce the cases on demand:
 
 - **The offer:** `rigline restore`, then delete `~/.rigline/restored`, then *Developer: Reload
   Window*, brings a window up over an unpatched directory. Without the delete the companion stays
-  out, which is what `restore` is for (D111). `rigline disable worktree-prefix` first for the
+  out, which is what `restore` is for (D111). `rigline disable worktree` first for the
   webview offer; with it enabled an install from vanilla always changes `extension.js`, and the
   window offer appears.
 - **Staying out after a restore:** `rigline restore`, then a reload. The panel is vanilla, the status

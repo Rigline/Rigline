@@ -48,7 +48,7 @@ describe("the discovery roots core owns", () => {
     for (const file of ["pre.js", "post.js"]) {
       expect(existsSync(join(bundled, file))).toBe(true);
     }
-    for (const name of ["context-meter", "probe", "session-id", "time-marks", "worktree-prefix"]) {
+    for (const name of ["context-meter", "probe", "session-id", "time-marks", "worktree"]) {
       const dir = join(bundledPluginsDir(), name);
       // Its manifest's own `entry`, never rewritten, so the bytes a user's engine validates are
       // the bytes this repository tested.

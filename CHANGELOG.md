@@ -20,16 +20,21 @@ anything may change between releases.
   endpoint, as it does for `/context`.
 - `@rigline/plugin-api`: `uses.context` and `ctx.onContextUsage`, how full the context is and where
   it compacts.
-- `worktree-prefix` shows the worktree under the composer too, as a pill with the tab's short name,
-  an ellipsis when that is not the whole name, and the whole name on hover. A second pill with the
-  full name starts off. Either can be moved to the composer's footer, or the full one switched on,
-  from Rigline's Layout or with `rigline layout`.
+- `worktree` shows the worktree under the composer too, as a pill with the tab's short name, an
+  ellipsis when that is not the whole name, and the whole name on hover. A second pill with the full
+  name starts off. Either can be moved to the composer's footer, or the full one switched on, from
+  Rigline's Layout or with `rigline layout`.
+
+### Changed
+
+- The bundled `worktree-prefix` plugin is now `worktree`, since it does more than prefix the tab. If
+  you switched it off, it is back on: `rigline disable worktree` switches it off again.
 
 ### Fixed
 
 - `rigline install` no longer says a plugin calls `onSessionId()` without declaring `session` when
   all it does is use `storeFrom`.
-- `worktree-prefix` keeps a worktree name's last word when it ends exactly at eight characters, so
+- `worktree` keeps a worktree name's last word when it ends exactly at eight characters, so
   `at-least-once-delivery` labels its tab `at-least` where it showed `at`.
 
 ## 1.0.0-alpha.15 — 2026-10-01

@@ -245,7 +245,7 @@ describe("the published tarballs, installed and run", () => {
     }
 
     const registry = readFileSync(join(payload, "registry.js"), "utf8");
-    for (const name of ["session-id", "time-marks", "worktree-prefix", "probe"]) {
+    for (const name of ["session-id", "time-marks", "worktree", "probe"]) {
       expect(registry).toContain(`"name":"${name}"`);
       // The plugin's own files, copied at its manifest's `entry`, which is what the baked entry
       // points at: a registry naming a module that is not there loads nothing and says nothing.

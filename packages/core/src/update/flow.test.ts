@@ -153,7 +153,7 @@ function plugins(root: string): { roots: string[]; configPath: string } {
 }
 
 /**
- * A plugin root whose one plugin substitutes bytes in `extension.js`, as `worktree-prefix` does.
+ * A plugin root whose one plugin substitutes bytes in `extension.js`, as `worktree` does.
  * `missing` aims it at bytes the host fixture does not carry, so it cannot apply.
  */
 function patchingPluginRoot(

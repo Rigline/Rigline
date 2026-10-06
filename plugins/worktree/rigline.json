@@ -1,7 +1,7 @@
 {
   "$schema": "node_modules/@rigline/plugin-api/schema/manifest.json",
   "api": 1,
-  "name": "worktree-prefix",
+  "name": "worktree",
   "description": "The worktree a session is in, as a prefix on its editor tab and a pill under the composer: a ticket key where the worktree's name starts with one.",
   "entry": "dist/index.js",
   "surfaces": ["editor", "sidebar"],

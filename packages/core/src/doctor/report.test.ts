@@ -91,11 +91,11 @@ describe("formatDoctor", () => {
               engine: CORE_VERSION,
               plugins: [
                 { name: "session-id", surfaces: [], patchRefusal: null },
-                { name: "worktree-prefix", surfaces: [], patchRefusal: null },
+                { name: "worktree", surfaces: [], patchRefusal: null },
               ],
               patches: [
                 {
-                  plugin: "worktree-prefix",
+                  plugin: "worktree",
                   applied: true,
                   required: false,
                   why: "worktree list",
@@ -107,8 +107,8 @@ describe("formatDoctor", () => {
         ],
       }),
     );
-    expect(text).toContain("- plugins baked in: session-id, worktree-prefix");
-    expect(text).toContain("- host patch applied (worktree-prefix): worktree list");
+    expect(text).toContain("- plugins baked in: session-id, worktree");
+    expect(text).toContain("- host patch applied (worktree): worktree list");
   });
 
   it("points at the probe for what the panel itself was doing", () => {

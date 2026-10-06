@@ -1357,7 +1357,7 @@ would remove the conflict and is the known answer if it ever stops being a minut
 
 **D71. The first-party plugins ship inside `@rigline/core`, discovered in place, versioned with the
 engine (2026-09-21).** `dist/bundled/` carries `pre.js`, `post.js` and session-id, time-marks,
-worktree-prefix and probe — each as its `rigline.json` and the entry that manifest names, never
+worktree and probe — each as its `rigline.json` and the entry that manifest names, never
 rewritten to a flatter path, because a transform in the one step whose job is to move bytes
 faithfully costs the property the step is for.
 
@@ -1519,7 +1519,7 @@ network claim is about what runs in the panel.
 
 **The line a plugin may not cross is the machine's edge (amended 2026-09-29, Leo).** The page said
 Rigline does not change what the extension sends or receives, and that it writes `extension.js` only
-when a plugin asks; the bundled worktree-prefix rewrites a title the panel sends the extension, its
+when a plugin asks; the bundled `worktree` plugin rewrites a title the panel sends the extension, its
 host patch widens a listing the extension makes for the panel, and a default install always asks.
 What is true, and now what both the page and plugin-policy.md say: a plugin may change what passes
 between the panel and the extension on the machine, never what the extension sends off it. The page

@@ -1,4 +1,4 @@
-# worktree-prefix
+# worktree
 
 Prefixes a session's native VS Code tab label with the worktree it belongs to: a ticket key (e.g.
 `TD-1234`) when the worktree directory's name starts with one, and otherwise as much of the name as

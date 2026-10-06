@@ -103,7 +103,7 @@ describe("formatReport", () => {
     },
     plugins: [{ name: "session-id", status: "loaded" }],
     rewrites: [],
-    hostPatches: [{ plugin: "worktree-prefix", applied: true, required: false }],
+    hostPatches: [{ plugin: "worktree", applied: true, required: false }],
     previous: {
       from: Date.parse("2026-09-14T06:21:03Z"),
       to: Date.parse("2026-09-14T06:26:41Z"),
@@ -179,13 +179,11 @@ describe("formatReport", () => {
     const text = formatReport(
       {
         ...facts,
-        rewrites: [
-          { plugin: "worktree-prefix", type: "rename_tab", ran: 4, applied: 3, missed: 1 },
-        ],
+        rewrites: [{ plugin: "worktree", type: "rename_tab", ran: 4, applied: 3, missed: 1 }],
       },
       groups,
     );
-    expect(text).toContain("rewrites\n  worktree-prefix  rename_tab: ran 4, applied 3, missed 1");
+    expect(text).toContain("rewrites\n  worktree         rename_tab: ran 4, applied 3, missed 1");
   });
 
   it("includes the previous run's tail, which is the whole reason it is persisted", () => {

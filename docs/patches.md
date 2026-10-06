@@ -86,7 +86,7 @@ An overlap refuses **both** patches, each naming every plugin it overlaps, so ne
 wondering why theirs behaved differently on somebody else's machine.
 
 `required: true` refuses the plugin itself when its patch does not apply. `required: false` — the
-better default, and what worktree-prefix uses — loads the plugin without it: the plugin does less,
+better default, and what the `worktree` plugin uses — loads the plugin without it: the plugin does less,
 and says so in its `why`. Deciding between them is deciding whether the plugin is coherent without
 the patch.
 

@@ -197,7 +197,7 @@ describe("listPlugins", () => {
 describe("formatPlugins", () => {
   it("names the origin, the switch and the patch on lines a person can scan", () => {
     const root = tempDir();
-    writePlugin(root, "worktree-prefix", {
+    writePlugin(root, "worktree", {
       description: "Worktree prefix on the session tab.",
       uses: { tools: true },
       patches: [{ find: "a:!1", replace: "a:!0", why: "Lists worktrees." }],
@@ -212,9 +212,7 @@ describe("formatPlugins", () => {
       }),
     );
     expect(text).toContain("quiet — this checkout, switched off in config");
-    expect(text).toContain(
-      "worktree-prefix — this checkout\n  Worktree prefix on the session tab.",
-    );
+    expect(text).toContain("worktree — this checkout\n  Worktree prefix on the session tab.");
     expect(text).toContain("- patches extension.js: Lists worktrees.");
     // Required is the half that changes what a failure costs, so it is the half that is marked.
     expect(text).not.toContain("(required)");

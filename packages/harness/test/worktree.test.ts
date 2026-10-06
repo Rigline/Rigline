@@ -1,7 +1,7 @@
 /**
- * worktree-prefix against the real bundle. Every case but the pills' reads `rename_tab` titles off
- * the fake host's transport (src/suite.ts's `sent()`). Structure copied from kernel.test.ts; the
- * shared scaffolding is in src/suite.ts.
+ * The worktree plugin against the real bundle. Every case but the pills' reads `rename_tab` titles
+ * off the fake host's transport (src/suite.ts's `sent()`). Structure copied from kernel.test.ts;
+ * the shared scaffolding is in src/suite.ts.
  *
  * The plugin's own decision state (`observedWorktree`, `defaultCwd`, the session-list map) is
  * driven directly over the bus rather than through a real session or a real worktree: every
@@ -10,7 +10,7 @@
  * through `window.__harness.push` (src/page.ts), exactly the shape `pre.ts`'s tap() expects. This
  * mirrors the 0.x harness's own `hosts()`/`reply()`/`tool()` helpers, and it means the session id
  * this test assigns need not match whatever id the app's own real session happens to hold — the
- * rewrite chain only ever consults worktree-prefix's own state, never the app's.
+ * rewrite chain only ever consults the plugin's own state, never the app's.
  *
  * Two things this harness genuinely cannot exercise, noted here rather than silently skipped:
  * - The host patch (`includeWorktrees`). This fixture has no `extension.js` at all, only the
@@ -28,11 +28,11 @@
  * A companion fixture, `pulse`, stands in for "the app happens to resend rename_tab on its own" (a
  * visibility toggle, a permission event): `window.__pulse(mark?)` calls `ctx.resend("rename_tab")`,
  * and — since the rewrite chain for one type is shared across every plugin that declared it — the
- * resend still runs worktree-prefix's own rewriter with its current state. This is what lets a test
+ * resend still runs the plugin's own rewriter with its current state. This is what lets a test
  * observe the list-based detection path, which (unlike the tool-call path) never resends on its own
- * by design. `mark`, when given, is `pulse`'s own patch applied ahead of worktree-prefix's in
- * registry order, standing in for a title that has already been marked by the time worktree-prefix
- * sees it (see "does not double an already-prefixed title" below).
+ * by design. `mark`, when given, is `pulse`'s own patch applied ahead of the plugin's in registry
+ * order, standing in for a title that has already been marked by the time the plugin sees it (see
+ * "does not double an already-prefixed title" below).
  */
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -49,27 +49,27 @@ const SEP = " › ";
 const skipReason = await harnessSkipReason(VERSION);
 
 // The plugin's own built output and manifest, not hand-copied stand-ins: this drives what actually
-// ships. Requires `pnpm build` to have produced plugins/worktree-prefix/dist/index.js first, the
+// ships. Requires `pnpm build` to have produced plugins/worktree/dist/index.js first, the
 // same dependency src/payload.ts already has on packages/host/dist/pre.js.
-const PLUGIN_DIR = new URL("../../../plugins/worktree-prefix/", import.meta.url);
+const PLUGIN_DIR = new URL("../../../plugins/worktree/", import.meta.url);
 const manifest = JSON.parse(readFileSync(new URL("rigline.json", PLUGIN_DIR), "utf8"));
 
-const worktreePrefixPlugin: FixturePlugin = {
-  name: "worktree-prefix",
+const worktreePlugin: FixturePlugin = {
+  name: "worktree",
   manifest: { surfaces: manifest.surfaces, uses: manifest.uses, elements: manifest.elements },
   source: readFileSync(fileURLToPath(new URL("dist/index.js", PLUGIN_DIR)), "utf8"),
 };
 
-const SHORT_ELEMENT = '[data-rigline-element="worktree-prefix/short-name"]';
+const SHORT_ELEMENT = '[data-rigline-element="worktree/short-name"]';
 const SHORT_PILL = `${SHORT_ELEMENT} .rigline-ui-pill`;
 
 /**
  * Stands in for "the app happens to resend rename_tab on its own" (a visibility toggle, a
  * permission event) — the trigger the list-detection path relies on and never provides itself.
- * `window.__pulse(mark?)` forces the whole chain to run again; when a plugin registered before
- * worktree-prefix in this test's registry order needs to simulate an already-marked title arriving
+ * `window.__pulse(mark?)` forces the whole chain to run again; when a plugin registered before the
+ * worktree plugin in this test's registry order needs to simulate an already-marked title arriving
  * from upstream (the "does not double up" scenario), `mark` is applied first, in this plugin's own
- * declared rewrite, so worktree-prefix's own idempotency check is what is actually under test.
+ * declared rewrite, so the worktree plugin's own idempotency check is what is actually under test.
  */
 const pulsePlugin: FixturePlugin = {
   name: "pulse",
@@ -95,7 +95,7 @@ const WORKTREE_PATH_UPPER_DRIVE =
 const MAIN_CWD = "c:\\dev\\ai\\atlas";
 
 describe.skipIf(skipReason !== null)(
-  `worktree-prefix against the real bundle${skipReason ? ` (${skipReason})` : ""}`,
+  `the worktree plugin against the real bundle${skipReason ? ` (${skipReason})` : ""}`,
   () => {
     const boot = register(VERSION);
     type Booted = Awaited<ReturnType<typeof boot>>;
@@ -209,7 +209,7 @@ describe.skipIf(skipReason !== null)(
     }
 
     it("passes rename_tab through unmodified before anything is known, and leaves a main-checkout session untouched", async () => {
-      const booted = await boot({ plugins: [worktreePrefixPlugin, pulsePlugin] });
+      const booted = await boot({ plugins: [worktreePlugin, pulsePlugin] });
       try {
         await waitForRenameCount(booted, 1);
         const bare = (await titles(booted)).at(-1);
@@ -233,7 +233,7 @@ describe.skipIf(skipReason !== null)(
     }, 20000);
 
     it("prefixes a session known via the list with its ticket key, reapplies identically, and never doubles it up", async () => {
-      const booted = await boot({ plugins: [worktreePrefixPlugin, pulsePlugin] });
+      const booted = await boot({ plugins: [worktreePlugin, pulsePlugin] });
       try {
         await waitForRenameCount(booted, 1);
         const bare = (await titles(booted)).at(-1) as string;
@@ -262,15 +262,15 @@ describe.skipIf(skipReason !== null)(
 
     it("does not double an already-prefixed title", async () => {
       // resend() always replays the app's pristine, never-prefixed original (pre.ts's
-      // lastOutbound), so there is no natural way in this harness to hand worktree-prefix's own
+      // lastOutbound), so there is no natural way in this harness to hand the plugin's own
       // rewrite a title it already marked. What is directly testable is the guard itself: with
-      // `pulse` registered ahead of worktree-prefix in registry order, its patch is what
-      // worktree-prefix's own handler sees as `payload.title` — standing in for "something
-      // upstream echoed a previously-marked title back", the hypothetical the guard's doc comment
-      // names. `pulse` is told to apply the *same* marker worktree-prefix's own state independently
-      // computes, so a passing test proves worktree-prefix's idempotency check, not a coincidence
-      // of two different markers happening not to collide.
-      const booted = await boot({ plugins: [pulsePlugin, worktreePrefixPlugin] });
+      // `pulse` registered ahead of the plugin in registry order, its patch is what the plugin's
+      // own handler sees as `payload.title` — standing in for "something upstream echoed a
+      // previously-marked title back", the hypothetical the guard's doc comment names. `pulse` is
+      // told to apply the *same* marker the plugin's own state independently computes, so a
+      // passing test proves the plugin's idempotency check, not a coincidence of two different
+      // markers happening not to collide.
+      const booted = await boot({ plugins: [pulsePlugin, worktreePlugin] });
       try {
         await waitForRenameCount(booted, 1);
         const bare = (await titles(booted)).at(-1) as string;
@@ -288,7 +288,7 @@ describe.skipIf(skipReason !== null)(
     }, 20000);
 
     it("falls back to 8-character truncation for a non-ticket worktree name, end to end", async () => {
-      const booted = await boot({ plugins: [worktreePrefixPlugin, pulsePlugin] });
+      const booted = await boot({ plugins: [worktreePlugin, pulsePlugin] });
       try {
         await waitForRenameCount(booted, 1);
         const bare = (await titles(booted)).at(-1) as string;
@@ -315,7 +315,7 @@ describe.skipIf(skipReason !== null)(
     }, 20000);
 
     it("withholds the prefix when the workspace itself is rooted on the worktree, even across a drive-letter case mismatch", async () => {
-      const booted = await boot({ plugins: [worktreePrefixPlugin, pulsePlugin] });
+      const booted = await boot({ plugins: [worktreePlugin, pulsePlugin] });
       try {
         await waitForRenameCount(booted, 1);
         const bare = (await titles(booted)).at(-1) as string;
@@ -337,7 +337,7 @@ describe.skipIf(skipReason !== null)(
     }, 20000);
 
     it("drops the prefix on an explicit farewell, and picks up the next session's own state", async () => {
-      const booted = await boot({ plugins: [worktreePrefixPlugin, pulsePlugin] });
+      const booted = await boot({ plugins: [worktreePlugin, pulsePlugin] });
       try {
         await waitForRenameCount(booted, 1);
         const bare = (await titles(booted)).at(-1) as string;
@@ -370,7 +370,7 @@ describe.skipIf(skipReason !== null)(
     }, 20000);
 
     it("prefixes the moment an EnterWorktree tool call is observed, with no list entry involved at all, and reverts on ExitWorktree", async () => {
-      const booted = await boot({ plugins: [worktreePrefixPlugin, pulsePlugin] });
+      const booted = await boot({ plugins: [worktreePlugin, pulsePlugin] });
       try {
         await waitForRenameCount(booted, 1);
         const bare = (await titles(booted)).at(-1) as string;
@@ -395,7 +395,7 @@ describe.skipIf(skipReason !== null)(
       // The reason this plugin reads results rather than calls (D51). A declined EnterWorktree is
       // a call the assistant made and the session did not complete: acting on it renames a real
       // VS Code tab after a move that never happened, and nothing on screen says otherwise.
-      const booted = await boot({ plugins: [worktreePrefixPlugin, pulsePlugin] });
+      const booted = await boot({ plugins: [worktreePlugin, pulsePlugin] });
       try {
         await waitForRenameCount(booted, 1);
         const bare = (await titles(booted)).at(-1) as string;
@@ -422,7 +422,7 @@ describe.skipIf(skipReason !== null)(
     }, 20000);
 
     it("an observed tool-call move outranks a disagreeing session-list entry, and is not undone by a stale one", async () => {
-      const booted = await boot({ plugins: [worktreePrefixPlugin, pulsePlugin] });
+      const booted = await boot({ plugins: [worktreePlugin, pulsePlugin] });
       try {
         await waitForRenameCount(booted, 1);
         const bare = (await titles(booted)).at(-1) as string;
@@ -451,7 +451,7 @@ describe.skipIf(skipReason !== null)(
     }, 20000);
 
     it("applies the workspace-is-the-worktree suppression to the tool-observed path too, by comparing defaultCwd's last segment", async () => {
-      const booted = await boot({ plugins: [worktreePrefixPlugin, pulsePlugin] });
+      const booted = await boot({ plugins: [worktreePlugin, pulsePlugin] });
       try {
         await waitForRenameCount(booted, 1);
         const bare = (await titles(booted)).at(-1) as string;
@@ -469,7 +469,7 @@ describe.skipIf(skipReason !== null)(
     }, 20000);
 
     it("makes no change and puts no extra traffic on the bus for an unrelated tool call or a re-entry of the same worktree", async () => {
-      const booted = await boot({ plugins: [worktreePrefixPlugin, pulsePlugin] });
+      const booted = await boot({ plugins: [worktreePlugin, pulsePlugin] });
       try {
         await waitForRenameCount(booted, 1);
         await hostSession(booted, "s-worktree");
@@ -496,7 +496,7 @@ describe.skipIf(skipReason !== null)(
     }, 20000);
 
     it("shows the worktree as a pill in rigRow while the session is in one, with the full name off", async () => {
-      const booted = await boot({ plugins: [worktreePrefixPlugin, pulsePlugin] });
+      const booted = await boot({ plugins: [worktreePlugin, pulsePlugin] });
       try {
         const { page } = booted;
         await waitForRenameCount(booted, 1);
@@ -519,9 +519,7 @@ describe.skipIf(skipReason !== null)(
           title: `Worktree: ${WORKTREE_NAME}`,
           inRow: true,
         });
-        expect(
-          await page.locator('[data-rigline-element="worktree-prefix/full-name"]').count(),
-        ).toBe(0);
+        expect(await page.locator('[data-rigline-element="worktree/full-name"]').count()).toBe(0);
 
         await hostTool(booted, "ExitWorktree", {});
         await page.waitForSelector(SHORT_PILL, { state: "detached" });
@@ -535,7 +533,7 @@ describe.skipIf(skipReason !== null)(
     }, 20000);
 
     it("never causes the host to record a diagnostics error across a full worktree-entering, tab-renaming sequence", async () => {
-      const booted = await boot({ plugins: [worktreePrefixPlugin, pulsePlugin] });
+      const booted = await boot({ plugins: [worktreePlugin, pulsePlugin] });
       try {
         await waitForRenameCount(booted, 1);
         await hostSession(booted, "s-worktree");
@@ -558,9 +556,7 @@ describe.skipIf(skipReason !== null)(
         // registration same as kernel.test.ts's "rewrites an outbound rename_tab" describes), but
         // only two *applied* a patch: entering OT-9 reverses the ExitWorktree that follows it back
         // to the bare title, which is correctly a null patch, not a no-op run.
-        const record = d.rewrites.find(
-          (r) => r.plugin === "worktree-prefix" && r.type === "rename_tab",
-        );
+        const record = d.rewrites.find((r) => r.plugin === "worktree" && r.type === "rename_tab");
         expect(record?.ran).toBeGreaterThanOrEqual(3);
         expect(record?.applied).toBeGreaterThanOrEqual(2);
       } finally {

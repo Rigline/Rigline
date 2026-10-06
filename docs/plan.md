@@ -19,7 +19,7 @@ place and the extension points curated.
 The user's story is short and the design answers to it: find a plugin, install it, keep it updated
 without thinking about it.
 
-**session-id, time-marks and worktree-prefix are why Rigline exists.** They are the gaps that
+**session-id, time-marks and worktree are why Rigline exists.** They are the gaps that
 motivated building a plugin layer at all, not demonstrations of one — the layer is how they get
 delivered, and a Rigline a person installs without them is a loader with nothing in it. Read
 anything about their distribution, their versioning or what ships by default in that light: they are
@@ -64,7 +64,7 @@ pnpm workspace, TypeScript throughout, every package a real package with its own
 | `packages/vscode` | `@rigline/vscode` (private) | The companion extension (D80): a second retrieval layer that acquires the engine, watches for an extension update and spawns the engine to re-inject. Built to `rigline.vsix`, which ships in core's `dist/bundled`. |
 | `packages/harness` | (private) | The Playwright tier: boots the real webview bundle from the corpus with a faked `acquireVsCodeApi` and a replayed bus. |
 | `plugins/session-id` | first-party plugin | Session id in the composer footer, and the full id and messaging address as elements that start off; every identifier in Rigline's menu. |
-| `plugins/worktree-prefix` | first-party plugin | Worktree prefix on the session tab label, and the worktree as a pill, with a full-name pill that starts off; declares the worktree-list host patch. |
+| `plugins/worktree` | first-party plugin | Worktree prefix on the session tab label, and the worktree as a pill, with a full-name pill that starts off; declares the worktree-list host patch. |
 | `plugins/time-marks` | first-party plugin | Clock times and pause dividers on transcript rows. |
 | `plugins/context-meter` | first-party plugin | How full the context is, as a bar under the composer and a percentage in its footer. |
 | `plugins/probe` | first-party plugin | The live integration harness: a check per capability, and the diagnostics in Rigline's menu. |
@@ -580,3 +580,4 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   ask, `get_context_usage` (D121, D77 amended). Proven in the harness; the live reads are next.
 - 2026-10-06: worktree-prefix shows the worktree as a pill in `rigRow`, and its full name as a pill
   that starts off. Proven in the harness.
+- 2026-10-06: worktree-prefix renamed `worktree`, before 1.0 puts plugin names into people's layouts.
