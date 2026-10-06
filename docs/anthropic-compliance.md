@@ -67,15 +67,16 @@ it can declare a patch to `extension.js`: the same plugin's flips one flag in ho
 sessions for the panel, so sessions in a git worktree are listed too — a listing the extension
 already makes, from the session files on the user's disk, and already uses elsewhere.
 
-Rigline can also ask the extension for something on a plugin's behalf: only what the panel itself
-asks for, only to read, and only from a list in Rigline's own code. At the time of writing the list
-holds one thing, the breakdown of the context that the panel's `/context` dialog asks for, which
-tells a plugin how full a session is before its first turn. Rigline asks for it only while a plugin
-uses it, when a session starts, after a compaction and when the model changes, and never on a timer.
-To answer, Claude Code counts the tokens in each part of the context with Anthropic's
-token-counting endpoint, using the person's own credentials, as it does whenever they open
-`/context`. What the extension sends to answer such a request is the only thing Rigline causes to
-leave the machine.
+Rigline can also ask Claude Code for something on a plugin's behalf, over the channel the panel
+already uses to ask it: only what the panel itself asks for, only to read, and only from a list in
+Rigline's own code. At the time of writing the list holds one thing, the breakdown of the context
+that the panel's `/context` dialog asks for, which tells a plugin how full a session is before its
+first turn. Rigline asks for it only while a plugin uses it, when a session starts, after a
+compaction and when the model changes, and never on a timer. The request stops at Claude Code;
+Rigline calls no endpoint itself. Claude Code answers it as it answers `/context`, which can mean
+counting tokens with Anthropic's token-counting endpoint, using the person's own credentials. What
+Claude Code sends while answering is the only thing a request of Rigline's can lead to leaving the
+machine.
 
 ## What Rigline does not do
 
@@ -94,8 +95,9 @@ with Anthropic. Rigline is not a harness and does not host one.
 open a socket, or contact any server, Anthropic's or ours. This one is stronger than a claim about
 our own code: the webview's CSP is `default-src 'none'` with no `connect-src`, so nothing running in
 the panel can make a request of its own — ours, a plugin's, or anybody's. There is no telemetry and no analytics,
-because there is no mechanism by which there could be. Rigline can ask the extension for what the
-panel itself asks for; what that leads the extension to send is set out above.
+because there is no mechanism by which there could be. Rigline can ask Claude Code, over the
+panel's channel, for what the panel itself asks for; what Claude Code sends while answering is set
+out above.
 
 **It does not redistribute Claude Code.** Rigline ships no Anthropic code, no bundle, no fragment of
 one. It is installed alongside an extension the user obtained from the Marketplace themselves, and
@@ -103,8 +105,7 @@ it is inert without it.
 
 **It does not remove, disable or restrict any authentication method**, degrade any feature, alter
 any model behaviour, or change any request the extension sends off the machine or what comes back
-to it. Asking the extension, above, causes only requests it already makes when the panel asks the
-same thing, and changes none. What passes between the panel and the extension on the machine, a plugin
+to it. Asking Claude Code, above, changes no request: it answers Rigline as it answers the panel. What passes between the panel and the extension on the machine, a plugin
 may change, in the two ways above, and that is the line: the panel and the extension are the user's to arrange between
 themselves; what reaches Anthropic is not ours to touch.
 

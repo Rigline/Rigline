@@ -3107,8 +3107,9 @@ Seeding the count from the loaded history was not built: the ask answers a cold 
 as well as a limit, and whether the history the panel loads keeps each record's `usage` has not
 been read.
 
-**Amends D77: the machine's edge, for the host.** Answering the ask, Claude Code calls Anthropic's
-token-counting endpoint, with the person's own credentials, as it does when they open `/context`.
-That is the one thing Rigline causes to leave the machine, and
+**Amends D77: the machine's edge, for the host.** The ask stops at Claude Code, and Rigline calls no
+endpoint; but Claude Code may answer it by calling Anthropic's token-counting endpoint, with the
+person's own credentials, as it does when they open `/context`. That is the one thing a request of
+Rigline's can lead to leaving the machine, and
 [anthropic-compliance.md](anthropic-compliance.md) says so. A plugin still may not cross that line:
 only the host asks, from a list no manifest reaches.
