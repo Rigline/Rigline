@@ -23,10 +23,11 @@ something new without touching the rigging itself.
 
 ## Status
 
-1.0 is under construction. [docs/plan.md](docs/plan.md) has the phases and where things stand;
-[docs/decisions.md](docs/decisions.md) has the principles and decisions behind them.
+Rigline is stable. Within 1.x, a plugin, a file you wrote and a command you scripted keep working
+as [docs/stability.md](docs/stability.md) describes, and [docs/support.md](docs/support.md) says
+where Rigline runs. [docs/plan.md](docs/plan.md) has what comes next, and
+[docs/decisions.md](docs/decisions.md) the principles and decisions behind it.
 
-What 1.x keeps stable, for a plugin and for your machine: [docs/stability.md](docs/stability.md).
 Writing a plugin: [docs/authoring.md](docs/authoring.md). Repairing one an extension update broke:
 [docs/anchors.md](docs/anchors.md). Working on Rigline itself:
 [docs/architecture.md](docs/architecture.md) is the map, and

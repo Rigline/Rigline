@@ -376,10 +376,10 @@ onto `main`, and merge only at the gate.
   stability.md keeps: the companion's reach everybody through its self-update, and the wrapper's
   are wording, a refusal that already happens, dead code or a proxy feature. M13 is the one only
   1.0.0's code could do, and `rigline vscode-setup` already mends a stranded companion.
-- [ ] **R3. The release text**, which `release.mjs` does not touch and which must be committed
+- [x] **R3. The release text**, which `release.mjs` does not touch and which must be committed
   before it runs, since it refuses a dirty tree: `README.md:26`, "1.0 is under construction"; the
   CHANGELOG preamble, "While the line is `1.0.0-alpha.*`"; `stability.md:7`, "Until 1.0.0 ships".
-- [ ] **R4. The 1.0.0 changelog lead.** `## Unreleased` becomes the 1.0.0 section and the GitHub
+- [x] **R4. The 1.0.0 changelog lead.** `## Unreleased` becomes the 1.0.0 section and the GitHub
   release's notes. Before 1.0.0 is cut, a paragraph ahead of its first `###`: the first stable
   release, what stability.md keeps, and the step from an alpha, `npm i -g rigline@latest`.
 - [x] **R5. W44's draft**, reworked into the compliance page and the plugin policy.

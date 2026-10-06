@@ -4,7 +4,7 @@ Rigline's four packages — `rigline`, `@rigline/core`, `@rigline/plugin-api` an
 `create-rigline-plugin` — release together, at one version, under semantic versioning. Within 1.x,
 everything this page lists as kept keeps working. A plugin written against 1.2 loads on 1.9. A file
 you wrote for 1.2 means the same thing on 1.9, and a command you scripted still runs. Only a 2.0 may
-break any of it. Until 1.0.0 ships, an alpha may break any of it too.
+break any of it.
 
 Two kinds of change are not breaks, and the changelog names each. Fixing a bug is not, even where
 something relied on it: a check that was meant to refuse something and did not gets fixed in a 1.x

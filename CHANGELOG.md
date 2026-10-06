@@ -5,10 +5,18 @@ All four published packages — `rigline`, `@rigline/core`, `@rigline/plugin-api
 only where the change is specific to one.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
-[semantic versioning](https://semver.org/spec/v2.0.0.html). While the line is `1.0.0-alpha.*`,
-anything may change between releases.
+[semantic versioning](https://semver.org/spec/v2.0.0.html). From 1.0.0, no 1.x release breaks what
+[docs/stability.md](docs/stability.md) keeps. Where one fixes a bug something relied on, closes a
+hole, or raises the Node or VS Code it needs, its entry says so.
 
 ## Unreleased
+
+The first stable release. Every 1.x keeps what
+[stability.md](https://github.com/Rigline/Rigline/blob/main/docs/stability.md) promises, and only a
+2.0 may break it.
+
+Coming from an alpha, run `npm i -g rigline@latest`, then `rigline update`; the companion follows on
+its own.
 
 ### Fixed
 
