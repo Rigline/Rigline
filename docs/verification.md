@@ -194,6 +194,11 @@ stylesheet — `.inputFooter_gGYT1w .modelPill_gGYT1w{min-width:240px}`, which t
 a long model name — and then narrows the viewport. A stylesheet is not a mutation inside the footer,
 so it does not reset the ladder itself.
 
+**The harness's only launch is at boot**, before any plugin loads, so a service sees it replayed
+after it was posted. Something that reacts to a `launch_claude` by sending — an ask — is in the
+opposite order live, where a session opened later launches with the plugins already listening. That
+ordering is pinned in `pre.test.ts`; the harness cannot show it (D121).
+
 **A question about a transient polls every animation frame.** The panel reads its checks once a
 second, which lands in the frame between React moving a node and the pass moving it back only
 sometimes — live, a blip on the RIG pill. A harness case asking whether that ever happens reads the
@@ -267,6 +272,12 @@ was flickering before it went.
 
 `rigline doctor` is the other half of a bug report: install state per version, as a pasteable
 report, from files we wrote. VS Code's own logs are deliberately out of scope (D53).
+
+They are still where a developer reads what the panel sent and how the extension took it. The
+extension writes `Claude VSCode.log` under the newest `%APPDATA%\Code\logs\<stamp>\window<n>\exthost\
+Anthropic.claude-code\`: every message the webview posts (`Received message from webview`), the
+extension's error answering one, and the CLI's own debug lines, API requests included. It is how
+the ask was found overtaking its launch, and how its cost was counted.
 
 ## Tier 4: the tarballs, installed
 
