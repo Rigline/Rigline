@@ -3093,10 +3093,12 @@ handing `{ used, limit, autoCompact, stale }`, and `context-meter` draws it.
 - **The ask** is `get_context_usage`, under D120: it reads, and counting tokens is not inference.
   It goes when a channel starts, after a compaction, and when the main model changes, one at a
   time, and never on a timer: the bus form is always `detail: "full"`, which counts each category
-  with Anthropic's token-counting endpoint, as `/context` does: 25 to 36 calls an ask, read live,
-  which is why it is not asked more often. A live reading that arrives while it is in flight beats
-  the answer's count. Its reply reaches no tap, by request id, in `pre.ts`, and it goes out after
-  the message whose tap asked, since one sent from inside the tap overtook its `launch_claude`.
+  with Anthropic's token-counting endpoint, as `/context` does: 25 to 36 calls for a session's
+  first ask and a few for a later one, read live. It is not asked more often because between those
+  events the live readings already say what it would. A live reading that arrives while it is in
+  flight beats the answer's count. Its reply reaches no tap, by request id, in `pre.ts`, and it goes
+  out after the message whose tap asked, since one sent from inside the tap overtook its
+  `launch_claude`.
 - **Stale** runs from a compaction to the next reading. The panel zeroes its count there, which an
   always-on meter cannot: the context after a compaction is the summary and the system prompt, so
   the meter shows nothing rather than either number.
