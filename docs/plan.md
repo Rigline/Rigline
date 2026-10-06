@@ -580,4 +580,5 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   ask, `get_context_usage` (D121, D77 amended). Proven in the harness; the live reads are next.
 - 2026-10-06: worktree-prefix shows the worktree as a pill in `rigRow`, and its full name as a pill
   that starts off. Proven in the harness.
-- 2026-10-06: worktree-prefix renamed `worktree`, before 1.0 puts plugin names into people's layouts.
+- 2026-10-06: worktree-prefix renamed `worktree`, before 1.0 puts plugin names into people's layouts;
+  its pills read live.
