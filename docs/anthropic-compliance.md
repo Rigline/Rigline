@@ -68,13 +68,14 @@ sessions for the panel, so sessions in a git worktree are listed too — a listi
 already makes, from the session files on the user's disk, and already uses elsewhere.
 
 Rigline can also ask the extension for something on a plugin's behalf: only what the panel itself
-asks for, only to read, and only from a list in Rigline's own code. The list holds one thing, the
-breakdown of the context that the panel's `/context` dialog asks for, which tells a plugin how full
-a session is before its first turn. Rigline asks for it only while a plugin uses it, when a session
-starts, after a compaction and when the model changes, and never on a timer. To answer, Claude Code
-counts the tokens in each part of the context with Anthropic's token-counting endpoint, using the
-person's own credentials, as it does whenever they open `/context`. Those calls are the only thing
-Rigline causes to leave the machine.
+asks for, only to read, and only from a list in Rigline's own code. At the time of writing the list
+holds one thing, the breakdown of the context that the panel's `/context` dialog asks for, which
+tells a plugin how full a session is before its first turn. Rigline asks for it only while a plugin
+uses it, when a session starts, after a compaction and when the model changes, and never on a timer.
+To answer, Claude Code counts the tokens in each part of the context with Anthropic's
+token-counting endpoint, using the person's own credentials, as it does whenever they open
+`/context`. What the extension sends to answer such a request is the only thing Rigline causes to
+leave the machine.
 
 ## What Rigline does not do
 
@@ -102,8 +103,8 @@ it is inert without it.
 
 **It does not remove, disable or restrict any authentication method**, degrade any feature, alter
 any model behaviour, or change any request the extension sends off the machine or what comes back
-to it. Asking for the context's breakdown, above, causes a request of a kind the extension already
-makes, and changes none. What passes between the panel and the extension on the machine, a plugin
+to it. Asking the extension, above, causes only requests it already makes when the panel asks the
+same thing, and changes none. What passes between the panel and the extension on the machine, a plugin
 may change, in the two ways above, and that is the line: the panel and the extension are the user's to arrange between
 themselves; what reaches Anthropic is not ours to touch.
 
