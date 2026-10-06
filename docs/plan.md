@@ -576,3 +576,5 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
 - 2026-10-06: 2.1.289 snapshotted, `generated.ts` regenerated and the harness moved to it; every
   anchor resolves. Its rows key by uuid ahead of API message id, so the row-reuse case streams a
   response and completes it, which reuses the row on every keying since 2.1.268 (D22 amended).
+- 2026-10-06: `context-meter`, a fifth bundled plugin, on a `context` capability; the host's first
+  ask, `get_context_usage` (D121, D77 amended). Proven in the harness; the live reads are next.
