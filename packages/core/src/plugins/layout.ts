@@ -8,6 +8,7 @@ import {
   type ElementSpec,
   type Layout,
   layoutView,
+  offers,
   type Placement,
   parsePlace,
   placeForms,
@@ -15,7 +16,6 @@ import {
   placeName,
   RIGLINE,
   RIGLINE_ELEMENTS,
-  samePlacement,
   type ViewElement,
   type ViewPlace,
   withRigline,
@@ -67,7 +67,7 @@ export function formatLayout(view: LayoutView): string {
     for (const element of elements) {
       const notes = [
         ...(element.listed ? ["yours"] : []),
-        ...(element.also.length > 0 ? [`can also go ${element.also.map(label).join(" or ")}`] : []),
+        ...(element.also.length > 0 ? [`can also go ${either(element.also.map(label))}`] : []),
       ];
       lines.push(
         `  ${element.name.padEnd(nameWidth)}  ${element.title.padEnd(titleWidth)}  ${notes.join("; ")}`.trimEnd(),
@@ -76,6 +76,13 @@ export function formatLayout(view: LayoutView): string {
   }
   if (view.problems.length > 0) lines.push("", ...view.problems);
   return lines.join("\n");
+}
+
+/** `a, b or c`. */
+function either(words: readonly string[]): string {
+  return words.length < 2
+    ? (words[0] ?? "")
+    : `${words.slice(0, -1).join(", ")} or ${words.at(-1)}`;
 }
 
 /** A place as `checkPlace` words it, where the headings above it give the spelling to type. */
@@ -147,7 +154,7 @@ function findElement(
 }
 
 function checkPlace(name: string, spec: ElementSpec, placement: Placement | null): void {
-  if (placement === null || spec.placements.some((p) => samePlacement(p, placement))) return;
+  if (placement === null || offers(spec, placement)) return;
   throw new UserError(
     `${name} cannot go ${placementLabel(placement)}; ` +
       `it can go ${spec.placements.map(placementLabel).join(" or ")}, or off`,

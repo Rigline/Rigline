@@ -4,10 +4,12 @@
  * confirmation. Nothing can push into a panel, so everything it learns about the file it pulls.
  */
 import {
+  compactRows,
   type Layout,
   type LayoutPlugin,
   layoutView,
   OFF,
+  rowOf,
   type SaveRecord,
   type Store,
   sameLayout,
@@ -42,6 +44,8 @@ export interface LayoutEditor {
    * it is already there; switches it off where `place` is off (D95).
    */
   drop(name: string, place: string, index: number): void;
+  /** Moves the row `place` to be the `to`th of its zone's rows, counting from 0 (D122). */
+  moveRow(place: string, to: number): void;
   /** Reads the saved layout afresh and shows it, dropping unsaved changes. */
   reload(): Promise<void>;
   /** Reads the saved layout afresh and says whether it moved since this panel's baseline. */
@@ -75,9 +79,12 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
   const editing = store(false);
   working.subscribe(() => view.set(layoutView(working.get(), plugins)));
 
-  /** A move: a save's outcome is about the copy it saved, so it goes once the copy changes. */
+  /**
+   * A move, leaving the rows numbered from one (D122). A save's outcome is about the copy it saved,
+   * so it goes once the copy changes.
+   */
   function edit(next: Layout): void {
-    working.set(next);
+    working.set(compactRows(next, plugins));
     if (saving.get() !== "saving") saving.set("idle");
   }
 
@@ -119,6 +126,26 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
       names.splice(Math.max(0, Math.min(at, names.length)), 0, name);
       if (from !== -1 && names.every((n, i) => n === shown[i])) return;
       edit(withOrder(working.get(), place, names));
+    },
+    moveRow(place, to) {
+      const zone = rowOf(place)?.zone;
+      const rows = view.get().filter((g) => zone !== undefined && rowOf(g.place)?.zone === zone);
+      const from = rows.findIndex((g) => g.place === place);
+      const at = Math.max(0, Math.min(to, rows.length - 1));
+      if (from === -1 || at === from) return;
+      const order = [...rows];
+      order.splice(at, 0, ...order.splice(from, 1));
+      let next = working.get();
+      order.forEach((row, i) => {
+        const there = rows[i];
+        if (there === undefined || row === there) return;
+        next = withOrder(
+          next,
+          there.place,
+          row.elements.map((e) => e.name),
+        );
+      });
+      edit(next);
     },
     async reload() {
       const saved = await readSaved();

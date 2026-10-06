@@ -14,6 +14,7 @@ import {
   type IdentifierTables,
   type Layout,
   type MenuComponent,
+  nextRow,
   type Placement,
   placeElement,
   placementGap,
@@ -22,6 +23,7 @@ import {
   placeTitle,
   RIGLINE,
   RIGLINE_ELEMENTS,
+  rowOf,
   type Surface,
   store,
   type Teardown,
@@ -131,9 +133,10 @@ export function createShellService(
   const elements = store<readonly PlacedElement[]>([]);
   const bound = new Map<string, ElementReading>();
   const bindings = new Map<string, Binding>();
+  /** Each row's zone, keyed by the row's place. */
   const zones = new Map<string, Zone>();
   const places = store<readonly PanelPlace[]>([]);
-  /** The zones held in place while the panel is edited, so an empty one shows (D95). */
+  /** The rows held in place while the panel is edited, so an empty one shows (D95). */
   let held: string[] = [];
   const failing = store(0);
   const ran = store<readonly CheckGroup[]>([]);
@@ -181,17 +184,21 @@ export function createShellService(
     return zone;
   }
 
-  /** The zone's node, placed while it has members and taken out when the last one leaves. */
+  /**
+   * The row's node, placed while it has members and taken out when the last one leaves. Rows are
+   * kept last in their anchor in number order (D122).
+   */
   function join(name: string, anchor: string, selector: string): HTMLElement {
     const zone = zoneOf(name);
     zone.members += 1;
     if (zone.stop === null) {
       const { node } = zone;
+      const order = rowOf(name)?.row ?? 0;
       zone.stop = mounts.watch(
         { anchor, selector, unique: unique(anchor) },
         OWNER,
         (box) =>
-          mounts.attach(box, "last", PILL_ORDER, OWNER, () => node, fail, `the ${name} zone`) ??
+          mounts.attach(box, "last", order, OWNER, () => node, fail, `the ${name} zone`) ??
           undefined,
         fail,
       );
@@ -209,42 +216,62 @@ export function createShellService(
     }
   }
 
-  /** Every place a bound element offers that resolves on this panel, each once. */
+  /**
+   * Every place a bound element offers that resolves on this panel, each once. A zone is each of its
+   * rows the working copy shows, then the next (D122).
+   */
   function publishPlaces(): void {
+    const shown = editor.view.get().map((g) => g.place);
     const found = new Map<string, PanelPlace>();
     for (const b of bindings.values()) {
       for (const placement of b.spec.placements) {
-        const place = placeName(placement);
-        if (found.has(place)) continue;
+        if (found.has(placeName(placement))) continue;
         const where = resolve(placement);
         if ("state" in where) continue;
-        found.set(
-          place,
-          typeof placement === "string"
-            ? { place, zone: zoneOf(placement).node }
-            : { place, selector: where.selector, at: placement.at },
-        );
+        if (typeof placement !== "string") {
+          const place = placeName(placement);
+          found.set(place, { place, selector: where.selector, at: placement.at });
+          continue;
+        }
+        const zone = placement as ZoneName;
+        const next = nextRow(shown, zone);
+        for (const place of [...shown.filter((p) => rowOf(p)?.zone === zone), next]) {
+          found.set(place, { place, zone: zoneOf(place).node, fresh: place === next });
+        }
       }
     }
     places.set([...found.values()]);
+    hold();
   }
 
+  /**
+   * Holds every row in place while the panel is edited, and the next row as the target that makes
+   * one; lets them go when it is not (D95, D122).
+   */
   function hold(): void {
-    for (const p of places.get()) {
-      if (!("zone" in p)) continue;
-      const where = resolve(p.place);
-      if ("state" in where) continue;
-      join(p.place, where.anchor, where.selector).setAttribute("data-rigline-editing", "");
-      held.push(p.place);
-    }
-  }
-
-  function release(): void {
+    const want = editor.editing.get() ? places.get().flatMap((p) => ("zone" in p ? [p] : [])) : [];
+    const handles = want.filter((p) => !p.fresh).length > 1;
     for (const name of held) {
-      zones.get(name)?.node.removeAttribute("data-rigline-editing");
+      if (want.some((p) => p.place === name)) continue;
+      const node = zones.get(name)?.node;
+      node?.removeAttribute("data-rigline-editing");
+      node?.removeAttribute("data-rigline-handle");
       leave(name);
     }
-    held = [];
+    const kept = held.filter((name) => want.some((p) => p.place === name));
+    for (const p of want) {
+      const { node } = zoneOf(p.place);
+      node.setAttribute("data-rigline-editing", "");
+      const later = (rowOf(p.place)?.row ?? 1) > 1;
+      node.setAttribute("data-rigline-title", p.fresh && later ? "New row" : placeTitle(p.place));
+      node.toggleAttribute("data-rigline-handle", handles && !p.fresh);
+      if (kept.includes(p.place)) continue;
+      const where = resolve(rowOf(p.place)?.zone ?? p.place);
+      if ("state" in where) continue;
+      join(p.place, where.anchor, where.selector);
+      kept.push(p.place);
+    }
+    held = kept;
   }
 
   function composer(): Element | null {
@@ -304,7 +331,12 @@ export function createShellService(
       });
       return () => {};
     }
-    const where = resolve(placement);
+    // A row the layout lists is its zone's; a manifest names only the zone.
+    const where = resolve(
+      typeof placement === "string" && listed !== null
+        ? (rowOf(placement)?.zone ?? placement)
+        : placement,
+    );
     if ("state" in where) {
       bound.set(name, where);
       return () => {};
@@ -354,7 +386,8 @@ export function createShellService(
     const layout = editor.working.get();
     for (const [name, b] of bindings) settle(name, b, layout);
   });
-  editor.editing.subscribe(() => (editor.editing.get() ? hold() : release()));
+  editor.view.subscribe(publishPlaces);
+  editor.editing.subscribe(hold);
 
   function bind(
     owner: string,

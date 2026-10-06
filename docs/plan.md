@@ -582,3 +582,5 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   that starts off. Proven in the harness.
 - 2026-10-06: worktree-prefix renamed `worktree`, before 1.0 puts plugin names into people's layouts;
   its pills read live.
+- 2026-10-07: Rigline's row is any number of rows, `rigRow 2` and on, made and ordered in edit mode
+  (D122). Proven in the harness, fit stage 2 with three rows included; the live read is next.

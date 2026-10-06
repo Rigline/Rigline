@@ -77,7 +77,8 @@ Rigline out until you put it back.
   layout place, it does not know under what needs you, and does without it. A layout place beside a piece of Claude Code's
   panel stops resolving if Claude Code removes that piece: the entry stays in the file and is
   reported, and its elements go back to where their authors put them.
-- **The words in that file that Rigline owns:** the layout's places — `rigRow`, `off`, and `before`,
+- **The words in that file that Rigline owns:** the layout's places — `rigRow` and the rows after it,
+  `rigRow 2` and on, `off`, and `before`,
   `after` or `inside` an anchor's name — and the names of the bundled plugins, their elements, and
   Rigline's own elements, `rigline/edit` and `rigline/reload`. A third-party plugin's names are its
   author's.

@@ -30,9 +30,12 @@ export interface PlacedElement {
   readonly targetKey: string;
 }
 
-/** A place some element can go that this panel has: a zone's node, or a slot at an anchor (D95). */
+/**
+ * A place some element can go that this panel has: a row's node, `fresh` for the next row, which a
+ * drop makes (D122); or a slot at an anchor (D95).
+ */
 export type PanelPlace =
-  | { readonly place: string; readonly zone: Element }
+  | { readonly place: string; readonly zone: Element; readonly fresh: boolean }
   | {
       readonly place: string;
       readonly selector: string;

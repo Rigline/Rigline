@@ -2,13 +2,16 @@
  * Editing in place (D95): a handle over each element on the panel, a tray for the elements with
  * nothing on screen, and a bar to save, revert or stop. A handle opens the element's moves, the
  * Layout submenu's own, so the keyboard edits as it does there, and drags to the places its element
- * offers, changing the copy only on the drop. All of it is on the shell's layer over the panel, and
- * none of it is added to the app's DOM (D54).
+ * offers, changing the copy only on the drop. Where there are rows to order, each has a handle of its
+ * own at its end (D122). All of it is on the shell's layer over the panel, and none of it is added to
+ * the app's DOM (D54).
  */
 import {
   type Layout,
   layoutCommands,
   OFF,
+  placeTitle,
+  rowOf,
   type Store,
   sameLayout,
   type ViewPlace,
@@ -29,7 +32,7 @@ import {
 } from "react";
 import type { LayoutEditor } from "../kernel/layout.ts";
 import type { ElementReading } from "../kernel/shell.ts";
-import { copyText, movesOf, SAVE_NOTES, saveHref } from "./layout.tsx";
+import { copyText, movesOf, rowMovesOf, SAVE_NOTES, saveHref } from "./layout.tsx";
 import { type Box, contains, insertionIndex, readingOrder, union } from "./order.ts";
 import type { PanelPlace } from "./types.ts";
 
@@ -143,6 +146,36 @@ export const EDIT_CSS = `
 .rigline-edit-handle.rigline-edit-dragged .rigline-edit-title {
   display: none;
 }
+.rigline-edit-row {
+  position: fixed;
+  z-index: 2147483646;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 1px dashed var(--vscode-focusBorder, #007fd4);
+  border-radius: 4px;
+  background: radial-gradient(circle, currentColor 1px, transparent 1.5px) center / 4px 4px;
+  color: var(--app-secondary-foreground, var(--vscode-descriptionForeground, #7f7f7f));
+  cursor: grab;
+  touch-action: none;
+}
+.rigline-edit-row:hover,
+.rigline-edit-row:focus-visible,
+.rigline-edit-row[aria-expanded="true"] {
+  border-style: solid;
+  outline: none;
+}
+.rigline-edit-row .rigline-edit-title {
+  left: auto;
+  right: 0;
+}
+.rigline-edit-row:hover .rigline-edit-title,
+.rigline-edit-row:focus-visible .rigline-edit-title {
+  display: block;
+}
+.rigline-edit-row.rigline-edit-dragged .rigline-edit-title {
+  display: none;
+}
 .rigline-edit-why,
 .rigline-edit-note {
   color: var(--app-secondary-foreground, var(--vscode-descriptionForeground));
@@ -217,11 +250,21 @@ interface Target {
   readonly empty: Box;
 }
 
+/** A row there are others to order against, and the handle at its end. */
+interface Row {
+  readonly place: string;
+  readonly title: string;
+  readonly rect: Box;
+  readonly box: Box;
+}
+
 interface Frame {
   readonly handles: readonly Handle[];
   readonly tray: readonly Chip[];
+  /** Every row, in order, where there are two or more; else none. */
+  readonly rows: readonly Row[];
   readonly bar: CSSProperties;
-  /** While dragging: the places the element offers that this panel has. */
+  /** While dragging an element: the places it offers that this panel has. */
   readonly targets: readonly Target[];
   /** While dragging an element that is not off: the bar, where a drop switches it off. */
   readonly off: Box | null;
@@ -234,6 +277,13 @@ interface Landing {
   readonly marker: Box | null;
 }
 
+/** Where a row dropped at the pointer would land: its position, and the row now there. */
+interface RowLanding {
+  readonly to: number;
+  readonly place: string;
+  readonly marker: Box | null;
+}
+
 interface Drag {
   readonly name: string;
   readonly title: string;
@@ -241,7 +291,7 @@ interface Drag {
   readonly y: number;
 }
 
-type Kind = "handle" | "chip";
+type Kind = "handle" | "chip" | "row";
 
 interface Opened {
   readonly name: string;
@@ -260,9 +310,13 @@ const DRAG_FROM = 4;
 /** How far a slot's target reaches past the elements in it, so an empty slot has one. */
 const BAND = 16;
 
+/** A row handle's width, inside the end padding a row with one keeps (`data-rigline-handle`). */
+const ROW_HANDLE = 14;
+
 const UNMEASURED: Frame = {
   handles: [],
   tray: [],
+  rows: [],
   bar: { visibility: "hidden" },
   targets: [],
   off: null,
@@ -379,6 +433,24 @@ function targetsFor(
   return targets;
 }
 
+/** Every row on screen, in the order the view shows them, where there are two to order. */
+function rowsOf(view: readonly ViewPlace[], places: readonly PanelPlace[]): Row[] {
+  const rows: Row[] = [];
+  for (const { place } of view) {
+    const p = places.find((q) => q.place === place);
+    if (p === undefined || !("zone" in p) || p.fresh || !p.zone.isConnected) continue;
+    const rect = rectOf(p.zone);
+    const box = {
+      left: rect.left + rect.width - ROW_HANDLE - 4,
+      top: rect.top + 4,
+      width: ROW_HANDLE,
+      height: Math.max(ROW_HANDLE, rect.height - 8),
+    };
+    rows.push({ place, title: placeTitle(place), rect, box });
+  }
+  return rows.length > 1 ? rows : [];
+}
+
 function measure(
   view: readonly ViewPlace[],
   readings: ReadonlyMap<string, ElementReading>,
@@ -390,10 +462,11 @@ function measure(
   const handles: Handle[] = [];
   const tray: Chip[] = [];
   const boxes = new Map<string, Box>();
+  const element = dragging !== null && rowOf(dragging) === null ? dragging : null;
   let draggingOff = false;
   for (const group of view) {
     for (const { name, title } of group.elements) {
-      if (name === dragging) draggingOff = group.place === OFF;
+      if (name === element) draggingOff = group.place === OFF;
       const box = group.place === OFF ? null : boxOf(name);
       if (box !== null) {
         handles.push({ name, title, box });
@@ -406,10 +479,34 @@ function measure(
   return {
     handles: readingOrder(handles),
     tray,
+    rows: rowsOf(view, places),
     bar: barAt(composer),
-    targets: dragging === null ? [] : targetsFor(dragging, view, places, boxes),
-    off: dragging === null || draggingOff || bar === null ? null : rectOf(bar),
+    targets: element === null ? [] : targetsFor(element, view, places, boxes),
+    off: element === null || draggingOff || bar === null ? null : rectOf(bar),
   };
+}
+
+/** Where the row `place` would land dropped at `x`, `y`: before the first row whose middle is below. */
+function rowLanding(frame: Frame, place: string, x: number, y: number): RowLanding | null {
+  const zone = rowOf(place)?.zone;
+  const rows = frame.rows.filter((r) => rowOf(r.place)?.zone === zone);
+  const from = rows.findIndex((r) => r.place === place);
+  const first = rows[0];
+  const last = rows.at(-1);
+  if (from === -1 || first === undefined || last === undefined) return null;
+  const reach = union(first.rect, ...rows.map((r) => r.rect));
+  if (!contains({ ...reach, top: reach.top - BAND, height: reach.height + 2 * BAND }, x, y)) {
+    return null;
+  }
+  const before = rows.findIndex((r) => y < r.rect.top + r.rect.height / 2);
+  const k = before === -1 ? rows.length : before;
+  const to = k > from ? k - 1 : k;
+  const edge = rows[k]?.rect.top ?? last.rect.top + last.rect.height;
+  const marker =
+    to === from
+      ? null
+      : { left: first.rect.left, top: edge - 1, width: first.rect.width, height: 2 };
+  return { to, place: rows[to]?.place ?? place, marker };
 }
 
 /** The target under `x`, `y`, where in it a drop would land, and the marker that says so. */
@@ -489,7 +586,11 @@ export function EditLayer(props: EditLayerProps): ReactNode {
     return () => cancelAnimationFrame(raf);
   }, [editor, readings, places, composer]);
 
-  const names = [...frame.handles.map((h) => h.name), ...frame.tray.map((c) => c.name)];
+  const names = [
+    ...frame.handles.map((h) => h.name),
+    ...frame.rows.map((r) => r.place),
+    ...frame.tray.map((c) => c.name),
+  ];
   const stop = active !== null && names.includes(active) ? active : (names[0] ?? null);
 
   useLayoutEffect(() => {
@@ -505,7 +606,9 @@ export function EditLayer(props: EditLayerProps): ReactNode {
       ? "handle"
       : frame.tray.some((c) => c.name === opened.name)
         ? "chip"
-        : null;
+        : frame.rows.some((r) => r.place === opened.name)
+          ? "row"
+          : null;
     if (now === opened.kind) return;
     setOpened(null);
     setActive(opened.name);
@@ -585,7 +688,10 @@ export function EditLayer(props: EditLayerProps): ReactNode {
     return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [onLeave, endDrag]);
 
-  const over = drag === null ? null : landing(frame, drag.x, drag.y);
+  const draggingRow = drag !== null && rowOf(drag.name) !== null;
+  const over = drag === null || draggingRow ? null : landing(frame, drag.x, drag.y);
+  const rowOver =
+    drag !== null && draggingRow ? rowLanding(frame, drag.name, drag.x, drag.y) : null;
 
   function item(name: string, title: string, kind: Kind) {
     return {
@@ -623,6 +729,14 @@ export function EditLayer(props: EditLayerProps): ReactNode {
           press.current = null;
           return;
         }
+        if (kind === "row") {
+          const at = rowLanding(frame, name, e.clientX, e.clientY);
+          endDrag();
+          if (at === null) return;
+          refocus.current = at.place;
+          editor.moveRow(name, at.to);
+          return;
+        }
         const at = landing(frame, e.clientX, e.clientY);
         endDrag();
         if (at === null) return;
@@ -643,13 +757,19 @@ export function EditLayer(props: EditLayerProps): ReactNode {
           return;
         }
         setActive(name);
+        const component =
+          kind === "row"
+            ? rowMovesOf(editor, name, (to) => {
+                refocus.current = to;
+              })
+            : movesOf(editor, name);
         setOpened({
           name,
           kind,
           anchor: e.currentTarget,
           // A click the keyboard made has no pointer detail, and opens onto the first move.
           focus: e.detail === 0 ? "first" : "menu",
-          entries: [{ key: 0, owner: "rigline", component: movesOf(editor, name), onError }],
+          entries: [{ key: 0, owner: "rigline", component, onError }],
         });
       },
     };
@@ -693,10 +813,36 @@ export function EditLayer(props: EditLayerProps): ReactNode {
             </span>
           </button>
         ))}
+        {frame.rows.map((r) => (
+          <button
+            key={r.place}
+            {...item(r.place, r.title, "row")}
+            className={
+              drag?.name === r.place ? "rigline-edit-row rigline-edit-dragged" : "rigline-edit-row"
+            }
+            aria-label={r.title}
+            style={{ left: r.box.left, top: r.box.top, width: r.box.width, height: r.box.height }}
+          >
+            <span className="rigline-edit-title" aria-hidden="true">
+              {r.title}
+            </span>
+          </button>
+        ))}
         {over?.marker && (
           <div
             className="rigline-edit-marker"
             style={{ left: over.marker.left, top: over.marker.top, height: over.marker.height }}
+          />
+        )}
+        {rowOver?.marker && (
+          <div
+            className="rigline-edit-marker"
+            style={{
+              left: rowOver.marker.left,
+              top: rowOver.marker.top,
+              width: rowOver.marker.width,
+              height: rowOver.marker.height,
+            }}
           />
         )}
         {drag !== null && (

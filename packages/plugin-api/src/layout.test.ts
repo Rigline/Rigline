@@ -1,12 +1,18 @@
 import { describe, expect, it } from "vitest";
 import type { ElementSpec } from "./elements.ts";
 import {
+  compactRows,
   describeElements,
   layoutCommands,
   layoutProblems,
+  layoutView,
+  nextRow,
   parsePlace,
   placeElement,
   placeName,
+  placeTitle,
+  rowOf,
+  rowPlace,
   sameLayout,
   withElementAt,
   withOrder,
@@ -23,7 +29,13 @@ const plugins = [{ name: "session-id", elements: { "short-id": shortId, address 
 
 describe("places", () => {
   it("spells a place as the file does, and reads it back", () => {
-    for (const placement of ["rigRow", spacer, { anchor: "composerBox", at: "inside" }, null]) {
+    for (const placement of [
+      "rigRow",
+      "rigRow 2",
+      spacer,
+      { anchor: "composerBox", at: "inside" },
+      null,
+    ]) {
       const name = placeName(placement as never);
       expect(parsePlace(name)).toEqual({ placement });
     }
@@ -34,12 +46,119 @@ describe("places", () => {
   it("says why a name is not a place, with a word for `default`", () => {
     expect(parsePlace("rigrow")).toEqual({
       problem:
-        '"rigrow" is not a place: a place is rigRow, before, after or inside an anchor, or off',
+        '"rigrow" is not a place: a place is rigRow, rigRow 2 and on, before, after or inside an anchor, or off',
     });
     expect(parsePlace("beside footerSpacer")).toHaveProperty("problem");
     expect(parsePlace("default")).toMatchObject({
       problem: expect.stringContaining("by being in no list"),
     });
+  });
+});
+
+describe("rows", () => {
+  it("numbers a zone's rows from one, the first spelled as the zone", () => {
+    expect(rowOf("rigRow")).toEqual({ zone: "rigRow", row: 1 });
+    expect(rowOf("rigRow 2")).toEqual({ zone: "rigRow", row: 2 });
+    expect(rowOf("rigRow 10")).toEqual({ zone: "rigRow", row: 10 });
+    for (const place of ["rigRow 1", "rigRow 0", "rigRow 02", "rigrow 2", "before 2", "off"]) {
+      expect(rowOf(place)).toBeNull();
+    }
+    expect(rowPlace("rigRow", 1)).toBe("rigRow");
+    expect(rowPlace("rigRow", 3)).toBe("rigRow 3");
+    expect(placeTitle("rigRow")).toBe("Rigline row");
+    expect(placeTitle("rigRow 2")).toBe("Rigline row 2");
+  });
+
+  it("says the first row is the zone's own name", () => {
+    for (const place of ["rigRow 1", "rigRow 0", "rigRow 02"]) {
+      expect(parsePlace(place)).toEqual({
+        problem: `"${place}" is not a place: the first row is rigRow, then rigRow 2`,
+      });
+    }
+  });
+
+  it("takes the next row after the last there is, or the zone's first", () => {
+    expect(nextRow(["rigRow", "rigRow 3", "off"], "rigRow")).toBe("rigRow 4");
+    expect(nextRow(["before footerSpacer"], "rigRow")).toBe("rigRow");
+  });
+
+  it("puts an element in any row of a zone it offers, and nowhere else", () => {
+    const layout = { "rigRow 3": ["session-id/address", "session-id/short-id"] };
+    expect(placeElement(layout, "session-id/short-id", shortId)).toEqual({
+      placement: "rigRow 3",
+      listed: 1,
+    });
+    const pinned: ElementSpec = { title: "Clock", placements: [spacer], default: spacer };
+    expect(placeElement({ "rigRow 2": ["clock/face"] }, "clock/face", pinned).listed).toBeNull();
+    expect(
+      layoutProblems({ "rigRow 2": ["clock/face"] }, [
+        { name: "clock", elements: { face: pinned } },
+      ]),
+    ).toEqual(["clock/face cannot go in rigRow 2; it can go before footerSpacer"]);
+  });
+});
+
+describe("layoutView", () => {
+  const row: ElementSpec = { title: "Row", placements: [spacer, "rigRow"], default: spacer };
+  const deck = [{ name: "d", elements: { a: row, b: row, c: row, e: row } }];
+
+  it("shows rows in number order, then slots, then off", () => {
+    const layout = { off: ["d/e"], "rigRow 10": ["d/a"], "rigRow 2": ["d/b"], rigRow: ["d/c"] };
+    expect(layoutView(layout, deck).map((g) => g.place)).toEqual([
+      "rigRow",
+      "rigRow 2",
+      "rigRow 10",
+      "off",
+    ]);
+  });
+
+  it("offers every row there is and a new one, unless that would only move an element alone", () => {
+    const view = layoutView({ rigRow: ["d/a", "d/b"], "rigRow 2": ["d/c"] }, deck);
+    const also = Object.fromEntries(
+      view.flatMap((g) => g.elements.map((e) => [e.name, e.also] as const)),
+    );
+    expect(also).toEqual({
+      "d/a": ["before footerSpacer", "rigRow 2", "rigRow 3"],
+      "d/b": ["before footerSpacer", "rigRow 2", "rigRow 3"],
+      "d/c": ["before footerSpacer", "rigRow"],
+      "d/e": ["rigRow", "rigRow 2", "rigRow 3"],
+    });
+    expect(layoutView({}, deck)[0]?.elements[0]?.also).toEqual(["rigRow"]);
+  });
+});
+
+describe("compactRows", () => {
+  const row: ElementSpec = { title: "Row", placements: [spacer, "rigRow"], default: spacer };
+  const deck = [{ name: "d", elements: { a: row, b: row, c: row } }];
+
+  it("numbers the rows from one, each list moving whole", () => {
+    expect(compactRows({ rigRow: ["d/a"], "rigRow 3": ["d/b", "gone/x"] }, deck)).toEqual({
+      rigRow: ["d/a"],
+      "rigRow 2": ["d/b", "gone/x"],
+    });
+    expect(compactRows({ "rigRow 2": ["d/b"], off: ["d/a"] }, deck)).toEqual({
+      rigRow: ["d/b"],
+      off: ["d/a"],
+    });
+  });
+
+  it("drops a row that shows nothing, and leaves every other place", () => {
+    const layout = {
+      rigRow: ["d/c"],
+      "rigRow 2": ["gone/x"],
+      "rigRow 3": ["d/b"],
+      "before footerSpacer": ["d/a"],
+    };
+    expect(compactRows(layout, deck)).toEqual({
+      rigRow: ["d/c"],
+      "rigRow 2": ["d/b"],
+      "before footerSpacer": ["d/a"],
+    });
+  });
+
+  it("hands back the same layout where the rows are numbered already", () => {
+    const layout = { rigRow: ["d/a"], "rigRow 2": ["d/b"], off: ["gone/x"] };
+    expect(compactRows(layout, deck)).toBe(layout);
   });
 });
 

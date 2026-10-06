@@ -7,8 +7,10 @@ import {
   type Layout,
   layoutCommands,
   MAX_SAVE_PAYLOAD,
+  nextRow,
   OFF,
   placeTitle,
+  rowOf,
   SAVE_PAYLOAD_VERSION,
   type Store,
   sameLayout,
@@ -163,9 +165,43 @@ export function movesOf(editor: LayoutEditor, name: string): () => ReactNode {
   };
 }
 
+/** A row's moves, for its handle's pop-over; `moved` hears the place the row lands in (D122). */
+export function rowMovesOf(
+  editor: LayoutEditor,
+  place: string,
+  moved: (to: string) => void,
+): () => ReactNode {
+  return function RowMoves() {
+    const view = useStore(editor.view);
+    const zone = rowOf(place)?.zone;
+    const rows = view.filter((g) => zone !== undefined && rowOf(g.place)?.zone === zone);
+    const i = rows.findIndex((g) => g.place === place);
+    if (i === -1) return <MenuNote>No longer in the layout</MenuNote>;
+    const to = (j: number) => () => {
+      editor.moveRow(place, j);
+      moved(rows[j]?.place ?? place);
+    };
+    return (
+      <>
+        <MenuNote>{placeTitle(place)}</MenuNote>
+        {i > 0 && <MenuItem label="Move row up" onSelect={to(i - 1)} />}
+        {i < rows.length - 1 && <MenuItem label="Move row down" onSelect={to(i + 1)} />}
+      </>
+    );
+  };
+}
+
+/** What a move to `to` is called: a row not there yet, after the first, is a new one. */
+function moveLabel(to: string, shown: readonly string[]): string {
+  const row = rowOf(to);
+  if (row !== null && row.row > 1 && to === nextRow(shown, row.zone)) return "Move to a new row";
+  return `Move to ${placeTitle(to)}`;
+}
+
 function MoveItems(props: Where): ReactNode {
   const { editor, element, place, before, after } = props;
   const { name } = element;
+  const shown = useStore(editor.view).map((g) => g.place);
   return (
     <>
       {place !== OFF && before !== undefined && (
@@ -183,7 +219,7 @@ function MoveItems(props: Where): ReactNode {
       {element.also.map((to) => (
         <MenuItem
           key={to}
-          label={`Move to ${placeTitle(to)}`}
+          label={moveLabel(to, shown)}
           title={to}
           onSelect={stay(() => editor.move(name, to))}
         />

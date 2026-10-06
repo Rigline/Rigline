@@ -66,6 +66,9 @@ const CSS = `
   content: attr(data-rigline-title);
   font-size: 0.85em;
 }
+.rigline-zone[data-rigline-handle] {
+  padding-inline-end: 24px;
+}
 `;
 
 function message(e: unknown): string {

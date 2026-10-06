@@ -94,6 +94,41 @@ describe("dropping", () => {
   });
 });
 
+describe("rows", () => {
+  it("makes a row of a drop on the next one, and takes away a row a move empties", () => {
+    const { editor: e } = editor({});
+    e.drop("session-id/short-id", "rigRow 2", 0);
+    expect(e.working.get()).toEqual({ "rigRow 2": ["session-id/short-id"] });
+    e.drop("clock/face", "rigRow 2", 0);
+    expect(e.working.get()).toEqual({ rigRow: ["clock/face", "session-id/short-id"] });
+  });
+
+  it("numbers the rows left from one", () => {
+    const { editor: e } = editor({ "rigRow 2": ["session-id/address"] });
+    e.move("clock/face", "off");
+    expect(e.working.get()).toEqual({ rigRow: ["session-id/address"], off: ["clock/face"] });
+  });
+
+  it("moves a row, listing the elements there at their default", () => {
+    const baked = { "rigRow 2": ["session-id/address"] };
+    const { editor: e } = editor(baked);
+    e.moveRow("rigRow 2", 0);
+    expect(e.working.get()).toEqual({
+      rigRow: ["session-id/address"],
+      "rigRow 2": ["clock/face"],
+    });
+    e.moveRow("rigRow", 5);
+    expect(e.working.get()).toEqual({
+      rigRow: ["clock/face"],
+      "rigRow 2": ["session-id/address"],
+    });
+    const now = e.working.get();
+    e.moveRow("rigRow 2", 1);
+    e.moveRow("off", 0);
+    expect(e.working.get()).toBe(now);
+  });
+});
+
 describe("the saved layout", () => {
   it("says a newer one is saved when the file moved since the panel loaded", async () => {
     let saved: Layout = {};

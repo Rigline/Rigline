@@ -67,14 +67,31 @@ describe("viewLayout", () => {
     const text = formatLayout(viewLayout(plugins, config));
     expect(text.split("\n")).toEqual([
       "rigRow",
-      "  session-id/address   Messaging address  yours",
-      "  clock/face           Clock",
-      "  rigline/edit         Edit button        can also go before footerSpacer",
-      "  rigline/reload       Reload button      can also go before footerSpacer",
+      "  session-id/address   Messaging address  yours; can also go in rigRow 2",
+      "  clock/face           Clock              can also go in rigRow 2",
+      "  rigline/edit         Edit button        can also go in rigRow 2 or before footerSpacer",
+      "  rigline/reload       Reload button      can also go in rigRow 2 or before footerSpacer",
       "off",
-      "  session-id/short-id  Session id         yours; can also go before footerSpacer or in rigRow",
-      "  session-id/full-id   Full session id    can also go in rigRow",
+      "  session-id/short-id  Session id         yours; can also go before footerSpacer, in rigRow or in rigRow 2",
+      "  session-id/full-id   Full session id    can also go in rigRow or in rigRow 2",
     ]);
+  });
+
+  it("shows rows in number order, each element offered the rest", () => {
+    const config = readConfig(
+      configFile(
+        "layout:\n  rigRow 3: [session-id/address]\n  rigRow: [clock/face]\n  rigRow 2: [session-id/full-id]\n",
+      ),
+    );
+    const view = viewLayout(plugins, config);
+    expect(view.places.map((p) => p.place)).toEqual([
+      "rigRow",
+      "rigRow 2",
+      "rigRow 3",
+      "before footerSpacer",
+    ]);
+    expect(view.places[2]?.elements[0]?.also).toEqual(["rigRow", "rigRow 2"]);
+    expect(view.problems).toEqual([]);
   });
 
   it("names what does not resolve, as install does", () => {
@@ -95,10 +112,13 @@ describe("parseWhere", () => {
 
   it("refuses what is not a place, offering default only where the command takes it", () => {
     expect(() => parseWhere(["rigrow"], true)).toThrow(
-      '"rigrow" is not a place: a place is rigRow, before, after or inside an anchor, off, or default',
+      '"rigrow" is not a place: a place is rigRow, rigRow 2 and on, before, after or inside an anchor, off, or default',
     );
     expect(() => parseWhere(["rigrow"], false)).toThrow(
-      '"rigrow" is not a place: a place is rigRow, before, after or inside an anchor, or off',
+      '"rigrow" is not a place: a place is rigRow, rigRow 2 and on, before, after or inside an anchor, or off',
+    );
+    expect(() => parseWhere(["rigRow", "1"], false)).toThrow(
+      '"rigRow 1" is not a place: the first row is rigRow, then rigRow 2',
     );
     expect(() => parseWhere([], true)).toThrow(/a place is needed: .*, off, or default$/);
     expect(() => parseWhere([], false)).toThrow(/a place is needed: .*, or off$/);
@@ -107,6 +127,16 @@ describe("parseWhere", () => {
 });
 
 describe("placeInLayout", () => {
+  it("puts an element in a later row, which any element offering rigRow may take", () => {
+    const path = configFile("disabled: []\n");
+    placeInLayout(path, plugins, "session-id/address", parseWhere(["rigRow", "2"], true));
+    orderInLayout(path, plugins, parseWhere(["rigRow", "3"], false), ["clock/face"]);
+    expect(readConfig(path).layout).toEqual({
+      "rigRow 2": ["session-id/address"],
+      "rigRow 3": ["clock/face"],
+    });
+  });
+
   it("adds an element to the end of a place, leaving the rest of the file as it was", () => {
     const path = configFile("# mine\ndisabled: [probe] # slow\nlayout:\n  rigRow: [clock/face]\n");
 

@@ -12,7 +12,7 @@ __DESCRIPTION__
   dividing the composer footer's left cluster from its right, and the place footer elements go. The
   footer measures the widths of its own element children to pick a fit stage; the spacer renders in
   every stage, so an element beside it contributes a constant width and the measurement settles. It
-  may also go in `rigRow`, the row under the composer's controls.
+  may also go in `rigRow`, the rows under the composer's controls.
 
 ## Notes
 

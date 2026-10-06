@@ -26,7 +26,25 @@ export const OFF = "off";
 
 const SLOT = new RegExp(`^(${SLOT_POSITIONS.join("|")}) ([A-Za-z][A-Za-z0-9]{0,63})$`);
 
-/** How the file spells a place: `rigRow`, `before footerSpacer`, or `off` for null. */
+const ROW = /^([A-Za-z][A-Za-z0-9]{0,63}) ([0-9]{1,3})$/;
+
+/** A zone's row as the file spells it: the zone's own name for the first, then `rigRow 2` (D122). */
+export function rowPlace(zone: ZoneName, row: number): string {
+  return row === 1 ? zone : `${zone} ${row}`;
+}
+
+/** Which zone's row `place` is, counting from one, or null where it is not a row. */
+export function rowOf(place: string): { readonly zone: ZoneName; readonly row: number } | null {
+  if (Object.hasOwn(ZONES, place)) return { zone: place as ZoneName, row: 1 };
+  const match = ROW.exec(place);
+  if (match === null || !Object.hasOwn(ZONES, match[1] as string)) return null;
+  const digits = match[2] as string;
+  const row = Number(digits);
+  if (row < 2 || String(row) !== digits) return null;
+  return { zone: match[1] as ZoneName, row };
+}
+
+/** How the file spells a place: `rigRow`, `rigRow 2`, `before footerSpacer`, or `off` for null. */
 export function placeName(placement: Placement | null): string {
   if (placement === null) return OFF;
   return typeof placement === "string" ? placement : `${placement.at} ${placement.anchor}`;
@@ -38,14 +56,19 @@ const SLOT_TITLES: Readonly<Record<string, string>> = { "before footerSpacer": "
 /** What the panel calls a place; the file and the CLI keep its spelling (D96). */
 export function placeTitle(place: string): string {
   if (place === OFF) return "Off";
-  if (Object.hasOwn(ZONES, place)) return ZONES[place as ZoneName].title;
+  const row = rowOf(place);
+  if (row !== null) {
+    const { title } = ZONES[row.zone];
+    return row.row === 1 ? title : `${title} ${row.row}`;
+  }
   return SLOT_TITLES[place] ?? place;
 }
 
 /** Every place a person can name, for a refusal, with `default` where the command takes it. */
 export function placeForms(orDefault = false): string {
+  const rows = ZONE_NAMES.map((zone) => `${zone}, ${rowPlace(zone, 2)} and on`).join(", ");
   const slots = `${SLOT_POSITIONS.slice(0, -1).join(", ")} or ${SLOT_POSITIONS.at(-1)} an anchor`;
-  return `${ZONE_NAMES.join(", ")}, ${slots}, ${orDefault ? `${OFF}, or default` : `or ${OFF}`}`;
+  return `${rows}, ${slots}, ${orDefault ? `${OFF}, or default` : `or ${OFF}`}`;
 }
 
 /** What a place's name means, null being off, or why it means nothing. */
@@ -53,7 +76,14 @@ export function parsePlace(
   name: string,
 ): { readonly placement: Placement | null } | { readonly problem: string } {
   if (name === OFF) return { placement: null };
-  if (Object.hasOwn(ZONES, name)) return { placement: name };
+  if (rowOf(name) !== null) return { placement: name };
+  const row = ROW.exec(name);
+  if (row !== null && Object.hasOwn(ZONES, row[1] as string)) {
+    const zone = row[1] as ZoneName;
+    return {
+      problem: `"${name}" is not a place: the first row is ${zone}, then ${rowPlace(zone, 2)}`,
+    };
+  }
   const slot = SLOT.exec(name);
   if (slot) return { placement: { anchor: slot[2] as string, at: slot[1] as SlotPosition } };
   if (name === "default") {
@@ -73,6 +103,12 @@ export interface ElementPlace {
   readonly listed: number | null;
 }
 
+/** Whether an element declaring `spec` may go at `placement`: any row of a zone it offers (D122). */
+export function offers(spec: ElementSpec, placement: Placement): boolean {
+  const zone = typeof placement === "string" ? (rowOf(placement)?.zone ?? placement) : placement;
+  return spec.placements.some((p) => samePlacement(p, zone));
+}
+
 /**
  * Where `layout` puts the element `name`. The first list naming it decides, and a place that element
  * cannot go leaves it at its default; `layoutProblems` says which.
@@ -84,9 +120,7 @@ export function placeElement(layout: Layout, name: string, spec: ElementSpec): E
     const parsed = parsePlace(place);
     if ("problem" in parsed) break;
     const { placement } = parsed;
-    if (placement === null || spec.placements.some((p) => samePlacement(p, placement))) {
-      return { placement, listed };
-    }
+    if (placement === null || offers(spec, placement)) return { placement, listed };
     break;
   }
   return { placement: spec.default, listed: null };
@@ -150,7 +184,10 @@ export interface ViewElement {
   readonly title: string;
   /** Whether the layout put it here, rather than its plugin. */
   readonly listed: boolean;
-  /** The other places it may go, as the file spells them. */
+  /**
+   * The other places it may go, as the file spells them. A zone it offers is each of its rows there
+   * is and then the next, unless it would leave the last row empty to fill the next one.
+   */
   readonly also: readonly string[];
   /** Where its plugin puts it, as the file spells a place. */
   readonly defaultPlace: string;
@@ -161,44 +198,93 @@ export interface ViewPlace {
   readonly elements: readonly ViewElement[];
 }
 
+/** Rows first, by zone and number; then slots by spelling; then off. */
+function comparePlaces(a: string, b: string): number {
+  const ra = rowOf(a);
+  const rb = rowOf(b);
+  if (ra !== null && rb !== null) return ra.zone.localeCompare(rb.zone) || ra.row - rb.row;
+  const kind = (place: string): number => (rowOf(place) !== null ? 0 : place === OFF ? 2 : 1);
+  return kind(a) - kind(b) || a.localeCompare(b);
+}
+
+/** The place a new row of `zone` takes: the one after the last of `places`, or the zone's first. */
+export function nextRow(places: readonly string[], zone: ZoneName): string {
+  const rows = places.map(rowOf).filter((r) => r?.zone === zone);
+  return rowPlace(zone, Math.max(0, ...rows.map((r) => r?.row ?? 0)) + 1);
+}
+
 /**
- * Every element of `plugins`, grouped by where `layout` puts it — zones, then slots, then off — and
+ * Every element of `plugins`, grouped by where `layout` puts it — rows, then slots, then off — and
  * in the order each place shows them. What `rigline layout` prints and the panel's editor lists.
  */
 export function layoutView(layout: Layout, plugins: readonly LayoutPlugin[]): ViewPlace[] {
-  const byPlace = new Map<string, (ViewElement & { readonly rank: number })[]>();
+  const byPlace = new Map<
+    string,
+    (Omit<ViewElement, "also"> & { readonly spec: ElementSpec; readonly rank: number })[]
+  >();
   plugins.forEach((plugin, order) => {
     Object.entries(plugin.elements).forEach(([id, spec], index) => {
       const name = `${plugin.name}/${id}`;
       const placed = placeElement(layout, name, spec);
-      const { placement } = placed;
-      const place = placeName(placement);
-      const also = spec.placements
-        .filter((p) => placement === null || !samePlacement(p, placement))
-        .map(placeName);
-      const rank = elementRank(placed, order, index);
+      const place = placeName(placed.placement);
       const list = byPlace.get(place) ?? [];
       list.push({
         name,
         title: spec.title,
         listed: placed.listed !== null,
-        also,
         defaultPlace: placeName(spec.default),
-        rank,
+        spec,
+        rank: elementRank(placed, order, index),
       });
       byPlace.set(place, list);
     });
   });
-  const kind = (place: string): number =>
-    place === OFF ? 2 : (ZONE_NAMES as readonly string[]).includes(place) ? 0 : 1;
-  return [...byPlace.keys()]
-    .sort((a, b) => kind(a) - kind(b) || a.localeCompare(b))
-    .map((place) => ({
+  const places = [...byPlace.keys()].sort(comparePlaces);
+  /** Where else an element at `place` may go: every row there is and the next, for a zone. */
+  const also = (spec: ElementSpec, place: string, alone: boolean): string[] =>
+    spec.placements.flatMap((p) => {
+      if (typeof p !== "string" || !Object.hasOwn(ZONES, p)) {
+        const name = placeName(p);
+        return name === place ? [] : [name];
+      }
+      const rows = places.filter((r) => rowOf(r)?.zone === p);
+      const next = alone && rows.at(-1) === place ? [] : [nextRow(rows, p as ZoneName)];
+      return [...rows.filter((r) => r !== place), ...next];
+    });
+  return places.map((place) => {
+    const elements = byPlace.get(place) ?? [];
+    return {
       place,
-      elements: (byPlace.get(place) ?? [])
+      elements: elements
         .sort((a, b) => a.rank - b.rank)
-        .map(({ rank: _, ...element }) => element),
-    }));
+        .map(({ rank: _, spec, ...element }) => ({
+          ...element,
+          also: also(spec, place, elements.length === 1),
+        })),
+    };
+  });
+}
+
+/**
+ * `layout` with each zone's rows numbered from one in the order `plugins` shows them, a row's list
+ * moving whole to its new place. A row showing nothing goes, with whatever its list held (D122).
+ * The same object where nothing changes.
+ */
+export function compactRows(layout: Layout, plugins: readonly LayoutPlugin[]): Layout {
+  const shown = layoutView(layout, plugins).map((g) => g.place);
+  const renamed = new Map<string, string>();
+  for (const zone of ZONE_NAMES) {
+    const rows = shown.filter((place) => rowOf(place)?.zone === zone);
+    for (const [i, place] of rows.entries()) renamed.set(place, rowPlace(zone, i + 1));
+  }
+  const lists = new Map<string, readonly string[]>();
+  let changed = false;
+  for (const [place, names] of Object.entries(layout)) {
+    const to = rowOf(place) === null ? place : renamed.get(place);
+    if (to !== place) changed = true;
+    if (to !== undefined) lists.set(to, names);
+  }
+  return changed ? Object.fromEntries(lists) : layout;
 }
 
 /**
@@ -296,7 +382,7 @@ function entryProblem(
   if (elements === undefined) return `${name}: no plugin "${plugin}" is installed`;
   const spec = Object.hasOwn(elements, id) ? elements[id] : undefined;
   if (spec === undefined) return `${name}: ${plugin} declares no element "${id}"`;
-  if (placement === null || spec.placements.some((p) => samePlacement(p, placement))) return null;
+  if (placement === null || offers(spec, placement)) return null;
   return (
     `${name} cannot go ${placementLabel(placement)}; ` +
     `it can go ${spec.placements.map(placementLabel).join(" or ")}`

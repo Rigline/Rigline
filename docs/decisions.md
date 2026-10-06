@@ -2132,6 +2132,9 @@ focused field, is inside a node it placed. Both in capture on `document`, before
 sees it; a plugin's own form submits as usual. Rejected: telling authors to type their buttons, which
 needs every author to comply, where this needs nobody to.
 
+**Amended by D122:** `rigRow` is as many rows as a person makes, and an element offering it may go
+in any of them.
+
 **D91. A person's settings are YAML, and what `add` recorded is not among them (2026-09-24,
 Leo).** `~/.rigline/config.yaml` holds what a person decides: plugins switched off, and the layout
 and per-plugin settings as they arrive. `~/.rigline/sources.json` holds where each plugin came from
@@ -2195,6 +2198,9 @@ bake keeps unresolved entries: a copy holding only what resolved would delete th
 `default` as the place; `reset` empties the whole layout. `default` is a word for the command only:
 in the file an element is at its default by being in no list. A command that empties a place takes
 the place out, and `layout` with it when it was the last.
+
+**Amended by D122:** rows are places, `rigRow 2` and on; and a panel edit drops the entries it cannot
+resolve from the places it touches.
 
 **D93. A layout saved in the panel reaches Node as a link to the companion, checked by one token per
 Rigline home (2026-09-24, Leo).** The webview has no channel to Node, so the three candidates the
@@ -2329,6 +2335,9 @@ Rejected:
 - A keyboard drag — pick up, arrows, drop — as the ARIA pattern has it. A second scheme to design and
   test, for what the moves already do.
 - Re-placing live while dragging, which moves the fit stage and the targets under the pointer.
+
+**Amended by D122:** the zone held is every row and the next one, and rows have handles of their
+own.
 
 **D96. The panel names a place by its title; the file and the CLI by its spelling (2026-09-25,
 Leo).** The panel showed the file's spelling for every place — `before footerSpacer`, `rigRow` — in
@@ -3113,3 +3122,45 @@ person's own credentials, as it does when they open `/context`. That is the one 
 Rigline's can lead to leaving the machine, and
 [anthropic-compliance.md](anthropic-compliance.md) says so. A plugin still may not cross that line:
 only the host asks, from a list no manifest reaches.
+
+**D122. Rigline's row is as many rows as a person wants, each a place of its own (2026-10-07,
+Leo).** One row under the composer's controls fills up as plugins arrive. In edit mode a person
+starts a row by dropping an element on a new one below the last, and orders rows by a handle at
+each row's end.
+
+A row is identified by its position, and each is a place in the layout: `rigRow`, `rigRow 2`,
+`rigRow 3`. One-based, with `rigRow` the only spelling of the first, so a file written for one row
+reads as it did; `rigRow 0` and `rigRow 1` are not places. The number follows a space, as in `before
+footerSpacer`, so the CLI takes it unquoted and `order` still ends the place at the first slash.
+
+Manifests do not change. An element that offers `rigRow` may go in any row, and a default of
+`rigRow` is the first. A manifest cannot name a later row: the numbers are a person's arrangement,
+and authors who never met would be coordinating on them. Rigline ships no arrangement of rows
+either. Sending unlisted elements to the emptiest row stays possible later, since it moves only what
+is in no list.
+
+A row exists while something is in it. Every panel edit renumbers the rows from one, a row's list
+moving whole, so the title a person sees and the file's spelling agree; a gap written by hand shows
+as one row fewer. A row move writes each row that changed position in full from what the panel
+shows, so the first row's elements at their default become listed, as a drop lists the place it
+lands in (D95). Each row's zone is mounted `last` in `composerBox` with its number as its order, so
+the mount service keeps them in sequence, and at fit stage 2 puts all of them back below the model
+pill's row; read in the harness with three rows, nothing given up (D54).
+
+In edit mode the kernel holds every row, and the next one, titled *New row*, as the target that makes
+a row. An element's moves and its drag targets are one list: the rows there are, then the next,
+which the panel calls a new row and `rigline layout` spells `rigRow 2`. With two rows or more, each
+has a handle in end padding the row keeps while editing; its moves are *Move row up* and *Move row
+down*, and a drag reorders with a marker between rows.
+
+Rejected: a list of rows under `rigRow`, each a list of elements. It reads most like the panel, but
+it counts rows where a key names one: a row of defaults ahead of a moved element has to be written
+`- []`, and leaving that out puts the element in the first row. It also gives `rigRow` a shape no
+other place has, while the CLI and the tooltip still need a row's name as a string.
+
+**Amends D92:** a panel edit rewrites each place it touches from what the panel shows, so an entry
+the panel cannot resolve, a disabled plugin's included, is dropped from that place, and a
+renumbering drops a row that shows nothing. Entries in places the edit leaves alone stay, and the
+bake still keeps them all. Keeping the rest was more machinery than a disabled plugin's position is
+worth (Leo). **Amends D95:** the mode holds the rows and the next one, not every zone an element
+offers.

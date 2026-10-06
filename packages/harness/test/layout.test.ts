@@ -358,7 +358,7 @@ describe.skipIf(skip !== null)(`editing in place${skip ? ` (${skip})` : ""}`, ()
       const zone = await middle(page, '[data-rigline-zone="rigRow"]');
       await pickUp(page, '[data-rigline-item="deck/one"]', zone);
       await page.locator(".rigline-edit-marker").waitFor();
-      expect(await targets(page)).toEqual(["before footerSpacer", "rigRow"]);
+      expect(await targets(page)).toEqual(["before footerSpacer", "rigRow", "rigRow 2"]);
       expect(await page.locator('[data-rigline-slot="deck/one"] .deck-one').count()).toBe(1);
       await page.mouse.up();
       await page.waitForSelector('[data-rigline-zone="rigRow"] .deck-one');
@@ -420,11 +420,11 @@ describe.skipIf(skip !== null)(`editing in place${skip ? ` (${skip})` : ""}`, ()
       await page.waitForSelector(".deck-two", { state: "detached" });
       await page.locator('.rigline-edit-chip[data-rigline-item="deck/two"]').waitFor();
 
-      // Three offers rigRow alone, and is off already, so rigRow is its only target.
+      // Three offers rigRow alone, and is off already, so the rows are its only targets.
       const zone = await middle(page, '[data-rigline-zone="rigRow"]');
       await pickUp(page, '.rigline-edit-chip[data-rigline-item="deck/three"]', zone);
       await page.locator(".rigline-edit-marker").waitFor();
-      expect(await targets(page)).toEqual(["rigRow"]);
+      expect(await targets(page)).toEqual(["rigRow", "rigRow 2"]);
       expect(await page.locator(".rigline-edit-bar-target").count()).toBe(0);
       await page.mouse.up();
       await page.waitForSelector('[data-rigline-zone="rigRow"] .deck-three');
@@ -450,6 +450,157 @@ describe.skipIf(skip !== null)(`editing in place${skip ? ` (${skip})` : ""}`, ()
       await page.waitForTimeout(100);
       expect(await page.locator('[data-rigline-slot="deck/one"] .deck-one').count()).toBe(1);
       expect(await page.locator(".rigline-edit-handle").count()).toBe(2);
+      expect(await page.locator(".rigline-menu").count()).toBe(0);
+    } finally {
+      await booted.close();
+    }
+  }, 30000);
+});
+
+describe.skipIf(skip !== null)(`rows${skip ? ` (${skip})` : ""}`, () => {
+  const boot = register(VERSION);
+
+  /** The rows in the composer box, in document order, and whether they are its last children. */
+  function rows(page: Page): Promise<{ readonly zones: string[]; readonly last: boolean }> {
+    return page.evaluate(() => {
+      const box = document.querySelector(".inputContainer_cKsPxg");
+      const children = [...(box?.children ?? [])];
+      const zones = children.filter((c) => c.hasAttribute("data-rigline-zone"));
+      return {
+        zones: zones.map((z) => z.getAttribute("data-rigline-zone") ?? ""),
+        last: zones.every((z, i) => children[children.length - zones.length + i] === z),
+      };
+    });
+  }
+
+  /** The layout a Save from the edit bar would write. */
+  async function saving(page: Page): Promise<Layout> {
+    const href =
+      (await page
+        .locator('.rigline-edit-bar a[href^="vscode://rigline.rigline/layout?p="]')
+        .getAttribute("href")) ?? "";
+    const p = new URL(href).searchParams.get("p") ?? "";
+    return JSON.parse(Buffer.from(p, "base64url").toString("utf8")).to;
+  }
+
+  it("keeps the rows last in the composer box, in order, through fit stage 2", async () => {
+    const layout = {
+      ...RIGLINE_OFF,
+      rigRow: ["deck/three"],
+      "rigRow 2": ["deck/one"],
+      "rigRow 3": ["deck/two"],
+    };
+    const booted = await boot({ plugins: [deck], layout });
+    const { page } = booted;
+    try {
+      await page.setViewportSize({ width: 720, height: 800 });
+      await page.waitForSelector('[data-rigline-zone="rigRow 3"] .deck-two');
+      await page.waitForSelector('[data-rigline-zone="rigRow"] .deck-three');
+      expect(await rows(page)).toEqual({ zones: ["rigRow", "rigRow 2", "rigRow 3"], last: true });
+
+      // React appends the model pill's row after whatever is last; all three rows go back below it.
+      await page.addStyleTag({ content: ".inputFooter_gGYT1w .modelPill_gGYT1w{min-width:240px}" });
+      await page.setViewportSize({ width: 400, height: 800 });
+      await page.waitForSelector(".modelPillRow_gGYT1w");
+      await expect
+        .poll(() => rows(page))
+        .toEqual({ zones: ["rigRow", "rigRow 2", "rigRow 3"], last: true });
+      expect(
+        await page.evaluate(
+          () =>
+            document
+              .querySelector('[data-rigline-zone="rigRow"]')
+              ?.previousElementSibling?.classList.contains("modelPillRow_gGYT1w") ?? false,
+        ),
+      ).toBe(true);
+      await page.waitForTimeout(500);
+      expect(await rows(page)).toEqual({ zones: ["rigRow", "rigRow 2", "rigRow 3"], last: true });
+      const d = await booted.diagnostics();
+      expect(d.mounts.abandoned).toEqual([]);
+      expect(d.errors).toEqual([]);
+      expect(booted.consoleErrors).toEqual([]);
+    } finally {
+      await booted.close();
+    }
+  }, 30000);
+
+  it("makes a row of a drop on the new one, and takes away a row a move empties", async () => {
+    const booted = await boot({ plugins: [deck], save: COMPANION });
+    const { page } = booted;
+    try {
+      await enterEditing(page);
+      const fresh = '[data-rigline-zone="rigRow 2"]';
+      await expect(page.locator(fresh).getAttribute("data-rigline-title")).resolves.toBe("New row");
+      await pickUp(page, '[data-rigline-item="deck/one"]', await middle(page, fresh));
+      await page.locator(".rigline-edit-marker").waitFor();
+      await page.mouse.up();
+      await page.waitForSelector('[data-rigline-zone="rigRow 2"] .deck-one');
+      await page.waitForSelector('[data-rigline-zone="rigRow 3"][data-rigline-title="New row"]');
+      expect(await saving(page)).toEqual({ "rigRow 2": ["deck/one"] });
+
+      // The same from the keyboard's route: an element's moves offer a new row.
+      await page.locator('[data-rigline-item="deck/two"]').click();
+      await page.getByRole("menuitem", { name: "Move to a new row" }).click();
+      await page.waitForSelector('[data-rigline-zone="rigRow 3"] .deck-two');
+      await page.keyboard.press("Escape");
+
+      // Emptying the middle row takes it away, and the last one moves up.
+      await page.locator('[data-rigline-item="deck/one"]').click();
+      await page.getByRole("menuitem", { name: "Move to Footer" }).click();
+      await page.waitForSelector('[data-rigline-zone="rigRow 2"] .deck-two');
+      await page.waitForSelector('[data-rigline-zone="rigRow 4"]', { state: "detached" });
+      expect(await saving(page)).toEqual({
+        "rigRow 2": ["deck/two"],
+        "before footerSpacer": ["deck/one"],
+      });
+    } finally {
+      await booted.close();
+    }
+  }, 30000);
+
+  it("moves a row from its handle, by its moves and by drag", async () => {
+    const layout = { ...RIGLINE_OFF, rigRow: ["deck/one"], "rigRow 2": ["deck/two"] };
+    const booted = await boot({ plugins: [deck], save: COMPANION, layout });
+    const { page } = booted;
+    try {
+      await enterEditing(page);
+      const handle = (place: string) =>
+        page.locator(`.rigline-edit-row[data-rigline-item="${place}"]`);
+      await handle("rigRow 2").waitFor();
+      const inside = await page.evaluate(() => {
+        const zone = document
+          .querySelector('[data-rigline-zone="rigRow 2"]')
+          ?.getBoundingClientRect();
+        const grip = document
+          .querySelector('.rigline-edit-row[data-rigline-item="rigRow 2"]')
+          ?.getBoundingClientRect();
+        const two = document.querySelector(".deck-two")?.getBoundingClientRect();
+        if (!zone || !grip || !two) return null;
+        return {
+          inZone: grip.left >= zone.left && grip.right <= zone.right,
+          clearOfElement: grip.left >= two.right,
+        };
+      });
+      expect(inside).toEqual({ inZone: true, clearOfElement: true });
+
+      await handle("rigRow 2").click();
+      await page.getByRole("menuitem", { name: "Move row up" }).click();
+      await page.waitForSelector('[data-rigline-zone="rigRow"] .deck-two');
+      await page.waitForSelector('[data-rigline-zone="rigRow 2"] .deck-one');
+      await expect.poll(() => focusedItem(page)).toBe("rigRow");
+
+      const below = await page.locator('[data-rigline-zone="rigRow 2"]').boundingBox();
+      if (!below) throw new Error("no second row");
+      await pickUp(page, '.rigline-edit-row[data-rigline-item="rigRow"]', {
+        x: below.x + below.width / 2,
+        y: below.y + below.height + 4,
+      });
+      await page.locator(".rigline-edit-marker").waitFor();
+      await page.mouse.up();
+      await page.waitForSelector('[data-rigline-zone="rigRow"] .deck-one');
+      await page.waitForSelector('[data-rigline-zone="rigRow 2"] .deck-two');
+      // Back where it started, so there is nothing to save.
+      await expect.poll(() => page.locator('.rigline-edit-bar a[href^="vscode:"]').count()).toBe(0);
       expect(await page.locator(".rigline-menu").count()).toBe(0);
     } finally {
       await booted.close();

@@ -47,20 +47,31 @@ editing the layout in place, and `rigline/reload`, which picks up the saved layo
 Each key is a place, and under it are the elements you have put there, in the order you want them,
 each named `plugin/element`. A place is one of:
 
-- `rigRow`, Rigline's row at the foot of the composer box, which is only there while something is
-  in it.
+- `rigRow`, Rigline's row at the foot of the composer box, and `rigRow 2`, `rigRow 3` and on, more
+  rows below it. A row is only there while something is in it.
 - `before`, `after` or `inside` one of the app's controls, by its anchor name: `before footerSpacer`
   is the composer footer, beside Rigline's own pill.
 - `off`, for an element you do not want to see.
 
-An element can only go where its plugin allows. `rigline layout` lists every element by place, marks
-those your layout put there, and says where else each may go:
+An element can only go where its plugin allows, and one that can go in `rigRow` can go in any row. A
+plugin that puts something in `rigRow` puts it in the first. Rows show in number order, so `rigRow`
+and `rigRow 3` with nothing in `rigRow 2` are two rows; editing the layout in the panel numbers them
+from one again.
+
+    layout:
+      rigRow:
+        - session-id/address
+      rigRow 2:
+        - context-meter/bar
+
+`rigline layout` lists every element by place, marks those your layout put there, and says where
+else each may go, a new row included:
 
     rigRow
-      session-id/address   Messaging address  yours
-      session-id/full-id   Full session id    yours
+      session-id/address   Messaging address  yours; can also go in rigRow 2
+      session-id/full-id   Full session id    yours; can also go in rigRow 2
     off
-      session-id/short-id  Session id         yours; can also go before footerSpacer or in rigRow
+      session-id/short-id  Session id         yours; can also go before footerSpacer, in rigRow or in rigRow 2
 
 Leave an element out and it stays where its plugin puts it, and so does everything a plugin you
 install later brings. In a place, the elements you list come first, in your order, and anything else
@@ -69,12 +80,13 @@ that belongs there follows.
 The same changes from the command line, each of which edits the file and re-injects:
 
     rigline layout place session-id/address rigRow           # to the end of that place
+    rigline layout place session-id/full-id rigRow 2         # a second row
     rigline layout place session-id/short-id off
     rigline layout place session-id/short-id default         # back where its plugin puts it
     rigline layout order rigRow session-id/full-id session-id/address
     rigline layout reset                                     # everything back to its plugin's place
 
-A place of two words, like `before footerSpacer`, needs no quotes. `order` replaces what you have
+A place of two words, like `before footerSpacer` or `rigRow 2`, needs no quotes. `order` replaces what you have
 listed in that place; an element you leave out of it goes back where its plugin puts it.
 
 An entry that does not work — a misspelt place, a plugin you have removed, a place its element cannot

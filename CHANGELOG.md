@@ -20,6 +20,11 @@ anything may change between releases.
   endpoint, as it does for `/context`.
 - `@rigline/plugin-api`: `uses.context` and `ctx.onContextUsage`, how full the context is and where
   it compacts.
+- More than one Rigline row under the composer. In Edit in place, drop an element on *New row*,
+  below the last row, to start another, and reorder rows by the handle at each one's end, by drag or
+  from its menu; an element's moves offer *Move to a new row* too. A row goes when nothing is left
+  in it. In `config.yaml` and `rigline layout`, the rows after `rigRow` are `rigRow 2`, `rigRow 3`
+  and on, and anything that can go in `rigRow` can go in any of them.
 - `worktree` shows the worktree under the composer too, as a pill with the tab's short name, an
   ellipsis when that is not the whole name, and the whole name on hover. A second pill with the full
   name starts off. Either can be moved to the composer's footer, or the full one switched on, from

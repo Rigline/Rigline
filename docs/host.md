@@ -148,10 +148,11 @@ the copy moves its place or its rank; an element that moves renders afresh where
   same node back, so the portal into it never changes target and the component keeps its state. A
   plugin's own elements are ordered by manifest position within its registry slot, so two at one
   anchor never claim the same position.
-- A zone is a `div.rigline-zone` the kernel places, as `rigline`, while at least one element is in
-  it, and removes when the last leaves. `rigRow` is kept last in `composerBox` through the mount
-  service's `last` placement, which moves it back once each time React appends the model pill's own
-  row after it. It takes `position: relative`, or the box's absolutely positioned background covers
+- A zone is its rows, `rigRow`, `rigRow 2` and on (D122). Each row is a `div.rigline-zone` the
+  kernel places, as `rigline`, while at least one element is in it, and removes when the last
+  leaves. The rows are kept last in `composerBox` through the mount service's `last` placement, their
+  number as their order, which moves them back once each time React appends the model pill's own row
+  after them. A row takes `position: relative`, or the box's absolutely positioned background covers
   it, and hides itself when every element in it renders nothing.
 - A placement the tables or the engine cannot provide leaves the element unplaced; one the surface
   has not got likewise, without being a fault. Core's `elements are placed` check names both kinds,
@@ -185,15 +186,20 @@ from the components it exports as `riglineElements`, at a registry order after e
 They go through the same `element` service as a plugin's, reporting to the shell's error path.
 
 Edit in place, a checkbox at the top of the submenu, sets the editor's `editing` store (D95). While
-it is set, the kernel holds every zone a bound element offers in place, empty or not, marked
-`data-rigline-editing` so its CSS shows the zone with its name. The shell's `edit.tsx` draws on the
-root's own layer, never in the app's DOM: a handle over each element with a box, measured every frame
-as a range over its `form`, and a bar above `composerBox` holding a tray of the elements without one,
-Save or Copy commands, Revert changes and Done. A handle's click or Enter opens the element's moves,
-the items its row in the submenu opens, in a `MenuPanel` anchored at the handle. A drag outlines only
-the places its element offers that this panel has, which the kernel publishes as `places` when
-elements bind, and calls the editor's `drop` once, on release; the bar is the target for off. A
-slot's target is a band drawn beside its anchor rather than a placeholder in the footer (D54).
+it is set, the kernel holds every row in place, empty or not, and the next row as the target that
+makes one, marked `data-rigline-editing` so its CSS shows the row with its name; with two rows or
+more each also keeps end padding, `data-rigline-handle`, for its handle (D122). Every edit renumbers
+the rows from one, and the kernel publishes `places` again whenever the copy changes.
+
+The shell's `edit.tsx` draws on the root's own layer, never in the app's DOM: a handle over each
+element with a box, measured every frame as a range over its `form`, and a bar above `composerBox`
+holding a tray of the elements without one, Save or Copy commands, Revert changes and Done. A
+handle's click or Enter opens the element's moves, the items its row in the submenu opens, in a
+`MenuPanel` anchored at the handle. A drag outlines only the places its element offers that this
+panel has, and calls the editor's `drop` once, on release; the bar is the target for off. A slot's
+target is a band drawn beside its anchor rather than a placeholder in the footer (D54). A row's
+handle opens *Move row up* and *Move row down*, and its drag calls `moveRow` on release, with a
+marker between rows.
 
 The kernel knows no capability by name. It owns the plugin lifecycle, the per-React-commit pass
 that re-places mounts and re-anchors watches (D52), the mount arbitration (host-placed nodes ordered
