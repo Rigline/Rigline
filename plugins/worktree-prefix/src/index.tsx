@@ -1,7 +1,8 @@
 /**
  * Prefixes a session's native VS Code tab label with the worktree it belongs to: a ticket key
  * (e.g. `TD-1234`) when the worktree directory's name starts with one, and as much of the name as
- * fits in eight characters, cut at a word boundary, otherwise.
+ * fits in eight characters, cut at a word boundary, otherwise. The same label is a pill in `rigRow`,
+ * and the whole name a second pill that starts off.
  *
  * **Why a rewrite, and not DOM.** A session's tab is a real VS Code editor tab, entirely outside
  * the webview's DOM. `WebviewPanel.title` is assigned in exactly one place in the extension host —
@@ -43,7 +44,9 @@
  * recovers it. `EnterWorktree`'s `{path}` form is read the same way for the same reason: the path
  * may sit outside that convention, so only its last segment is usable as a label.
  */
-import { definePlugin, type Payload } from "@rigline/plugin-api";
+import { definePlugin, type Payload, type Store, store } from "@rigline/plugin-api";
+import { Pill, useStore } from "@rigline/plugin-api/ui";
+import type { ReactNode } from "react";
 
 /**
  * Separates the marker from the app's own title, e.g. `"TD-1234 › Refactor the bus"`.
@@ -123,6 +126,12 @@ export function worktreeLabel(name: string): string {
     if (SEPARATORS.test(characters[i] as string)) return characters.slice(0, i).join("");
   }
   return characters.slice(0, SHORT_LENGTH).join("");
+}
+
+/** The short pill's text: the tab's label, and an ellipsis when that is not the whole name. */
+export function shortName(name: string): string {
+  const label = worktreeLabel(name);
+  return label === name ? label : `${label}…`;
 }
 
 /** The last non-empty segment of a Windows or POSIX path, ignoring trailing separators. */
@@ -215,6 +224,21 @@ interface WorktreeEntry {
   readonly path: string | null;
 }
 
+interface Props {
+  readonly worktree: Store<string | null>;
+}
+
+/** Nothing outside a worktree, the common case, rather than a placeholder on every panel. */
+function ShortName({ worktree }: Props): ReactNode {
+  const name = useStore(worktree);
+  return name === null ? null : <Pill title={`Worktree: ${name}`}>{shortName(name)}</Pill>;
+}
+
+function FullName({ worktree }: Props): ReactNode {
+  const name = useStore(worktree);
+  return name === null ? null : <Pill title={`Worktree: ${name}`}>{name}</Pill>;
+}
+
 export default definePlugin({
   setup(ctx) {
     // The panel's own session, from the farewell rule `ctx.onSessionId` already applies. Reset
@@ -247,9 +271,14 @@ export default definePlugin({
     /** Whether a null there is an entry whose name did not read, which only the check tells apart. */
     let unnamed = false;
 
+    /** `worktree()`, for the pills; refreshed by every handler that changes what it reads. */
+    const current = store<string | null>(null);
+    const refresh = (): void => current.set(worktree());
+
     function readDefaultCwd(payload: Payload): void {
       const cwd = asRecord(payload.state)?.defaultCwd;
       if (typeof cwd === "string" && cwd.length > 0) defaultCwd = cwd;
+      refresh();
     }
     ctx.onMessage("update_state", readDefaultCwd);
     ctx.onMessage("init_response", readDefaultCwd);
@@ -273,6 +302,7 @@ export default definePlugin({
         const path = worktree?.path;
         worktrees.set(id, { name, path: typeof path === "string" ? path : null });
       }
+      refresh();
     });
 
     ctx.onSessionId((id) => {
@@ -281,6 +311,7 @@ export default definePlugin({
         unnamed = false;
       }
       sessionId = id;
+      refresh();
     });
 
     // The *result*, not the call (D51). `ctx.onToolUse` reports what the assistant asked for, and a
@@ -299,6 +330,7 @@ export default definePlugin({
       unnamed = next === null && result.name === "EnterWorktree";
       if (next === observedWorktree) return;
       observedWorktree = next;
+      refresh();
       // Entering or leaving a worktree does not itself make the app resend rename_tab, so without
       // this the new prefix would only appear whenever the app happened to rename the tab next —
       // in practice, by hand. Only done here: a worktree arriving via the session list at boot is
@@ -307,21 +339,21 @@ export default definePlugin({
       ctx.resend("rename_tab");
     });
 
-    /** The marker to prepend, or null for no prefix. Recomputed fresh on every rename. */
-    function prefix(): string | null {
+    /** The worktree to show, by its whole name, or null for none: on the tab and in the pills. */
+    function worktree(): string | null {
       if (observedWorktree !== undefined) {
         if (observedWorktree === null) return null;
         // No path is available from a tool call's {name} form, so the same "window itself is the
         // worktree" suppression the list path applies by full path falls back to comparing the
         // workspace root's own directory name against the observed worktree name.
         if (defaultCwd !== null && samePath(lastSegment(defaultCwd), observedWorktree)) return null;
-        return worktreeLabel(observedWorktree);
+        return observedWorktree;
       }
       const entry = sessionId !== null ? worktrees.get(sessionId) : undefined;
       if (!entry) return null;
       if (defaultCwd !== null && entry.path !== null && samePath(entry.path, defaultCwd))
         return null;
-      return worktreeLabel(entry.name);
+      return entry.name;
     }
 
     /** Renames this plugin has actually prefixed. Bookkeeping for the check below, and the only
@@ -329,10 +361,10 @@ export default definePlugin({
     let prefixed = 0;
 
     ctx.rewrite("rename_tab", (payload) => {
-      const label = prefix();
+      const name = current.get();
       const title = payload.title;
-      if (label === null || typeof title !== "string") return null;
-      const marker = `${label}${SEPARATOR}`;
+      if (name === null || typeof title !== "string") return null;
+      const marker = `${worktreeLabel(name)}${SEPARATOR}`;
       // The app holds the clean title and never sees this plugin's own output, so this cannot
       // double up today. The guard is defensive against a future where something upstream echoes a
       // previously-rewritten title back through the pipe — the difference between a feature and a
@@ -341,6 +373,9 @@ export default definePlugin({
       prefixed += 1;
       return { title: marker + title };
     });
+
+    ctx.element("short-name", () => <ShortName worktree={current} />);
+    ctx.element("full-name", () => <FullName worktree={current} />);
 
     /**
      * Whether this plugin is doing anything, and what it believes.
@@ -359,9 +394,8 @@ export default definePlugin({
      * (D53); where it came from is the belief worth reading.
      */
     ctx.check("prefix applied to the tab", () => {
-      const label = prefix();
       const seen = `${worktrees.size} session(s) listed with a worktree`;
-      if (label === null) {
+      if (current.get() === null) {
         const why =
           observedWorktree !== null
             ? `no worktree for this session; ${seen}`

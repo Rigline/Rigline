@@ -25,12 +25,23 @@ The word-boundary cut is not cosmetic. A blind eight-character slice turns `ABCD
 a real tab with nothing to tell a reader it is wrong. Cutting at the separator gives `ABCD`, which
 nobody will mistake for a key.
 
+## The pills
+
+The same label is a pill under the composer, in `rigRow`, with an ellipsis when it is not the whole
+name — `TD-1234…` for `TD-1234-close-the-write-leak` — and the whole name on hover. A second pill,
+**Full worktree name**, shows all of it and starts off. Either can go before the footer spacer or in
+`rigRow`, placed from Rigline's Layout or with `rigline layout`.
+
+Both show exactly when the tab has a prefix, and nothing otherwise: outside a worktree, and in a
+window opened on the worktree itself, whose title already says which one it is. Nothing rather than
+a placeholder such as `main`, which that second case would make wrong.
+
 ## How it works
 
-The tab title has exactly one writer — the extension host's `rename_tab` handler — so this plugin
-works entirely by rewriting the outbound `rename_tab` request (`ctx.rewrite`). It touches no DOM at
-all: session tabs are real VS Code editor tabs, outside the webview's DOM entirely, and a rewrite is
-the only route there is to the label.
+The tab title has exactly one writer — the extension host's `rename_tab` handler — so the prefix is
+entirely a rewrite of the outbound `rename_tab` request (`ctx.rewrite`). It touches no DOM: session
+tabs are real VS Code editor tabs, outside the webview's DOM entirely, and a rewrite is the only
+route there is to the label.
 
 The rewrite reapplies on every send, not once: the app's own `rename_tab` sender is a reactive
 effect with no dependency list, so it resends an *unchanged* title whenever the panel's visibility

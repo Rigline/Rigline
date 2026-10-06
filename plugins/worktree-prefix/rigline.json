@@ -2,7 +2,7 @@
   "$schema": "node_modules/@rigline/plugin-api/schema/manifest.json",
   "api": 1,
   "name": "worktree-prefix",
-  "description": "The worktree a session is in, as a prefix on its editor tab: a ticket key where the worktree's name starts with one.",
+  "description": "The worktree a session is in, as a prefix on its editor tab and a pill under the composer: a ticket key where the worktree's name starts with one.",
   "entry": "dist/index.js",
   "surfaces": ["editor", "sidebar"],
   "uses": {
@@ -14,6 +14,18 @@
     },
     "optional": {
       "messages": ["list_sessions_response"]
+    }
+  },
+  "elements": {
+    "short-name": {
+      "title": "Worktree",
+      "placements": [{ "anchor": "footerSpacer", "at": "before" }, "rigRow"],
+      "default": "rigRow"
+    },
+    "full-name": {
+      "title": "Full worktree name",
+      "placements": [{ "anchor": "footerSpacer", "at": "before" }, "rigRow"],
+      "default": null
     }
   },
   "patches": [

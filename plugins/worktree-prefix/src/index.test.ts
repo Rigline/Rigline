@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { samePath, worktreeFromTool, worktreeLabel } from "./index.ts";
+import { samePath, shortName, worktreeFromTool, worktreeLabel } from "./index.tsx";
 
 describe("worktreeLabel", () => {
   it("keeps the whole ticket key a name starts with, however long", () => {
@@ -89,6 +89,22 @@ describe("worktreeLabel", () => {
     expect(worktreeLabel("👩‍💻-spike")).toBe("👩‍💻-spike");
     expect(worktreeLabel("🚀🚀🚀🚀🚀🚀🚀🚀🚀")).toBe("🚀🚀🚀🚀🚀🚀🚀🚀");
     expect(worktreeLabel("🚀🚀🚀-longer-name")).toBe("🚀🚀🚀");
+  });
+});
+
+describe("shortName", () => {
+  it("marks a label that is not the whole name", () => {
+    expect(shortName("TD-1234-close-the-write-leak")).toBe("TD-1234…");
+    expect(shortName("spike-new-parser")).toBe("spike…");
+    expect(shortName("verylongsinglewordname")).toBe("verylong…");
+    expect(shortName("🚀🚀🚀-longer-name")).toBe("🚀🚀🚀…");
+  });
+
+  it("leaves a label that is the whole name unmarked", () => {
+    expect(shortName("TD-1234")).toBe("TD-1234");
+    expect(shortName("PROJECT-123456")).toBe("PROJECT-123456");
+    expect(shortName("at-least")).toBe("at-least");
+    expect(shortName("wt")).toBe("wt");
   });
 });
 

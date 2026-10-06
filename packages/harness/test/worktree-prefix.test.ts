@@ -1,8 +1,7 @@
 /**
- * worktree-prefix against the real bundle. The plugin is pure bus logic — it touches no DOM at
- * all — so unlike kernel.test.ts's fixtures this file never asserts on a rendered element; every
- * assertion reads `rename_tab` titles off the fake host's transport (src/suite.ts's `sent()`).
- * Structure copied from kernel.test.ts; the shared scaffolding is in src/suite.ts.
+ * worktree-prefix against the real bundle. Every case but the pills' reads `rename_tab` titles off
+ * the fake host's transport (src/suite.ts's `sent()`). Structure copied from kernel.test.ts; the
+ * shared scaffolding is in src/suite.ts.
  *
  * The plugin's own decision state (`observedWorktree`, `defaultCwd`, the session-list map) is
  * driven directly over the bus rather than through a real session or a real worktree: every
@@ -49,26 +48,20 @@ import { harnessSkipReason, register, HARNESS_VERSION as VERSION } from "../src/
 const SEP = " › ";
 const skipReason = await harnessSkipReason(VERSION);
 
-// The plugin's own built output, not a hand-copied stand-in: this drives what actually ships.
-// Requires `pnpm build` to have produced plugins/worktree-prefix/dist/index.js first, the same
-// dependency src/payload.ts already has on packages/host/dist/pre.js.
-const DIST = fileURLToPath(
-  new URL("../../../plugins/worktree-prefix/dist/index.js", import.meta.url),
-);
+// The plugin's own built output and manifest, not hand-copied stand-ins: this drives what actually
+// ships. Requires `pnpm build` to have produced plugins/worktree-prefix/dist/index.js first, the
+// same dependency src/payload.ts already has on packages/host/dist/pre.js.
+const PLUGIN_DIR = new URL("../../../plugins/worktree-prefix/", import.meta.url);
+const manifest = JSON.parse(readFileSync(new URL("rigline.json", PLUGIN_DIR), "utf8"));
 
 const worktreePrefixPlugin: FixturePlugin = {
   name: "worktree-prefix",
-  manifest: {
-    surfaces: ["editor", "sidebar"],
-    uses: {
-      session: true,
-      tools: true,
-      messages: ["list_sessions_response", "update_state", "init_response"],
-      rewrites: { rename_tab: ["title"] },
-    },
-  },
-  source: readFileSync(DIST, "utf8"),
+  manifest: { surfaces: manifest.surfaces, uses: manifest.uses, elements: manifest.elements },
+  source: readFileSync(fileURLToPath(new URL("dist/index.js", PLUGIN_DIR)), "utf8"),
 };
+
+const SHORT_ELEMENT = '[data-rigline-element="worktree-prefix/short-name"]';
+const SHORT_PILL = `${SHORT_ELEMENT} .rigline-ui-pill`;
 
 /**
  * Stands in for "the app happens to resend rename_tab on its own" (a visibility toggle, a
@@ -493,6 +486,45 @@ describe.skipIf(skipReason !== null)(
         await hostTool(booted, "EnterWorktree", { name: WORKTREE_NAME });
         await booted.page.waitForTimeout(300);
         expect((await titles(booted)).length).toBe(afterEnter);
+
+        const d = await booted.diagnostics();
+        expect(d.errors).toEqual([]);
+        expect(booted.consoleErrors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
+    it("shows the worktree as a pill in rigRow while the session is in one, with the full name off", async () => {
+      const booted = await boot({ plugins: [worktreePrefixPlugin, pulsePlugin] });
+      try {
+        const { page } = booted;
+        await waitForRenameCount(booted, 1);
+        await hostSession(booted, "s-worktree");
+        await page.waitForSelector(SHORT_ELEMENT, { state: "attached" });
+        expect(await page.locator(SHORT_PILL).count()).toBe(0);
+
+        await hostTool(booted, "EnterWorktree", { name: WORKTREE_NAME });
+        await page.waitForSelector(SHORT_PILL);
+        const pill = await page.evaluate((selector) => {
+          const p = document.querySelector(selector) as HTMLElement | null;
+          return {
+            text: p?.textContent ?? null,
+            title: p?.title ?? null,
+            inRow: p?.closest('[data-rigline-zone="rigRow"]') !== null,
+          };
+        }, SHORT_PILL);
+        expect(pill).toEqual({
+          text: "TD-1234…",
+          title: `Worktree: ${WORKTREE_NAME}`,
+          inRow: true,
+        });
+        expect(
+          await page.locator('[data-rigline-element="worktree-prefix/full-name"]').count(),
+        ).toBe(0);
+
+        await hostTool(booted, "ExitWorktree", {});
+        await page.waitForSelector(SHORT_PILL, { state: "detached" });
 
         const d = await booted.diagnostics();
         expect(d.errors).toEqual([]);
