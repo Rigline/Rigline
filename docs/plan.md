@@ -592,9 +592,10 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   `copyText` (D123), so session-id's copies no longer resize what holds them. Proven in the harness,
   and read live.
 - 2026-10-07: Rigline's Edit and Reload pills each do the other's action on a Ctrl- or Cmd-click,
-  and Reload starts off (D124). Proven in the harness.
+  and Reload starts off (D124). Proven in the harness, and read live.
 - 2026-10-07: Edit in place's bar has Reload and Reset to defaults, and "Saved." shows for a moment
-  before the mode closes rather than until the next change (D125). Proven in the harness.
+  before the mode closes rather than until the next change (D125). Proven in the harness, and read
+  live.
 - 2026-10-07: Rigline's pills turn their R yellow while a newer layout is saved, learned when the
   person comes back to the panel rather than on a clock (D126). Proven in the harness, and read live
   across two windows.
