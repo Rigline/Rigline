@@ -3165,6 +3165,9 @@ bake still keeps them all. Keeping the rest was more machinery than a disabled p
 worth (Leo). **Amends D95:** the mode holds the rows and the next one, not every zone an element
 offers.
 
+**Amended by D127:** a row is both its sides, the row's own name its left and `rigRow right`,
+`rigRow 2 right` and on its right.
+
 **D123. Copying with a click is in the kit, and a flash is a prop of what it covers (2026-10-07,
 Leo).** Copying a value and saying so is the commonest thing a pill or a menu item does besides
 showing something, and both halves have a trap. The async Clipboard API needs a permission a
@@ -3233,3 +3236,40 @@ Rejected: a timer, which was the request (Leo). It catches one more case, both w
 the pointer never entering this one, at a cost that grows with the time a window is open. A slow
 timer as a backstop is the move if that case turns out to matter. A smaller module for the read only
 slows the leak, and costs the engine a second file to write.
+
+**D127. A row has a left side and a right side, each a place of its own (2026-10-07, Leo).** A row
+of short elements gave a person no way to put something at its right edge and leave the space
+between empty. The left side is the row's own spelling, `rigRow` or `rigRow 2`; the right side adds
+a word after the number, `rigRow right` or `rigRow 2 right`. `rigRow left` is not a place, as
+`rigRow 1` is not: the left side is the row itself. Each side is a list like any other place (D92),
+so a file written before reads as it did, the CLI takes the word unquoted, and an element at its
+author's default is on the left of the first row.
+
+Manifests do not change: an element offering `rigRow` may go on either side of any row. A
+right-side default is deferred, because an older engine treats a placement it does not know as
+unavailable, and the element would show nowhere there.
+
+The left side grows and wraps first. The right side is as wide as what is in it, and drops to a line
+of its own, still at the edge, only when the widest element on the left and the whole right side no
+longer fit. So an element that grows, as context-meter's bar does, fills the left side up to the
+right. Two sides, not three: centring between sides of different widths needs a grid. `right`
+rather than `end`, since VS Code never mirrors its UI.
+
+A row is both its sides. It is there while either has something in it; a renumbering drops it only
+when neither shows anything, and renames both its lists; a row move writes both. An element's moves
+are its own row's other side, the other rows on its own side, then a new row on that side, so
+another row's other side is two moves away; a drag reaches either side of every row, the new one
+included, and each side's target is its share of the row. In edit mode the right side keeps a
+minimum width, labelled *Right* while empty, so an empty one has a box to drop on.
+
+Rejected:
+
+- A spacer element pushing what follows it to the right. A place shows its listed elements and then
+  those at their default (D92), so every plugin installed later would land after the spacer, on the
+  right; and an element has one place, so each row would need a spacer of its own.
+- A separator entry in a row's list, for the same reason, and because it puts something that is not
+  `plugin/element` into the list.
+- `left:` and `right:` nested under a row, the shape D122 rejected: a place unlike every other, while
+  the CLI and the tooltip still need a side's name as a string.
+
+**Amends D122:** a row is both its sides.

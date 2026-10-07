@@ -26,22 +26,39 @@ export const OFF = "off";
 
 const SLOT = new RegExp(`^(${SLOT_POSITIONS.join("|")}) ([A-Za-z][A-Za-z0-9]{0,63})$`);
 
-const ROW = /^([A-Za-z][A-Za-z0-9]{0,63}) ([0-9]{1,3})$/;
+const ROW = /^([A-Za-z][A-Za-z0-9]{0,63})(?: ([0-9]{1,3}))?(?: ([A-Za-z]{1,16}))?$/;
 
-/** A zone's row as the file spells it: the zone's own name for the first, then `rigRow 2` (D122). */
-export function rowPlace(zone: ZoneName, row: number): string {
-  return row === 1 ? zone : `${zone} ${row}`;
+/** A row's two sides; the row's own spelling is its left (D127). */
+export type Side = "left" | "right";
+
+export const SIDES: readonly Side[] = ["left", "right"];
+
+/** A side of a zone's row as the file spells it: `rigRow`, `rigRow 2`, `rigRow 2 right` (D122). */
+export function rowPlace(zone: ZoneName, row: number, side: Side = "left"): string {
+  const name = row === 1 ? zone : `${zone} ${row}`;
+  return side === "left" ? name : `${name} ${side}`;
 }
 
-/** Which zone's row `place` is, counting from one, or null where it is not a row. */
-export function rowOf(place: string): { readonly zone: ZoneName; readonly row: number } | null {
-  if (Object.hasOwn(ZONES, place)) return { zone: place as ZoneName, row: 1 };
+/** Which side of which zone's row `place` is, counting from one, or null where it is not a row. */
+export function rowOf(
+  place: string,
+): { readonly zone: ZoneName; readonly row: number; readonly side: Side } | null {
   const match = ROW.exec(place);
   if (match === null || !Object.hasOwn(ZONES, match[1] as string)) return null;
-  const digits = match[2] as string;
-  const row = Number(digits);
-  if (row < 2 || String(row) !== digits) return null;
-  return { zone: match[1] as ZoneName, row };
+  const [, zone, digits, word] = match;
+  const row = digits === undefined ? 1 : Number(digits);
+  if (digits !== undefined && (row < 2 || String(row) !== digits)) return null;
+  if (word !== undefined && word !== "right") return null;
+  return { zone: zone as ZoneName, row, side: word === undefined ? "left" : "right" };
+}
+
+/** The numbers of `zone`'s rows among `places`, ascending, each once whichever sides it has. */
+export function rowNumbers(places: readonly string[], zone: ZoneName): number[] {
+  const rows = places.flatMap((place) => {
+    const row = rowOf(place);
+    return row?.zone === zone ? [row.row] : [];
+  });
+  return [...new Set(rows)].sort((a, b) => a - b);
 }
 
 /** How the file spells a place: `rigRow`, `rigRow 2`, `before footerSpacer`, or `off` for null. */
@@ -59,14 +76,19 @@ export function placeTitle(place: string): string {
   const row = rowOf(place);
   if (row !== null) {
     const { title } = ZONES[row.zone];
-    return row.row === 1 ? title : `${title} ${row.row}`;
+    const named = row.row === 1 ? title : `${title} ${row.row}`;
+    return row.side === "left" ? named : `${named}, ${row.side}`;
   }
   return SLOT_TITLES[place] ?? place;
 }
 
 /** Every place a person can name, for a refusal, with `default` where the command takes it. */
 export function placeForms(orDefault = false): string {
-  const rows = ZONE_NAMES.map((zone) => `${zone}, ${rowPlace(zone, 2)} and on`).join(", ");
+  const rows = ZONE_NAMES.map(
+    (zone) =>
+      `${zone}, ${rowPlace(zone, 2)} and on, ` +
+      `${rowPlace(zone, 1, "right")}, ${rowPlace(zone, 2, "right")} and on`,
+  ).join(", ");
   const slots = `${SLOT_POSITIONS.slice(0, -1).join(", ")} or ${SLOT_POSITIONS.at(-1)} an anchor`;
   return `${rows}, ${slots}, ${orDefault ? `${OFF}, or default` : `or ${OFF}`}`;
 }
@@ -80,8 +102,15 @@ export function parsePlace(
   const row = ROW.exec(name);
   if (row !== null && Object.hasOwn(ZONES, row[1] as string)) {
     const zone = row[1] as ZoneName;
+    const digits = row[2];
+    if (digits !== undefined && rowOf(`${zone} ${digits}`) === null) {
+      return {
+        problem: `"${name}" is not a place: the first row is ${zone}, then ${rowPlace(zone, 2)}`,
+      };
+    }
+    const at = digits === undefined ? zone : `${zone} ${digits}`;
     return {
-      problem: `"${name}" is not a place: the first row is ${zone}, then ${rowPlace(zone, 2)}`,
+      problem: `"${name}" is not a place: a row's left side is the row itself, ${at}, and its right side is ${at} right`,
     };
   }
   const slot = SLOT.exec(name);
@@ -185,8 +214,8 @@ export interface ViewElement {
   /** Whether the layout put it here, rather than its plugin. */
   readonly listed: boolean;
   /**
-   * The other places it may go, as the file spells them. A zone it offers is each of its rows there
-   * is and then the next, unless it would leave the last row empty to fill the next one.
+   * Its moves, as the file spells each place. In a zone it offers: its own row's other side, each
+   * other row on the side it is on, then the next row, unless it is all the last row holds (D127).
    */
   readonly also: readonly string[];
   /** Where its plugin puts it, as the file spells a place. */
@@ -198,19 +227,19 @@ export interface ViewPlace {
   readonly elements: readonly ViewElement[];
 }
 
-/** Rows first, by zone and number; then slots by spelling; then off. */
+/** Rows first, by zone, number and side; then slots by spelling; then off. */
 function comparePlaces(a: string, b: string): number {
   const ra = rowOf(a);
   const rb = rowOf(b);
-  if (ra !== null && rb !== null) return ra.zone.localeCompare(rb.zone) || ra.row - rb.row;
+  if (ra !== null && rb !== null) {
+    return (
+      ra.zone.localeCompare(rb.zone) ||
+      ra.row - rb.row ||
+      SIDES.indexOf(ra.side) - SIDES.indexOf(rb.side)
+    );
+  }
   const kind = (place: string): number => (rowOf(place) !== null ? 0 : place === OFF ? 2 : 1);
   return kind(a) - kind(b) || a.localeCompare(b);
-}
-
-/** The place a new row of `zone` takes: the one after the last of `places`, or the zone's first. */
-export function nextRow(places: readonly string[], zone: ZoneName): string {
-  const rows = places.map(rowOf).filter((r) => r?.zone === zone);
-  return rowPlace(zone, Math.max(0, ...rows.map((r) => r?.row ?? 0)) + 1);
 }
 
 /**
@@ -240,16 +269,26 @@ export function layoutView(layout: Layout, plugins: readonly LayoutPlugin[]): Vi
     });
   });
   const places = [...byPlace.keys()].sort(comparePlaces);
-  /** Where else an element at `place` may go: every row there is and the next, for a zone. */
-  const also = (spec: ElementSpec, place: string, alone: boolean): string[] =>
+  /** How many elements a row shows, both sides together. */
+  const held = (zone: ZoneName, row: number): number =>
+    SIDES.reduce((n, side) => n + (byPlace.get(rowPlace(zone, row, side))?.length ?? 0), 0);
+  const also = (spec: ElementSpec, place: string): string[] =>
     spec.placements.flatMap((p) => {
       if (typeof p !== "string" || !Object.hasOwn(ZONES, p)) {
         const name = placeName(p);
         return name === place ? [] : [name];
       }
-      const rows = places.filter((r) => rowOf(r)?.zone === p);
-      const next = alone && rows.at(-1) === place ? [] : [nextRow(rows, p as ZoneName)];
-      return [...rows.filter((r) => r !== place), ...next];
+      const zone = p as ZoneName;
+      const at = rowOf(place);
+      const own = at?.zone === zone ? at : null;
+      const side = own?.side ?? "left";
+      const rows = rowNumbers(places, zone);
+      const last = rows.at(-1) ?? 0;
+      const moves =
+        own === null ? [] : [rowPlace(zone, own.row, own.side === "left" ? "right" : "left")];
+      for (const row of rows) if (row !== own?.row) moves.push(rowPlace(zone, row, side));
+      if (own?.row !== last || held(zone, last) > 1) moves.push(rowPlace(zone, last + 1, side));
+      return moves;
     });
   return places.map((place) => {
     const elements = byPlace.get(place) ?? [];
@@ -257,30 +296,30 @@ export function layoutView(layout: Layout, plugins: readonly LayoutPlugin[]): Vi
       place,
       elements: elements
         .sort((a, b) => a.rank - b.rank)
-        .map(({ rank: _, spec, ...element }) => ({
-          ...element,
-          also: also(spec, place, elements.length === 1),
-        })),
+        .map(({ rank: _, spec, ...element }) => ({ ...element, also: also(spec, place) })),
     };
   });
 }
 
 /**
- * `layout` with each zone's rows numbered from one in the order `plugins` shows them, a row's list
- * moving whole to its new place. A row showing nothing goes, with whatever its list held (D122).
- * The same object where nothing changes.
+ * `layout` with each zone's rows numbered from one in the order `plugins` shows them, both sides'
+ * lists moving with their row. A row showing nothing on either side goes, with whatever its lists
+ * held (D122, D127). The same object where nothing changes.
  */
 export function compactRows(layout: Layout, plugins: readonly LayoutPlugin[]): Layout {
   const shown = layoutView(layout, plugins).map((g) => g.place);
-  const renamed = new Map<string, string>();
+  const renumbered = new Map<string, number>();
   for (const zone of ZONE_NAMES) {
-    const rows = shown.filter((place) => rowOf(place)?.zone === zone);
-    for (const [i, place] of rows.entries()) renamed.set(place, rowPlace(zone, i + 1));
+    for (const [i, row] of rowNumbers(shown, zone).entries()) {
+      renumbered.set(rowPlace(zone, row), i + 1);
+    }
   }
   const lists = new Map<string, readonly string[]>();
   let changed = false;
   for (const [place, names] of Object.entries(layout)) {
-    const to = rowOf(place) === null ? place : renamed.get(place);
+    const row = rowOf(place);
+    const n = row === null ? undefined : renumbered.get(rowPlace(row.zone, row.row));
+    const to = row === null ? place : n === undefined ? undefined : rowPlace(row.zone, n, row.side);
     if (to !== place) changed = true;
     if (to !== undefined) lists.set(to, names);
   }

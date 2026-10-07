@@ -7,10 +7,11 @@ import {
   type Layout,
   layoutCommands,
   MAX_SAVE_PAYLOAD,
-  nextRow,
   OFF,
   placeTitle,
+  rowNumbers,
   rowOf,
+  rowPlace,
   SAVE_PAYLOAD_VERSION,
   type Store,
   sameLayout,
@@ -174,13 +175,20 @@ export function rowMovesOf(
 ): () => ReactNode {
   return function RowMoves() {
     const view = useStore(editor.view);
-    const zone = rowOf(place)?.zone;
-    const rows = view.filter((g) => zone !== undefined && rowOf(g.place)?.zone === zone);
-    const i = rows.findIndex((g) => g.place === place);
-    if (i === -1) return <MenuNote>No longer in the layout</MenuNote>;
+    const at = rowOf(place);
+    const rows =
+      at === null
+        ? []
+        : rowNumbers(
+            view.map((g) => g.place),
+            at.zone,
+          );
+    const i = at === null ? -1 : rows.indexOf(at.row);
+    if (at === null || i === -1) return <MenuNote>No longer in the layout</MenuNote>;
+    // A move numbers the rows from one, so the row lands named by its position.
     const to = (j: number) => () => {
       editor.moveRow(place, j);
-      moved(rows[j]?.place ?? place);
+      moved(rowPlace(at.zone, j + 1));
     };
     return (
       <>
@@ -192,10 +200,18 @@ export function rowMovesOf(
   };
 }
 
-/** What a move to `to` is called: a row not there yet, after the first, is a new one. */
-function moveLabel(to: string, shown: readonly string[]): string {
+/**
+ * What a move from `from` to `to` is called: across its own row, a side (D127); a row not there yet,
+ * after the first, is a new one.
+ */
+function moveLabel(from: string, to: string, shown: readonly string[]): string {
   const row = rowOf(to);
-  if (row !== null && row.row > 1 && to === nextRow(shown, row.zone)) return "Move to a new row";
+  const here = rowOf(from);
+  if (row !== null && row.zone === here?.zone && row.row === here.row) {
+    return `Move to the ${row.side}`;
+  }
+  const last = row === null ? 0 : (rowNumbers(shown, row.zone).at(-1) ?? 0);
+  if (row !== null && row.row > 1 && row.row === last + 1) return "Move to a new row";
   return `Move to ${placeTitle(to)}`;
 }
 
@@ -220,7 +236,7 @@ function MoveItems(props: Where): ReactNode {
       {element.also.map((to) => (
         <MenuItem
           key={to}
-          label={moveLabel(to, shown)}
+          label={moveLabel(place, to, shown)}
           title={to}
           onSelect={stay(() => editor.move(name, to))}
         />

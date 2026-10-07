@@ -599,3 +599,6 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
 - 2026-10-07: Rigline's pills turn their R yellow while a newer layout is saved, learned when the
   person comes back to the panel rather than on a clock (D126). Proven in the harness, and read live
   across two windows.
+- 2026-10-07: Every Rigline row has a right side, `rigRow right` and on, its own name the left
+  (D127). Proven in the harness: the right side at the edge, the left wrapping first, a drop on an
+  empty right side, and a row moved with both sides. The live read is next.

@@ -9,8 +9,12 @@ import {
   type LayoutPlugin,
   layoutView,
   OFF,
+  rowNumbers,
   rowOf,
+  rowPlace,
   type SaveRecord,
+  SIDES,
+  type Side,
   type Store,
   sameLayout,
   store,
@@ -44,7 +48,7 @@ export interface LayoutEditor {
    * it is already there; switches it off where `place` is off (D95).
    */
   drop(name: string, place: string, index: number): void;
-  /** Moves the row `place` to be the `to`th of its zone's rows, counting from 0 (D122). */
+  /** Moves the row `place` is a side of to be the `to`th of its zone's rows, from 0 (D122, D127). */
   moveRow(place: string, to: number): void;
   /** Every element back where its plugin puts it, in the working copy only. */
   reset(): void;
@@ -150,22 +154,28 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
       edit(withOrder(working.get(), place, names));
     },
     moveRow(place, to) {
-      const zone = rowOf(place)?.zone;
-      const rows = view.get().filter((g) => zone !== undefined && rowOf(g.place)?.zone === zone);
-      const from = rows.findIndex((g) => g.place === place);
+      const row = rowOf(place);
+      if (row === null) return;
+      const groups = view.get();
+      const rows = rowNumbers(
+        groups.map((g) => g.place),
+        row.zone,
+      );
+      const from = rows.indexOf(row.row);
       const at = Math.max(0, Math.min(to, rows.length - 1));
       if (from === -1 || at === from) return;
       const order = [...rows];
       order.splice(at, 0, ...order.splice(from, 1));
+      const shown = (n: number, side: Side): string[] =>
+        groups.find((g) => g.place === rowPlace(row.zone, n, side))?.elements.map((e) => e.name) ??
+        [];
       let next = working.get();
-      order.forEach((row, i) => {
+      order.forEach((moved, i) => {
         const there = rows[i];
-        if (there === undefined || row === there) return;
-        next = withOrder(
-          next,
-          there.place,
-          row.elements.map((e) => e.name),
-        );
+        if (there === undefined || moved === there) return;
+        // An empty side too, or the row that was here leaves its list behind (D127).
+        for (const side of SIDES)
+          next = withOrder(next, rowPlace(row.zone, there, side), shown(moved, side));
       });
       edit(next);
     },

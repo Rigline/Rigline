@@ -67,9 +67,9 @@ describe("viewLayout", () => {
     const text = formatLayout(viewLayout(plugins, config));
     expect(text.split("\n")).toEqual([
       "rigRow",
-      "  session-id/address   Messaging address  yours; can also go in rigRow 2",
-      "  clock/face           Clock              can also go in rigRow 2",
-      "  rigline/edit         Edit button        can also go in rigRow 2 or before footerSpacer",
+      "  session-id/address   Messaging address  yours; can also go in rigRow right or in rigRow 2",
+      "  clock/face           Clock              can also go in rigRow right or in rigRow 2",
+      "  rigline/edit         Edit button        can also go in rigRow right, in rigRow 2 or before footerSpacer",
       "off",
       "  session-id/short-id  Session id         yours; can also go before footerSpacer, in rigRow or in rigRow 2",
       "  session-id/full-id   Full session id    can also go in rigRow or in rigRow 2",
@@ -91,8 +91,23 @@ describe("viewLayout", () => {
       "before footerSpacer",
       "off",
     ]);
-    expect(view.places[2]?.elements[0]?.also).toEqual(["rigRow", "rigRow 2"]);
+    expect(view.places[2]?.elements[0]?.also).toEqual(["rigRow 3 right", "rigRow", "rigRow 2"]);
     expect(view.problems).toEqual([]);
+  });
+
+  it("puts a row's right side after its left, and names the side in what else may go there", () => {
+    const config = readConfig(
+      configFile("layout:\n  rigRow right: [session-id/address]\n  rigRow: [session-id/full-id]\n"),
+    );
+    const text = formatLayout(viewLayout(plugins, config));
+    expect(text.split("\n").slice(0, 6)).toEqual([
+      "rigRow",
+      "  session-id/full-id   Full session id    yours; can also go in rigRow right or in rigRow 2",
+      "  clock/face           Clock              can also go in rigRow right or in rigRow 2",
+      "  rigline/edit         Edit button        can also go in rigRow right, in rigRow 2 or before footerSpacer",
+      "rigRow right",
+      "  session-id/address   Messaging address  yours; can also go in rigRow or in rigRow 2 right",
+    ]);
   });
 
   it("names what does not resolve, as install does", () => {
@@ -113,13 +128,16 @@ describe("parseWhere", () => {
 
   it("refuses what is not a place, offering default only where the command takes it", () => {
     expect(() => parseWhere(["rigrow"], true)).toThrow(
-      '"rigrow" is not a place: a place is rigRow, rigRow 2 and on, before, after or inside an anchor, off, or default',
+      '"rigrow" is not a place: a place is rigRow, rigRow 2 and on, rigRow right, rigRow 2 right and on, before, after or inside an anchor, off, or default',
     );
     expect(() => parseWhere(["rigrow"], false)).toThrow(
-      '"rigrow" is not a place: a place is rigRow, rigRow 2 and on, before, after or inside an anchor, or off',
+      '"rigrow" is not a place: a place is rigRow, rigRow 2 and on, rigRow right, rigRow 2 right and on, before, after or inside an anchor, or off',
     );
     expect(() => parseWhere(["rigRow", "1"], false)).toThrow(
       '"rigRow 1" is not a place: the first row is rigRow, then rigRow 2',
+    );
+    expect(() => parseWhere(["rigRow", "2", "left"], false)).toThrow(
+      '"rigRow 2 left" is not a place: a row\'s left side is the row itself, rigRow 2, and its right side is rigRow 2 right',
     );
     expect(() => parseWhere([], true)).toThrow(/a place is needed: .*, off, or default$/);
     expect(() => parseWhere([], false)).toThrow(/a place is needed: .*, or off$/);
@@ -136,6 +154,17 @@ describe("placeInLayout", () => {
       "rigRow 2": ["session-id/address"],
       "rigRow 3": ["clock/face"],
     });
+  });
+
+  it("puts an element on a row's right side, over three words", () => {
+    const path = configFile("disabled: []\n");
+    placeInLayout(path, plugins, "clock/face", parseWhere(["rigRow", "right"], true));
+    orderInLayout(path, plugins, parseWhere(["rigRow", "2", "right"], false), [
+      "session-id/address",
+    ]);
+    expect(readFileSync(path, "utf8")).toBe(
+      "disabled: []\nlayout:\n  rigRow right:\n    - clock/face\n  rigRow 2 right:\n    - session-id/address\n",
+    );
   });
 
   it("adds an element to the end of a place, leaving the rest of the file as it was", () => {

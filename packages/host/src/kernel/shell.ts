@@ -14,7 +14,6 @@ import {
   type IdentifierTables,
   type Layout,
   type MenuComponent,
-  nextRow,
   type Placement,
   placeElement,
   placementGap,
@@ -23,7 +22,11 @@ import {
   placeTitle,
   RIGLINE,
   RIGLINE_ELEMENTS,
+  rowNumbers,
   rowOf,
+  rowPlace,
+  SIDES,
+  type Side,
   type Surface,
   store,
   type Teardown,
@@ -96,8 +99,10 @@ export interface ShellService {
   readonly state: ShellState;
 }
 
-interface Zone {
+interface Row {
   readonly node: HTMLElement;
+  /** Where each side's elements render (D127). */
+  readonly sides: Readonly<Record<Side, HTMLElement>>;
   members: number;
   stop: Teardown | null;
 }
@@ -133,8 +138,8 @@ export function createShellService(
   const elements = store<readonly PlacedElement[]>([]);
   const bound = new Map<string, ElementReading>();
   const bindings = new Map<string, Binding>();
-  /** Each row's zone, keyed by the row's place. */
-  const zones = new Map<string, Zone>();
+  /** Each row, keyed by its own spelling, which is its left side's. */
+  const rows = new Map<string, Row>();
   const places = store<readonly PanelPlace[]>([]);
   /** The rows held in place while the panel is edited, so an empty one shows (D95). */
   let held: string[] = [];
@@ -171,54 +176,68 @@ export function createShellService(
     return (ANCHORS[anchor as AnchorName] as AnchorSpec | undefined)?.kind === "singleton";
   }
 
-  function zoneOf(name: string): Zone {
-    let zone = zones.get(name);
-    if (!zone) {
+  /** The spelling of the row `place` is a side of. */
+  function rowKey(place: string): string {
+    const at = rowOf(place);
+    return at === null ? place : rowPlace(at.zone, at.row);
+  }
+
+  /** The row `place` is a side of, built with both its sides, and that side's node. */
+  function rowAt(place: string): { readonly row: Row; readonly side: HTMLElement } {
+    const key = rowKey(place);
+    let row = rows.get(key);
+    if (!row) {
       const node = document.createElement("div");
       node.className = "rigline-zone";
-      node.setAttribute("data-rigline-zone", name);
-      node.setAttribute("data-rigline-title", placeTitle(name));
-      zone = { node, members: 0, stop: null };
-      zones.set(name, zone);
+      node.setAttribute("data-rigline-zone", key);
+      node.setAttribute("data-rigline-title", placeTitle(key));
+      const side = (name: Side): HTMLElement => {
+        const div = document.createElement("div");
+        div.className = "rigline-side";
+        div.setAttribute("data-rigline-side", name);
+        return node.appendChild(div);
+      };
+      row = { node, sides: { left: side("left"), right: side("right") }, members: 0, stop: null };
+      rows.set(key, row);
     }
-    return zone;
+    return { row, side: row.sides[rowOf(place)?.side ?? "left"] };
   }
 
   /**
-   * The row's node, placed while it has members and taken out when the last one leaves. Rows are
-   * kept last in their anchor in number order (D122).
+   * The node of the side `place` names. Its row is placed while either side has members, and taken
+   * out when the last one leaves; rows are kept last in their anchor in number order (D122).
    */
-  function join(name: string, anchor: string, selector: string): HTMLElement {
-    const zone = zoneOf(name);
-    zone.members += 1;
-    if (zone.stop === null) {
-      const { node } = zone;
-      const order = rowOf(name)?.row ?? 0;
-      zone.stop = mounts.watch(
+  function join(place: string, anchor: string, selector: string): HTMLElement {
+    const { row, side } = rowAt(place);
+    row.members += 1;
+    if (row.stop === null) {
+      const key = rowKey(place);
+      const order = rowOf(key)?.row ?? 0;
+      row.stop = mounts.watch(
         { anchor, selector, unique: unique(anchor) },
         OWNER,
         (box) =>
-          mounts.attach(box, "last", order, OWNER, () => node, fail, `the ${name} zone`) ??
+          mounts.attach(box, "last", order, OWNER, () => row.node, fail, `the ${key} zone`) ??
           undefined,
         fail,
       );
     }
-    return zone.node;
+    return side;
   }
 
-  function leave(name: string): void {
-    const zone = zones.get(name);
-    if (!zone) return;
-    zone.members -= 1;
-    if (zone.members === 0) {
-      zone.stop?.();
-      zone.stop = null;
+  function leave(place: string): void {
+    const row = rows.get(rowKey(place));
+    if (!row) return;
+    row.members -= 1;
+    if (row.members === 0) {
+      row.stop?.();
+      row.stop = null;
     }
   }
 
   /**
-   * Every place a bound element offers that resolves on this panel, each once. A zone is each of its
-   * rows the working copy shows, then the next (D122).
+   * Every place a bound element offers that resolves on this panel, each once. A zone is both sides
+   * of each of its rows the working copy shows, then of the next (D122, D127).
    */
   function publishPlaces(): void {
     const shown = editor.view.get().map((g) => g.place);
@@ -234,9 +253,14 @@ export function createShellService(
           continue;
         }
         const zone = placement as ZoneName;
-        const next = nextRow(shown, zone);
-        for (const place of [...shown.filter((p) => rowOf(p)?.zone === zone), next]) {
-          found.set(place, { place, zone: zoneOf(place).node, fresh: place === next });
+        const numbers = rowNumbers(shown, zone);
+        const next = (numbers.at(-1) ?? 0) + 1;
+        for (const n of [...numbers, next]) {
+          const { row } = rowAt(rowPlace(zone, n));
+          for (const side of SIDES) {
+            const place = rowPlace(zone, n, side);
+            found.set(place, { place, zone: row.sides[side], row: row.node, fresh: n === next });
+          }
         }
       }
     }
@@ -250,20 +274,23 @@ export function createShellService(
    */
   function hold(): void {
     const want = editor.editing.get() ? places.get().flatMap((p) => ("zone" in p ? [p] : [])) : [];
-    const handles = want.filter((p) => !p.fresh).length > 1;
+    const handles = new Set(want.filter((p) => !p.fresh).map((p) => p.row)).size > 1;
     for (const name of held) {
       if (want.some((p) => p.place === name)) continue;
-      const node = zones.get(name)?.node;
+      const node = rows.get(rowKey(name))?.node;
       node?.removeAttribute("data-rigline-editing");
       node?.removeAttribute("data-rigline-handle");
       leave(name);
     }
     const kept = held.filter((name) => want.some((p) => p.place === name));
     for (const p of want) {
-      const { node } = zoneOf(p.place);
+      const { node } = rowAt(p.place).row;
       node.setAttribute("data-rigline-editing", "");
       const later = (rowOf(p.place)?.row ?? 1) > 1;
-      node.setAttribute("data-rigline-title", p.fresh && later ? "New row" : placeTitle(p.place));
+      node.setAttribute(
+        "data-rigline-title",
+        p.fresh && later ? "New row" : placeTitle(rowKey(p.place)),
+      );
       node.toggleAttribute("data-rigline-handle", handles && !p.fresh);
       if (kept.includes(p.place)) continue;
       const where = resolve(rowOf(p.place)?.zone ?? p.place);

@@ -3,14 +3,15 @@ import type { ElementSpec } from "./elements.ts";
 import {
   compactRows,
   describeElements,
+  type Layout,
   layoutCommands,
   layoutProblems,
   layoutView,
-  nextRow,
   parsePlace,
   placeElement,
   placeName,
   placeTitle,
+  rowNumbers,
   rowOf,
   rowPlace,
   sameLayout,
@@ -32,6 +33,8 @@ describe("places", () => {
     for (const placement of [
       "rigRow",
       "rigRow 2",
+      "rigRow right",
+      "rigRow 2 right",
       spacer,
       { anchor: "composerBox", at: "inside" },
       null,
@@ -46,7 +49,7 @@ describe("places", () => {
   it("says why a name is not a place, with a word for `default`", () => {
     expect(parsePlace("rigrow")).toEqual({
       problem:
-        '"rigrow" is not a place: a place is rigRow, rigRow 2 and on, before, after or inside an anchor, or off',
+        '"rigrow" is not a place: a place is rigRow, rigRow 2 and on, rigRow right, rigRow 2 right and on, before, after or inside an anchor, or off',
     });
     expect(parsePlace("beside footerSpacer")).toHaveProperty("problem");
     expect(parsePlace("default")).toMatchObject({
@@ -57,9 +60,9 @@ describe("places", () => {
 
 describe("rows", () => {
   it("numbers a zone's rows from one, the first spelled as the zone", () => {
-    expect(rowOf("rigRow")).toEqual({ zone: "rigRow", row: 1 });
-    expect(rowOf("rigRow 2")).toEqual({ zone: "rigRow", row: 2 });
-    expect(rowOf("rigRow 10")).toEqual({ zone: "rigRow", row: 10 });
+    expect(rowOf("rigRow")).toEqual({ zone: "rigRow", row: 1, side: "left" });
+    expect(rowOf("rigRow 2")).toEqual({ zone: "rigRow", row: 2, side: "left" });
+    expect(rowOf("rigRow 10")).toEqual({ zone: "rigRow", row: 10, side: "left" });
     for (const place of ["rigRow 1", "rigRow 0", "rigRow 02", "rigrow 2", "before 2", "off"]) {
       expect(rowOf(place)).toBeNull();
     }
@@ -69,17 +72,43 @@ describe("rows", () => {
     expect(placeTitle("rigRow 2")).toBe("Rigline row 2");
   });
 
+  it("gives every row a right side, spelled after its number", () => {
+    expect(rowOf("rigRow right")).toEqual({ zone: "rigRow", row: 1, side: "right" });
+    expect(rowOf("rigRow 3 right")).toEqual({ zone: "rigRow", row: 3, side: "right" });
+    for (const place of ["rigRow left", "rigRow 2 left", "rigRow right 2", "rigRow Right"]) {
+      expect(rowOf(place)).toBeNull();
+    }
+    expect(rowPlace("rigRow", 1, "right")).toBe("rigRow right");
+    expect(rowPlace("rigRow", 2, "right")).toBe("rigRow 2 right");
+    expect(placeTitle("rigRow right")).toBe("Rigline row, right");
+    expect(placeTitle("rigRow 2 right")).toBe("Rigline row 2, right");
+  });
+
   it("says the first row is the zone's own name", () => {
-    for (const place of ["rigRow 1", "rigRow 0", "rigRow 02"]) {
+    for (const place of ["rigRow 1", "rigRow 0", "rigRow 02", "rigRow 1 right"]) {
       expect(parsePlace(place)).toEqual({
         problem: `"${place}" is not a place: the first row is rigRow, then rigRow 2`,
       });
     }
   });
 
-  it("takes the next row after the last there is, or the zone's first", () => {
-    expect(nextRow(["rigRow", "rigRow 3", "off"], "rigRow")).toBe("rigRow 4");
-    expect(nextRow(["before footerSpacer"], "rigRow")).toBe("rigRow");
+  it("says a row's left side is the row itself", () => {
+    expect(parsePlace("rigRow left")).toEqual({
+      problem:
+        '"rigRow left" is not a place: a row\'s left side is the row itself, rigRow, and its right side is rigRow right',
+    });
+    expect(parsePlace("rigRow 2 left")).toMatchObject({
+      problem: expect.stringContaining(
+        "the row itself, rigRow 2, and its right side is rigRow 2 right",
+      ),
+    });
+  });
+
+  it("counts a row once, whichever sides it has, in number order", () => {
+    expect(
+      rowNumbers(["rigRow 3 right", "rigRow", "rigRow right", "off", "rigRow 3"], "rigRow"),
+    ).toEqual([1, 3]);
+    expect(rowNumbers(["before footerSpacer"], "rigRow")).toEqual([]);
   });
 
   it("puts an element in any row of a zone it offers, and nowhere else", () => {
@@ -88,42 +117,70 @@ describe("rows", () => {
       placement: "rigRow 3",
       listed: 1,
     });
+    expect(
+      placeElement({ "rigRow 2 right": ["session-id/address"] }, "session-id/address", address),
+    ).toEqual({ placement: "rigRow 2 right", listed: 0 });
     const pinned: ElementSpec = { title: "Clock", placements: [spacer], default: spacer };
     expect(placeElement({ "rigRow 2": ["clock/face"] }, "clock/face", pinned).listed).toBeNull();
     expect(
-      layoutProblems({ "rigRow 2": ["clock/face"] }, [
-        { name: "clock", elements: { face: pinned } },
+      layoutProblems({ "rigRow 2": ["clock/face"], "rigRow right": ["clock/hand"] }, [
+        { name: "clock", elements: { face: pinned, hand: pinned } },
       ]),
-    ).toEqual(["clock/face cannot go in rigRow 2; it can go before footerSpacer"]);
+    ).toEqual([
+      "clock/face cannot go in rigRow 2; it can go before footerSpacer",
+      "clock/hand cannot go in rigRow right; it can go before footerSpacer",
+    ]);
   });
 });
 
 describe("layoutView", () => {
   const row: ElementSpec = { title: "Row", placements: [spacer, "rigRow"], default: spacer };
-  const deck = [{ name: "d", elements: { a: row, b: row, c: row, e: row } }];
+  const deck = [{ name: "d", elements: { a: row, b: row, c: row, e: row, f: row } }];
 
-  it("shows rows in number order, then slots, then off", () => {
-    const layout = { off: ["d/e"], "rigRow 10": ["d/a"], "rigRow 2": ["d/b"], rigRow: ["d/c"] };
+  const alsoOf = (layout: Layout) =>
+    Object.fromEntries(
+      layoutView(layout, deck).flatMap((g) => g.elements.map((e) => [e.name, e.also] as const)),
+    );
+
+  it("shows rows in number order, each left side before its right, then slots, then off", () => {
+    const layout = {
+      off: ["d/e"],
+      "rigRow 10": ["d/a"],
+      "rigRow 2 right": ["d/f"],
+      "rigRow 2": ["d/b"],
+      rigRow: ["d/c"],
+    };
     expect(layoutView(layout, deck).map((g) => g.place)).toEqual([
       "rigRow",
       "rigRow 2",
+      "rigRow 2 right",
       "rigRow 10",
       "off",
     ]);
   });
 
-  it("offers every row there is and a new one, unless that would only move an element alone", () => {
-    const view = layoutView({ rigRow: ["d/a", "d/b"], "rigRow 2": ["d/c"] }, deck);
-    const also = Object.fromEntries(
-      view.flatMap((g) => g.elements.map((e) => [e.name, e.also] as const)),
-    );
-    expect(also).toEqual({
-      "d/a": ["before footerSpacer", "rigRow 2", "rigRow 3"],
-      "d/b": ["before footerSpacer", "rigRow 2", "rigRow 3"],
-      "d/c": ["before footerSpacer", "rigRow"],
+  it("offers the other side, every other row there is and a new one, unless that would only move an element alone", () => {
+    expect(alsoOf({ rigRow: ["d/a", "d/b"], "rigRow 2": ["d/c"], off: ["d/f"] })).toEqual({
+      "d/a": ["before footerSpacer", "rigRow right", "rigRow 2", "rigRow 3"],
+      "d/b": ["before footerSpacer", "rigRow right", "rigRow 2", "rigRow 3"],
+      "d/c": ["before footerSpacer", "rigRow 2 right", "rigRow"],
       "d/e": ["rigRow", "rigRow 2", "rigRow 3"],
+      "d/f": ["before footerSpacer", "rigRow", "rigRow 2", "rigRow 3"],
     });
     expect(layoutView({}, deck)[0]?.elements[0]?.also).toEqual(["rigRow"]);
+  });
+
+  it("offers the other rows and a new one on the side an element is on", () => {
+    expect(
+      alsoOf({ rigRow: ["d/a"], "rigRow 2": ["d/b"], "rigRow 2 right": ["d/c"], off: ["d/f"] }),
+    ).toMatchObject({
+      "d/b": ["before footerSpacer", "rigRow 2 right", "rigRow", "rigRow 3"],
+      "d/c": ["before footerSpacer", "rigRow 2", "rigRow right", "rigRow 3 right"],
+    });
+    // Alone in the last row, a new row would be this one again.
+    expect(alsoOf({ rigRow: ["d/a"], "rigRow 2 right": ["d/c"], off: ["d/f"] })).toMatchObject({
+      "d/c": ["before footerSpacer", "rigRow 2", "rigRow right"],
+    });
   });
 });
 
@@ -159,6 +216,29 @@ describe("compactRows", () => {
   it("hands back the same layout where the rows are numbered already", () => {
     const layout = { rigRow: ["d/a"], "rigRow 2": ["d/b"], off: ["gone/x"] };
     expect(compactRows(layout, deck)).toBe(layout);
+  });
+
+  it("moves both sides with their row, and keeps a row that shows only its right side", () => {
+    expect(
+      compactRows(
+        { "rigRow 2 right": ["d/a"], "rigRow 4": ["d/b"], "rigRow 4 right": ["d/c"] },
+        deck,
+      ),
+    ).toEqual({ "rigRow right": ["d/a"], "rigRow 2": ["d/b"], "rigRow 2 right": ["d/c"] });
+  });
+
+  it("keeps a side that shows nothing where its row stays, and drops it with a row that goes", () => {
+    expect(
+      compactRows(
+        {
+          "rigRow 2": ["gone/x"],
+          "rigRow 2 right": ["gone/y"],
+          "rigRow 3": ["d/a"],
+          "rigRow 3 right": ["gone/z"],
+        },
+        deck,
+      ),
+    ).toEqual({ rigRow: ["d/a"], "rigRow right": ["gone/z"] });
   });
 });
 

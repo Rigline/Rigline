@@ -50,27 +50,34 @@ each named `plugin/element`. A place is one of:
 
 - `rigRow`, Rigline's row at the foot of the composer box, and `rigRow 2`, `rigRow 3` and on, more
   rows below it. A row is only there while something is in it.
+- `rigRow right`, `rigRow 2 right` and on, the right side of each row, for something you want at
+  its right edge with the space between empty. A row's own name is its left side.
 - `before`, `after` or `inside` one of the app's controls, by its anchor name: `before footerSpacer`
   is the composer footer, beside Rigline's own pill.
 - `off`, for an element you do not want to see.
 
-An element can only go where its plugin allows, and one that can go in `rigRow` can go in any row. A
-plugin that puts something in `rigRow` puts it in the first. Rows show in number order, so `rigRow`
-and `rigRow 3` with nothing in `rigRow 2` are two rows; editing the layout in the panel numbers them
-from one again.
+An element can only go where its plugin allows, and one that can go in `rigRow` can go on either
+side of any row. A plugin that puts something in `rigRow` puts it on the left of the first. Rows show
+in number order, so `rigRow` and `rigRow 3` with nothing in `rigRow 2` are two rows; editing the
+layout in the panel numbers them from one again.
 
     layout:
       rigRow:
         - session-id/address
+      rigRow right:
+        - rigline/edit
       rigRow 2:
         - context-meter/bar
 
+When a row is too narrow for both sides, its left side wraps first, and the right side moves to a
+line of its own only when there is no room for it beside the left, still at the right edge.
+
 `rigline layout` lists every element by place, marks those your layout put there, and says where
-else each may go, a new row included:
+else each may go: the other side of its row, the other rows on the side it is on, and a new row.
 
     rigRow
-      session-id/address   Messaging address  yours; can also go in rigRow 2
-      session-id/full-id   Full session id    yours; can also go in rigRow 2
+      session-id/address   Messaging address  yours; can also go in rigRow right or in rigRow 2
+      session-id/full-id   Full session id    yours; can also go in rigRow right or in rigRow 2
     off
       session-id/short-id  Session id         yours; can also go before footerSpacer, in rigRow or in rigRow 2
 
@@ -82,13 +89,15 @@ The same changes from the command line, each of which edits the file and re-inje
 
     rigline layout place session-id/address rigRow           # to the end of that place
     rigline layout place session-id/full-id rigRow 2         # a second row
+    rigline layout place rigline/edit rigRow right           # at the first row's right edge
     rigline layout place session-id/short-id off
     rigline layout place session-id/short-id default         # back where its plugin puts it
     rigline layout order rigRow session-id/full-id session-id/address
     rigline layout reset                                     # everything back to its plugin's place
 
-A place of two words, like `before footerSpacer` or `rigRow 2`, needs no quotes. `order` replaces what you have
-listed in that place; an element you leave out of it goes back where its plugin puts it.
+A place of more than one word, like `before footerSpacer` or `rigRow 2 right`, needs no quotes.
+`order` replaces what you have listed in that place; an element you leave out of it goes back where
+its plugin puts it.
 
 An entry that does not work — a misspelt place, a plugin you have removed, a place its element cannot
 go — is named by `rigline install` and `rigline check`. The element stays where its plugin puts it,

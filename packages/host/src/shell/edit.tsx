@@ -12,6 +12,7 @@ import {
   OFF,
   placeTitle,
   rowOf,
+  rowPlace,
   type Store,
   sameLayout,
   type ViewPlace,
@@ -277,7 +278,7 @@ interface Landing {
   readonly marker: Box | null;
 }
 
-/** Where a row dropped at the pointer would land: its position, and the row now there. */
+/** Where a row dropped at the pointer would land: its position, and the name a move gives it there. */
 interface RowLanding {
   readonly to: number;
   readonly place: string;
@@ -399,6 +400,41 @@ function slotTarget(
   };
 }
 
+/** The spelling of the row `place` is a side of, or null where it is not a row. */
+function rowKey(place: string): string | null {
+  const at = rowOf(place);
+  return at === null ? null : rowPlace(at.zone, at.row);
+}
+
+/**
+ * A side's target: its share of the row, beside the other side or above or below it where the right
+ * has dropped a line, so every point of the row lands on one side (D127). An empty side's marker is
+ * where its first element would go.
+ */
+function sideTarget(
+  place: Extract<PanelPlace, { readonly zone: Element }>,
+): { readonly rect: Box; readonly empty: Box } | null {
+  const leftNode = place.row.querySelector(':scope > [data-rigline-side="left"]');
+  const rightNode = place.row.querySelector(':scope > [data-rigline-side="right"]');
+  if (!place.row.isConnected || leftNode === null || rightNode === null) return null;
+  const row = rectOf(place.row);
+  const l = rectOf(leftNode);
+  const r = rectOf(rightNode);
+  const beside = r.top < l.top + l.height;
+  const end = row.left + row.width;
+  const bottom = row.top + row.height;
+  const onRight = rowOf(place.place)?.side === "right";
+  const rect = onRight
+    ? beside
+      ? { left: r.left, top: row.top, width: end - r.left, height: row.height }
+      : { left: row.left, top: r.top, width: row.width, height: bottom - r.top }
+    : beside
+      ? { left: row.left, top: row.top, width: r.left - row.left, height: row.height }
+      : { left: row.left, top: row.top, width: row.width, height: r.top - row.top };
+  const x = onRight ? r.left + r.width - 2 : rect.left + 2;
+  return { rect, empty: { left: x, top: rect.top + 4, width: 2, height: rect.height - 8 } };
+}
+
 function targetsFor(
   name: string,
   view: readonly ViewPlace[],
@@ -409,9 +445,11 @@ function targetsFor(
   const element = group?.elements.find((e) => e.name === name);
   if (group === undefined || element === undefined) return [];
   const offered = new Set(group.place === OFF ? element.also : [group.place, ...element.also]);
+  // A drag reaches either side of every row the moves reach (D127).
+  const rows = new Set([...offered].map(rowKey));
   const targets: Target[] = [];
   for (const p of places) {
-    if (!offered.has(p.place)) continue;
+    if (!offered.has(p.place) && !("zone" in p && rows.has(rowKey(p.place)))) continue;
     const boxed: Box[] = [];
     const indices: number[] = [];
     (view.find((g) => g.place === p.place)?.elements ?? []).forEach((e, i) => {
@@ -421,10 +459,9 @@ function targetsFor(
       indices.push(i);
     });
     if ("zone" in p) {
-      if (!p.zone.isConnected) continue;
-      const rect = rectOf(p.zone);
-      const empty = { left: rect.left + 2, top: rect.top + 4, width: 2, height: rect.height - 8 };
-      targets.push({ place: p.place, rect, boxes: boxed, indices, empty });
+      const side = sideTarget(p);
+      if (side === null) continue;
+      targets.push({ place: p.place, rect: side.rect, boxes: boxed, indices, empty: side.empty });
     } else {
       const target = slotTarget(p, boxed, indices);
       if (target !== null) targets.push(target);
@@ -433,20 +470,22 @@ function targetsFor(
   return targets;
 }
 
-/** Every row on screen, in the order the view shows them, where there are two to order. */
+/** Every row on screen, once whichever sides it shows, in view order, where there are two to order. */
 function rowsOf(view: readonly ViewPlace[], places: readonly PanelPlace[]): Row[] {
   const rows: Row[] = [];
   for (const { place } of view) {
+    const key = rowKey(place);
+    if (key === null || rows.some((r) => r.place === key)) continue;
     const p = places.find((q) => q.place === place);
-    if (p === undefined || !("zone" in p) || p.fresh || !p.zone.isConnected) continue;
-    const rect = rectOf(p.zone);
+    if (p === undefined || !("zone" in p) || p.fresh || !p.row.isConnected) continue;
+    const rect = rectOf(p.row);
     const box = {
       left: rect.left + rect.width - ROW_HANDLE - 4,
       top: rect.top + 4,
       width: ROW_HANDLE,
       height: Math.max(ROW_HANDLE, rect.height - 8),
     };
-    rows.push({ place, title: placeTitle(place), rect, box });
+    rows.push({ place: key, title: placeTitle(key), rect, box });
   }
   return rows.length > 1 ? rows : [];
 }
@@ -493,7 +532,7 @@ function rowLanding(frame: Frame, place: string, x: number, y: number): RowLandi
   const from = rows.findIndex((r) => r.place === place);
   const first = rows[0];
   const last = rows.at(-1);
-  if (from === -1 || first === undefined || last === undefined) return null;
+  if (zone === undefined || from === -1 || first === undefined || last === undefined) return null;
   const reach = union(first.rect, ...rows.map((r) => r.rect));
   if (!contains({ ...reach, top: reach.top - BAND, height: reach.height + 2 * BAND }, x, y)) {
     return null;
@@ -506,7 +545,7 @@ function rowLanding(frame: Frame, place: string, x: number, y: number): RowLandi
     to === from
       ? null
       : { left: first.rect.left, top: edge - 1, width: first.rect.width, height: 2 };
-  return { to, place: rows[to]?.place ?? place, marker };
+  return { to, place: rowPlace(zone, to + 1), marker };
 }
 
 /** The target under `x`, `y`, where in it a drop would land, and the marker that says so. */

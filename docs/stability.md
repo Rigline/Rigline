@@ -78,10 +78,10 @@ Rigline out until you put it back.
   panel stops resolving if Claude Code removes that piece: the entry stays in the file and is
   reported, and its elements go back to where their authors put them.
 - **The words in that file that Rigline owns:** the layout's places — `rigRow` and the rows after it,
-  `rigRow 2` and on, `off`, and `before`,
-  `after` or `inside` an anchor's name — and the names of the bundled plugins, their elements, and
-  Rigline's own elements, `rigline/edit` and `rigline/reload`. A third-party plugin's names are its
-  author's.
+  `rigRow 2` and on, each row's right side, `rigRow right` and `rigRow 2 right` and on, `off`, and
+  `before`, `after` or `inside` an anchor's name — and the names of the bundled plugins, their
+  elements, and Rigline's own elements, `rigline/edit` and `rigline/reload`. A third-party plugin's
+  names are its author's.
 - **`~/.rigline/anchors.json`**, in the format [anchors.md](anchors.md) describes.
 - **`~/.rigline/sources.json`**, where `rigline add` records each plugin's source. It is Rigline's
   record rather than a setting, but a later 1.x reads what an earlier one wrote.

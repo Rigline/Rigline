@@ -143,6 +143,33 @@ describe("rows", () => {
     e.moveRow("off", 0);
     expect(e.working.get()).toBe(now);
   });
+
+  it("moves a row with both its sides, named by either", () => {
+    const { editor: e } = editor({
+      "rigRow right": ["session-id/address"],
+      "rigRow 2": ["session-id/short-id"],
+    });
+    e.moveRow("rigRow 2", 0);
+    expect(e.working.get()).toEqual({
+      rigRow: ["session-id/short-id"],
+      "rigRow 2": ["clock/face"],
+      "rigRow 2 right": ["session-id/address"],
+    });
+    e.moveRow("rigRow 2 right", 0);
+    expect(e.working.get()).toEqual({
+      rigRow: ["clock/face"],
+      "rigRow right": ["session-id/address"],
+      "rigRow 2": ["session-id/short-id"],
+    });
+  });
+
+  it("keeps a row that shows only its right side, and drops one a move leaves empty", () => {
+    const { editor: e } = editor({});
+    e.drop("session-id/short-id", "rigRow 2 right", 0);
+    expect(e.working.get()).toEqual({ "rigRow 2 right": ["session-id/short-id"] });
+    e.move("session-id/short-id", "rigRow right");
+    expect(e.working.get()).toEqual({ "rigRow right": ["session-id/short-id"] });
+  });
 });
 
 describe("the saved layout", () => {

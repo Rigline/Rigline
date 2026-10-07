@@ -28,6 +28,12 @@ anything may change between releases.
   from its menu; an element's moves offer *Move to a new row* too. A row goes when nothing is left
   in it. In `config.yaml` and `rigline layout`, the rows after `rigRow` are `rigRow 2`, `rigRow 3`
   and on, and anything that can go in `rigRow` can go in any of them.
+- A right side to every Rigline row, for something you want at the row's right edge with the space
+  between left empty. In Edit in place, drop an element on the right of a row, or choose *Move to
+  the right* from its moves. In `config.yaml` and `rigline layout` it is `rigRow right`,
+  `rigRow 2 right` and on, and a row's own name is its left side, so an existing layout reads as
+  before. When a row is too narrow for both, the left side wraps first, and the right moves to a
+  line of its own only when there is no room beside it.
 - Two buttons in Edit in place's bar. *Reload* picks up a layout saved in another window without
   leaving the mode, and the bar says when there is one. *Reset to defaults* shows every element
   where its plugin puts it, unsaved, until you Save it or Revert changes.

@@ -148,12 +148,15 @@ the copy moves its place or its rank; an element that moves renders afresh where
   same node back, so the portal into it never changes target and the component keeps its state. A
   plugin's own elements are ordered by manifest position within its registry slot, so two at one
   anchor never claim the same position.
-- A zone is its rows, `rigRow`, `rigRow 2` and on (D122). Each row is a `div.rigline-zone` the
-  kernel places, as `rigline`, while at least one element is in it, and removes when the last
-  leaves. The rows are kept last in `composerBox` through the mount service's `last` placement, their
-  number as their order, which moves them back once each time React appends the model pill's own row
-  after them. A row takes `position: relative`, or the box's absolutely positioned background covers
-  it, and hides itself when every element in it renders nothing.
+- A zone is its rows, `rigRow`, `rigRow 2` and on (D122), and each row is two places, its left side
+  and `rigRow right` (D127). Each row is a `div.rigline-zone` the kernel places, as `rigline`, while
+  at least one element is on either side, and removes when the last leaves. It is built holding two
+  `div.rigline-side` nodes, `data-rigline-side` left and right, and an element renders into the side
+  its place names. The rows are kept last in `composerBox` through the mount service's `last`
+  placement, their number as their order, which moves them back once each time React appends the
+  model pill's own row after them. A row takes `position: relative`, or the box's absolutely
+  positioned background covers it. A side hides itself when every element in it renders nothing, and
+  a row when both its sides do.
 - A placement the tables or the engine cannot provide leaves the element unplaced; one the surface
   has not got likewise, without being a fault. Core's `elements are placed` check names both kinds,
   along with any declared element that `setup` never bound.

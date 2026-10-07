@@ -54,7 +54,24 @@ const CSS = `
   border-top: 0.5px solid var(--app-input-border, var(--vscode-widget-border, #7f7f7f66));
   color: var(--app-secondary-foreground, var(--vscode-descriptionForeground));
 }
-.rigline-zone:not(:has(> :not(:empty))) {
+.rigline-zone:where(:not(:has(> .rigline-side > :not(:empty)))) {
+  display: none;
+}
+.rigline-side {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+/* The left side grows and wraps first; the right drops a line only when both no longer fit (D127). */
+.rigline-side[data-rigline-side="left"] {
+  flex: 1 1 0;
+}
+.rigline-side[data-rigline-side="right"] {
+  justify-content: flex-end;
+  margin-inline-start: auto;
+}
+.rigline-side:where(:not(:has(> :not(:empty)))) {
   display: none;
 }
 .rigline-zone[data-rigline-editing] {
@@ -62,9 +79,20 @@ const CSS = `
   outline: 1px dashed var(--vscode-focusBorder, #007fd4);
   outline-offset: -3px;
 }
-.rigline-zone[data-rigline-editing]:not(:has(> :not(:empty)))::before {
+.rigline-zone[data-rigline-editing] > .rigline-side {
+  display: flex;
+}
+.rigline-zone[data-rigline-editing] > .rigline-side[data-rigline-side="right"] {
+  min-width: 3em;
+}
+.rigline-zone[data-rigline-editing]:not(:has(> .rigline-side > :not(:empty)))::before {
   content: attr(data-rigline-title);
   font-size: 0.85em;
+}
+.rigline-zone[data-rigline-editing] > .rigline-side[data-rigline-side="right"]:not(:has(> :not(:empty)))::before {
+  content: "Right";
+  font-size: 0.85em;
+  opacity: 0.6;
 }
 .rigline-zone[data-rigline-handle] {
   padding-inline-end: 24px;
