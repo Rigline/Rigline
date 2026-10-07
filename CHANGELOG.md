@@ -10,6 +10,8 @@ anything may change between releases.
 
 ## Unreleased
 
+## 1.0.0-alpha.16 — 2026-10-07
+
 ### Added
 
 - A fifth bundled plugin, `context-meter`: how full the session's context is, at all times, as a bar
