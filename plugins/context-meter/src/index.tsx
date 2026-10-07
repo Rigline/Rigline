@@ -68,7 +68,7 @@ function Percent({ usage }: Props): ReactNode {
         style={{
           display: "inline-block",
           minWidth: "4ch",
-          textAlign: "right",
+          textAlign: "center",
           color: percent === null ? undefined : COLOURS[band(percent)],
         }}
       >
