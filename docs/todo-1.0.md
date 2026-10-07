@@ -370,7 +370,8 @@ onto `main`, and merge only at the gate.
   since authoring.md's `pnpm create rigline-plugin` resolves `latest` through that gate, and for
   that day it serves alpha.13, which scaffolds nothing. **Found:** unversioned, on 2026-10-06, it
   took alpha.15 and wrote the 16-file workspace. The Mac reads are not made (Leo): CI's macOS job
-  and M26 to M28's reads on this checkout stand for them.
+  and M26 to M28's reads on this checkout stand for them, and so does a macOS user's first setup on
+  alpha.16, smooth once their Node 20.12.0 was moved above the floor (Leo, 2026-10-07).
 - [x] **R2. A last look at the optional items** on both lists: which, if any, 1.0.0 takes.
   **None.** W's are all done, and each of M13 to M21 can land in any 1.x without breaking what
   stability.md keeps: the companion's reach everybody through its self-update, and the wrapper's
