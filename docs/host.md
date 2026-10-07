@@ -179,7 +179,9 @@ answers; elsewhere it is Copy commands, the `rigline layout` commands for the pl
 
 Nothing can push into a panel, so everything it learns about the file it pulls, by re-importing
 `registry.js` under a fresh query: after a Save click, until the baked layout equals the copy; when
-the menu opens, to say a newer layout is saved; and for Reload, which shows that layout in place.
+the menu opens or edit mode starts, to say a newer layout is saved; and for Reload, which shows that
+layout in place. A confirmed save says so for a moment and then goes, closing edit mode unless the
+copy has moved since (D125).
 
 Rigline's own elements, `rigline/edit` and `rigline/reload`, are bound once `shell.js` has loaded,
 from the components it exports as `riglineElements`, at a registry order after every plugin's (D97).
@@ -194,7 +196,8 @@ the rows from one, and the kernel publishes `places` again whenever the copy cha
 
 The shell's `edit.tsx` draws on the root's own layer, never in the app's DOM: a handle over each
 element with a box, measured every frame as a range over its `form`, and a bar above `composerBox`
-holding a tray of the elements without one, Save or Copy commands, Revert changes and Done. A
+holding a tray of the elements without one, Reset to defaults, Save or Copy commands, Revert changes
+(Reload while nothing is unsaved) and Done. A
 handle's click or Enter opens the element's moves, the items its row in the submenu opens, in a
 `MenuPanel` anchored at the handle. A drag outlines only the places its element offers that this
 panel has, and calls the editor's `drop` once, on release; the bar is the target for off. A slot's

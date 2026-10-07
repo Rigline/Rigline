@@ -1,6 +1,6 @@
 /**
  * Editing in place (D95): a handle over each element on the panel, a tray for the elements with
- * nothing on screen, and a bar to save, revert or stop. A handle opens the element's moves, the
+ * nothing on screen, and a bar to save, revert, reload, reset or stop. A handle opens the element's moves, the
  * Layout submenu's own, so the keyboard edits as it does there, and drags to the places its element
  * offers, changing the copy only on the drop. Where there are rows to order, each has a handle of its
  * own at its end (D122). All of it is on the shell's layer over the panel, and none of it is added to
@@ -898,7 +898,12 @@ function Bar(props: {
   const working = useStore(editor.working);
   const baseline = useStore(editor.baseline);
   const saving = useStore(editor.saving);
+  const newer = useStore(editor.newer);
   const dirty = !sameLayout(working, baseline);
+  // On entering the mode, as the menu does on opening, so Reload can say there is something to get.
+  useEffect(() => {
+    void editor.check();
+  }, [editor]);
   const className =
     target === null
       ? "rigline-edit-bar"
@@ -912,13 +917,22 @@ function Bar(props: {
       {target !== null && <span className="rigline-edit-note">drop here to switch off</span>}
       <span className="rigline-edit-gap" />
       {saving !== "idle" && <span className="rigline-edit-note">{SAVE_NOTES[saving]}</span>}
-      {/* Keyed by the copy, so "Commands copied" goes once the copy changes again. */}
-      {dirty && <Save key={JSON.stringify(working)} editor={editor} from={baseline} to={working} />}
-      {dirty && (
-        <button type="button" className="rigline-edit-button" onClick={() => void editor.reload()}>
-          Revert changes
+      {newer && <span className="rigline-edit-note">a newer layout is saved</span>}
+      {!sameLayout(working, {}) && (
+        <button type="button" className="rigline-edit-button" onClick={() => editor.reset()}>
+          Reset to defaults
         </button>
       )}
+      {/* Keyed by the copy, so "Commands copied" goes once the copy changes again. */}
+      {dirty && <Save key={JSON.stringify(working)} editor={editor} from={baseline} to={working} />}
+      <button
+        type="button"
+        className="rigline-edit-button"
+        title={dirty ? undefined : "picks up a layout saved elsewhere"}
+        onClick={() => void editor.reload()}
+      >
+        {dirty ? "Revert changes" : "Reload"}
+      </button>
       <button type="button" className="rigline-edit-button" onClick={onLeave}>
         Done
       </button>

@@ -455,6 +455,43 @@ describe.skipIf(skip !== null)(`editing in place${skip ? ` (${skip})` : ""}`, ()
       await booted.close();
     }
   }, 30000);
+
+  it("reloads, resets and saves from the bar, saying Saved. only as it leaves", async () => {
+    const booted = await boot({ plugins: [deck], save: COMPANION, layout: RIGLINE_OFF });
+    const { page } = booted;
+    const bar = page.locator(".rigline-edit-bar");
+    try {
+      await page.waitForSelector(".deck-one");
+      saveToRegistry(booted.payloadDir, { off: ["rigline/edit", "rigline/reload", "deck/one"] });
+      await enterEditing(page);
+      await bar.getByText("a newer layout is saved").waitFor();
+      await bar.getByRole("button", { name: "Reload", exact: true }).click();
+      await page.waitForSelector(".deck-one", { state: "detached" });
+      await bar.getByText("a newer layout is saved").waitFor({ state: "detached" });
+      expect(await page.locator(".rigline-edit-handle").count()).toBeGreaterThan(0);
+
+      await bar.getByRole("button", { name: "Reset to defaults" }).click();
+      await page.waitForSelector(".deck-one");
+      await bar.getByRole("button", { name: "Revert changes" }).click();
+      await page.waitForSelector(".deck-one", { state: "detached" });
+
+      await bar.getByRole("button", { name: "Reset to defaults" }).click();
+      await page.evaluate(() =>
+        (
+          document.querySelector('.rigline-edit-bar a[href^="vscode:"]') as HTMLAnchorElement
+        ).click(),
+      );
+      saveToRegistry(booted.payloadDir, {});
+      await bar.getByText("Saved.").waitFor({ timeout: 5000 });
+      await page.waitForSelector(".rigline-edit-bar", { state: "detached" });
+
+      await enterEditing(page);
+      await bar.waitFor();
+      expect(await bar.getByText("Saved.").count()).toBe(0);
+    } finally {
+      await booted.close();
+    }
+  }, 30000);
 });
 
 describe.skipIf(skip !== null)(`rows${skip ? ` (${skip})` : ""}`, () => {

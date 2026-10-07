@@ -589,3 +589,5 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   and read live.
 - 2026-10-07: Rigline's Edit and Reload pills each do the other's action on a Ctrl- or Cmd-click,
   and Reload starts off (D124). Proven in the harness.
+- 2026-10-07: Edit in place's bar has Reload and Reset to defaults, and "Saved." shows for a moment
+  before the mode closes rather than until the next change (D125). Proven in the harness.

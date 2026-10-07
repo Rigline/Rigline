@@ -46,11 +46,16 @@ export interface LayoutEditor {
   drop(name: string, place: string, index: number): void;
   /** Moves the row `place` to be the `to`th of its zone's rows, counting from 0 (D122). */
   moveRow(place: string, to: number): void;
+  /** Every element back where its plugin puts it, in the working copy only. */
+  reset(): void;
   /** Reads the saved layout afresh and shows it, dropping unsaved changes. */
   reload(): Promise<void>;
   /** Reads the saved layout afresh and says whether it moved since this panel's baseline. */
   check(): Promise<void>;
-  /** After a Save click: waits for `registry.js` to hold `copy`, then makes it the baseline. */
+  /**
+   * After a Save click: waits for `registry.js` to hold `copy`, makes it the baseline, and holds
+   * `saved` for a moment before leaving edit mode.
+   */
   confirm(copy: Layout): Promise<void>;
 }
 
@@ -67,6 +72,8 @@ export interface LayoutEditorOptions {
 /** A save is the engine starting, one edit and a re-inject: a few seconds, rarely more. */
 const CONFIRM_EVERY_MS = 500;
 const CONFIRM_FOR_MS = 20_000;
+/** How long "Saved." shows before it goes, taking edit mode with it (D125). */
+const SAVED_MS = 1500;
 
 export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
   const { baked, plugins, save, readSaved } = options;
@@ -147,6 +154,9 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
       });
       edit(next);
     },
+    reset() {
+      edit({});
+    },
     async reload() {
       const saved = await readSaved();
       if (saved === null) return;
@@ -168,6 +178,10 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
           baseline.set(saved);
           newer.set(false);
           saving.set("saved");
+          await wait(SAVED_MS);
+          // A move or a Reload during the hold has ended it already.
+          if (saving.get() !== "saved") return;
+          saving.set("idle");
           // A copy moved since the click is unsaved work, which leaving the mode would hide.
           if (sameLayout(working.get(), copy)) editing.set(false);
           return;

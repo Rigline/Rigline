@@ -28,6 +28,9 @@ anything may change between releases.
   from its menu; an element's moves offer *Move to a new row* too. A row goes when nothing is left
   in it. In `config.yaml` and `rigline layout`, the rows after `rigRow` are `rigRow 2`, `rigRow 3`
   and on, and anything that can go in `rigRow` can go in any of them.
+- Two buttons in Edit in place's bar. *Reload* picks up a layout saved in another window without
+  leaving the mode, and the bar says when there is one. *Reset to defaults* shows every element
+  where its plugin puts it, unsaved, until you Save it or Revert changes.
 - `worktree` shows the worktree under the composer too, as a pill with the tab's short name, an
   ellipsis when that is not the whole name, and the whole name on hover. A second pill with the full
   name starts off. Either can be moved to the composer's footer, or the full one switched on, from
@@ -43,6 +46,8 @@ anything may change between releases.
 
 ### Fixed
 
+- "Saved." shows for a moment once a layout save lands, and then goes, where it stayed until the
+  next change and greeted you on returning to Edit in place. The mode now closes after it.
 - `rigline install` no longer says a plugin calls `onSessionId()` without declaring `session` when
   all it does is use `storeFrom`.
 - `worktree` keeps a worktree name's last word when it ends exactly at eight characters, so

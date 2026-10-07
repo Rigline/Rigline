@@ -3198,3 +3198,17 @@ stands for Edit, the one that needs finding, and Reload's action is a modifier a
 
 Rejected: one pill, with a setting for what its plain click does. Placing the pill you prefer already
 is that setting.
+
+**D125. The edit bar reloads and resets, and "Saved." is a moment (2026-10-07, Leo).** The bar's
+Revert changes is always there, called Reload while nothing is unsaved, so a layout saved in another
+window is one click away without leaving the mode; entering the mode reads the file, as opening the
+menu does, and the bar says when a newer one is saved. Reset to defaults sets the working copy to
+nothing listed, unsaved, so Revert changes is its undo and it needs no confirmation. Copy commands
+for that copy is `rigline layout reset`, which, like Save, also takes out entries the panel cannot
+resolve.
+
+A confirmed save shows "Saved." for a second and a half and then goes back to idle; edit mode
+closes at the end of that, not at the confirmation, unless the copy moved meanwhile. It had stayed
+until the next change, so it greeted a person returning to the mode. It is not removed outright
+because the Layout submenu's Save has no other sign that it landed: the menu stays open and nothing
+closes.

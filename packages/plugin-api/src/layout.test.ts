@@ -316,5 +316,11 @@ describe("layoutCommands", () => {
 
   it("says nothing when nothing changed", () => {
     expect(layoutCommands({ rigRow: ["a/x"] }, { rigRow: ["a/x"], off: [] })).toEqual([]);
+    expect(layoutCommands({}, { off: [] })).toEqual([]);
+  });
+
+  it("resets a copy with nothing listed, unresolved entries and all, as Save writes it", () => {
+    const from = { rigRow: ["a/x"], off: ["gone/away"] };
+    expect(layoutCommands(from, {})).toEqual(["rigline layout reset"]);
   });
 });

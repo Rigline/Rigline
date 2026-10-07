@@ -319,6 +319,8 @@ export function withOrder(layout: Layout, place: string, names: readonly string[
  * does not resolve, so one left alone in an untouched place is kept rather than reset away.
  */
 export function layoutCommands(from: Layout, to: Layout): string[] {
+  // Everything back to its default, unresolved entries included, as Save writes it.
+  if (sameLayout(to, {})) return sameLayout(from, {}) ? [] : ["rigline layout reset"];
   const at = (layout: Layout, place: string): readonly string[] =>
     Object.hasOwn(layout, place) ? (layout[place] ?? []) : [];
   const kept = new Set(Object.values(to).flat());

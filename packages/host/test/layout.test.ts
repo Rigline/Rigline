@@ -22,7 +22,11 @@ const plugins: LayoutPlugin[] = [
   },
 ];
 
-function editor(baked: Layout, saved: () => Layout | null = () => baked) {
+function editor(
+  baked: Layout,
+  saved: () => Layout | null = () => baked,
+  wait: (ms: number) => Promise<void> = async () => {},
+) {
   let reads = 0;
   const made = createLayoutEditor({
     baked,
@@ -32,7 +36,7 @@ function editor(baked: Layout, saved: () => Layout | null = () => baked) {
       reads++;
       return saved();
     },
-    wait: async () => {},
+    wait,
   });
   return { editor: made, reads: () => reads };
 }
@@ -53,6 +57,14 @@ describe("moves", () => {
     expect(e.working.get()).toEqual({ rigRow: ["clock/face", "session-id/address"] });
     e.shift("clock/face", -1);
     expect(e.working.get()).toEqual({ rigRow: ["clock/face", "session-id/address"] });
+  });
+
+  it("resets the working copy to every plugin's default, and leaves the baseline", () => {
+    const baked = { rigRow: ["session-id/address"], off: ["clock/face"] };
+    const { editor: e } = editor(baked);
+    e.reset();
+    expect(e.working.get()).toEqual({});
+    expect(e.baseline.get()).toEqual(baked);
   });
 
   it("puts an element back at its default", () => {
@@ -157,7 +169,7 @@ describe("the saved layout", () => {
 });
 
 describe("confirming a save", () => {
-  it("adopts the copy once the file holds it, and clears the note on the next move", async () => {
+  it("adopts the copy once the file holds it, and says so for a moment", async () => {
     let saved: Layout = {};
     let polls = 0;
     const { editor: e } = editor({}, () => {
@@ -165,15 +177,15 @@ describe("confirming a save", () => {
       if (polls === 3) saved = { off: ["clock/face"] };
       return saved;
     });
+    const seen: string[] = [];
+    e.saving.subscribe(() => seen.push(e.saving.get()));
     e.move("clock/face", "off");
     await e.confirm(e.working.get());
-    expect(e.saving.get()).toBe("saved");
+    expect(seen).toEqual(["saving", "saved", "idle"]);
     expect(e.baseline.get()).toEqual({ off: ["clock/face"] });
-    e.move("clock/face", null);
-    expect(e.saving.get()).toBe("idle");
   });
 
-  it("leaves editing in place once the save is confirmed, unless the copy moved since", async () => {
+  it("leaves editing in place once it has said so, unless the copy moved since", async () => {
     const saved: Layout = { off: ["clock/face"] };
     const { editor: e } = editor({}, () => saved);
     e.editing.set(true);
@@ -187,8 +199,26 @@ describe("confirming a save", () => {
     const confirming = f.confirm(f.working.get());
     f.move("session-id/address", "rigRow");
     await confirming;
-    expect(f.saving.get()).toBe("saved");
+    expect(f.saving.get()).toBe("idle");
     expect(f.editing.get()).toBe(true);
+  });
+
+  it("stays in edit mode for a move made while it says so", async () => {
+    const saved: Layout = { off: ["clock/face"] };
+    let waits = 0;
+    const { editor: e } = editor(
+      {},
+      () => saved,
+      async () => {
+        // The first wait is the poll; the second is the hold.
+        if (++waits === 2) e.move("clock/face", null);
+      },
+    );
+    e.editing.set(true);
+    e.move("clock/face", "off");
+    await e.confirm(e.working.get());
+    expect(e.saving.get()).toBe("idle");
+    expect(e.editing.get()).toBe(true);
   });
 
   it("says it could not confirm when the file never holds the copy", async () => {
