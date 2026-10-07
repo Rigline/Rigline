@@ -3164,3 +3164,23 @@ renumbering drops a row that shows nothing. Entries in places the edit leaves al
 bake still keeps them all. Keeping the rest was more machinery than a disabled plugin's position is
 worth (Leo). **Amends D95:** the mode holds the rows and the next one, not every zone an element
 offers.
+
+**D123. Copying with a click is in the kit, and a flash is a prop of what it covers (2026-10-07,
+Leo).** Copying a value and saying so is the commonest thing a pill or a menu item does besides
+showing something, and both halves have a trap. The async Clipboard API needs a permission a
+webview may not hold, and is refused as a rejected promise. Text swapped for "copied" resizes
+whatever holds it, which moves the footer around a pill and narrows the menu around an item.
+So `@rigline/plugin-api/ui` has `copyText`, over a hidden textarea, putting focus back; `useFlash`,
+a flash that clears itself; and `flash` on `Pill` and `MenuItem`, stacked in one grid cell over the
+pill's content or the item's label, which stays in place, hidden. The box is the wider of the two,
+so a flash that fits moves nothing, and one that does not grows its pill rather than spilling over
+its neighbours or clipping.
+
+A prop rather than a component of its own, because the component knows its alignment and owns its
+stylesheet, where a wrapper would need telling both and is right only inside containers whose
+layout it assumes. The cost is that each component that flashes needs the prop, and an element a
+plugin draws itself gets none, as it gets no other part of the kit (D89). A third component wanting
+it is the signal to export the primitive as well.
+
+Rejected: a package private to the bundled plugins. There is no channel for one, since they import
+the same four served modules as anybody's (D71, D87), and they are the examples authors copy.

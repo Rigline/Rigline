@@ -8,6 +8,7 @@
 import { useSyncExternalStore } from "react";
 import type { Store } from "../store.ts";
 
+export { copyText, useFlash } from "./copy.ts";
 export {
   MenuItem,
   type MenuItemProps,

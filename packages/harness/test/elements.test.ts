@@ -122,6 +122,57 @@ export default { setup(ctx) { ctx.element("badge", () => jsx(Pill, { children: "
       }
     }, 20000);
 
+    it("keeps a pill's size through a flash that fits, and grows it for one that does not", async () => {
+      const flashing: FixturePlugin = {
+        name: "flashing",
+        manifest: {
+          elements: { badge: { title: "Badge", placements: [SPACER], default: SPACER } },
+        },
+        source: `import { jsx } from "react/jsx-runtime";
+import { useState } from "react";
+import { Pill } from "@rigline/plugin-api/ui";
+function Badge() {
+  const [flash, setFlash] = useState(null);
+  window.__flash = setFlash;
+  return jsx(Pill, { flash, children: "abcdefgh" });
+}
+export default { setup(ctx) { ctx.element("badge", () => jsx(Badge, {})); } };`,
+      };
+      const booted = await boot({ plugins: [flashing] });
+      const { page } = booted;
+      try {
+        const pill = page.locator('[data-rigline-slot="flashing/badge"] .rigline-ui-pill');
+        await pill.waitFor();
+        const flash = (text: string | null) =>
+          page.evaluate(
+            (t) => (window as unknown as { __flash: (t: string | null) => void }).__flash(t),
+            text,
+          );
+        const shown = async () => (await pill.innerText()).trim();
+        const resting = await pill.boundingBox();
+
+        await flash("copied");
+        await expect.poll(shown).toBe("copied");
+        expect(await pill.boundingBox()).toEqual(resting);
+
+        await flash("a flash wider than the pill");
+        await expect.poll(shown).toBe("a flash wider than the pill");
+        const grown = await pill.evaluate((e) => ({
+          width: e.getBoundingClientRect().width,
+          spills: e.scrollWidth > e.clientWidth,
+        }));
+        expect(grown.width).toBeGreaterThan(resting?.width ?? Number.POSITIVE_INFINITY);
+        expect(grown.spills).toBe(false);
+
+        await flash(null);
+        await expect.poll(shown).toBe("abcdefgh");
+        expect(await pill.boundingBox()).toEqual(resting);
+        expect(booted.consoleErrors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
     it("keeps rigRow last in the composer box, after the model pill's row, and gone with its last element", async () => {
       const rowed: FixturePlugin = {
         name: "rowed",

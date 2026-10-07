@@ -33,8 +33,16 @@ import {
   type Teardown,
   type ToolResult,
 } from "@rigline/plugin-api";
-import { MenuItem, MenuNote, Pill, Submenu, useStore } from "@rigline/plugin-api/ui";
-import { type ReactNode, useEffect, useState } from "react";
+import {
+  copyText,
+  MenuItem,
+  MenuNote,
+  Pill,
+  Submenu,
+  useFlash,
+  useStore,
+} from "@rigline/plugin-api/ui";
+import type { ReactNode } from "react";
 
 /** How much of the raw session id the pill shows, and the menu offers as a short form. */
 const SHORT_LENGTH = 8;
@@ -43,9 +51,6 @@ const SHORT_LENGTH = 8;
  * assigns one. Distinguishing "mounted, waiting" from "never mounted" this way is most of what a
  * live check of this plugin can ask for, so the dimmed placeholder is deliberate, not a stopgap. */
 const PLACEHOLDER = "...";
-
-/** How long a "copied"/"failed" flash sits over the normal content before reverting. */
-const FLASH_MS = 1200;
 
 const NO_ADDRESS = "No messaging address yet - it appears once this session runs ListAgents";
 const NO_SESSION = "No session id yet - Claude assigns one when the session starts";
@@ -217,68 +222,9 @@ export function buildTooltip(entries: readonly Entry[], sessionId: string | null
   return lines.join("\n");
 }
 
-/**
- * Copy `text` with `document.execCommand("copy")` over a detached, invisible textarea, rather than
- * the async Clipboard API. `navigator.clipboard.writeText` needs a permission a webview does not
- * necessarily hold and rejects its promise rather than throwing when denied, which would make a
- * failed copy silent. The execCommand route is deprecated but unconditional: it either does the
- * copy or returns false, never a permission prompt this panel has no chrome to show.
- */
-function copyToClipboard(text: string): boolean {
-  const textarea = document.createElement("textarea");
-  textarea.value = text;
-  textarea.style.position = "fixed";
-  textarea.style.opacity = "0";
-  textarea.style.pointerEvents = "none";
-  document.body.appendChild(textarea);
-  textarea.focus();
-  textarea.select();
-  let ok = false;
-  try {
-    ok = document.execCommand("copy");
-  } catch {
-    ok = false;
-  }
-  textarea.remove();
-  return ok;
-}
-
-/** A "copied" or "failed" flash, shown over a value for a moment. */
-function useFlash(): readonly [string | null, (text: string) => void] {
-  const [flash, setFlash] = useState<string | null>(null);
-  useEffect(() => {
-    if (flash === null) return;
-    const timer = setTimeout(() => setFlash(null), FLASH_MS);
-    return () => clearTimeout(timer);
-  }, [flash]);
-  return [flash, setFlash];
-}
-
-/** Each flash must fit inside the narrowest value it covers, the eight-character short id. */
+/** Each flash is no wider than the narrowest value it covers, the short id, so no pill grows. */
 function copy(value: string, flash: (text: string) => void): void {
-  flash(copyToClipboard(value) ? "copied" : "failed");
-}
-
-/**
- * A value with its flash laid over it. The value keeps its box, hidden, so a flash never resizes the
- * pill or menu row that holds it.
- */
-function Flashed(props: {
-  readonly flash: string | null;
-  readonly place: "center" | "start";
-  readonly children: ReactNode;
-}): ReactNode {
-  const { flash, place, children } = props;
-  return (
-    <span style={{ position: "relative", display: "block" }}>
-      <span style={{ visibility: flash === null ? undefined : "hidden" }}>{children}</span>
-      {flash !== null && (
-        <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: place }}>
-          {flash}
-        </span>
-      )}
-    </span>
-  );
+  flash(copyText(value) ? "copied" : "failed");
 }
 
 interface Stores {
@@ -295,7 +241,7 @@ function useAddress(props: Stores): Identity | null {
   );
 }
 
-/** One identifier in the menu: choosing it copies the value and flashes the outcome in its place. */
+/** One identifier in the menu: choosing it copies the value and flashes the outcome over its label. */
 function CopyRow(props: { readonly label: string; readonly value: string }): ReactNode {
   const { label, value } = props;
   const [flash, setFlash] = useFlash();
@@ -304,14 +250,9 @@ function CopyRow(props: { readonly label: string; readonly value: string }): Rea
       label={label}
       // A 36-character UUID in a narrow panel: monospace, and the menu lets it wrap.
       description={
-        <span
-          style={{ display: "block", fontFamily: "var(--app-monospace-font-family, monospace)" }}
-        >
-          <Flashed flash={flash} place="start">
-            {value}
-          </Flashed>
-        </span>
+        <span style={{ fontFamily: "var(--app-monospace-font-family, monospace)" }}>{value}</span>
       }
+      flash={flash}
       title="Click to copy"
       onSelect={(event) => {
         event.preventDefault();
@@ -349,11 +290,10 @@ function ShortId(props: Stores): ReactNode {
     <Pill
       muted={!known(sessionId)}
       title={buildTooltip(buildEntries(address, sessionId), sessionId)}
+      flash={flash}
       onClick={sessionId === null ? undefined : () => copy(sessionId, setFlash)}
     >
-      <Flashed flash={flash} place="center">
-        {headlineText(sessionId)}
-      </Flashed>
+      {headlineText(sessionId)}
     </Pill>
   );
 }
@@ -374,10 +314,12 @@ function Identifier(props: {
     );
   }
   return (
-    <Pill title={`${label}: ${value}\nClick to copy`} onClick={() => copy(value, setFlash)}>
-      <Flashed flash={flash} place="center">
-        {value}
-      </Flashed>
+    <Pill
+      title={`${label}: ${value}\nClick to copy`}
+      flash={flash}
+      onClick={() => copy(value, setFlash)}
+    >
+      {value}
     </Pill>
   );
 }

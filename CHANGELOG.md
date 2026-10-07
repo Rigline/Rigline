@@ -20,6 +20,9 @@ anything may change between releases.
   endpoint, as it does for `/context`.
 - `@rigline/plugin-api`: `uses.context` and `ctx.onContextUsage`, how full the context is and where
   it compacts.
+- `@rigline/plugin-api`: copying with a click. `Pill` and `MenuItem` take `flash`, shown over the
+  pill's text or the item's label without moving anything around it; `useFlash` shows one for a
+  moment; and `copyText` copies in the panel, where the browser's own clipboard API may be refused.
 - More than one Rigline row under the composer. In Edit in place, drop an element on *New row*,
   below the last row, to start another, and reorder rows by the handle at each one's end, by drag or
   from its menu; an element's moves offer *Move to a new row* too. A row goes when nothing is left

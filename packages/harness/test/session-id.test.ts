@@ -263,15 +263,18 @@ describe.skipIf(skip !== null)(
         await page.click("text=Session identifiers");
 
         // The harness host never assigns a session id, so its rows are a note in their slot.
-        const address = page.getByRole("menuitem", { name: /Messaging address/ });
-        expect(await address.textContent()).toContain("abcd-1234-ticket-work-46 [fa26a5]");
+        const address = page.getByRole("menuitem").filter({ hasText: "[fa26a5]" });
+        expect(await address.innerText()).toMatch(/^Messaging address\s/);
         expect(await page.isVisible("text=No session id yet")).toBe(true);
 
+        // The flash covers the label, and the value it copied goes on showing.
         const menu = page.locator(".rigline-menu");
         const before = { row: await address.boundingBox(), menu: await menu.boundingBox() };
         await address.click();
         expect(await page.isVisible(".rigline-menu")).toBe(true);
-        expect(await address.textContent()).toMatch(/copied|failed/);
+        const shown = await address.innerText();
+        expect(shown).toMatch(/^(copied|failed)\s/);
+        expect(shown).toContain("abcd-1234-ticket-work-46 [fa26a5]");
         expect({ row: await address.boundingBox(), menu: await menu.boundingBox() }).toEqual(
           before,
         );

@@ -173,7 +173,8 @@ own colours and work from the keyboard alongside every other plugin's entries:
 - `MenuItem` — `label`, an optional `description`, and `onSelect`. Choosing it closes the menu
   unless `onSelect` calls `event.preventDefault()`, which is what you want for a copy that flashes
   "copied", or a toggle whose check should visibly change. Give it `checked` and it becomes a
-  checkbox, with a check on the right while `checked` is true.
+  checkbox, with a check on the right while `checked` is true. Give it `flash` and that shows over
+  the label, which keeps its place.
 - `Submenu` — a `label` and children. Choosing it shows the children in place of the menu, under a
   row that leads back. The children can be items, notes, further submenus, or any content of your
   own.
@@ -239,6 +240,24 @@ composer's form, where a button with no type would send the prompt; yours cannot
 `@rigline/plugin-api/ui` is the small label the composer's rows are made of, and a button when
 given `onClick`, which receives the click event. It takes a `ref` and ARIA attributes too, for a
 pill that opens something of yours.
+
+A pill that copies something wants three pieces from the kit. `copyText` copies in the panel, where
+the browser's async clipboard needs a permission the webview may not hold, and says whether it did.
+`useFlash` gives a flash and the function that shows one for a moment. `Pill`'s `flash` shows it over
+the pill's text, and the pill keeps its size as long as the flash is no wider than what it covers:
+
+```tsx
+import { copyText, Pill, useFlash } from "@rigline/plugin-api/ui";
+
+function Id(props: { readonly id: string }) {
+  const [flash, show] = useFlash();
+  return (
+    <Pill flash={flash} onClick={() => show(copyText(props.id) ? "copied" : "failed")}>
+      {props.id.slice(0, 8)}
+    </Pill>
+  );
+}
+```
 
 A person can move an element while the panel is open, from Rigline's menu. It renders afresh where
 it lands, so anything it has to keep across a move belongs in a store made in `setup`, not in the

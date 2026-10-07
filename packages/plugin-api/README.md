@@ -58,8 +58,8 @@ rather than failing at runtime.
 `cls` and `anchor` for class names; `onMessage` for the bus; `mount`, `mountAfter`, `mountBefore`
 and `watch` for plain DOM; `style`; `rewrite` and `resend` for outbound messages; `onToolUse` and
 `onToolResult`; `onSessionId`; `decorateTranscript`; `check`; and `surface`. The components to
-build with — `Pill`, `MenuItem`, `Submenu`, `MenuNote` — and `useStore` are in
-`@rigline/plugin-api/ui`. Anything declared under
+build with — `Pill`, `MenuItem`, `Submenu`, `MenuNote` — and `useStore`, `useFlash` and `copyText`
+are in `@rigline/plugin-api/ui`. Anything declared under
 `uses.optional` arrives on `ctx.optional` instead, returning null where this extension version does
 not have it — so losing a borrowed class to an upstream change costs a plugin some polish rather
 than its load.

@@ -83,6 +83,16 @@ a.rigline-menu-item {
   gap: 2px;
   min-width: 0;
 }
+.rigline-menu-stack {
+  display: grid;
+  justify-items: start;
+}
+.rigline-menu-stack > * {
+  grid-area: 1 / 1;
+}
+.rigline-menu-flashing > :first-child {
+  visibility: hidden;
+}
 .rigline-menu-description,
 .rigline-menu-chevron,
 .rigline-menu-back,
@@ -137,6 +147,8 @@ export interface MenuItemProps {
   readonly disabled?: boolean;
   /** The tooltip. */
   readonly title?: string;
+  /** Shown over the label while set, as `useFlash` gives it, the label keeping its place. */
+  readonly flash?: string | null;
   /** Closes the menu afterwards unless it calls `event.preventDefault()`. A throw disables the plugin. */
   readonly onSelect?: (event: MenuSelectEvent) => void;
 }
@@ -230,11 +242,20 @@ function useMenuItem(
   };
 }
 
-function Text(props: { readonly label: ReactNode; readonly description?: ReactNode }): ReactNode {
+function Text(props: {
+  readonly label: ReactNode;
+  readonly description?: ReactNode;
+  readonly flash?: string | null;
+}): ReactNode {
   const { label, description } = props;
+  const flash = props.flash ?? null;
+  const stack = flash === null ? "rigline-menu-stack" : "rigline-menu-stack rigline-menu-flashing";
   return (
     <span className="rigline-menu-text">
-      <span className="rigline-menu-label">{label}</span>
+      <span className={`rigline-menu-label ${stack}`}>
+        <span>{label}</span>
+        {flash !== null && <span>{flash}</span>}
+      </span>
       {description !== undefined && description !== null && (
         <span className="rigline-menu-description">{description}</span>
       )}
@@ -262,7 +283,7 @@ function Check(): ReactNode {
 
 /** An entry in Rigline's menu. */
 export function MenuItem(props: MenuItemProps): ReactNode {
-  const { label, description, checked, disabled, title, onSelect } = props;
+  const { label, description, checked, disabled, title, flash, onSelect } = props;
   const menu = useMenu("MenuItem");
   const fault = useContext(FaultContext);
   const item = useMenuItem("MenuItem", {
@@ -286,7 +307,7 @@ export function MenuItem(props: MenuItemProps): ReactNode {
   });
   return (
     <button {...item} className="rigline-menu-item" title={title}>
-      <Text label={label} description={description} />
+      <Text label={label} description={description} flash={flash} />
       {checked !== undefined && (
         <span className="rigline-menu-check" aria-hidden="true">
           {checked && <Check />}

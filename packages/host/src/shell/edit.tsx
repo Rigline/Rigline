@@ -16,7 +16,7 @@ import {
   sameLayout,
   type ViewPlace,
 } from "@rigline/plugin-api/internal";
-import { useStore } from "@rigline/plugin-api/ui";
+import { copyText, useStore } from "@rigline/plugin-api/ui";
 import { type MenuEntry, MenuPanel } from "@rigline/plugin-api/ui/internal";
 import {
   type CSSProperties,
@@ -32,7 +32,7 @@ import {
 } from "react";
 import type { LayoutEditor } from "../kernel/layout.ts";
 import type { ElementReading } from "../kernel/shell.ts";
-import { copyText, movesOf, rowMovesOf, SAVE_NOTES, saveHref } from "./layout.tsx";
+import { movesOf, rowMovesOf, SAVE_NOTES, saveHref } from "./layout.tsx";
 import { type Box, contains, insertionIndex, readingOrder, union } from "./order.ts";
 import type { PanelPlace } from "./types.ts";
 

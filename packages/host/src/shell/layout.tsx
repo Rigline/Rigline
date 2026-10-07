@@ -17,6 +17,7 @@ import {
   type ViewElement,
 } from "@rigline/plugin-api/internal";
 import {
+  copyText,
   MenuItem,
   MenuNote,
   type MenuSelectEvent,
@@ -270,28 +271,4 @@ function Save(props: {
       onSelect={stay(() => setCopied(copyText(layoutCommands(from, to).join("\n"))))}
     />
   );
-}
-
-/**
- * Copies over a hidden textarea rather than the async Clipboard API, which needs a permission a
- * webview may not hold, and puts focus back so the menu's keys still work.
- */
-export function copyText(text: string): boolean {
-  const back = document.activeElement;
-  const area = document.createElement("textarea");
-  area.value = text;
-  area.style.position = "fixed";
-  area.style.opacity = "0";
-  document.body.appendChild(area);
-  area.focus();
-  area.select();
-  let ok = false;
-  try {
-    ok = document.execCommand("copy");
-  } catch {
-    ok = false;
-  }
-  area.remove();
-  if (back instanceof HTMLElement) back.focus();
-  return ok;
 }
