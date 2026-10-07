@@ -584,3 +584,6 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   its pills read live.
 - 2026-10-07: Rigline's row is any number of rows, `rigRow 2` and on, made and ordered in edit mode
   (D122). Proven in the harness, fit stage 2 with three rows included, and read live.
+- 2026-10-07: Copying with a click is in the kit: `flash` on `Pill` and `MenuItem`, `useFlash` and
+  `copyText` (D123), so session-id's copies no longer resize what holds them. Proven in the harness;
+  its live read is owed.
