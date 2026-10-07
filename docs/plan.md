@@ -395,6 +395,10 @@ what a plugin is written against.
 - **Merging layout edits from several sources.** A save from the panel overwrites the file's layout
   and warns when that replaces a change made since the panel loaded (D92). Revisit when that warning
   costs somebody work.
+- **A backstop timer for a newer saved layout** (D126). The panel looks when the person comes back
+  to it, which misses two windows on screen side by side with the pointer never entering this one.
+  Triggered by that case costing somebody; a read every five minutes while visible keeps about 2 MB
+  a day.
 - **Decorations in React.** Per-row transcript decorations stay DOM. Triggered by a decoration DOM
   makes painful; first answer the cost of one portal per row at several hundred rows, and the frame
   in which a new row's node is empty before React renders into it.
@@ -592,4 +596,5 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
 - 2026-10-07: Edit in place's bar has Reload and Reset to defaults, and "Saved." shows for a moment
   before the mode closes rather than until the next change (D125). Proven in the harness.
 - 2026-10-07: Rigline's pills turn their R yellow while a newer layout is saved, learned when the
-  person comes back to the panel rather than on a clock (D126). Proven in the harness.
+  person comes back to the panel rather than on a clock (D126). Proven in the harness, and read live
+  across two windows.
