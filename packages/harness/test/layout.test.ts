@@ -611,26 +611,48 @@ describe.skipIf(skip !== null)(`rows${skip ? ` (${skip})` : ""}`, () => {
 describe.skipIf(skip !== null)(`Rigline's own elements${skip ? ` (${skip})` : ""}`, () => {
   const boot = register(VERSION);
 
-  it("sit in rigRow by default, and edit in place and reload from there", async () => {
+  it("put Edit alone in rigRow by default, which reloads on a Ctrl-click", async () => {
     const booted = await boot({ plugins: [deck] });
     const { page } = booted;
     try {
       const own = '[data-rigline-zone="rigRow"] [data-rigline-element^="rigline/"]';
-      await page.locator(own).nth(1).waitFor();
+      await page.locator(own).first().waitFor();
       expect(
         await page
           .locator(own)
           .evaluateAll((all) => all.map((e) => e.getAttribute("data-rigline-element"))),
-      ).toEqual(["rigline/edit", "rigline/reload"]);
+      ).toEqual(["rigline/edit"]);
 
-      await page.click('[data-rigline-element="rigline/edit"] button');
+      const edit = '[data-rigline-element="rigline/edit"] button';
+      await page.click(edit);
       await page.waitForSelector(".rigline-edit-handle");
       await page.locator(".rigline-edit-bar").getByRole("button", { name: "Done" }).click();
       await page.waitForSelector(".rigline-edit-handle", { state: "detached" });
 
       saveToRegistry(booted.payloadDir, { off: ["deck/one"] });
-      await page.click('[data-rigline-element="rigline/reload"] button');
+      await page.click(edit, { modifiers: ["ControlOrMeta"] });
       await page.waitForSelector(".deck-one", { state: "detached" });
+      expect(await page.locator(".rigline-edit-handle").count()).toBe(0);
+    } finally {
+      await booted.close();
+    }
+  }, 30000);
+
+  it("put Reload where a layout asks, which edits in place on a Ctrl-click", async () => {
+    const layout = { rigRow: ["rigline/reload"], off: ["rigline/edit"] };
+    const booted = await boot({ plugins: [deck], layout });
+    const { page } = booted;
+    try {
+      const reload = '[data-rigline-element="rigline/reload"] button';
+      await page.click(reload, { modifiers: ["ControlOrMeta"] });
+      await page.waitForSelector(".rigline-edit-handle");
+      await page.locator(".rigline-edit-bar").getByRole("button", { name: "Done" }).click();
+      await page.waitForSelector(".rigline-edit-handle", { state: "detached" });
+
+      saveToRegistry(booted.payloadDir, { ...layout, off: ["rigline/edit", "deck/one"] });
+      await page.click(reload);
+      await page.waitForSelector(".deck-one", { state: "detached" });
+      expect(await page.locator(".rigline-edit-handle").count()).toBe(0);
     } finally {
       await booted.close();
     }

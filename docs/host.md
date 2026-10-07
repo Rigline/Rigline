@@ -183,7 +183,8 @@ the menu opens, to say a newer layout is saved; and for Reload, which shows that
 
 Rigline's own elements, `rigline/edit` and `rigline/reload`, are bound once `shell.js` has loaded,
 from the components it exports as `riglineElements`, at a registry order after every plugin's (D97).
-They go through the same `element` service as a plugin's, reporting to the shell's error path.
+They go through the same `element` service as a plugin's, reporting to the shell's error path. A
+click with Ctrl or Cmd held does the other one's action, and Reload starts off (D124).
 
 Edit in place, a checkbox at the top of the submenu, sets the editor's `editing` store (D95). While
 it is set, the kernel holds every row in place, empty or not, and the next row as the target that

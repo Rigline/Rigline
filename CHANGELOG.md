@@ -37,6 +37,9 @@ anything may change between releases.
 
 - The bundled `worktree-prefix` plugin is now `worktree`, since it does more than prefix the tab. If
   you switched it off, it is back on: `rigline disable worktree` switches it off again.
+- Rigline's Edit button reloads the saved layout on a Ctrl-click, Cmd-click on a Mac, and the Reload
+  button edits in place on one, so either alone does both. Reload now starts off; to keep it, move
+  it back from Rigline's Layout, or `rigline layout place rigline/reload rigRow`.
 
 ### Fixed
 

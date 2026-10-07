@@ -4,7 +4,7 @@
  */
 import { sameLayout } from "@rigline/plugin-api/internal";
 import { Pill, useStore } from "@rigline/plugin-api/ui";
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import type { RiglineElements } from "./types.ts";
 
 export const OWN_CSS = `
@@ -54,26 +54,45 @@ function Mark(props: { readonly icon: string }): ReactNode {
   );
 }
 
-export const riglineElements: RiglineElements = (editor) => ({
-  edit: function RiglineEdit() {
+/** Cmd on a Mac, where a Ctrl-click is a right click and never reaches `onClick` (D124). */
+function modifier(): string {
+  return navigator.platform.startsWith("Mac") ? "Cmd" : "Ctrl";
+}
+
+/** Each pill's plain click is its own action and a modified one the other's (D124). */
+export const riglineElements: RiglineElements = (editor) => {
+  function useActions() {
     const editing = useStore(editor.editing);
-    return (
-      <Pill title="Edit in place" onClick={() => editor.editing.set(!editing)}>
-        <Mark icon={MOVE} />
-      </Pill>
-    );
-  },
-  reload: function RiglineReload() {
-    const working = useStore(editor.working);
-    const baseline = useStore(editor.baseline);
-    const dirty = !sameLayout(working, baseline);
-    return (
-      <Pill
-        title={dirty ? "Revert changes" : "Reload saved layout"}
-        onClick={() => void editor.reload()}
-      >
-        <Mark icon={RELOAD} />
-      </Pill>
-    );
-  },
-});
+    const dirty = !sameLayout(useStore(editor.working), useStore(editor.baseline));
+    return {
+      reloadTitle: dirty ? "Revert changes" : "Reload saved layout",
+      edit: () => editor.editing.set(!editing),
+      reload: () => void editor.reload(),
+    };
+  }
+  const modified = (e: MouseEvent) => e.ctrlKey || e.metaKey;
+  return {
+    edit: function RiglineEdit() {
+      const actions = useActions();
+      return (
+        <Pill
+          title={`Edit in place\n${modifier()}-click to ${actions.reloadTitle.toLowerCase()}`}
+          onClick={(e) => (modified(e) ? actions.reload : actions.edit)()}
+        >
+          <Mark icon={MOVE} />
+        </Pill>
+      );
+    },
+    reload: function RiglineReload() {
+      const actions = useActions();
+      return (
+        <Pill
+          title={`${actions.reloadTitle}\n${modifier()}-click to edit in place`}
+          onClick={(e) => (modified(e) ? actions.edit : actions.reload)()}
+        >
+          <Mark icon={RELOAD} />
+        </Pill>
+      );
+    },
+  };
+};

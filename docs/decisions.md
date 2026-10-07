@@ -3184,3 +3184,17 @@ it is the signal to export the primitive as well.
 
 Rejected: a package private to the bundled plugins. There is no channel for one, since they import
 the same four served modules as anybody's (D71, D87), and they are the examples authors copy.
+
+**D124. Each of Rigline's own pills does the other's action on a modified click, and Reload starts
+off (2026-10-07, Leo).** Edit and Reload side by side were the default; one pill is now enough, and
+which one is a person's choice. A click with Ctrl or Cmd held does the other pill's action: Edit's
+reloads the saved layout, or reverts unsaved changes, and Reload's toggles editing in place. Either
+pill alone reaches both, and its tooltip's second line names the modified click. Cmd as well as
+Ctrl, because on a Mac a Ctrl-click is a right click and fires no `click`; the tooltip names the
+platform's key.
+
+**Amends D97:** Reload starts off, and Edit stays in `rigRow`. D97's case against off by default
+stands for Edit, the one that needs finding, and Reload's action is a modifier away from it.
+
+Rejected: one pill, with a setting for what its plain click does. Placing the pill you prefer already
+is that setting.

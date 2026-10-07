@@ -63,7 +63,7 @@ const FOOTER: AnchorSlot = { anchor: "footerSpacer", at: "before" };
 /** Rigline's own elements, placed by the layout as a plugin's are (D97). */
 export const RIGLINE_ELEMENTS: Elements = {
   edit: { title: "Edit button", placements: ["rigRow", FOOTER], default: "rigRow" },
-  reload: { title: "Reload button", placements: ["rigRow", FOOTER], default: "rigRow" },
+  reload: { title: "Reload button", placements: ["rigRow", FOOTER], default: null },
 };
 
 /** The anchors the table marks with a slot for an element. */

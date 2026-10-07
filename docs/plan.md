@@ -587,3 +587,5 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
 - 2026-10-07: Copying with a click is in the kit: `flash` on `Pill` and `MenuItem`, `useFlash` and
   `copyText` (D123), so session-id's copies no longer resize what holds them. Proven in the harness,
   and read live.
+- 2026-10-07: Rigline's Edit and Reload pills each do the other's action on a Ctrl- or Cmd-click,
+  and Reload starts off (D124). Proven in the harness.

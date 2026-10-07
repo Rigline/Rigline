@@ -70,10 +70,10 @@ describe("viewLayout", () => {
       "  session-id/address   Messaging address  yours; can also go in rigRow 2",
       "  clock/face           Clock              can also go in rigRow 2",
       "  rigline/edit         Edit button        can also go in rigRow 2 or before footerSpacer",
-      "  rigline/reload       Reload button      can also go in rigRow 2 or before footerSpacer",
       "off",
       "  session-id/short-id  Session id         yours; can also go before footerSpacer, in rigRow or in rigRow 2",
       "  session-id/full-id   Full session id    can also go in rigRow or in rigRow 2",
+      "  rigline/reload       Reload button      can also go in rigRow, in rigRow 2 or before footerSpacer",
     ]);
   });
 
@@ -89,6 +89,7 @@ describe("viewLayout", () => {
       "rigRow 2",
       "rigRow 3",
       "before footerSpacer",
+      "off",
     ]);
     expect(view.places[2]?.elements[0]?.also).toEqual(["rigRow", "rigRow 2"]);
     expect(view.problems).toEqual([]);
