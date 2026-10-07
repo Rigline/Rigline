@@ -75,11 +75,50 @@ function focusedItem(page: Page): Promise<string | null | undefined> {
   return page.evaluate(() => document.activeElement?.getAttribute("data-rigline-item"));
 }
 
+interface Box {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+/**
+ * What `selector` covers, read once the handles and zones have stood still for a few frames: a
+ * handle follows its element a frame late, so a box read straight after a drop can be one a press
+ * then misses.
+ */
+async function box(page: Page, selector: string): Promise<Box> {
+  await page.locator(selector).waitFor();
+  const still = await page.evaluate(async (selector) => {
+    const read = () =>
+      JSON.stringify(
+        [...document.querySelectorAll(`${selector}, [data-rigline-item], [data-rigline-zone]`)].map(
+          (e) => {
+            const r = e.getBoundingClientRect();
+            return [r.x, r.y, r.width, r.height];
+          },
+        ),
+      );
+    let last = read();
+    let same = 0;
+    for (let frame = 0; frame < 120 && same < 3; frame++) {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      const now = read();
+      same = now === last ? same + 1 : 0;
+      last = now;
+    }
+    return same >= 3;
+  }, selector);
+  if (!still) throw new Error(`the layout around ${selector} never stood still`);
+  const found = await page.locator(selector).boundingBox();
+  if (!found) throw new Error(`nothing is at ${selector}`);
+  return found;
+}
+
 /** The middle of what `selector` finds. */
 async function middle(page: Page, selector: string): Promise<{ x: number; y: number }> {
-  const box = await page.locator(selector).boundingBox();
-  if (!box) throw new Error(`nothing is at ${selector}`);
-  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  const { x, y, width, height } = await box(page, selector);
+  return { x: x + width / 2, y: y + height / 2 };
 }
 
 /** Presses on what `selector` finds and moves to `to`, still holding the button. */
@@ -458,8 +497,7 @@ describe.skipIf(skip !== null)(`editing in place${skip ? ` (${skip})` : ""}`, ()
           w.__stages += records.length;
         }).observe(footer, { attributes: true, attributeFilter: ["data-fit-stage"] });
       });
-      const two = await page.locator('[data-rigline-item="deck/two"]').boundingBox();
-      if (!two) throw new Error("no handle on two");
+      const two = await box(page, '[data-rigline-item="deck/two"]');
       await pickUp(page, '[data-rigline-item="deck/one"]', {
         x: two.x + two.width - 2,
         y: two.y + two.height / 2,
@@ -480,8 +518,7 @@ describe.skipIf(skip !== null)(`editing in place${skip ? ` (${skip})` : ""}`, ()
     const { page } = booted;
     try {
       await enterEditing(page);
-      const bar = await page.locator(".rigline-edit-bar").boundingBox();
-      if (!bar) throw new Error("no bar");
+      const bar = await box(page, ".rigline-edit-bar");
       await pickUp(page, '[data-rigline-item="deck/two"]', { x: bar.x + 8, y: bar.y + 8 });
       await page.locator(".rigline-edit-bar-over").waitFor();
       await page.mouse.up();
@@ -684,8 +721,7 @@ describe.skipIf(skip !== null)(`rows${skip ? ` (${skip})` : ""}`, () => {
       await page.waitForSelector('[data-rigline-zone="rigRow 2"] .deck-one');
       await expect.poll(() => focusedItem(page)).toBe("rigRow");
 
-      const below = await page.locator('[data-rigline-zone="rigRow 2"]').boundingBox();
-      if (!below) throw new Error("no second row");
+      const below = await box(page, '[data-rigline-zone="rigRow 2"]');
       await pickUp(page, '.rigline-edit-row[data-rigline-item="rigRow"]', {
         x: below.x + below.width / 2,
         y: below.y + below.height + 4,
@@ -820,8 +856,7 @@ describe.skipIf(skip !== null)(`a row's two sides${skip ? ` (${skip})` : ""}`, (
       await page.keyboard.press("Escape");
 
       // Onto the row's left side, which holds nothing now.
-      const row = await page.locator('[data-rigline-zone="rigRow"]').boundingBox();
-      if (!row) throw new Error("no rigRow");
+      const row = await box(page, '[data-rigline-zone="rigRow"]');
       await pickUp(page, '[data-rigline-item="deck/one"]', {
         x: row.x + 24,
         y: row.y + row.height / 2,

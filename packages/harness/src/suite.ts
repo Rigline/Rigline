@@ -188,6 +188,8 @@ export function register(version: string): (options?: BootOptions) => Promise<Bo
       surface: options.surface ?? "editor",
     });
     const page = await browser.newPage();
+    // Inside every test's own timeout, so a wait that hangs fails naming what it waited for.
+    page.setDefaultTimeout(10000);
     const consoleErrors: string[] = [];
     page.on("console", (msg: ConsoleMessage) => {
       if (msg.type() === "error") consoleErrors.push(msg.text());

@@ -72,7 +72,20 @@ describe.skipIf(skip !== null)(
     it("asks at launch, places both elements, follows the stream, and asks again after a compaction", async () => {
       const booted = await boot({ plugins: [plugin as FixturePlugin] });
       try {
-        await waitForPercent(booted.page, "15%");
+        // This first reading has missed under load with no cause found, so a miss says what the
+        // host sent and what the page shows.
+        await waitForPercent(booted.page, "15%").catch(async (e) => {
+          const d = await booted.diagnostics();
+          const sent = (await booted.sent()).map((m) => m.request?.type ?? m.type);
+          const shown = await booted.page.evaluate(
+            (selector) => document.querySelector(selector)?.outerHTML ?? "nothing",
+            PERCENT,
+          );
+          throw new Error(
+            `${e instanceof Error ? e.message : e}\nasked ${d.asked}; errors ${JSON.stringify(d.errors)}; ` +
+              `sent ${sent.join(", ")}; the percentage is ${shown}`,
+          );
+        });
 
         const placed = await booted.page.evaluate(
           ({ percent, bar }) => ({

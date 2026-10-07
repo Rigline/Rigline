@@ -416,6 +416,10 @@ what a plugin is written against.
   a hyphen and a suffix from `sha256(sessionId)` by a function still to be read; a chosen name is
   the session's `customTitle`. Today's ref is `sha256("session:" + messagingSocketPath)`, the path
   being in `~/.claude/sessions/<pid>.json`, and the name's suffix is a random byte.
+- **context-meter's first reading in the harness.** Missed once in 17 full suites, never alone or
+  in fifty concurrent runs of its own file, cause not found. If it is the product's, a panel shows
+  "–%" until the first turn's reading. The test's miss now names what the host sent and what the
+  pill shows; triggered by that report.
 - **The RIG pill as an element** (D97). Triggered by somebody asking to move it; weigh a person
   switching off the one control that always reaches the menu.
 - **Colour on `Pill`** (D89): any colour allowed, the theme's own the easy choice. Triggered by the
@@ -604,3 +608,5 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   empty right side, and a row moved with both sides. Read live.
 - 2026-10-07: In edit mode an element drawing nothing shows its title at its place, rather than in
   the tray as "not showing" (D128). Proven in the harness, and read live.
+- 2026-10-07: The layout harness reads a drag's geometry from a layout that has stood still, which a
+  loaded machine showed it did not; and a harness wait that hangs fails naming what it waited for.
