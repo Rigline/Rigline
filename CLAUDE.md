@@ -263,6 +263,10 @@ reading it on npm, not for us — say what changed for them, not which function 
 `pnpm release:finish` approves it; the release refuses a version the changelog has no section for.
 [docs/releasing.md](docs/releasing.md) is the runbook.
 
+**Until 1.0.0 ships, compatibility with an earlier alpha is not a reason against a design.**
+stability.md binds from 1.0.0. Choose the right shape, and where a person's files need it, migrate
+them once; an older alpha failing on a migrated file is expected.
+
 Toolchain: pnpm 12, Node 22.12+ (26 here), TypeScript 7, Rolldown, Vitest, Biome. Semicolons are
 required. CI runs lint, typecheck, build and test on every push and pull request, over a Node
 matrix whose lowest rung is the `engines` floor the published packages declare (D59) — so moving
