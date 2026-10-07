@@ -31,6 +31,9 @@ anything may change between releases.
 - Two buttons in Edit in place's bar. *Reload* picks up a layout saved in another window without
   leaving the mode, and the bar says when there is one. *Reset to defaults* shows every element
   where its plugin puts it, unsaved, until you Save it or Revert changes.
+- Rigline's Edit and Reload buttons turn their R yellow when a newer layout has been saved, in
+  another window for instance, and say so on hover. The panel looks when you come back to it, so a
+  click on either (Ctrl-click on Edit) brings the newer layout in.
 - `worktree` shows the worktree under the composer too, as a pill with the tab's short name, an
   ellipsis when that is not the whole name, and the whole name on hover. A second pill with the full
   name starts off. Either can be moved to the composer's footer, or the full one switched on, from

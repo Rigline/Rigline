@@ -3212,3 +3212,24 @@ closes at the end of that, not at the confirmation, unless the copy moved meanwh
 until the next change, so it greeted a person returning to the mode. It is not removed outright
 because the Layout submenu's Save has no other sign that it landed: the menu stays open and nothing
 closes.
+
+**D126. The panel learns of a newer saved layout when the person comes back to it, not on a clock
+(2026-10-07, Leo).** Rigline's Edit and Reload pills turn their R the theme's warning colour while a
+newer layout is saved, and their tooltip says so, so a layout saved in another window shows before
+anybody opens a menu.
+
+The read is `import()` of `registry.js` under a fresh query, the only one the webview's CSP allows:
+it has no `connect-src`, so `fetch` is refused. A module is never evicted, so every read keeps a
+copy for the panel's life. Measured in Chromium on a 4.4 KB `registry.js`: 0.75 ms and 7.4 KB of heap
+a read, so a check a minute is about 10 MB a day, in a window that stays open for days. A save in
+another window happens while the person is there, so this panel's moment is their coming back: the
+window's `focus`, the document turning visible, the pointer entering it. Those check at most once
+every 30 seconds, and not at all once a newer layout is known, which only Reload or a save clears.
+
+`check` also skips while a save is in flight, when the file can hold this panel's copy ahead of its
+baseline and would read as newer.
+
+Rejected: a timer, which was the request (Leo). It catches one more case, both windows on screen and
+the pointer never entering this one, at a cost that grows with the time a window is open. A slow
+timer as a backstop is the move if that case turns out to matter. A smaller module for the read only
+slows the leak, and costs the engine a second file to write.

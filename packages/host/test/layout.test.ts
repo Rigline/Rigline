@@ -26,6 +26,7 @@ function editor(
   baked: Layout,
   saved: () => Layout | null = () => baked,
   wait: (ms: number) => Promise<void> = async () => {},
+  now?: () => number,
 ) {
   let reads = 0;
   const made = createLayoutEditor({
@@ -37,9 +38,12 @@ function editor(
       return saved();
     },
     wait,
+    now,
   });
   return { editor: made, reads: () => reads };
 }
+
+const settle = () => new Promise((r) => setTimeout(r, 0));
 
 describe("moves", () => {
   it("changes the working copy and the view, and leaves the baseline", () => {
@@ -165,6 +169,47 @@ describe("the saved layout", () => {
     const { editor: e } = editor({ off: ["clock/face"] }, () => null);
     await e.reload();
     expect(e.working.get()).toEqual({ off: ["clock/face"] });
+  });
+});
+
+describe("noticing a newer layout", () => {
+  it("checks on coming back, at most once a gap, and stops once it knows", async () => {
+    let t = 0;
+    let saved: Layout = {};
+    const { editor: e, reads } = editor(
+      {},
+      () => saved,
+      undefined,
+      () => t,
+    );
+    e.notice();
+    e.notice();
+    await settle();
+    expect(reads()).toBe(1);
+    expect(e.newer.get()).toBe(false);
+
+    saved = { off: ["clock/face"] };
+    t += 29_999;
+    e.notice();
+    t += 1;
+    e.notice();
+    await settle();
+    expect(reads()).toBe(2);
+    expect(e.newer.get()).toBe(true);
+
+    t += 30_000;
+    e.notice();
+    await settle();
+    expect(reads()).toBe(2);
+  });
+
+  it("does not call a save in flight newer", async () => {
+    const { editor: e } = editor({}, () => ({ off: ["clock/face"] }));
+    e.move("clock/face", "off");
+    const confirming = e.confirm(e.working.get());
+    await e.check();
+    expect(e.newer.get()).toBe(false);
+    await confirming;
   });
 });
 

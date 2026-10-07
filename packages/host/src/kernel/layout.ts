@@ -52,6 +52,8 @@ export interface LayoutEditor {
   reload(): Promise<void>;
   /** Reads the saved layout afresh and says whether it moved since this panel's baseline. */
   check(): Promise<void>;
+  /** The person is back at the panel: a `check`, unless one ran lately or there is no need (D126). */
+  notice(): void;
   /**
    * After a Save click: waits for `registry.js` to hold `copy`, makes it the baseline, and holds
    * `saved` for a moment before leaving edit mode.
@@ -67,6 +69,8 @@ export interface LayoutEditorOptions {
   readonly readSaved: () => Promise<Layout | null>;
   /** Injected so a test need not wait out the confirmation. */
   readonly wait?: (ms: number) => Promise<void>;
+  /** Milliseconds, injected so a test can step past `notice`'s gap. */
+  readonly now?: () => number;
 }
 
 /** A save is the engine starting, one edit and a re-inject: a few seconds, rarely more. */
@@ -74,10 +78,14 @@ const CONFIRM_EVERY_MS = 500;
 const CONFIRM_FOR_MS = 20_000;
 /** How long "Saved." shows before it goes, taking edit mode with it (D125). */
 const SAVED_MS = 1500;
+/** Each read keeps a copy of `registry.js` for the panel's life, so `notice` reads sparingly (D126). */
+const NOTICE_GAP_MS = 30_000;
 
 export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
   const { baked, plugins, save, readSaved } = options;
   const wait = options.wait ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const now = options.now ?? (() => performance.now());
+  let noticed = -Infinity;
   const baseline = store(baked);
   const working = store(baked);
   const view = store(layoutView(baked, plugins));
@@ -93,6 +101,13 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
   function edit(next: Layout): void {
     working.set(compactRows(next, plugins));
     if (saving.get() !== "saving") saving.set("idle");
+  }
+
+  async function check(): Promise<void> {
+    // Mid-save the file can hold the copy ahead of the baseline, which is not newer.
+    if (saving.get() === "saving") return;
+    const saved = await readSaved();
+    newer.set(saved !== null && !sameLayout(saved, baseline.get()));
   }
 
   return {
@@ -165,9 +180,11 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
       newer.set(false);
       saving.set("idle");
     },
-    async check() {
-      const saved = await readSaved();
-      newer.set(saved !== null && !sameLayout(saved, baseline.get()));
+    check,
+    notice() {
+      if (newer.get() || now() - noticed < NOTICE_GAP_MS) return;
+      noticed = now();
+      void check();
     },
     async confirm(copy) {
       saving.set("saving");

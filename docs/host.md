@@ -179,14 +179,17 @@ answers; elsewhere it is Copy commands, the `rigline layout` commands for the pl
 
 Nothing can push into a panel, so everything it learns about the file it pulls, by re-importing
 `registry.js` under a fresh query: after a Save click, until the baked layout equals the copy; when
-the menu opens or edit mode starts, to say a newer layout is saved; and for Reload, which shows that
-layout in place. A confirmed save says so for a moment and then goes, closing edit mode unless the
+the menu opens or edit mode starts, to say a newer layout is saved; when the person comes back to the
+panel — the window's `focus`, the document turning visible, the pointer entering it — at most every
+30 seconds and only until one is found (D126); and for Reload, which shows that layout in place.
+Each read keeps its module for the panel's life, which is why nothing reads on a clock. A confirmed save says so for a moment and then goes, closing edit mode unless the
 copy has moved since (D125).
 
 Rigline's own elements, `rigline/edit` and `rigline/reload`, are bound once `shell.js` has loaded,
 from the components it exports as `riglineElements`, at a registry order after every plugin's (D97).
 They go through the same `element` service as a plugin's, reporting to the shell's error path. A
-click with Ctrl or Cmd held does the other one's action, and Reload starts off (D124).
+click with Ctrl or Cmd held does the other one's action, and Reload starts off (D124). While a newer
+layout is saved, each one's R is the theme's warning colour and its tooltip says so (D126).
 
 Edit in place, a checkbox at the top of the submenu, sets the editor's `editing` store (D95). While
 it is set, the kernel holds every row in place, empty or not, and the next row as the target that

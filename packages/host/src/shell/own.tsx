@@ -26,14 +26,18 @@ export const OWN_CSS = `
   font-weight: 700;
   line-height: 1;
 }
+.rigline-own-newer .rigline-own-mark {
+  background: var(--vscode-editorWarning-foreground, #cca700);
+  color: #000;
+}
 `;
 
 const MOVE = "M8 1.5v13M1.5 8h13M6 3.5l2-2 2 2M6 12.5l2 2 2-2M3.5 6l-2 2 2 2M12.5 6l2 2-2 2";
 const RELOAD = "M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2v3h-3";
 
-function Mark(props: { readonly icon: string }): ReactNode {
+function Mark(props: { readonly icon: string; readonly newer: boolean }): ReactNode {
   return (
-    <span className="rigline-own">
+    <span className={props.newer ? "rigline-own rigline-own-newer" : "rigline-own"}>
       <span className="rigline-own-mark" aria-hidden="true">
         R
       </span>
@@ -63,9 +67,16 @@ function modifier(): string {
 export const riglineElements: RiglineElements = (editor) => {
   function useActions() {
     const editing = useStore(editor.editing);
+    const newer = useStore(editor.newer);
     const dirty = !sameLayout(useStore(editor.working), useStore(editor.baseline));
     return {
+      newer,
       reloadTitle: dirty ? "Revert changes" : "Reload saved layout",
+      /** The action's name, whether there is a newer layout to get (D126), and the modified click. */
+      title: (name: string, other: string) =>
+        [name, newer && "A newer layout is saved", `${modifier()}-click to ${other}`]
+          .filter(Boolean)
+          .join("\n"),
       edit: () => editor.editing.set(!editing),
       reload: () => void editor.reload(),
     };
@@ -76,10 +87,10 @@ export const riglineElements: RiglineElements = (editor) => {
       const actions = useActions();
       return (
         <Pill
-          title={`Edit in place\n${modifier()}-click to ${actions.reloadTitle.toLowerCase()}`}
+          title={actions.title("Edit in place", actions.reloadTitle.toLowerCase())}
           onClick={(e) => (modified(e) ? actions.reload : actions.edit)()}
         >
-          <Mark icon={MOVE} />
+          <Mark icon={MOVE} newer={actions.newer} />
         </Pill>
       );
     },
@@ -87,10 +98,10 @@ export const riglineElements: RiglineElements = (editor) => {
       const actions = useActions();
       return (
         <Pill
-          title={`${actions.reloadTitle}\n${modifier()}-click to edit in place`}
+          title={actions.title(actions.reloadTitle, "edit in place")}
           onClick={(e) => (modified(e) ? actions.edit : actions.reload)()}
         >
-          <Mark icon={RELOAD} />
+          <Mark icon={RELOAD} newer={actions.newer} />
         </Pill>
       );
     },

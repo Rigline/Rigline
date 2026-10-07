@@ -431,6 +431,13 @@ export function createShellService(
       place();
       poll();
       setInterval(poll, POLL_MS);
+      // Coming back to the panel is when a layout saved in another window can matter (D126).
+      const notice = (): void => {
+        if (document.visibilityState === "visible") editor.notice();
+      };
+      addEventListener("focus", notice);
+      document.addEventListener("visibilitychange", notice);
+      document.documentElement.addEventListener("pointerenter", notice);
       const layer = document.createElement("div");
       layer.setAttribute("data-rigline-layer", "");
       document.body.appendChild(layer);

@@ -675,6 +675,30 @@ describe.skipIf(skip !== null)(`Rigline's own elements${skip ? ` (${skip})` : ""
     }
   }, 30000);
 
+  it("turn yellow when focus comes back to a panel whose saved layout has moved on", async () => {
+    const layout = { rigRow: ["rigline/reload"] };
+    const booted = await boot({ plugins: [deck], layout });
+    const { page } = booted;
+    try {
+      const newer = page.locator(".rigline-own-newer");
+      await page.waitForSelector('[data-rigline-element="rigline/reload"]');
+      await page.waitForSelector(".deck-one");
+      saveToRegistry(booted.payloadDir, { ...layout, off: ["deck/one"] });
+      expect(await newer.count()).toBe(0);
+      await page.evaluate(() => dispatchEvent(new Event("focus")));
+      await expect.poll(() => newer.count()).toBe(2);
+      await expect(
+        page.locator('[data-rigline-element="rigline/edit"] button').getAttribute("title"),
+      ).resolves.toMatch(/^Edit in place\nA newer layout is saved\n/);
+
+      await page.click('[data-rigline-element="rigline/reload"] button');
+      await page.waitForSelector(".deck-one", { state: "detached" });
+      expect(await newer.count()).toBe(0);
+    } finally {
+      await booted.close();
+    }
+  }, 30000);
+
   it("put Reload where a layout asks, which edits in place on a Ctrl-click", async () => {
     const layout = { rigRow: ["rigline/reload"], off: ["rigline/edit"] };
     const booted = await boot({ plugins: [deck], layout });
