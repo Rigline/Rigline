@@ -11,6 +11,8 @@ hole, or raises the Node or VS Code it needs, its entry says so.
 
 ## Unreleased
 
+## 1.0.0 — 2026-10-07
+
 The first stable release. Every 1.x keeps what
 [stability.md](https://github.com/Rigline/Rigline/blob/main/docs/stability.md) promises, and only a
 2.0 may break it.

@@ -1,6 +1,6 @@
 {
   "name": "rigline-worktree",
-  "version": "1.0.0-alpha.16",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
