@@ -203,7 +203,9 @@ the rows from one, and the kernel publishes `places` again whenever the copy cha
 The shell's `edit.tsx` draws on the root's own layer, never in the app's DOM: a handle over each
 element with a box, measured every frame as a range over its `form`, and a bar above `composerBox`
 holding a tray of the elements without one, Reset to defaults, Save or Copy commands, Revert changes
-(Reload while nothing is unsaved) and Done. A
+(Reload while nothing is unsaved) and Done. An element drawing nothing still has a box: while
+editing, its boundary renders `span.rigline-standin` with its title after its content, which CSS
+shows only as the form's only element child (D128). A
 handle's click or Enter opens the element's moves, the items its row in the submenu opens, in a
 `MenuPanel` anchored at the handle. A drag outlines only the places its element offers that this
 panel has, and calls the editor's `drop` once, on release; the bar is the target for off. A slot's

@@ -10,6 +10,13 @@ anything may change between releases.
 
 ## Unreleased
 
+### Fixed
+
+- In Edit in place, an element with nothing to show, such as the worktree pills outside a worktree,
+  sat in the bar as "not showing" instead of where it is placed. It now shows its name at its place
+  while you edit, so you can see where it is and move it like any other, and still shows nothing
+  once you are done.
+
 ## 1.0.0-alpha.16 — 2026-10-07
 
 ### Added

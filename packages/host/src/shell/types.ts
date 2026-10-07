@@ -22,6 +22,8 @@ export interface PlacedElement {
   readonly key: number;
   readonly owner: string;
   readonly id: string;
+  /** Its manifest title, which stands in for it while editing in place if it draws nothing. */
+  readonly title: string;
   readonly component: ElementComponent;
   readonly onError: (reason: string) => void;
   /** The node it portals into: its own slot, or a zone it shares, in order. */

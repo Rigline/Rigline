@@ -2337,7 +2337,8 @@ Rejected:
 - Re-placing live while dragging, which moves the fit stage and the targets under the pointer.
 
 **Amended by D122:** the zone held is every row and the next one, and rows have handles of their
-own.
+own. **Amended by D128:** an element drawing nothing shows its title at its place, and the tray
+holds the elements with no place on this panel.
 
 **D96. The panel names a place by its title; the file and the CLI by its spelling (2026-09-25,
 Leo).** The panel showed the file's spelling for every place — `before footerSpacer`, `rigRow` — in
@@ -3273,3 +3274,22 @@ Rejected:
   the CLI and the tooltip still need a side's name as a string.
 
 **Amends D122:** a row is both its sides.
+
+**D128. In edit mode an element shows at its place whether or not it draws anything (2026-10-07,
+Leo).** An element that draws nothing, as worktree's pills do outside a worktree, went to the edit
+bar's tray as "not showing", away from the place the layout gives it. Outside the mode nothing is
+right; in the mode a person is arranging places, and an element's place is what they need to see.
+So while editing, each element's `form` carries a stand-in after its own content: its title, in a
+muted pill with no background, shown only while it is the form's only element child. It comes and
+goes with the element's content, the handle covers it, and it drags and orders like any other.
+
+It is a real node, because a handle's box is measured as a range over the form, which a
+pseudo-element is not in. It sits in the element's own form, so in a footer slot it is inside a
+node the layout already put there (D54). The tray keeps what is off, what this panel has not got,
+and an element drawing something with no box.
+
+Rejected: telling plugins about the mode, so each could draw a placeholder of its own. It widens the
+plugin API for the mode's own guarantee, which would then hold only for plugins that opted in.
+
+**Amends D95:** the tray holds the elements with no place on this panel, not every element with
+nothing on screen.

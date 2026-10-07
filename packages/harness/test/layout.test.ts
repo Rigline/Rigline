@@ -39,6 +39,15 @@ export default { setup(ctx) {
 } };`,
 };
 
+/** An element with nothing to say, as worktree's pills are outside a worktree. */
+const blank: FixturePlugin = {
+  name: "blank",
+  manifest: {
+    elements: { none: { title: "Nothing yet", placements: ["rigRow"], default: "rigRow" } },
+  },
+  source: `export default { setup(ctx) { ctx.element("none", () => null); } };`,
+};
+
 /** Stands in for the engine: what a re-inject would leave in `registry.js`. */
 function saveToRegistry(payloadDir: string, layout: Layout): void {
   const path = join(payloadDir, "registry.js");
@@ -275,6 +284,49 @@ describe.skipIf(skip !== null)(`editing in place${skip ? ` (${skip})` : ""}`, ()
           () => document.activeElement === document.querySelector(".rigline-pill button"),
         ),
       ).toBe(true);
+    } finally {
+      await booted.close();
+    }
+  }, 30000);
+
+  it("stands an element's title in at its place while it draws nothing", async () => {
+    const booted = await boot({ plugins: [deck, blank], save: COMPANION, layout: RIGLINE_OFF });
+    const { page } = booted;
+    const standin = (name: string) =>
+      page.locator(`[data-rigline-element="${name}"] > .rigline-standin`);
+    try {
+      await page.waitForSelector(".deck-one");
+      expect(await page.locator(".rigline-standin").count()).toBe(0);
+      expect(await page.locator('[data-rigline-zone="rigRow"]').isVisible()).toBe(false);
+
+      await enterEditing(page);
+      await expect(standin("blank/none").textContent()).resolves.toBe("Nothing yet");
+      expect(await standin("blank/none").isVisible()).toBe(true);
+      expect(await standin("deck/one").isVisible()).toBe(false);
+      await page.locator('.rigline-edit-handle[data-rigline-item="blank/none"]').waitFor();
+      expect(await page.locator('.rigline-edit-chip[data-rigline-item="blank/none"]').count()).toBe(
+        0,
+      );
+      const covered = await page.evaluate(() => {
+        const box = document
+          .querySelector('[data-rigline-element="blank/none"] > .rigline-standin')
+          ?.getBoundingClientRect();
+        const handle = document
+          .querySelector('[data-rigline-item="blank/none"]')
+          ?.getBoundingClientRect();
+        if (!box || !handle) return false;
+        return (
+          handle.left <= box.left &&
+          handle.right >= box.right &&
+          handle.top <= box.top &&
+          handle.bottom >= box.bottom
+        );
+      });
+      expect(covered).toBe(true);
+
+      await page.locator(".rigline-edit-bar").getByRole("button", { name: "Done" }).click();
+      await page.waitForSelector(".rigline-standin", { state: "detached" });
+      await page.waitForSelector('[data-rigline-zone="rigRow"]', { state: "hidden" });
     } finally {
       await booted.close();
     }

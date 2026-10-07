@@ -350,7 +350,7 @@ export function createShellService(
     listed: number | null,
     rank: number,
   ): Teardown {
-    const { owner, id, component, onError } = b;
+    const { owner, id, spec, component, onError } = b;
     if (placement === null) {
       bound.set(name, {
         state: "off",
@@ -397,7 +397,17 @@ export function createShellService(
         onError,
       );
     }
-    const entry = { key: next++, owner, id, component, onError, target, targetKey, order: rank };
+    const entry = {
+      key: next++,
+      owner,
+      id,
+      title: spec.title,
+      component,
+      onError,
+      target,
+      targetKey,
+      order: rank,
+    };
     placed.push(entry);
     publishElements();
     bound.set(name, { state: "placed", detail: placementLabel(placement) });

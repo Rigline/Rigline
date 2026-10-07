@@ -232,7 +232,9 @@ element. Declare each under `elements` in `rigline.json`, as in the example abov
   fresh install should show something; that is yours to see to.
 
 Rigline places the element, keeps it placed across re-renders, and renders your component there in
-a boundary of its own, so a throw while rendering disables your plugin and nothing else. A place
+a boundary of its own, so a throw while rendering disables your plugin and nothing else. Render
+nothing while there is nothing to say: while a person edits the layout in place, your `title`
+stands in for the element where it is placed, so it can still be found and moved. A place
 this extension version cannot provide costs that element and nothing else, and the install and the
 diagnostics panel say which; its anchor is not repeated under `uses`. An element you declare and
 never bind is a failing line on the diagnostics panel.

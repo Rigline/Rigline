@@ -43,6 +43,13 @@ const CSS = `
 .rigline-element {
   display: contents;
 }
+.rigline-element > .rigline-standin {
+  background: none;
+  font-family: inherit;
+}
+.rigline-element > .rigline-standin:not(:only-child) {
+  display: none;
+}
 .rigline-zone {
   position: relative;
   display: flex;
@@ -105,7 +112,7 @@ function message(e: unknown): string {
 
 /** One element, which takes only its own plugin down with it when it throws. */
 class ElementBoundary extends Component<
-  { readonly element: PlacedElement },
+  { readonly element: PlacedElement; readonly editing: boolean },
   { readonly failed: boolean }
 > {
   override state = { failed: false };
@@ -119,23 +126,32 @@ class ElementBoundary extends Component<
     onError(`its element "${id}" threw: ${message(error)}`);
   }
 
-  /** In a form of its own, so the element's controls never belong to the composer's (D90). */
+  /**
+   * In a form of its own, so the element's controls never belong to the composer's (D90). While
+   * editing, its title stands in for it whenever it draws nothing (D128).
+   */
   override render(): ReactNode {
     if (this.state.failed) return null;
-    const { owner, id, component, onError } = this.props.element;
+    const { owner, id, title, component, onError } = this.props.element;
     const Contributed = component as () => ReactNode;
     return (
       <form className="rigline-element" data-rigline-element={`${owner}/${id}`}>
         <FaultContext.Provider value={onError}>
           <Contributed />
         </FaultContext.Provider>
+        {this.props.editing && (
+          <span className="rigline-ui-pill rigline-ui-pill-muted rigline-standin">{title}</span>
+        )}
       </form>
     );
   }
 }
 
 /** One portal per target, so the elements sharing a zone keep their order. */
-function Elements(props: { readonly elements: readonly PlacedElement[] }): ReactNode {
+function Elements(props: {
+  readonly elements: readonly PlacedElement[];
+  readonly editing: boolean;
+}): ReactNode {
   const byTarget = new Map<string, PlacedElement[]>();
   for (const element of props.elements) {
     const group = byTarget.get(element.targetKey);
@@ -144,7 +160,9 @@ function Elements(props: { readonly elements: readonly PlacedElement[] }): React
   }
   return [...byTarget].map(([key, group]) =>
     createPortal(
-      group.map((element) => <ElementBoundary key={element.key} element={element} />),
+      group.map((element) => (
+        <ElementBoundary key={element.key} element={element} editing={props.editing} />
+      )),
       (group[0] as PlacedElement).target,
       key,
     ),
@@ -198,7 +216,7 @@ function Shell(
         pill,
       )}
       {open && <MenuPanel anchor={pill} entries={items} initialFocus={open} onClose={close} />}
-      <Elements elements={placed} />
+      <Elements elements={placed} editing={editing} />
       {editing && (
         <EditLayer
           editor={editor}
