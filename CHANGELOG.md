@@ -41,6 +41,8 @@ anything may change between releases.
   all it does is use `storeFrom`.
 - `worktree` keeps a worktree name's last word when it ends exactly at eight characters, so
   `at-least-once-delivery` labels its tab `at-least` where it showed `at`.
+- `session-id`'s pills and menu rows keep their size while they flash "copied" after a click, where
+  they shrank to fit it and moved everything beside them. A copy that fails now flashes "failed".
 
 ## 1.0.0-alpha.15 — 2026-10-01
 

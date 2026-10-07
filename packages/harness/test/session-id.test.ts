@@ -267,12 +267,41 @@ describe.skipIf(skip !== null)(
         expect(await address.textContent()).toContain("abcd-1234-ticket-work-46 [fa26a5]");
         expect(await page.isVisible("text=No session id yet")).toBe(true);
 
+        const menu = page.locator(".rigline-menu");
+        const before = { row: await address.boundingBox(), menu: await menu.boundingBox() };
         await address.click();
         expect(await page.isVisible(".rigline-menu")).toBe(true);
-        expect(await address.textContent()).toMatch(/copied|copy failed/);
+        expect(await address.textContent()).toMatch(/copied|failed/);
+        expect({ row: await address.boundingBox(), menu: await menu.boundingBox() }).toEqual(
+          before,
+        );
 
         const d = await booted.diagnostics();
         expect(d.plugins).toContainEqual({ name: "session-id", status: "loaded" });
+        expect(d.errors).toEqual([]);
+        expect(booted.consoleErrors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
+    it("keeps a pill's size while it flashes the outcome of a copy", async () => {
+      const booted = await boot({
+        plugins: [sessionIdPlugin as FixturePlugin],
+        layout: { rigRow: ["session-id/address"] },
+      });
+      const { page } = booted;
+      try {
+        await pushAddress(page);
+        const pill = page.locator('[data-rigline-element="session-id/address"] button');
+        await pill.waitFor();
+        const before = await pill.boundingBox();
+
+        await pill.click();
+        expect((await pill.innerText()).trim()).toMatch(/^(copied|failed)$/);
+        expect(await pill.boundingBox()).toEqual(before);
+
+        const d = await booted.diagnostics();
         expect(d.errors).toEqual([]);
         expect(booted.consoleErrors).toEqual([]);
       } finally {

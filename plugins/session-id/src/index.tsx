@@ -44,7 +44,7 @@ const SHORT_LENGTH = 8;
  * live check of this plugin can ask for, so the dimmed placeholder is deliberate, not a stopgap. */
 const PLACEHOLDER = "...";
 
-/** How long a "copied"/"copy failed" flash sits in place of the normal content before reverting. */
+/** How long a "copied"/"failed" flash sits over the normal content before reverting. */
 const FLASH_MS = 1200;
 
 const NO_ADDRESS = "No messaging address yet - it appears once this session runs ListAgents";
@@ -243,7 +243,7 @@ function copyToClipboard(text: string): boolean {
   return ok;
 }
 
-/** A "copied" or "copy failed" flash, shown in place of a value for a moment. */
+/** A "copied" or "failed" flash, shown over a value for a moment. */
 function useFlash(): readonly [string | null, (text: string) => void] {
   const [flash, setFlash] = useState<string | null>(null);
   useEffect(() => {
@@ -254,8 +254,31 @@ function useFlash(): readonly [string | null, (text: string) => void] {
   return [flash, setFlash];
 }
 
+/** Each flash must fit inside the narrowest value it covers, the eight-character short id. */
 function copy(value: string, flash: (text: string) => void): void {
-  flash(copyToClipboard(value) ? "copied" : "copy failed");
+  flash(copyToClipboard(value) ? "copied" : "failed");
+}
+
+/**
+ * A value with its flash laid over it. The value keeps its box, hidden, so a flash never resizes the
+ * pill or menu row that holds it.
+ */
+function Flashed(props: {
+  readonly flash: string | null;
+  readonly place: "center" | "start";
+  readonly children: ReactNode;
+}): ReactNode {
+  const { flash, place, children } = props;
+  return (
+    <span style={{ position: "relative", display: "block" }}>
+      <span style={{ visibility: flash === null ? undefined : "hidden" }}>{children}</span>
+      {flash !== null && (
+        <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: place }}>
+          {flash}
+        </span>
+      )}
+    </span>
+  );
 }
 
 interface Stores {
@@ -281,8 +304,12 @@ function CopyRow(props: { readonly label: string; readonly value: string }): Rea
       label={label}
       // A 36-character UUID in a narrow panel: monospace, and the menu lets it wrap.
       description={
-        <span style={{ fontFamily: "var(--app-monospace-font-family, monospace)" }}>
-          {flash ?? value}
+        <span
+          style={{ display: "block", fontFamily: "var(--app-monospace-font-family, monospace)" }}
+        >
+          <Flashed flash={flash} place="start">
+            {value}
+          </Flashed>
         </span>
       }
       title="Click to copy"
@@ -324,7 +351,9 @@ function ShortId(props: Stores): ReactNode {
       title={buildTooltip(buildEntries(address, sessionId), sessionId)}
       onClick={sessionId === null ? undefined : () => copy(sessionId, setFlash)}
     >
-      {flash ?? headlineText(sessionId)}
+      <Flashed flash={flash} place="center">
+        {headlineText(sessionId)}
+      </Flashed>
     </Pill>
   );
 }
@@ -346,7 +375,9 @@ function Identifier(props: {
   }
   return (
     <Pill title={`${label}: ${value}\nClick to copy`} onClick={() => copy(value, setFlash)}>
-      {flash ?? value}
+      <Flashed flash={flash} place="center">
+        {value}
+      </Flashed>
     </Pill>
   );
 }

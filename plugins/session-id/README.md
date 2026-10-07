@@ -10,9 +10,9 @@ hosting, with every identifier it has in Rigline's menu.
   until Claude assigns one, and the placeholder is what tells "placed, waiting" apart from "not
   placed at all".
 
-Click the pill to copy the session id **in full**, with a brief "copied"/"copy failed" flash in
-place of its normal text. In full rather than the eight characters on screen: the short form is for
-recognising a session, and anything that asks for an id wants all of it.
+Click the pill to copy the session id **in full**, with a brief "copied"/"failed" flash over its
+normal text that leaves the pill its size. In full rather than the eight characters on screen: the
+short form is for recognising a session, and anything that asks for an id wants all of it.
 
 Every known identifier — the messaging address, the full session id and its short form — is under
 **Session identifiers** in Rigline's menu, behind the RIG pill. Choose one to copy it.
