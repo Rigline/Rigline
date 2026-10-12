@@ -3354,16 +3354,20 @@ and answering it calls Anthropic's usage endpoint with the person's credentials.
 
 **D130. Rigline's own panel text is written for someone who reads it every day (2026-10-12, Leo).**
 This covers a first-party pill, its tooltip and a menu item. Each states what is there: a figure, a
-name, a state, a time. Two things go in the plugin's README and the docs, which
-a person reads once:
+name, a state, a time. Three kinds of line besides:
 
-- what a figure means and where it comes from
-- when it changes, and why it is missing
+- **Belongs, kept short:** how to do something, or what a control does. "Click to copy" is the
+  model.
+- **Goes in the README and the docs**, which a person reads once: a caveat that shifts how a value
+  reads only a little. Where a figure comes from, when it moves, and why it is missing are such
+  caveats.
+- **Belongs, as tersely as it can be said:** a distinction that would change how a value is read
+  in a significant way. `~` before a cost on a plan, where the figure is not what is paid, is one.
+  "(main model's price)" after a model Claude Code had no price for is another. The README says
+  what each means.
 
-The test for a line of hover text: would somebody who already knows what the pill is read it for
-information, or skip it as explanation? If they would skip it, it goes in the docs. A marker earns
-its place where the README defines it, such as `~` before a cost on a plan, or "(main model's
-price)" after a model Claude Code had no price for.
+The test for a caveat: would the person reading it act on the value any differently for knowing
+it? If not, it goes in the docs.
 
 This binds the bundled plugins and the host's own UI, not a third-party plugin, which writes for
 its own readers. A check's line in *Diagnostics* is exempt: it is read when something looks wrong,

@@ -264,8 +264,8 @@ reading it on npm, not for us — say what changed for them, not which function 
 [docs/releasing.md](docs/releasing.md) is the runbook.
 
 **Panel text states; the docs explain (D130).** A first-party pill, tooltip or menu item says what
-is there, for a person who reads it daily. What it means and when it changes go in the plugin's
-README.
+is there, for a person who reads it daily. Keep a short hint at how to use it, and a distinction
+that changes how a value reads. A minor caveat goes in the plugin's README.
 
 **Until 1.0.0 ships, compatibility with an earlier alpha is not a reason against a design.**
 stability.md binds from 1.0.0. Choose the right shape, and where a person's files need it, migrate
