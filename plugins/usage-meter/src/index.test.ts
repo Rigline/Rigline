@@ -55,21 +55,25 @@ describe("costLabel", () => {
 });
 
 describe("costTooltip", () => {
-  it("says whose figure it is, and on a plan that it is not what is paid", () => {
-    expect(costTooltip(cost({}))).toContain("Claude Code's estimate");
-    expect(costTooltip(cost({}))).not.toContain("claude.ai plan");
-    expect(costTooltip(cost({ metered: false }))).toContain("not what you pay");
+  it("states the figure and nothing about it", () => {
+    expect(costTooltip(cost({}))).toBe("Session cost: $1.23");
+    expect(costTooltip(cost({ metered: false }))).toBe("Session cost: $1.23");
   });
 
   it("splits by model only when there is more than one, most costly first", () => {
-    expect(costTooltip(cost({}))).not.toContain("claude-opus-5-5");
     const split = costTooltip(
       cost({
         models: { haiku: model(0.2), opus: model(1.034), other: model(0, { basis: "unknown" }) },
       }),
     );
-    expect(split.indexOf("opus: $1.03")).toBeLessThan(split.indexOf("haiku: $0.20"));
-    expect(split).toContain("priced as the main model");
+    expect(split).toBe(
+      "Session cost: $1.23\nopus: $1.03\nhaiku: $0.20\nother: $0.00 (main model's price)",
+    );
+  });
+
+  it("marks managed rates on the total", () => {
+    const managed = { "claude-opus-5-5": model(1.234, { basis: "managed" }) };
+    expect(costTooltip(cost({ models: managed }))).toBe("Session cost: $1.23 at managed rates");
   });
 
   it("says what it is waiting for", () => {
@@ -113,17 +117,18 @@ describe("percentUsed", () => {
 describe("windowTooltip", () => {
   it("says what is used, when it resets, and where it is heading", () => {
     const tip = windowTooltip("fiveHour", reading(0.3, 0.5), NOW);
-    expect(tip).toMatch(/^Five-hour limit: 30% used, resets .+/);
-    expect(tip).toContain("about 60% by then");
-    expect(windowTooltip("fiveHour", reading(0.6, 0.5), NOW)).toContain("runs out before then");
+    expect(tip).toMatch(/^Five-hour limit: 30% used, resets .+\nPace: ~60% at reset$/);
+    expect(windowTooltip("fiveHour", reading(0.6, 0.5), NOW)).toMatch(
+      /\nPace: runs out before reset$/,
+    );
   });
 
   it("says nothing of pace before there is one", () => {
-    expect(windowTooltip("fiveHour", reading(0.3, 0.05), NOW)).not.toContain("pace");
+    expect(windowTooltip("fiveHour", reading(0.3, 0.05), NOW)).not.toContain("Pace");
   });
 
-  it("says what it is waiting for, and when a window has reset", () => {
-    expect(windowTooltip("fiveHour", null, NOW)).toContain("no reading yet");
-    expect(windowTooltip("fiveHour", { used: 0, resetsAt: null }, NOW)).toContain("reset");
+  it("states a missing reading and a reset window, and explains neither", () => {
+    expect(windowTooltip("fiveHour", null, NOW)).toBe("Five-hour limit: no reading yet");
+    expect(windowTooltip("sevenDay", { used: 0, resetsAt: null }, NOW)).toBe("Weekly limit: reset");
   });
 });

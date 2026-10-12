@@ -3351,3 +3351,20 @@ heading at its present pace, so red means running out before the reset.
 Rejected: `get_usage` as a D120 ask, which would have given the per-model weekly windows and a cost
 before the first turn. It is the CLI's `usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET`,
 and answering it calls Anthropic's usage endpoint with the person's credentials.
+
+**D130. Rigline's own panel text is written for someone who reads it every day (2026-10-12, Leo).**
+This covers a first-party pill, its tooltip and a menu item. Each states what is there: a figure, a
+name, a state, a time. Two things go in the plugin's README and the docs, which
+a person reads once:
+
+- what a figure means and where it comes from
+- when it changes, and why it is missing
+
+The test for a line of hover text: would somebody who already knows what the pill is read it for
+information, or skip it as explanation? If they would skip it, it goes in the docs. A marker earns
+its place where the README defines it, such as `~` before a cost on a plan, or "(main model's
+price)" after a model Claude Code had no price for.
+
+This binds the bundled plugins and the host's own UI, not a third-party plugin, which writes for
+its own readers. A check's line in *Diagnostics* is exempt: it is read when something looks wrong,
+which is when a reason earns its place.

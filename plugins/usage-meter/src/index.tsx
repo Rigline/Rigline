@@ -53,17 +53,15 @@ export function costLabel(cost: SessionCost): string {
 
 export function costTooltip(cost: SessionCost): string {
   if (cost.usd === null) return "Session cost: waiting for a turn that carries cost data";
-  const lines = [`Session cost: ${money(cost.usd)}, Claude Code's estimate`];
   const models = Object.entries(cost.models).sort(([, a], [, b]) => b.usd - a.usd);
-  if (models.length > 1) lines.push(...models.map(([model, m]) => `${model}: ${money(m.usd)}`));
-  if (models.some(([, m]) => m.basis === "unknown")) {
-    lines.push("Some of it is priced as the main model, for a model Claude Code has no price for.");
+  const managed = models.some(([, m]) => m.basis === "managed") ? " at managed rates" : "";
+  const lines = [`Session cost: ${money(cost.usd)}${managed}`];
+  if (models.length > 1) {
+    for (const [model, m] of models) {
+      const unpriced = m.basis === "unknown" ? " (main model's price)" : "";
+      lines.push(`${model}: ${money(m.usd)}${unpriced}`);
+    }
   }
-  if (models.some(([, m]) => m.basis === "managed")) lines.push("At your organisation's rates.");
-  if (cost.metered === false) {
-    lines.push("On a claude.ai plan this is the list price of what was used, not what you pay.");
-  }
-  lines.push("It moves when a turn finishes.");
   return lines.join("\n");
 }
 
@@ -101,13 +99,9 @@ function resetText(name: WindowName, at: number): string {
 
 export function windowTooltip(name: WindowName, reading: LimitWindow | null, now: number): string {
   const { title, period } = WINDOWS[name];
-  if (reading === null) {
-    return `${title}: no reading yet. Claude Code reports one after a request, on a claude.ai plan.`;
-  }
+  if (reading === null) return `${title}: no reading yet`;
   if (reading.resetsAt === null) {
-    return reading.used === 0
-      ? `${title}: reset; the next request starts a new window`
-      : `${title}: ${percentUsed(reading)}% used`;
+    return reading.used === 0 ? `${title}: reset` : `${title}: ${percentUsed(reading)}% used`;
   }
   const lines = [
     `${title}: ${percentUsed(reading)}% used, resets ${resetText(name, reading.resetsAt)}`,
@@ -115,9 +109,7 @@ export function windowTooltip(name: WindowName, reading: LimitWindow | null, now
   const pace = projected(reading, period, now);
   if (pace !== null) {
     lines.push(
-      pace >= 1
-        ? "At this pace it runs out before then"
-        : `At this pace, about ${Math.round(pace * 10) * 10}% by then`,
+      pace >= 1 ? "Pace: runs out before reset" : `Pace: ~${Math.round(pace * 10) * 10}% at reset`,
     );
   }
   return lines.join("\n");

@@ -25,7 +25,7 @@ no new plans. Update the plan before writing code; log status there, not here.
   `Atomics.wait` rather than making `install` async. Carries a negative result worth not
   re-proposing: a content check on the bundle's tail was evidenced against the corpus and rejected,
   because a rule that fits today's bundler refuses every install the day it changes.
-- [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D129.
+- [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D130.
 
 The internals, for a contributor to Rigline itself. The shape, not the argument — the argument is in
 decisions.md, and each doc cites the decisions it rests on.
@@ -262,6 +262,10 @@ reading it on npm, not for us — say what changed for them, not which function 
 `pnpm release <increment>` cuts and pushes a version — changelog, manifests, commit, tag — and
 `pnpm release:finish` approves it; the release refuses a version the changelog has no section for.
 [docs/releasing.md](docs/releasing.md) is the runbook.
+
+**Panel text states; the docs explain (D130).** A first-party pill, tooltip or menu item says what
+is there, for a person who reads it daily. What it means and when it changes go in the plugin's
+README.
 
 **Until 1.0.0 ships, compatibility with an earlier alpha is not a reason against a design.**
 stability.md binds from 1.0.0. Choose the right shape, and where a person's files need it, migrate
