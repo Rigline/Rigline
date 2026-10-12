@@ -12,7 +12,7 @@ composer's controls.
 - **On a claude.ai plan** the figure is the list price of what the session used, not what you pay,
   so it reads `~$1.23` and the tooltip says so. With an API key, Console or a cloud provider it
   reads `$1.23`.
-- **The five-hour and weekly limits**: `5h 42%` and `7d 18%`, the same windows the panel's own
+- **The five-hour and weekly limits**: `5h: 42%` and `7d: 18%`, the same windows the panel's own
   *Account & usage* bars show. The number is how much is used now. The colour is where the window
   is heading at this pace: green, then yellow once it is heading past 80%, then red once it would
   run out before it resets. Until a tenth of the window has gone, the colour follows what is used

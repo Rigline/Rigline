@@ -73,7 +73,7 @@ describe("costTooltip", () => {
   });
 
   it("says what it is waiting for", () => {
-    expect(costTooltip(cost({ usd: null }))).toContain("first turn");
+    expect(costTooltip(cost({ usd: null }))).toContain("a turn that carries cost data");
   });
 });
 

@@ -52,7 +52,7 @@ export function costLabel(cost: SessionCost): string {
 }
 
 export function costTooltip(cost: SessionCost): string {
-  if (cost.usd === null) return "Session cost: waiting for the first turn to finish";
+  if (cost.usd === null) return "Session cost: waiting for a turn that carries cost data";
   const lines = [`Session cost: ${money(cost.usd)}, Claude Code's estimate`];
   const models = Object.entries(cost.models).sort(([, a], [, b]) => b.usd - a.usd);
   if (models.length > 1) lines.push(...models.map(([model, m]) => `${model}: ${money(m.usd)}`));
@@ -157,9 +157,12 @@ function LimitPill({ name, limits, cost }: LimitPillProps): ReactNode {
   const { short, period } = WINDOWS[name];
   return (
     <Pill muted={reading === null} title={windowTooltip(name, reading, now)}>
-      {short}{" "}
-      <span style={{ color: reading === null ? undefined : COLOURS[band(reading, period, now)] }}>
-        {reading === null ? "–" : percentUsed(reading)}%
+      {/* One inline span: the pill is a flex container, which drops a space between its items. */}
+      <span>
+        {short}:{" "}
+        <span style={{ color: reading === null ? undefined : COLOURS[band(reading, period, now)] }}>
+          {reading === null ? "–" : percentUsed(reading)}%
+        </span>
       </span>
     </Pill>
   );

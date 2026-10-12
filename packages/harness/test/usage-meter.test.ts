@@ -47,9 +47,11 @@ function send(page: Page, how: "pushRecord" | "push", message: unknown): Promise
   );
 }
 
+/** As rendered: `textContent` keeps a space the pill's flex layout drops. */
 function waitForText(page: Page, element: string, text: string): Promise<unknown> {
   return page.waitForFunction(
-    ({ selector, text }) => document.querySelector(selector)?.textContent === text,
+    ({ selector, text }) =>
+      (document.querySelector(selector) as HTMLElement | null)?.innerText === text,
     { selector: pill(element), text },
   );
 }
@@ -67,8 +69,8 @@ describe.skipIf(skip !== null)(
       const booted = await boot({ plugins: [plugin as FixturePlugin] });
       try {
         await waitForText(booted.page, "cost", "$–");
-        await waitForText(booted.page, "five-hour", "5h –%");
-        await waitForText(booted.page, "seven-day", "7d –%");
+        await waitForText(booted.page, "five-hour", "5h: –%");
+        await waitForText(booted.page, "seven-day", "7d: –%");
         const inRow = await booted.page.evaluate(
           (selectors) =>
             selectors.every(
@@ -99,8 +101,8 @@ describe.skipIf(skip !== null)(
             },
           },
         });
-        await waitForText(booted.page, "five-hour", "5h 42%");
-        await waitForText(booted.page, "seven-day", "7d 18%");
+        await waitForText(booted.page, "five-hour", "5h: 42%");
+        await waitForText(booted.page, "seven-day", "7d: 18%");
         const title = await booted.page.evaluate(
           (selector) => (document.querySelector(selector) as HTMLElement | null)?.title ?? "",
           pill("five-hour"),
