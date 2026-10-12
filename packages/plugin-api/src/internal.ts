@@ -19,6 +19,8 @@ export {
   undeclaredUse,
   unusedDeclaration,
 } from "./capabilities/index.ts";
+export type { CostReading } from "./cost.ts";
+export { AUTH_TYPES, authStatusOf, costReading, meteredOf, UNKNOWN_COST } from "./cost.ts";
 export type { AnchorSlot, ElementSpec, Elements, Placement, ZoneSpec } from "./elements.ts";
 export {
   ELEMENT_ID_PATTERN,
@@ -64,6 +66,15 @@ export {
   withOrder,
   withRigline,
 } from "./layout.ts";
+export type { RawWindow, RawWindows } from "./limits.ts";
+export {
+  identityChanged,
+  identityOf,
+  limitsAt,
+  mergeWindows,
+  nextReset,
+  UNKNOWN_LIMITS,
+} from "./limits.ts";
 export type { ValidManifest } from "./manifest.ts";
 export {
   byteLength,

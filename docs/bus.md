@@ -235,6 +235,21 @@ given one, and the panel's own arithmetic over the `result`'s `modelUsage` other
 a channel starts, after a compaction and when `system/init`'s model changes, one at a time. From a
 compaction to the next reading the usage is *stale*. The pure half is `plugin-api/src/usage.ts`.
 
+**Cost** (`ctx.onSessionCost`). What the panel's session has cost, by Claude Code's own estimate
+(D129). The service follows the channel the way the context service does, in `kernel/channel.ts`,
+and reads each top-level `result`: `total_cost_usd` is the CLI's running total, restated in full
+each time, so the latest wins and nothing is summed. A new channel starts from nothing, since a
+reopened panel's history carries no cost. `metered` is read from the auth status that
+`init_response`, `update_state` and `login_response` carry. The pure half is
+`plugin-api/src/cost.ts`.
+
+**Limits** (`ctx.onUsageLimits`). How much of the plan's five-hour and weekly windows is used
+(D129). The source is `panel_usage_update`, an inbound request on channel `""` that the extension
+pushes to every panel. It is merged as the panel merges it: a window sent as `null` is deleted, one
+left out is kept, and one without `resetsAt` never replaces one with. A window past its reset reads
+as used 0, on a timer of the service's own. A change of signed-in identity clears the windows,
+because the panel clears its own then. The pure half is `plugin-api/src/limits.ts`.
+
 ## Rates
 
 `outbound`, `inbound`, `tapClone`, `resend` and `ask` each carry a per-second peak and when it happened, as

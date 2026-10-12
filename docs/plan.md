@@ -56,7 +56,7 @@ pnpm workspace, TypeScript throughout, every package a real package with its own
 
 | path | package | what it is |
 | --- | --- | --- |
-| `packages/core` | `@rigline/core` | Node library: locate installed extensions, harvest identifier layers, generate types and runtime tables, inject and restore, discover plugins and bake the registry, run the install flow, watch for updates, hold the curated anchor table. Ships `dist/bundled` — the payload and the five first-party plugins (D71) — so it is what a published install injects from. The CLI and the companion both run it as a child process (D69, D80). |
+| `packages/core` | `@rigline/core` | Node library: locate installed extensions, harvest identifier layers, generate types and runtime tables, inject and restore, discover plugins and bake the registry, run the install flow, watch for updates, hold the curated anchor table. Ships `dist/bundled` — the payload and the six first-party plugins (D71) — so it is what a published install injects from. The CLI and the companion both run it as a child process (D69, D80). |
 | `packages/cli` | `rigline` | The retrieval layer (D69, D106): installs `@rigline/core` under `<RIGLINE_HOME>/engine`, spawns its `rigline-engine` bin, and forwards every verb; `update` moves the engine first. Answers `--version` itself, and says when a newer wrapper is out. Depends on no Rigline package, and belongs in no project's dependencies. |
 | `packages/host` | `@rigline/host` (private) | The injected runtime: `pre.js` (bus tap, buffer, rewrite chain, React devtools hook, meters) and `post.js` (kernel plus capability modules), and `runtime/`, the React plugins import (D87). |
 | `packages/plugin-api` | `@rigline/plugin-api` | What a plugin is written against: `PluginContext`, the manifest type and JSON schema, `definePlugin`, the anchor names, and the pure helpers shared by host and core (capability contracts, session rule, stream shape, transcript derivations). |
@@ -67,6 +67,7 @@ pnpm workspace, TypeScript throughout, every package a real package with its own
 | `plugins/worktree` | first-party plugin | Worktree prefix on the session tab label, and the worktree as a pill, with a full-name pill that starts off; declares the worktree-list host patch. |
 | `plugins/time-marks` | first-party plugin | Clock times and pause dividers on transcript rows. |
 | `plugins/context-meter` | first-party plugin | How full the context is, as a bar under the composer and a percentage in its footer. |
+| `plugins/usage-meter` | first-party plugin | What the session has cost and how much of the plan's limits is used, as pills under the composer. |
 | `plugins/probe` | first-party plugin | The live integration harness: a check per capability, and the diagnostics in Rigline's menu. |
 | `docs/` | | Plan, decisions, topic docs, authoring guide, archive. |
 
@@ -97,10 +98,11 @@ carries: its manifest key and schema fragment; its expansion into identifier-lay
 the sentence `describeUses` prints; the runtime grant that builds its slice of `ctx` for one plugin;
 its diagnostics; and its probe check. The `post.js` kernel loads the registry, checks declarations,
 builds each plugin's `ctx` by asking every capability module for its slice, and isolates failures.
-The twelve: `classes` (raw `cls`), `anchors` (curated), `messages` (`onMessage`), `mount` (`mount`,
+The fourteen: `classes` (raw `cls`), `anchors` (curated), `messages` (`onMessage`), `mount` (`mount`,
 `mountAfter`, `mountBefore`, `watch`), `style`, `rewrites` (`rewrite`, `resend`), `tools`
 (`onToolUse`, `onToolResult`), `session` (`onSessionId`), `transcript` (`decorateTranscript`),
-`menu` (`menu`, D88), `context` (`onContextUsage`, D121), and `surface`.
+`menu` (`menu`, D88), `context` (`onContextUsage`, D121), `cost` (`onSessionCost`, D129), `limits`
+(`onUsageLimits`, D129), and `surface`.
 
 **Anchors** (core table; names flow to plugin-api). The curated map from a stable name to a
 module-scoped class and the selector it resolves to: `modelPill` is `{ module: "gGYT1w", local:
@@ -208,7 +210,7 @@ local directory during development. The version-specific half (identifier tables
 anchors) is derived on the installing machine from the bundle in front of it, so there is no version
 matrix to ship, and no published type union doubles as an extension-version pin (D40).
 
-**The five first-party plugins are not among those npm packages**: they ship inside `@rigline/core`
+**The six first-party plugins are not among those npm packages**: they ship inside `@rigline/core`
 as bundled assets and are discovered in place, versioned with the engine (D71, D72). They are the
 product rather than demonstrations of it, so a default install has them, and an update to Rigline is
 an update to them. Installing your own of the same name shadows one, which is the escape hatch;
@@ -610,3 +612,7 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   the tray as "not showing" (D128). Proven in the harness, and read live.
 - 2026-10-07: The layout harness reads a drag's geometry from a layout that has stood still, which a
   loaded machine showed it did not; and a harness wait that hangs fails naming what it waited for.
+- 2026-10-12: `usage-meter`, a sixth bundled plugin, on two new capabilities. `cost` carries Claude
+  Code's own estimate of the session's cost. `limits` carries the plan's five-hour and weekly
+  windows, from the extension's `panel_usage_update`. Rigline asks for neither (D129). Proven in the
+  harness; the live reads are next.

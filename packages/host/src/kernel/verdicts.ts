@@ -408,6 +408,44 @@ export function contextUsageVerdict(
   };
 }
 
+/** A `result` has said what the session has cost, once some plugin here follows the cost. */
+export function sessionCostVerdict(
+  used: boolean,
+  cost: { readonly usd: number | null; readonly metered: boolean | null },
+  stats: { readonly results: number },
+): CheckVerdict {
+  if (!used) return { verdict: "n/a", detail: "no plugin here follows the cost" };
+  if (cost.usd === null) return { verdict: "n/a", detail: "no result on this channel yet" };
+  const billing =
+    cost.metered === null ? "billing not known" : cost.metered ? "metered" : "on a plan";
+  const results = `${stats.results} result${stats.results === 1 ? "" : "s"}`;
+  return { verdict: "pass", detail: `$${cost.usd.toFixed(2)} from ${results}, ${billing}` };
+}
+
+/** A usage window has arrived, once some plugin here follows the plan's limits. */
+export function usageLimitsVerdict(
+  used: boolean,
+  limits: {
+    readonly fiveHour: { readonly used: number } | null;
+    readonly sevenDay: { readonly used: number } | null;
+  },
+  stats: { readonly updates: number },
+): CheckVerdict {
+  if (!used) return { verdict: "n/a", detail: "no plugin here follows the usage limits" };
+  const read = [
+    ["5h", limits.fiveHour],
+    ["7d", limits.sevenDay],
+  ] as const;
+  const known = read.flatMap(([name, w]) => (w ? [`${name} ${Math.round(w.used * 100)}%`] : []));
+  if (known.length === 0) {
+    return {
+      verdict: "n/a",
+      detail: `no window from ${stats.updates} updates; none come for an API key or a cloud provider`,
+    };
+  }
+  return { verdict: "pass", detail: known.join(", ") };
+}
+
 /** A session id has arrived, once some plugin on this surface is following one. */
 export function sessionIdVerdict(used: boolean, id: string | null): CheckVerdict {
   if (!used) return { verdict: "n/a", detail: "no plugin here follows the session" };

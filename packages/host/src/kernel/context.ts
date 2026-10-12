@@ -1,9 +1,8 @@
 /**
  * How full the panel's session's context is, derived once for every plugin that asks (D121).
  *
- * Follows one channel: the last `launch_claude` the panel sent, or the first `io_message` channel
- * when no launch has been seen. A new channel starts from nothing. Tapped on first use, as the
- * session and tool services are.
+ * Follows the panel's channel (`channel.ts`); a new one starts from nothing. Tapped on first use,
+ * as the session and tool services are.
  *
  * The limit is Claude Code's own answer to `get_context_usage` where it has given one, and the
  * panel's formula over the main model's window otherwise. It asks when a channel starts, after a
@@ -15,13 +14,13 @@ import {
   contextAnswer,
   contextReading,
   formulaLimit,
-  ioChannel,
   type MessageTokens,
   type ModelWindow,
   mergeTokens,
   UNKNOWN_USAGE,
 } from "@rigline/plugin-api/internal";
 import type { Bus } from "./bridge.ts";
+import { followChannel } from "./channel.ts";
 
 /** The one request the host asks, and its reply, both of which must be harvested (D120). */
 const ASK = "get_context_usage";
@@ -128,45 +127,39 @@ export function createContextService(bus: Bus, messageTypes: readonly string[]):
     ask();
   }
 
+  function record(payload: unknown): void {
+    const reading = contextReading(payload);
+    if (reading === null) return;
+    switch (reading.kind) {
+      case "tokens":
+        readings++;
+        tokens = mergeTokens(tokens, reading);
+        if (reading.model !== null) servedModel = reading.model;
+        stale = false;
+        break;
+      case "windows":
+        windows = reading.windows;
+        break;
+      case "model":
+        if (mainModel !== null && reading.model !== mainModel) {
+          answered = null;
+          wanted = true;
+        }
+        mainModel = reading.model;
+        break;
+      case "compacted":
+        stale = true;
+        wanted = true;
+        break;
+    }
+    publish();
+    ask();
+  }
+
   function tap(): void {
     if (tapped) return;
     tapped = true;
-    bus.on("launch_claude", (payload) => {
-      const next = (payload as { channelId?: unknown }).channelId;
-      if (typeof next === "string" && next !== channel) start(next);
-    });
-    bus.on("io_message", (payload) => {
-      const on = ioChannel(payload);
-      if (on === null) return;
-      if (channel === null) start(on);
-      if (on !== channel) return;
-      const reading = contextReading(payload);
-      if (reading === null) return;
-      switch (reading.kind) {
-        case "tokens":
-          readings++;
-          tokens = mergeTokens(tokens, reading);
-          if (reading.model !== null) servedModel = reading.model;
-          stale = false;
-          break;
-        case "windows":
-          windows = reading.windows;
-          break;
-        case "model":
-          if (mainModel !== null && reading.model !== mainModel) {
-            answered = null;
-            wanted = true;
-          }
-          mainModel = reading.model;
-          break;
-        case "compacted":
-          stale = true;
-          wanted = true;
-          break;
-      }
-      publish();
-      ask();
-    });
+    followChannel(bus, { start, record });
   }
 
   return {

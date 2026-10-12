@@ -28,6 +28,7 @@ export type {
   Teardown,
 } from "./context.ts";
 export { definePlugin } from "./context.ts";
+export type { CostBasis, ModelCost, SessionCost } from "./cost.ts";
 export type { DeclaredElement, DeclaredPlacement, SlotPosition, ZoneName } from "./elements.ts";
 export type {
   MessageType,
@@ -36,6 +37,7 @@ export type {
   OutboundFields,
   RiglineIdentifiers,
 } from "./identifiers.ts";
+export type { LimitWindow, UsageLimits } from "./limits.ts";
 export type { DeclaredUses, HostPatch, Manifest } from "./manifest.ts";
 export type { Store } from "./store.ts";
 export { store, storeFrom } from "./store.ts";

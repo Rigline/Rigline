@@ -1,0 +1,31 @@
+{
+  "$schema": "node_modules/@rigline/plugin-api/schema/manifest.json",
+  "api": 1,
+  "name": "usage-meter",
+  "description": "What the session has cost, as Claude Code estimates it, and how much of the plan's five-hour and weekly limits is used, each coloured by where it is heading.",
+  "entry": "dist/index.js",
+  "surfaces": ["editor", "sidebar"],
+  "uses": {
+    "cost": true,
+    "optional": {
+      "limits": true
+    }
+  },
+  "elements": {
+    "cost": {
+      "title": "Session cost",
+      "placements": ["rigRow", { "anchor": "footerSpacer", "at": "before" }],
+      "default": "rigRow"
+    },
+    "five-hour": {
+      "title": "Five-hour limit",
+      "placements": ["rigRow", { "anchor": "footerSpacer", "at": "before" }],
+      "default": "rigRow"
+    },
+    "seven-day": {
+      "title": "Weekly limit",
+      "placements": ["rigRow", { "anchor": "footerSpacer", "at": "before" }],
+      "default": "rigRow"
+    }
+  }
+}

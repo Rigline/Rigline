@@ -47,10 +47,11 @@ touches. Then reload the window from the Command Palette with *Developer: Reload
 report asks for: the first install also patches the extension host, and only a window reload starts
 it again.
 
-*Diagnostics*, in the menu behind the `RIG` pill, tells you whether all of it is working. Five
+*Diagnostics*, in the menu behind the `RIG` pill, tells you whether all of it is working. Six
 plugins come with it and are switched on: the **session-id** pill in the composer footer, **time
 marks** on transcript rows, the **worktree prefix** on session tab labels, the **context meter**
-under the composer, and the **probe**, which
+and the **usage meter**, for the session's cost and your plan's limits, under the composer, and the
+**probe**, which
 tests Rigline's plugin API live and adds its lines to *Diagnostics*. `rigline list` names them;
 `rigline disable NAME` switches one off. `rigline layout` shows
 where each plugin's pills sit in the panel, and moves, orders or hides them. Every setting is in one

@@ -26,7 +26,7 @@ request we make of authors. So any of these is one:
 - a plugin installed from npm whose bytes are not the ones the registry's integrity hash names;
 - a layout save accepted from a link that did not come from a panel on the same machine.
 
-So is anything in Rigline's own packages, the companion extension or the four bundled plugins that
+So is anything in Rigline's own packages, the companion extension or the bundled plugins that
 exposes a person's credentials, conversations or files.
 
 A plugin doing what a person at the panel can do — sending a prompt, opening a file or a link — is

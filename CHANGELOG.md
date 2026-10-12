@@ -11,6 +11,20 @@ hole, or raises the Node or VS Code it needs, its entry says so.
 
 ## Unreleased
 
+### Added
+
+- A sixth bundled plugin, `usage-meter`, with three pills under the composer.
+  - **Session cost**: Claude Code's own estimate of what the session has cost so far. On a claude.ai
+    plan it reads `~$1.23`, since that is the list price of what was used and not what you pay.
+  - **Five-hour and weekly limits**: how much of your plan's limits is used, the same windows as the
+    panel's *Account & usage* bars. Each is coloured by where it is heading at its present pace, so
+    red means it would run out before it resets.
+  - Rigline asks Claude Code for none of it: both are messages the panel already receives.
+- `@rigline/plugin-api`: `uses.cost` and `ctx.onSessionCost`, what the session has cost by Claude
+  Code's estimate, in total and by model, and whether the account pays per token.
+- `@rigline/plugin-api`: `uses.limits` and `ctx.onUsageLimits`, how much of the plan's five-hour and
+  weekly limits is used, and when each resets.
+
 ## 1.0.0 — 2026-10-07
 
 The first stable release. Every 1.x keeps what

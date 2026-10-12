@@ -28,7 +28,9 @@ import { MODULES } from "./capabilities/index.ts";
 import { type Bridge, bridge as findBridge, type PluginStatus } from "./kernel/bridge.ts";
 import { createCheckService, HOST, kernelChecks } from "./kernel/checks.ts";
 import { createContextService } from "./kernel/context.ts";
+import { createCostService } from "./kernel/cost.ts";
 import { createLayoutEditor } from "./kernel/layout.ts";
+import { createLimitsService } from "./kernel/limits.ts";
 import { guardLinks } from "./kernel/links.ts";
 import { createMountService } from "./kernel/mounts.ts";
 import { createRecorder } from "./kernel/record.ts";
@@ -386,6 +388,8 @@ async function main(): Promise<void> {
     session: createSessionService(bus),
     tools: createToolService(bus),
     context: createContextService(bus, tables.messageTypes),
+    cost: createCostService(bus),
+    limits: createLimitsService(bus),
     transcript: createTranscriptService(
       bus,
       react,

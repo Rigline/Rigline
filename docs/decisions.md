@@ -3293,3 +3293,61 @@ plugin API for the mode's own guarantee, which would then hold only for plugins 
 
 **Amends D95:** the tray holds the elements with no place on this panel, not every element with
 nothing on screen.
+
+**D129. What the session has cost, and how much of the plan is used, as two host services
+(2026-10-12, Leo).** There are two places a cost can come from.
+
+- **Claude Code's own figures**, which already reach the panel.
+- **The transcripts, repriced against a price table.** This is what the terminal's status-line
+  helpers do, because they live outside the process with one JSON object per repaint.
+
+The webview can reach no transcript and no price list, and the figures it does see are better than
+any helper's. The CLI prices separately:
+
+- 5-minute and 1-hour cache writes
+- web search
+- the US-only premium
+- fast mode
+- an organisation's managed rates
+- models newer than its own table, from prices the server pushes
+
+So Rigline ships no price table and asks for nothing. It reads.
+
+- **`uses.cost` grants `ctx.onSessionCost`**, handing `{ usd, models, metered }`.
+  - `usd` is `total_cost_usd` from the latest top-level `result` on the panel's channel, chosen by
+    the context service's rule, which is now `kernel/channel.ts`. Every `result` restates the
+    running total, so the latest wins and nothing is summed.
+  - `/clear` lowers it. A resume continues from the total the transcript saved.
+  - A new channel starts from null, since the history a reopened panel loads carries no cost.
+  - `models` is `modelUsage`: each entry's cost, tokens and `costBasis`.
+  - `metered` is the panel's own auth method. It is false on a claude.ai plan, where `usd` is list
+    price rather than what is paid. It is true for `api-key`, `console` and `3p`, the extension's
+    own gate for showing session totals.
+- **`uses.limits` grants `ctx.onUsageLimits`**, handing `{ fiveHour, sevenDay }`, each
+  `{ used, resetsAt }` or null.
+  - The source is `panel_usage_update`, merged as the panel merges it. It is the extension's digest
+    of the CLI's `rate_limit_event` and of its own `get_usage` reads, and the extension pushes it
+    to every panel.
+  - At its reset a window reads as used 0 with no reset time, as the panel's bars read it. A timer
+    of the host's republishes it then.
+  - A change of signed-in account clears them, as it clears the panel's. The windows belong to the
+    account, so every panel sees the same.
+- **Two capabilities, not one.** Cost is per channel, and every account has one. Limits belong to
+  the account, and only a claude.ai plan has them. A plugin may want only one, and the install
+  summary says which it reads.
+- **`cost` declares only `io_message`, an exception to P2.** The auth messages behind `metered` go
+  unlisted. Without them `metered` is null, which a plugin already handles, and refusing the plugin
+  over them would cost the figure for want of its label.
+- **Left out:**
+  - `seven_day_overage_included`. The extension fills it from the usage endpoint's one model-scoped
+    window, and the panel labels it "Fable limit", so any name for it would be a guess.
+  - Spend across sessions. It needs a store that outlives a panel, and would only ever count
+    sessions opened in one.
+  - A figure that moves during a turn, which needs a price table.
+
+`usage-meter` draws both. The cost carries a tilde on a plan. Each window is coloured by where it is
+heading at its present pace, so red means running out before the reset.
+
+Rejected: `get_usage` as a D120 ask, which would have given the per-model weekly windows and a cost
+before the first turn. It is the CLI's `usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET`,
+and answering it calls Anthropic's usage endpoint with the person's credentials.

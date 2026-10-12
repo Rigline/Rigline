@@ -76,3 +76,24 @@ export const contextContract = switchContract({
   anchors: [],
   summary: "follows how full the session's context is",
 });
+
+/**
+ * What the session has cost, from each `result`. No auth message: without one, `metered` is null
+ * (D129).
+ */
+export const costContract = switchContract({
+  key: "cost",
+  grants: ["onSessionCost"],
+  messages: ["io_message"],
+  anchors: [],
+  summary: "follows what the session has cost, as Claude Code estimates it",
+});
+
+/** The plan's usage windows, as the extension pushes them to every panel (D129). */
+export const limitsContract = switchContract({
+  key: "limits",
+  grants: ["onUsageLimits"],
+  messages: ["panel_usage_update"],
+  anchors: [],
+  summary: "follows how much of the plan's usage limits is used",
+});

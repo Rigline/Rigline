@@ -6,6 +6,8 @@ import type { CapabilityModule } from "../kernel/types.ts";
 import { anchorsModule } from "./anchors.ts";
 import { classesModule } from "./classes.ts";
 import { contextModule } from "./context.ts";
+import { costModule } from "./cost.ts";
+import { limitsModule } from "./limits.ts";
 import { menuModule } from "./menu.ts";
 import { messagesModule } from "./messages.ts";
 import { mountModule } from "./mount.ts";
@@ -27,4 +29,6 @@ export const MODULES: readonly CapabilityModule[] = [
   transcriptModule,
   menuModule,
   contextModule,
+  costModule,
+  limitsModule,
 ] as unknown as readonly CapabilityModule[];

@@ -12,7 +12,9 @@
  */
 import type { AnchorName, Surface } from "./anchors.ts";
 import type { CheckVerdict } from "./checks.ts";
+import type { SessionCost } from "./cost.ts";
 import type { MessageType, ModuleClasses, ModuleId, OutboundFields } from "./identifiers.ts";
+import type { UsageLimits } from "./limits.ts";
 import type { ToolResult, ToolUse } from "./stream.ts";
 import type { TranscriptEntry } from "./transcript.ts";
 import type { ContextUsage } from "./usage.ts";
@@ -226,6 +228,19 @@ export interface PluginContext {
    * panel's own indicator counts against. Host-derived (D121). Requires `uses.context`.
    */
   onContextUsage(handler: (usage: ContextUsage) => void): Teardown;
+
+  /**
+   * What the panel's session has cost, as Claude Code estimates it: called at once and again on
+   * every change, once per finished turn at most. Host-derived (D129). Requires `uses.cost`.
+   */
+  onSessionCost(handler: (cost: SessionCost) => void): Teardown;
+
+  /**
+   * How much of the plan's five-hour and weekly limits is used, as the panel's own usage bars read
+   * it: called at once and again on every change, including when a window resets. Account-wide, so
+   * every panel sees the same. Host-derived (D129). Requires `uses.limits`.
+   */
+  onUsageLimits(handler: (limits: UsageLimits) => void): Teardown;
 
   /**
    * Draw on every transcript entry. `build` runs once per entry whenever the entry list changes

@@ -20,12 +20,14 @@ import {
   pluginStatusVerdict,
   preHookOrderVerdict,
   reactVerdict,
+  sessionCostVerdict,
   sessionIdVerdict,
   shellVerdict,
   stylesheetsVerdict,
   tablesLoadedVerdict,
   toolCallsVerdict,
   transcriptVerdict,
+  usageLimitsVerdict,
   watchesFoundVerdict,
 } from "../src/kernel/verdicts.ts";
 
@@ -345,6 +347,55 @@ describe("contextUsageVerdict", () => {
     expect(contextUsageVerdict(true, { used: 40_000, limit: 160_000 }, formula).detail).toContain(
       "cannot be asked",
     );
+  });
+});
+
+describe("sessionCostVerdict", () => {
+  it("is n/a until a result has said what the session cost", () => {
+    expect(sessionCostVerdict(false, { usd: 1, metered: true }, { results: 1 }).detail).toContain(
+      "no plugin here",
+    );
+    expect(sessionCostVerdict(true, { usd: null, metered: false }, { results: 0 })).toEqual({
+      verdict: "n/a",
+      detail: "no result on this channel yet",
+    });
+  });
+
+  it("passes with the figure, the readings and whether it is billed", () => {
+    expect(sessionCostVerdict(true, { usd: 1.234, metered: false }, { results: 4 })).toEqual({
+      verdict: "pass",
+      detail: "$1.23 from 4 results, on a plan",
+    });
+    expect(sessionCostVerdict(true, { usd: 0.5, metered: true }, { results: 1 }).detail).toBe(
+      "$0.50 from 1 result, metered",
+    );
+    expect(sessionCostVerdict(true, { usd: 0.5, metered: null }, { results: 1 }).detail).toContain(
+      "billing not known",
+    );
+  });
+});
+
+describe("usageLimitsVerdict", () => {
+  it("is n/a until a window has arrived, and says why one may never", () => {
+    const none = { fiveHour: null, sevenDay: null };
+    expect(usageLimitsVerdict(false, none, { updates: 0 }).detail).toContain("no plugin here");
+    expect(usageLimitsVerdict(true, none, { updates: 2 })).toEqual({
+      verdict: "n/a",
+      detail: "no window from 2 updates; none come for an API key or a cloud provider",
+    });
+  });
+
+  it("passes with each window it has", () => {
+    expect(
+      usageLimitsVerdict(
+        true,
+        { fiveHour: { used: 0.42 }, sevenDay: { used: 0.18 } },
+        { updates: 1 },
+      ),
+    ).toEqual({ verdict: "pass", detail: "5h 42%, 7d 18%" });
+    expect(
+      usageLimitsVerdict(true, { fiveHour: null, sevenDay: { used: 0.18 } }, { updates: 1 }).detail,
+    ).toBe("7d 18%");
   });
 });
 

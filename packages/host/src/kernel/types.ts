@@ -20,6 +20,8 @@ import type {
 import type { Bus, Diagnostics, ReactBridge } from "./bridge.ts";
 import type { Check, CheckService } from "./checks.ts";
 import type { ContextService } from "./context.ts";
+import type { CostService } from "./cost.ts";
+import type { LimitsService } from "./limits.ts";
 import type { MountService } from "./mounts.ts";
 import type { SessionService } from "./session.ts";
 import type { ShellService } from "./shell.ts";
@@ -49,6 +51,8 @@ export interface Kernel {
   readonly session: SessionService;
   readonly tools: ToolService;
   readonly context: ContextService;
+  readonly cost: CostService;
+  readonly limits: LimitsService;
   readonly transcript: TranscriptService;
   readonly checks: CheckService;
   readonly shell: ShellService;

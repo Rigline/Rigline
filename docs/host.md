@@ -305,6 +305,8 @@ not going to install it anyway.
 | `transcript` | `true` | `decorateTranscript(build)` | `get_session_response`, `io_message`, anchor `transcriptRow` |
 | `menu` | `true` | `menu(Component)` | nothing |
 | `context` | `true` | `onContextUsage(handler)` | `io_message` |
+| `cost` | `true` | `onSessionCost(handler)` | `io_message` |
+| `limits` | `true` | `onUsageLimits(handler)` | `panel_usage_update` |
 
 `decorateTranscript` registers nothing on a surface where `transcriptRow` is measured as not
 rendering, the same reading `watch` makes of its own anchor (D68). Not merely tidy: the sweep runs on
