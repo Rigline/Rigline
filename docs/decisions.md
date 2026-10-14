@@ -3120,6 +3120,14 @@ obligation on an author rather than something the architecture holds. Activation
 form of it, and it costs a click handler nothing. The host's own launch-time application of a
 recorded default needs no activation and is not an exception, because no plugin is in that call.
 
+**Which means activation is not what keeps that path safe, and the next reader needs telling.** A
+default the host applies at launch runs with nobody present and no plugin in the call, so activation
+never engages and every other condition here is satisfied. What holds it is P9's narrower word: a
+standing instruction *they wrote*. A value reaching that path from somebody else's file — a preset,
+or anything else shared — is not theirs, and it is D131 keeping it out of the format that stops it,
+not anything in this decision. So a later session must not relax the preset side on the grounds that
+activation covers the launch flag. It does not, and it cannot.
+
 Still never `io_message`, which is a prompt, and so a turn in the person's transcript.
 
 **D121. How full the context is, as a host service, and the host's first ask (2026-10-06, Leo).**
