@@ -23,6 +23,10 @@ hole, or raises the Node or VS Code it needs, its entry says so.
   - A preset carries a layout and nothing else. It never installs a plugin and never switches one
     off: where it names a plugin you have not got, Rigline says what the file claims about where it
     comes from and leaves it to you, and the layout entry waits until you add it.
+  - In the panel: the layout editor's **Presets** button lists them, and picking one is an unsaved
+    change, so *Save* keeps it and *Revert changes* puts your layout back. A file Rigline cannot
+    read is listed with the reason, and a preset naming elements you have not got says what a save
+    there would forget. *Reload* picks up a preset you have just exported.
   - [docs/presets.md](docs/presets.md) is the whole of it.
 - A sixth bundled plugin, `usage-meter`, with three pills under the composer.
   - **Session cost**: Claude Code's own estimate of what the session has cost so far. On a claude.ai

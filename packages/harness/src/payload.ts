@@ -15,6 +15,7 @@ import {
 } from "@rigline/core";
 import {
   type AnchorName,
+  type BakedPreset,
   type Elements,
   EMPTY_USES,
   type Layout,
@@ -62,6 +63,9 @@ export interface PreparePayloadOptions {
   readonly layout?: Layout;
   /** What the panel's Save goes through, as `install` would bake it (D93). */
   readonly save?: SaveRecord | null;
+  /** The presets the editor lists, as `install` would bake them (D133). */
+  readonly presets?: readonly BakedPreset[];
+  readonly presetsOmitted?: number;
   /** Selectors written over the resolved ones, as a refinement in `anchors.json` would be. */
   readonly selectors?: Readonly<Record<string, string>>;
 }
@@ -105,6 +109,8 @@ export const plugins = ${JSON.stringify(plugins, null, 2)};
 export const patches = [];
 export const layout = ${JSON.stringify(options.layout ?? {})};
 export const save = ${JSON.stringify(options.save ?? null)};
+export const presets = ${JSON.stringify(options.presets ?? [])};
+export const presetsOmitted = ${JSON.stringify(options.presetsOmitted ?? 0)};
 `;
   writeFileSync(join(dir, "registry.js"), registrySource, "utf8");
 

@@ -88,13 +88,22 @@ Rigline keeps your comments when it reads one.
 
 ## Applying one from the panel
 
-The Rigline row's Edit button lets you drag elements about and Save when you like it, which is the
-easy way to try a layout you are unsure about. Presets in the panel are not there yet.
+The Rigline row's Edit button has a **Presets** button beside *Reset to defaults*. Pick one and you
+are looking at it: nothing is written until you press *Save*, and *Revert changes* puts your own
+layout back. That is the easy way to try one, and it costs nothing to change your mind.
 
-One thing to know when they are: a row holding only elements of a plugin you have not installed does
-not survive an edit in the panel. The row is in your file and Rigline keeps it, but the panel cannot
-show a row with nothing in it, and a Save writes what the panel shows. So if you have applied a
-preset that names a plugin you have not added, add it before you rearrange things in the panel.
+Your own presets are listed above the ones Rigline ships. A file Rigline cannot read is listed too,
+greyed out, with the reason — so a preset you have just edited by hand says what is wrong with it
+where you can see it.
+
+A preset that names elements you have not got says so on its row, because of what a save here does
+to them. The panel cannot show a row with nothing in it, so a row holding only those elements is
+not on screen, and *Save* writes what is on screen — which drops it. That is the one place the
+panel and the terminal differ: `rigline layout apply` keeps the entry and waits for the plugin.
+So if a preset names a plugin you mean to add, add it first and then rearrange things in the panel.
+
+New presets reach an open panel through *Reload*, which picks up both your layout and your list. If
+you have just run `rigline layout export`, the Rigline pill turns yellow to say so.
 
 ## When Rigline refuses a preset
 

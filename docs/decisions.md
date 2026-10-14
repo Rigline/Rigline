@@ -3421,3 +3421,79 @@ says. So `apply` refuses, by name, and writes nothing, for:
 
 An entry naming a plugin that is not installed is not refused. That is the state D92 built, and it
 is how a preset names what it wants before you have it.
+
+**D133. The preset list is baked, and one read feeds it (2026-10-14).** `install` bakes the presets
+into `registry.js` beside the layout, and the panel's edit bar lists them: picking one shows that
+layout in the working copy, which Save keeps and Revert drops. So trying a preset in the panel costs
+nothing, where from a terminal it is write, look, write back.
+
+`listPresets` is the only walk of the two preset directories. It dedupes by name with a person's own
+winning, keeps each preset whole, and records why a file it cannot read cannot be read; the bake,
+`rigline layout presets` and the panel are three consumers of that one result. Written the other way
+— the bake walking the directories itself — it needed a second skip rule, a decision to justify it,
+a bound with its own report line, and an `apply(name)` ambiguous for anybody who exported a preset
+called `minimal`, since only the dedupe makes a name unique.
+
+**An unreadable preset is carried as a row saying so**, not reported and not refused, because it is
+inert: it changes nothing until somebody applies it, and `apply` still refuses it by name with the
+reason. So it is in neither `configNotes` nor the exit code, and `check`, which bakes nothing, does
+not read presets at all. The reasoning this replaced — that a background pass carries on where a
+typed verb refuses — was wrong about this repo: a plugin whose manifest does not hold reaches
+`unloaded` and a collapsed harvest reaches `refusalLine`, and both land in `attention` and exit 1.
+`readSources` is the only exit-0 one and its reason is that the wrapper is routinely newer, which is
+the deference D132 refuses for a preset. The grain is *carry on, and exit 1 when a person must act*,
+with exit 0 for a state that is deliberate (D98).
+
+A note would also have gone nowhere. On the companion's path every report line goes to `editor.log`,
+and at exit 0 the status item is green with *Injected by engine X*; the output channel opens only
+when somebody runs a command to open it. The panel's own list is where a person is looking at
+presets, so that is where the row and its reason go, and the bound's overflow with them.
+
+Read once in `updateHeld` and threaded down on `InstallOptions`, as `config` and `anchors` are:
+`update` calls `install` per version, so a read inside it would re-walk the directories on every
+window the companion opens.
+
+**The re-read carries the presets with the layout.** It is the editor's only one, shared by Reload,
+`check` and a save's confirmation (D93, D126), so a list fixed at boot would leave Reload refreshing
+the layout and not the list — after an export in a terminal that the yellow R has just sent somebody
+to the panel for. `check` and `confirm` still compare layouts alone: a list that moved is not a
+layout that moved.
+
+Bounds are 32 of a person's own beyond the shipped ones, which are always in, and 256 KB of baked
+JSON. The first draft said 64 KB, which is smaller than one legal preset — `MAX_PRESET_BYTES` is
+64 KB per file — so a single file `apply` accepts could have pushed out every other preset somebody
+owns. What a bound leaves out is counted, not listed: a thousand rows saying "left out" would defeat
+the bound they came from.
+
+`preset.plugins` is not baked. The npm claim is only actionable in a terminal, which already prints
+it, and the panel derives which plugins a layout names. The panel row is therefore a dead end with
+no next step, which is what D131 wants it to be.
+
+**A row says the consequence, not the fact.** Where a preset names elements this panel has not got,
+the row says a save here forgets where the preset puts them. The fact alone reads as informational
+while its effect on this surface is destructive: `edit` compacts a row of only-absent elements out
+of the copy (D122) and Save writes that copy over the file — the opposite of what a terminal `apply`
+does, where the entry waits for the plugin (D92). It is worded about *this panel* rather than about
+what is installed, because the bake takes the enabled set and so cannot tell an absent plugin from a
+switched-off one; baking a second list to tell them apart would be machinery for a distinction the
+panel cannot act on.
+
+The Save fallback copies `rigline layout apply <name>` while the copy is still a preset's.
+`layoutCommands` cannot write back an entry that does not resolve, so for exactly the presets this
+warns about the commands would not reproduce what is on screen.
+
+**In the edit bar, not the RIG menu.** The menu has no baseline on screen and no Revert, so an apply
+there would change the panel with no visible way back; the bar's dirty/Save/Revert shape is
+try-then-keep already. The list keeps its own open state rather than the overlay's `opened` slot,
+which exists to close a pop-over whose anchor has moved to or from off — this button cannot move.
+
+Still a person's gesture, and no plugin may invoke an apply. Any plugin can read the Save link's
+token (D93), so a `ctx.applyPreset()` convenience would be a plugin-originated write with no
+activation behind it, which D120's amendment refuses for any write. A preset name is closed and
+enumerable, so a verb could be made to hold; nothing asks for one.
+
+Unbuilt, and its limit stated instead: a place reserved for something not installed. The file and the
+bake have the concept and the panel's layout model does not. Widening `compactRows` is not the fix —
+the panel would hold a row it must show and cannot, and `also`'s next-row target is computed from the
+shown rows, so a person's new row would merge with the reserved one. Triggered by somebody losing a
+row, which needs a third-party plugin with users.

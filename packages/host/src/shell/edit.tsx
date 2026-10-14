@@ -7,10 +7,12 @@
  * the app's DOM (D54).
  */
 import {
+  type BakedPreset,
   type Layout,
   layoutCommands,
   OFF,
   placeTitle,
+  pluginsNamed,
   rowOf,
   rowPlace,
   type Store,
@@ -21,6 +23,7 @@ import { copyText, useStore } from "@rigline/plugin-api/ui";
 import { type MenuEntry, MenuPanel } from "@rigline/plugin-api/ui/internal";
 import {
   type CSSProperties,
+  Fragment,
   type MouseEvent,
   type PointerEvent,
   type ReactNode,
@@ -105,6 +108,62 @@ export const EDIT_CSS = `
 .rigline-edit-label {
   margin-right: 4px;
   font-weight: 600;
+}
+.rigline-edit-presets {
+  position: relative;
+  display: inline-flex;
+}
+.rigline-edit-preset-list {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  box-sizing: border-box;
+  min-inline-size: 220px;
+  max-inline-size: 360px;
+  padding: 4px;
+  border: 1px solid var(--app-input-border, var(--vscode-widget-border, #7f7f7f66));
+  border-radius: var(--corner-radius-large, 8px);
+  background: var(--app-menu-background, var(--vscode-menu-background, #252526));
+  box-shadow: 0 4px 16px var(--vscode-widget-shadow, transparent);
+  text-align: left;
+}
+.rigline-edit-preset-group {
+  padding: 2px 6px;
+  opacity: 0.6;
+  font-weight: 600;
+}
+.rigline-edit-preset {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 3px 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.rigline-edit-preset:hover:not(:disabled) {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+.rigline-edit-preset:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.rigline-edit-preset[aria-current="true"] {
+  border-color: var(--vscode-focusBorder, #007fd4);
+}
+.rigline-edit-preset-about,
+.rigline-edit-preset-note {
+  opacity: 0.7;
 }
 .rigline-edit-gap {
   flex: 1;
@@ -924,6 +983,102 @@ export function EditLayer(props: EditLayerProps): ReactNode {
   );
 }
 
+/**
+ * The preset list in the edit bar (D133): pick one and it is an unsaved change, which Save keeps and
+ * Revert drops.
+ *
+ * Its own open state rather than the overlay's `opened` slot, which exists to close a pop-over whose
+ * anchor has moved to or from off. This button cannot move, so it needs none of that.
+ */
+function Presets(props: { readonly editor: LayoutEditor }): ReactNode {
+  const { editor } = props;
+  const presets = useStore(editor.presets);
+  const omitted = useStore(editor.omitted);
+  const working = useStore(editor.working);
+  const [open, setOpen] = useState(false);
+  const loaded = useStore(editor.view);
+  if (presets.length === 0) return null;
+
+  // Every loaded plugin has every one of its elements somewhere in the view, `off` included, so
+  // this set is the panel's plugins and does not move with the working copy.
+  const here = new Set(
+    loaded.flatMap((place) => place.elements.map((e) => e.name.split("/")[0] ?? "")),
+  );
+  /** The plugins a preset names that nothing on this panel answers for: absent, or switched off. */
+  const absent = (preset: BakedPreset): string[] =>
+    pluginsNamed(preset.layout).filter((name) => !here.has(name));
+
+  const groups = (["yours", "shipped"] as const).map((origin) => ({
+    origin,
+    items: presets.filter((p) => p.origin === origin),
+  }));
+
+  return (
+    <span className="rigline-edit-presets">
+      <button
+        type="button"
+        className="rigline-edit-button"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") setOpen(false);
+        }}
+      >
+        Presets
+      </button>
+      {open && (
+        <div className="rigline-edit-preset-list">
+          {groups.map(
+            (group) =>
+              group.items.length > 0 && (
+                <Fragment key={group.origin}>
+                  <span className="rigline-edit-preset-group">{group.origin}</span>
+                  {group.items.map((preset) => {
+                    const missing = absent(preset);
+                    const applied = preset.problem === null && sameLayout(working, preset.layout);
+                    return (
+                      <button
+                        key={preset.name}
+                        type="button"
+                        className="rigline-edit-preset"
+                        disabled={preset.problem !== null}
+                        aria-current={applied}
+                        title={preset.problem ?? undefined}
+                        onClick={() => {
+                          editor.apply(preset.name);
+                          setOpen(false);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Escape") setOpen(false);
+                        }}
+                      >
+                        <span className="rigline-edit-preset-name">{preset.name}</span>
+                        {preset.description !== null && (
+                          <span className="rigline-edit-preset-about">{preset.description}</span>
+                        )}
+                        {preset.problem !== null && (
+                          <span className="rigline-edit-preset-note">cannot be read</span>
+                        )}
+                        {missing.length > 0 && (
+                          <span className="rigline-edit-preset-note">
+                            {`${missing.join(", ")} ${missing.length === 1 ? "is" : "are"} not on this panel; saving here forgets where this puts ${missing.length === 1 ? "it" : "them"}`}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </Fragment>
+              ),
+          )}
+          {omitted > 0 && (
+            <span className="rigline-edit-preset-group">{`${omitted} more are not listed here`}</span>
+          )}
+        </div>
+      )}
+    </span>
+  );
+}
+
 function Bar(props: {
   readonly editor: LayoutEditor;
   readonly style: CSSProperties;
@@ -957,6 +1112,7 @@ function Bar(props: {
       <span className="rigline-edit-gap" />
       {saving !== "idle" && <span className="rigline-edit-note">{SAVE_NOTES[saving]}</span>}
       {newer && <span className="rigline-edit-note">a newer layout is saved</span>}
+      <Presets editor={editor} />
       {!sameLayout(working, {}) && (
         <button type="button" className="rigline-edit-button" onClick={() => editor.reset()}>
           Reset to defaults
@@ -986,6 +1142,7 @@ function Save(props: {
 }): ReactNode {
   const { editor, from, to } = props;
   const [copied, setCopied] = useState<boolean | null>(null);
+  const applied = useStore(editor.appliedPreset);
   const href = saveHref(editor, from, to);
   if (href !== null) {
     // Neither prevented nor stopped: VS Code acts only on a click that reaches its listener (D93).
@@ -1000,12 +1157,21 @@ function Save(props: {
       </a>
     );
   }
+  // A preset's own command, where the copy is still a preset's: `layoutCommands` cannot write
+  // back an entry that does not resolve, so for a preset naming a plugin somebody has not got
+  // the commands would not reproduce what is on screen. `layout apply` does (D133).
+  const commands =
+    applied === null ? layoutCommands(from, to).join("\n") : `rigline layout apply ${applied}`;
   return (
     <button
       type="button"
       className="rigline-edit-button rigline-edit-primary"
-      title="the rigline layout commands that save this layout, to run in a terminal"
-      onClick={() => setCopied(copyText(layoutCommands(from, to).join("\n")))}
+      title={
+        applied === null
+          ? "the rigline layout commands that save this layout, to run in a terminal"
+          : "the rigline command that applies this preset, to run in a terminal"
+      }
+      onClick={() => setCopied(copyText(commands))}
     >
       {copied === null ? "Copy commands" : copied ? "Commands copied" : "The copy failed"}
     </button>

@@ -10,6 +10,7 @@
  * setup() in its own try/catch. It knows no capability by name.
  */
 import {
+  type BakedPreset,
   type CheckVerdict,
   capabilityViolation,
   type ElementComponent,
@@ -29,7 +30,7 @@ import { type Bridge, bridge as findBridge, type PluginStatus } from "./kernel/b
 import { createCheckService, HOST, kernelChecks } from "./kernel/checks.ts";
 import { createContextService } from "./kernel/context.ts";
 import { createCostService } from "./kernel/cost.ts";
-import { createLayoutEditor } from "./kernel/layout.ts";
+import { createLayoutEditor, type SavedState } from "./kernel/layout.ts";
 import { createLimitsService } from "./kernel/limits.ts";
 import { guardLinks } from "./kernel/links.ts";
 import { createMountService } from "./kernel/mounts.ts";
@@ -155,17 +156,29 @@ interface RegistryModule {
   readonly layout?: Layout;
   /** What the panel's Save goes through (D93). Absent in a payload older than it. */
   readonly save?: SaveRecord | null;
+  /** The presets the editor lists (D133). Absent in a payload older than them. */
+  readonly presets?: readonly BakedPreset[];
+  readonly presetsOmitted?: number;
 }
 
 let reads = 0;
 
-/** The layout `registry.js` holds now, since a fresh query is a fresh read (D93). */
-async function readSavedLayout(): Promise<Layout | null> {
+/**
+ * What `registry.js` holds now, since a fresh query is a fresh read (D93).
+ *
+ * The presets come back with the layout because this is the editor's only re-read, so Reload
+ * refreshes the list a terminal's `layout export` just added (D133).
+ */
+async function readSavedState(): Promise<SavedState | null> {
   try {
     const registry = (await import(
       new URL(`./registry.js?read=${++reads}`, import.meta.url).href
     )) as RegistryModule;
-    return registry.layout ?? {};
+    return {
+      layout: registry.layout ?? {},
+      presets: registry.presets ?? [],
+      omitted: registry.presetsOmitted ?? 0,
+    };
   } catch {
     return null;
   }
@@ -354,6 +367,8 @@ async function main(): Promise<void> {
   let entries: readonly PluginRecord[] = [];
   let layout: Layout = {};
   let save: SaveRecord | null = null;
+  let presets: readonly BakedPreset[] = [];
+  let omitted = 0;
   try {
     const registry = (await import(
       new URL("./registry.js", import.meta.url).href
@@ -361,6 +376,8 @@ async function main(): Promise<void> {
     entries = (registry.plugins ?? []).map((p, order) => ({ ...p, order }));
     layout = registry.layout ?? {};
     save = registry.save ?? null;
+    presets = registry.presets ?? [];
+    omitted = registry.presetsOmitted ?? 0;
     diagnostics.hostPatches = [...(registry.patches ?? [])];
     // Carried onto diagnostics rather than left in the module, so a plugin reads it the way it
     // reads every other host-provided value and never imports the host to get it (D18, D63, D75).
@@ -374,7 +391,9 @@ async function main(): Promise<void> {
     baked: layout,
     plugins: withRigline(entries.map((p) => ({ name: p.name, elements: p.elements }))),
     save,
-    readSaved: readSavedLayout,
+    presets,
+    omitted,
+    readSaved: readSavedState,
   });
   const checks = createCheckService();
   const surface = detectSurface();

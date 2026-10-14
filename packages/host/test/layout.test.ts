@@ -3,7 +3,7 @@
  * Reload, the menu opening and a save's confirmation share. The re-read and the wait are injected,
  * so the twenty seconds a confirmation may take cost nothing here.
  */
-import type { Layout, LayoutPlugin } from "@rigline/plugin-api/internal";
+import type { BakedPreset, Layout, LayoutPlugin } from "@rigline/plugin-api/internal";
 import { describe, expect, it } from "vitest";
 import { createLayoutEditor } from "../src/kernel/layout.ts";
 
@@ -22,25 +22,45 @@ const plugins: LayoutPlugin[] = [
   },
 ];
 
+/**
+ * `saved` yields the layout a re-read finds, as every test before presets wrote it; `presets` is
+ * what the same read carries beside it, which is how Reload refreshes the list (D133).
+ */
 function editor(
   baked: Layout,
   saved: () => Layout | null = () => baked,
   wait: (ms: number) => Promise<void> = async () => {},
   now?: () => number,
+  presets: readonly BakedPreset[] = [],
+  savedPresets: () => readonly BakedPreset[] = () => presets,
 ) {
   let reads = 0;
   const made = createLayoutEditor({
     baked,
     plugins,
     save: null,
+    presets,
     readSaved: async () => {
       reads++;
-      return saved();
+      const layout = saved();
+      return layout === null ? null : { layout, presets: savedPresets(), omitted: 0 };
     },
     wait,
     now,
   });
   return { editor: made, reads: () => reads };
+}
+
+/** A preset as the registry carries it. */
+function preset(name: string, layout: Layout, extra: Partial<BakedPreset> = {}): BakedPreset {
+  return {
+    name,
+    origin: "yours",
+    description: `About ${name}.`,
+    problem: null,
+    layout,
+    ...extra,
+  };
 }
 
 const settle = () => new Promise((r) => setTimeout(r, 0));
@@ -300,5 +320,96 @@ describe("confirming a save", () => {
     expect(e.saving.get()).toBe("unconfirmed");
     expect(e.baseline.get()).toEqual({});
     expect(reads()).toBe(40);
+  });
+});
+
+describe("presets (D133)", () => {
+  it("shows the preset's layout in the working copy and leaves the baseline", () => {
+    const rows = preset("rows", { rigRow: ["session-id/address"] });
+    const { editor: e } = editor({ rigRow: ["clock/face"] }, undefined, undefined, undefined, [
+      rows,
+    ]);
+    e.apply("rows");
+    expect(e.working.get()).toEqual({ rigRow: ["session-id/address"] });
+    // Revert is what drops it, so the baseline must still be what the file holds.
+    expect(e.baseline.get()).toEqual({ rigRow: ["clock/face"] });
+  });
+
+  it("numbers the rows from one, as every other edit does (D122)", () => {
+    // The preset names row 3 and leaves nothing showing in the two above it, so the one row it
+    // does show is row one. `clock/face` has to go off for that: its default is row one.
+    const rows = preset("rows", {
+      "rigRow 3": ["session-id/address"],
+      off: ["clock/face"],
+    });
+    const { editor: e } = editor({}, undefined, undefined, undefined, [rows]);
+    e.apply("rows");
+    expect(e.working.get()).toEqual({ rigRow: ["session-id/address"], off: ["clock/face"] });
+  });
+
+  it("does nothing for a name that is not there, or one that could not be read", () => {
+    const broken = preset("broken", {}, { problem: 'has no "layout"' });
+    const { editor: e } = editor({ rigRow: ["clock/face"] }, undefined, undefined, undefined, [
+      broken,
+    ]);
+    e.apply("broken");
+    e.apply("nothing-like-this");
+    expect(e.working.get()).toEqual({ rigRow: ["clock/face"] });
+    expect(e.appliedPreset.get()).toBeNull();
+  });
+
+  it("remembers which preset the copy came from, and forgets on any other edit", () => {
+    const rows = preset("rows", { rigRow: ["session-id/address"] });
+    const { editor: e } = editor({}, undefined, undefined, undefined, [rows]);
+    e.apply("rows");
+    expect(e.appliedPreset.get()).toBe("rows");
+    // One move and the copy is no longer the preset's, so `layout apply rows` would not reproduce it.
+    e.move("clock/face", "rigRow");
+    expect(e.appliedPreset.get()).toBeNull();
+  });
+
+  it("refreshes the list on Reload, which is the editor's only re-read", async () => {
+    const mine = preset("mine", { rigRow: ["session-id/address"] });
+    const exported = preset("exported", { off: ["clock/face"] });
+    let there: readonly BakedPreset[] = [mine];
+    const { editor: e } = editor(
+      {},
+      () => ({}),
+      undefined,
+      undefined,
+      [mine],
+      () => there,
+    );
+    expect(e.presets.get().map((p) => p.name)).toEqual(["mine"]);
+    // `rigline layout export exported` in a terminal, which re-injects behind the panel.
+    there = [mine, exported];
+    await e.reload();
+    expect(e.presets.get().map((p) => p.name)).toEqual(["mine", "exported"]);
+  });
+
+  it("carries how many a bound left out, and clears the applied name on Reload", async () => {
+    const rows = preset("rows", { rigRow: ["session-id/address"] });
+    const { editor: e } = editor({}, () => ({}), undefined, undefined, [rows]);
+    e.apply("rows");
+    expect(e.appliedPreset.get()).toBe("rows");
+    await e.reload();
+    expect(e.appliedPreset.get()).toBeNull();
+    expect(e.omitted.get()).toBe(0);
+  });
+
+  it("is not what `newer` is about: a list that moved is not a layout that moved (D126)", async () => {
+    const mine = preset("mine", { rigRow: ["session-id/address"] });
+    let there: readonly BakedPreset[] = [];
+    const { editor: e } = editor(
+      {},
+      () => ({}),
+      undefined,
+      undefined,
+      [],
+      () => there,
+    );
+    there = [mine];
+    await e.check();
+    expect(e.newer.get()).toBe(false);
   });
 });

@@ -7,7 +7,7 @@
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { Layout, SaveRecord } from "@rigline/plugin-api/internal";
+import type { BakedPreset, Layout, SaveRecord } from "@rigline/plugin-api/internal";
 import type { Page } from "playwright";
 import { describe, expect, it } from "vitest";
 import type { FixturePlugin } from "../src/payload.ts";
@@ -962,6 +962,126 @@ describe.skipIf(skip !== null)(`Rigline's own elements${skip ? ` (${skip})` : ""
       await page.click(reload);
       await page.waitForSelector(".deck-one", { state: "detached" });
       expect(await page.locator(".rigline-edit-handle").count()).toBe(0);
+    } finally {
+      await booted.close();
+    }
+  }, 30000);
+});
+
+describe.skipIf(skip !== null)(`presets in the panel${skip ? ` (${skip})` : ""}`, () => {
+  const boot = register(VERSION);
+
+  const twoRows: BakedPreset = {
+    name: "two-rows",
+    origin: "shipped",
+    description: "Two rows.",
+    problem: null,
+    layout: { rigRow: ["deck/one"], "rigRow 2": ["deck/three"] },
+  };
+  const mine: BakedPreset = {
+    name: "mine",
+    origin: "yours",
+    description: "Mine.",
+    problem: null,
+    layout: { off: ["deck/one", "deck/two"] },
+  };
+
+  it("applies one as an unsaved change that Revert drops, against the real bundle", async () => {
+    const booted = await boot({ plugins: [deck], presets: [twoRows, mine], save: COMPANION });
+    const { page } = booted;
+    try {
+      await enterEditing(page);
+      const bar = page.locator(".rigline-edit-bar");
+      // Before: deck/one is in the footer slot, where the fixture's manifest puts it.
+      await page.waitForSelector('[data-rigline-slot="deck/one"] .deck-one');
+
+      await bar.getByRole("button", { name: "Presets" }).click();
+      await page.getByRole("button", { name: /^two-rows/ }).click();
+
+      // The pills moved, and a second row exists for the one the preset put there.
+      await page.waitForSelector('[data-rigline-zone="rigRow"] .deck-one');
+      await page.waitForSelector('[data-rigline-zone="rigRow 2"] .deck-three');
+      // Save appears, because the copy now differs from the baseline.
+      await bar.getByRole("link", { name: "Save" }).waitFor();
+
+      await bar.getByRole("button", { name: "Revert changes" }).click();
+      await page.waitForSelector('[data-rigline-slot="deck/one"] .deck-one');
+      // deck/three is off by default, so Revert switching it back off is the claim; an empty
+      // trailing row stays on screen in edit mode as the next row to drop into.
+      await page.waitForSelector(".deck-three", { state: "detached" });
+    } finally {
+      await booted.close();
+    }
+  }, 30000);
+
+  it("groups yours above shipped, and says what a preset would forget here", async () => {
+    // `gone` is in no fixture, so nothing on this panel answers its entry.
+    const borrowed: BakedPreset = {
+      name: "borrowed",
+      origin: "yours",
+      description: "From a stranger.",
+      problem: null,
+      layout: { rigRow: ["deck/one"], "rigRow 2": ["gone/pill"] },
+    };
+    const broken: BakedPreset = {
+      name: "broken",
+      origin: "yours",
+      description: null,
+      problem: 'has no "layout", so it is not a preset',
+      layout: {},
+    };
+    const booted = await boot({
+      plugins: [deck],
+      presets: [twoRows, borrowed, broken],
+      presetsOmitted: 4,
+      save: COMPANION,
+    });
+    const { page } = booted;
+    try {
+      await enterEditing(page);
+      const bar = page.locator(".rigline-edit-bar");
+      await bar.getByRole("button", { name: "Presets" }).click();
+
+      const groups = page.locator(".rigline-edit-preset-group");
+      expect(await groups.first().textContent()).toBe("yours");
+      // The bound's overflow is a line in the list, not a note in a log nobody opens.
+      expect(await groups.last().textContent()).toContain("4 more");
+
+      // The consequence, not the fact: on this surface a save drops the row.
+      const row = page.getByRole("button", { name: /^borrowed/ });
+      expect(await row.textContent()).toContain("gone is not on this panel");
+      expect(await row.textContent()).toContain("saving here forgets");
+
+      // An unreadable file is a row saying so, and cannot be picked.
+      const bad = page.getByRole("button", { name: /^broken/ });
+      expect(await bad.textContent()).toContain("cannot be read");
+      expect(await bad.isDisabled()).toBe(true);
+    } finally {
+      await booted.close();
+    }
+  }, 30000);
+
+  it("copies the preset's own command where there is no companion to save through", async () => {
+    const booted = await boot({ plugins: [deck], presets: [mine], save: null });
+    const { page } = booted;
+    try {
+      await enterEditing(page);
+      const bar = page.locator(".rigline-edit-bar");
+      await bar.getByRole("button", { name: "Presets" }).click();
+      await page.getByRole("button", { name: /^mine/ }).click();
+      await page.evaluate(() => {
+        document.execCommand = () => {
+          (window as unknown as { __copied: string }).__copied = (
+            document.activeElement as HTMLTextAreaElement
+          ).value;
+          return true;
+        };
+      });
+      // `layoutCommands` cannot write back an entry that does not resolve; `layout apply` can.
+      await bar.getByRole("button", { name: "Copy commands" }).click();
+      expect(await page.evaluate(() => (window as unknown as { __copied: string }).__copied)).toBe(
+        "rigline layout apply mine",
+      );
     } finally {
       await booted.close();
     }

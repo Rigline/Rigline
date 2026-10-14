@@ -18,7 +18,7 @@ For every installed extension directory `anthropic.claude-code-<version>-<platfo
                                  and @rigline/plugin-api/ui (D87) — and shell.js (D88)
     webview/rigline/generated.js the identifier tables harvested from this directory's bundles
     webview/rigline/registry.js  the enabled plugins, their declarations, patch outcomes, the layout,
-                                 and what Save goes through (D93)
+                                 what Save goes through (D93), and the presets (D133)
     webview/rigline/plugins/<name>/…   each enabled plugin's directory, tests excluded, its entry's
                                        runtime imports pointed at runtime/
 
@@ -185,8 +185,20 @@ Nothing can push into a panel, so everything it learns about the file it pulls, 
 the menu opens or edit mode starts, to say a newer layout is saved; when the person comes back to the
 panel — the window's `focus`, the document turning visible, the pointer entering it — at most every
 30 seconds and only until one is found (D126); and for Reload, which shows that layout in place.
+
+That read carries the presets with the layout, since it is the only one: Reload refreshes both, so a
+preset just exported in a terminal appears (D133). Only the layout decides whether a newer one is
+saved — a list that moved is not a layout that moved.
 Each read keeps its module for the panel's life, which is why nothing reads on a clock. A confirmed save says so for a moment and then goes, closing edit mode unless the
 copy has moved since (D125).
+
+The edit bar's **Presets** button lists what `install` baked, a person's own above the shipped ones.
+Picking one shows that layout in the working copy, so Save keeps it and *Revert changes* drops it; a
+file that could not be read is a disabled row carrying its reason, and a preset naming elements this
+panel has not got says that a save here forgets where it puts them (D133). The list keeps its own
+open state rather than the overlay's `opened` slot, which is there to close a pop-over whose anchor
+has moved to or from off. While the copy is still a preset's, the no-companion fallback copies
+`rigline layout apply <name>` instead of the commands, which cannot write back an unresolved entry.
 
 Rigline's own elements, `rigline/edit` and `rigline/reload`, are bound once `shell.js` has loaded,
 from the components it exports as `riglineElements`, at a registry order after every plugin's (D97).
@@ -409,7 +421,13 @@ export const plugins = [
 ];
 export const patches = [{ plugin, why, required, applied, reason? }];
 export const layout = { "<place>": ["<plugin>/<element>", ...] };
+export const presets = [{ name, origin, description, problem, layout }];
+export const presetsOmitted = 0;
 ```
+
+`presets` is every preset `listPresets` found, shipped and a person's own, each name once and each
+carrying why it could not be read where it could not (D133). `presetsOmitted` counts those a bound
+left out, which the list says in a line rather than in a row each.
 
 `layout` is `config.yaml`'s, as written, entries that do not resolve included (D92). The shell
 resolves each element against it as `ctx.element` binds it, with `placeElement` from `plugin-api`,

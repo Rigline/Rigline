@@ -618,4 +618,6 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   harness; the live reads are next.
 - 2026-10-14: Layout presets, the CLI half: `layout presets`, `apply`, `export` and `undo`, three
   shipped presets, and a reader that refuses where the config reader carries forward (D131, D132).
-  The panel half is not built, and D131 records the concept it needs.
+- 2026-10-14: Presets in the panel: baked into the registry off the one directory read, listed in the
+  edit bar, and applied as an unsaved change (D133). A reserved place stays unbuilt, with its limit
+  stated in D133 and in presets.md.

@@ -74,9 +74,11 @@ Written for somebody else, so don't rewrite them for us:
 - [docs/config.md](docs/config.md): `~/.rigline/config.yaml`, what it holds and how commands edit it,
   and the files beside it. Written for a user. The header every new `config.yaml` carries links it.
 - [docs/presets.md](docs/presets.md): a layout in a file — the four verbs, what a preset carries and
-  what it refuses, and the three that ship. Written for a user. The foundation is D131: a preset is
-  a layout, never a rig, so it installs nothing and switches nothing off; the reader's strictness is
-  D132. In-panel apply is not built, and the limit it will carry is recorded in D131.
+  what it refuses, the three that ship, and picking one in the panel. Written for a user. The
+  foundation is D131: a preset is a layout, never a rig, so it installs nothing and switches nothing
+  off; the reader's strictness is D132; the bake, the one directory read behind it and the panel's
+  row text are D133. A row holding only an absent plugin's elements does not survive a panel edit,
+  which is stated rather than fixed — the concept the panel lacks is named in D133.
 - [docs/anchors.md](docs/anchors.md): what an anchor is, and repairing one through
   `~/.rigline/anchors.json` without waiting for a release. Written for a user.
 - [docs/support.md](docs/support.md): where Rigline works and what is not supported yet, as a

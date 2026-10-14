@@ -4,7 +4,9 @@
  * confirmation. Nothing can push into a panel, so everything it learns about the file it pulls.
  */
 import {
+  type BakedPreset,
   compactRows,
+  isApplicable,
   type Layout,
   type LayoutPlugin,
   layoutView,
@@ -26,6 +28,13 @@ import {
 /** Where a save from this panel stands. */
 export type SaveState = "idle" | "saving" | "saved" | "unconfirmed";
 
+/** What a re-read of `registry.js` yields: the saved layout, and the presets baked with it. */
+export interface SavedState {
+  readonly layout: Layout;
+  readonly presets: readonly BakedPreset[];
+  readonly omitted: number;
+}
+
 export interface LayoutEditor {
   /** The saved layout the working copy started from. */
   readonly baseline: Store<Layout>;
@@ -37,6 +46,18 @@ export interface LayoutEditor {
   readonly saving: Store<SaveState>;
   /** Whether the panel is being edited in place (D95). */
   readonly editing: Store<boolean>;
+  /** The presets a person can pick here, shipped and their own, each name once (D133). */
+  readonly presets: Store<readonly BakedPreset[]>;
+  /** How many of their own a bound left out of the bake, for the line that says so. */
+  readonly omitted: Store<number>;
+  /**
+   * The preset the working copy came from, while it is still that preset's.
+   *
+   * Only the Save fallback needs it: `layoutCommands` cannot write back an entry that does not
+   * resolve, so for a preset naming a plugin somebody has not got it would copy commands that
+   * do not reproduce the copy. `rigline layout apply <name>` does.
+   */
+  readonly appliedPreset: Store<string | null>;
   /** What Save goes through, or null where `install` baked nothing. */
   readonly save: SaveRecord | null;
   /** Moves `name` last into `place`, or back to its default where `place` is null. */
@@ -52,6 +73,11 @@ export interface LayoutEditor {
   moveRow(place: string, to: number): void;
   /** Every element back where its plugin puts it, in the working copy only. */
   reset(): void;
+  /**
+   * Shows the named preset's layout in the working copy, which a Save keeps and Revert drops.
+   * Does nothing for a name that is not there, or one that could not be read.
+   */
+  apply(name: string): void;
   /** Reads the saved layout afresh and shows it, dropping unsaved changes. */
   reload(): Promise<void>;
   /** Reads the saved layout afresh and says whether it moved since this panel's baseline. */
@@ -69,8 +95,17 @@ export interface LayoutEditorOptions {
   readonly baked: Layout;
   readonly plugins: readonly LayoutPlugin[];
   readonly save: SaveRecord | null;
-  /** The layout `registry.js` holds now, read afresh, or null when it cannot be read. */
-  readonly readSaved: () => Promise<Layout | null>;
+  /** The presets `install` baked beside the layout. */
+  readonly presets?: readonly BakedPreset[];
+  readonly omitted?: number;
+  /**
+   * What `registry.js` holds now, read afresh, or null when it cannot be read.
+   *
+   * The presets come with the layout rather than from a second read: this is the editor's only
+   * re-read, so a list fixed at boot would leave Reload refreshing the layout and not the
+   * presets, after an export in a terminal that the yellow R has just sent somebody to it.
+   */
+  readonly readSaved: () => Promise<SavedState | null>;
   /** Injected so a test need not wait out the confirmation. */
   readonly wait?: (ms: number) => Promise<void>;
   /** Milliseconds, injected so a test can step past `notice`'s gap. */
@@ -96,14 +131,18 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
   const newer = store(false);
   const saving = store<SaveState>("idle");
   const editing = store(false);
+  const presets = store<readonly BakedPreset[]>(options.presets ?? []);
+  const omitted = store(options.omitted ?? 0);
+  const appliedPreset = store<string | null>(null);
   working.subscribe(() => view.set(layoutView(working.get(), plugins)));
 
   /**
    * A move, leaving the rows numbered from one (D122). A save's outcome is about the copy it saved,
    * so it goes once the copy changes.
    */
-  function edit(next: Layout): void {
+  function edit(next: Layout, from: string | null = null): void {
     working.set(compactRows(next, plugins));
+    appliedPreset.set(from);
     if (saving.get() !== "saving") saving.set("idle");
   }
 
@@ -111,7 +150,7 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
     // Mid-save the file can hold the copy ahead of the baseline, which is not newer.
     if (saving.get() === "saving") return;
     const saved = await readSaved();
-    newer.set(saved !== null && !sameLayout(saved, baseline.get()));
+    newer.set(saved !== null && !sameLayout(saved.layout, baseline.get()));
   }
 
   return {
@@ -121,6 +160,9 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
     newer,
     saving,
     editing,
+    presets,
+    omitted,
+    appliedPreset,
     save,
     move(name, place) {
       edit(withElementAt(working.get(), name, place));
@@ -182,11 +224,19 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
     reset() {
       edit({});
     },
+    apply(name) {
+      const preset = presets.get().find((p) => p.name === name);
+      if (preset === undefined || !isApplicable(preset)) return;
+      edit(preset.layout, preset.name);
+    },
     async reload() {
       const saved = await readSaved();
       if (saved === null) return;
-      baseline.set(saved);
-      working.set(saved);
+      baseline.set(saved.layout);
+      working.set(saved.layout);
+      presets.set(saved.presets);
+      omitted.set(saved.omitted);
+      appliedPreset.set(null);
       newer.set(false);
       saving.set("idle");
     },
@@ -201,8 +251,8 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
       for (let waited = 0; waited < CONFIRM_FOR_MS; waited += CONFIRM_EVERY_MS) {
         await wait(CONFIRM_EVERY_MS);
         const saved = await readSaved();
-        if (saved !== null && sameLayout(saved, copy)) {
-          baseline.set(saved);
+        if (saved !== null && sameLayout(saved.layout, copy)) {
+          baseline.set(saved.layout);
           newer.set(false);
           saving.set("saved");
           await wait(SAVED_MS);
