@@ -3099,11 +3099,28 @@ condition narrows to what it was protecting. The host may also send a request th
 person causes it — a click, or a standing instruction they wrote in their own config — and the panel
 offers them that same choice through a control of its own. Such a write is a second button for their
 decision, not Rigline taking one, so applying a default they recorded when a session starts is theirs
-and not ours. The other four conditions hold unchanged, and two more apply to a write: the plugin
-asks for it and never composes it, so the payload is built in host code from a bounded set of values
-rather than handed over; and nothing originates one on Rigline's own initiative — not from a timer,
-not from a tap reacting to unrelated traffic, and not from a heuristic about what somebody probably
-wanted. Still never `io_message`, which is a prompt, and so a turn in the person's transcript.
+and not ours. The other four conditions hold unchanged, and three more apply to a write.
+
+**The engine exposes a verb, never a composer.** A plugin names no message type, no settings key and
+no payload: it calls `setModel` or `setEffort`, and host code owns entirely what each one writes. The
+distinction is load-bearing rather than stylistic, because `apply_settings` carries an arbitrary
+`settings` object that Claude Code's own handler accepts any key of — permission modes and sandbox
+and memory settings among them. A capability shaped as "the host composes what you ask for" would
+hand a third-party plugin that whole surface under the cover of the host having built the message. A
+verb's field set is closed and enumerated in host code, so a verb may write more than one key where
+the combination is the vetted unit; widening one, or adding a verb, is a decision.
+
+**The value is validated against what the panel is itself offering**, not against a table of ours, so
+a plugin can only reach a choice the person already has.
+
+**A plugin-originated write requires transient user activation.** Constraining Rigline's own
+initiative is not enough when the caller is the plugin: without this, a write from a timer or from a
+tap on unrelated traffic satisfies every other condition here, and "a person caused it" is an
+obligation on an author rather than something the architecture holds. Activation is the enforceable
+form of it, and it costs a click handler nothing. The host's own launch-time application of a
+recorded default needs no activation and is not an exception, because no plugin is in that call.
+
+Still never `io_message`, which is a prompt, and so a turn in the person's transcript.
 
 **D121. How full the context is, as a host service, and the host's first ask (2026-10-06, Leo).**
 The panel's own indicator shows only past half full, and only once a turn has finished in that
