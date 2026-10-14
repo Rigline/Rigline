@@ -220,6 +220,24 @@ export interface LayoutPlugin {
   readonly elements: Elements;
 }
 
+/**
+ * Every plugin a layout names, each once, in the order it first names them. Rigline's own elements
+ * are not a plugin's: nothing installs `rigline`, so nothing says where it comes from (D97).
+ *
+ * Here rather than in the engine because both sides ask it — the engine to say which plugins a
+ * preset needs, the panel to say which of them it has not got.
+ */
+export function pluginsNamed(layout: Layout): string[] {
+  const names = new Set<string>();
+  for (const entries of Object.values(layout)) {
+    for (const entry of entries) {
+      const plugin = entry.split("/")[0];
+      if (plugin !== undefined && plugin !== "" && plugin !== RIGLINE) names.add(plugin);
+    }
+  }
+  return [...names];
+}
+
 /** `plugins` with Rigline's own elements after them: every list a layout resolves against (D97). */
 export function withRigline(plugins: readonly LayoutPlugin[]): LayoutPlugin[] {
   return [...plugins, { name: RIGLINE, elements: RIGLINE_ELEMENTS }];

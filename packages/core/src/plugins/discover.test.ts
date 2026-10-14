@@ -21,6 +21,7 @@ import {
   isPluginOutput,
   readManifest,
 } from "./discover.ts";
+import type { BakedPresets } from "./preset.ts";
 
 const dirs: string[] = [];
 
@@ -313,6 +314,49 @@ describe("bakeRegistry", () => {
     writeFileSync(path, bakeRegistry([], [], {}, save));
     const mod = (await import(pathToFileURL(path).href)) as { save: object };
     expect(mod.save).toEqual(save);
+  });
+
+  it("carries the presets the panel lists, and how many a bound left out (D133)", async () => {
+    // Annotated, so the two entries are checked against the shape rather than inferred into a
+    // union in which an empty layout widens to `{ rigRow?: undefined }`.
+    const presets: BakedPresets = {
+      presets: [
+        {
+          name: "two-rows",
+          origin: "shipped",
+          description: "Two rows.",
+          problem: null,
+          layout: { rigRow: ["a/x"] },
+        },
+        {
+          name: "broken",
+          origin: "yours",
+          description: null,
+          problem: 'has no "layout"',
+          layout: {},
+        },
+      ],
+      omitted: 3,
+    };
+    const path = join(tempDir(), "registry.mjs");
+    writeFileSync(path, bakeRegistry([], [], {}, null, presets));
+    const mod = (await import(pathToFileURL(path).href)) as {
+      presets: unknown;
+      presetsOmitted: unknown;
+    };
+    expect(mod.presets).toEqual(presets.presets);
+    expect(mod.presetsOmitted).toBe(3);
+  });
+
+  it("bakes no preset when the caller passes none, for a payload with no user state", async () => {
+    const path = join(tempDir(), "registry.mjs");
+    writeFileSync(path, bakeRegistry([], []));
+    const mod = (await import(pathToFileURL(path).href)) as {
+      presets: unknown;
+      presetsOmitted: unknown;
+    };
+    expect(mod.presets).toEqual([]);
+    expect(mod.presetsOmitted).toBe(0);
   });
 
   it("carries the layout in the order the file wrote its places (D92)", async () => {

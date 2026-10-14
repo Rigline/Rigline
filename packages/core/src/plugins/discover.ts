@@ -29,6 +29,7 @@ import { type DeclaredPatch, type PatchOutcome, patchRefusal } from "../inject/h
 import { parseJson } from "../json.ts";
 import { CORE_VERSION } from "../version.ts";
 import type { PluginsConfig } from "./config.ts";
+import type { BakedPresets } from "./preset.ts";
 
 /** One plugin found on disk, its manifest already validated. */
 export interface DiscoveredPlugin {
@@ -268,13 +269,15 @@ function normalizeEntry(entry: string): string {
  * anchor appear in and the order rewriters compose in — so it is baked as an array, never a map.
  *
  * The layout goes in whole, entries that do not resolve included, because it is also what the panel
- * would save back (D92). `save` is null where there is nothing to save through (D93).
+ * would save back (D92). `save` is null where there is nothing to save through (D93). The presets
+ * carry the ones a person could apply here, each with the reason where it cannot be read (D133).
  */
 export function bakeRegistry(
   enabled: readonly DiscoveredPlugin[],
   outcomes: readonly PatchOutcome[],
   layout: Layout = {},
   save: SaveRecord | null = null,
+  presets: BakedPresets = { presets: [], omitted: 0 },
 ): string {
   const entries = enabled.map((p) =>
     JSON.stringify({
@@ -295,6 +298,8 @@ ${body}
 export const patches = ${JSON.stringify(outcomes)};
 export const layout = ${JSON.stringify(layout)};
 export const save = ${JSON.stringify(save)};
+export const presets = ${JSON.stringify(presets.presets)};
+export const presetsOmitted = ${JSON.stringify(presets.omitted)};
 `;
 }
 

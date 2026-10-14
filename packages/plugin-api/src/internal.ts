@@ -60,6 +60,7 @@ export {
   placeName,
   placeTitle,
   plainText,
+  pluginsNamed,
   rowNumbers,
   rowOf,
   rowPlace,
@@ -88,6 +89,12 @@ export {
   SURFACES,
   validateManifest,
 } from "./manifest.ts";
+export type { BakedPreset } from "./preset.ts";
+export {
+  isApplicable,
+  MAX_BAKED_PRESET_BYTES,
+  MAX_BAKED_PRESETS,
+} from "./preset.ts";
 export type { RuntimeSpecifier } from "./runtime.ts";
 export { isRuntimeSpecifier, RUNTIME_MODULES } from "./runtime.ts";
 export type { SavePayload, SaveRecord } from "./save.ts";

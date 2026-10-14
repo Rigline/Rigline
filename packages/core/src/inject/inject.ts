@@ -58,6 +58,7 @@ import {
   isPluginOutput,
   layoutNotes,
 } from "../plugins/discover.ts";
+import type { BakedPresets } from "../plugins/preset.ts";
 import { saveRecord } from "../plugins/save.ts";
 import { applyPatches, type PatchOutcome, patchRefusal } from "./hostpatch.ts";
 import { importProblem, resolveRuntimeImports } from "./imports.ts";
@@ -368,6 +369,12 @@ export interface InstallOptions {
    * `plugins.configPath` itself, before it writes anything.
    */
   readonly config?: PluginsConfig;
+  /**
+   * The presets to bake, already read, which the flow does once for every version as it does
+   * `config` (D133). Absent bakes none, for a direct caller with no interest in user state; the
+   * flow always passes them, including for `--ext`, which bakes the person's layout too.
+   */
+  readonly presets?: BakedPresets;
   /** The stability sample's timings. Injected only so a test can drive the refusal it produces. */
   readonly wholeness?: WholenessOptions;
   readonly log?: (line: string) => void;
@@ -590,7 +597,9 @@ export function install(ext: string, options: InstallOptions): InstallReport {
         : saveRecord(ext, tokenPath, (line) => {
             tokenProblem = line;
           });
-    const baked = Buffer.from(bakeRegistry(enabled, outcomes, config.layout, save));
+    const baked = Buffer.from(
+      bakeRegistry(enabled, outcomes, config.layout, save, options.presets),
+    );
     if (writeIfChanged(join(state.payloadDir, "registry.js"), baked)) wrotePayload = true;
 
     // Before the notes, because this is the one report that says whether a plugin will work here.

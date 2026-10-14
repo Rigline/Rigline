@@ -1,16 +1,20 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { MAX_BAKED_PRESET_BYTES, MAX_BAKED_PRESETS } from "@rigline/plugin-api/internal";
 import { afterEach, describe, expect, it } from "vitest";
 import { bundledPresetsDir } from "../assets.ts";
 import { readConfig } from "./config.ts";
 import { type DiscoveredPlugin, discoverPlugins } from "./discover.ts";
 import {
   applyPreset,
+  bakePresets,
   isPresetPath,
   listPresets,
   MAX_PRESET_BYTES,
   type PresetDirs,
+  type PresetListing,
+  type PresetOrigin,
   presetFromConfig,
   presetTarget,
   readPreset,
@@ -424,5 +428,87 @@ describe("the shipped presets", () => {
       const result = applyPreset(paths, discovered, readPreset(listing.path));
       expect(result.needs, `${listing.name} names a plugin that is not bundled`).toEqual([]);
     }
+  });
+});
+
+describe("bakePresets", () => {
+  /** A listing as `listPresets` returns one, with a layout of `size` places to grow it. */
+  function listing(name: string, origin: PresetOrigin, places = 1): PresetListing {
+    const layout: Record<string, string[]> = {};
+    for (let i = 0; i < places; i++) layout[`rigRow ${i + 2}`] = [`p${i}/element`];
+    return {
+      name,
+      origin,
+      path: `/presets/${name}.yaml`,
+      description: `About ${name}.`,
+      shadows: false,
+      problem: null,
+      preset: { path: `/presets/${name}.yaml`, name, description: null, plugins: {}, layout },
+    };
+  }
+
+  it("carries name, origin, description, problem and layout, and nothing a terminal owns", () => {
+    const one = listing("rows", "yours");
+    const baked = bakePresets([one]);
+    expect(baked).toEqual({
+      presets: [
+        {
+          name: "rows",
+          origin: "yours",
+          description: "About rows.",
+          problem: null,
+          layout: { "rigRow 2": ["p0/element"] },
+        },
+      ],
+      omitted: 0,
+    });
+    // The file's npm claim is a terminal's business: only a terminal can add a plugin (D131).
+    expect(JSON.stringify(baked)).not.toContain("plugins");
+  });
+
+  it("bakes an unreadable file as a row with its reason, and an empty layout", () => {
+    const broken: PresetListing = {
+      name: "broken",
+      origin: "yours",
+      path: "/presets/broken.yaml",
+      description: null,
+      shadows: false,
+      problem: '/presets/broken.yaml has no "layout", so it is not a preset',
+      preset: null,
+    };
+    expect(bakePresets([broken]).presets).toEqual([
+      {
+        name: "broken",
+        origin: "yours",
+        description: null,
+        problem: broken.problem,
+        layout: {},
+      },
+    ]);
+  });
+
+  it("keeps every shipped preset, and counts a person's own past the bound", () => {
+    const shipped = ["minimal", "two-rows", "everything"].map((n) => listing(n, "shipped"));
+    const mine = Array.from({ length: MAX_BAKED_PRESETS + 5 }, (_, i) =>
+      listing(`mine-${i}`, "yours"),
+    );
+    const baked = bakePresets([...shipped, ...mine]);
+    expect(baked.presets.filter((p) => p.origin === "shipped")).toHaveLength(3);
+    expect(baked.presets.filter((p) => p.origin === "yours")).toHaveLength(MAX_BAKED_PRESETS);
+    expect(baked.omitted).toBe(5);
+  });
+
+  it("stops on the byte bound too, which one legal file could otherwise fill", () => {
+    // `MAX_PRESET_BYTES` is per file and larger than this total was in the first draft, so a single
+    // preset `apply` accepts must not be able to push out everything else a person owns.
+    const big = Array.from({ length: 6 }, (_, i) => listing(`big-${i}`, "yours", 900));
+    const baked = bakePresets(big);
+    expect(JSON.stringify(baked.presets).length).toBeLessThanOrEqual(MAX_BAKED_PRESET_BYTES);
+    expect(baked.presets.length).toBeGreaterThan(0);
+    expect(baked.presets.length + baked.omitted).toBe(6);
+  });
+
+  it("is empty for no listings", () => {
+    expect(bakePresets([])).toEqual({ presets: [], omitted: 0 });
   });
 });

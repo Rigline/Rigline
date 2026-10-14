@@ -202,6 +202,7 @@ export {
 } from "./plugins/npm.ts";
 export type {
   ApplyResult,
+  BakedPresets,
   Preset,
   PresetDirs,
   PresetListing,
@@ -211,6 +212,7 @@ export type {
 } from "./plugins/preset.ts";
 export {
   applyPreset,
+  bakePresets,
   isPresetPath,
   listPresets,
   MAX_PRESET_BYTES,

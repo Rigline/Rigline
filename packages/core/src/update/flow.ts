@@ -25,6 +25,7 @@ import {
   anchorOverrideOutcomes,
   readAnchorOverrides,
 } from "../anchors/overrides.ts";
+import { bundledPresetsDir } from "../assets.ts";
 import { writeFileAtomic } from "../atomic.ts";
 import { type Generated, generate, sameSource } from "../codegen/generate.ts";
 import {
@@ -60,6 +61,7 @@ import {
   layoutNotes,
   registryEngine,
 } from "../plugins/discover.ts";
+import { bakePresets, listPresets, type PresetDirs } from "../plugins/preset.ts";
 import { readToken } from "../plugins/save.ts";
 import { CORE_VERSION } from "../version.ts";
 import { type BaselineSource, readBaseline, riglineGenerated, writeBaseline } from "./baseline.ts";
@@ -176,6 +178,12 @@ export interface FlowOptions {
   readonly driftPath?: string;
   /** Where the anchor override lives. Defaults to `~/.rigline/anchors.json`. */
   readonly anchorsPath?: string;
+  /**
+   * The two directories presets are found in, for the bake (D133). Absent takes `~/.rigline/presets`
+   * and the engine's shipped set; `null` bakes none, which is what a test with no built bundle
+   * wants, since the shipped directory is reached through `bundledDir()`.
+   */
+  readonly presetDirs?: PresetDirs | null;
   /** The stability sample's timings, as `install` takes them. Injected only by tests. */
   readonly wholeness?: InstallOptions["wholeness"];
   /** The injection lock: where it is, how long to wait, and what to say while waiting (D105). */
@@ -410,6 +418,9 @@ function updateHeld(options: UpdateOptions): FlowReport {
   const overrides = readAnchorOverrides(options.anchorsPath ?? riglinePaths().anchors);
   // Once, before any version is touched, so every version bakes the same settings (D110).
   const config = options.plugins ? readConfig(options.plugins.configPath) : undefined;
+  // The same, and for the same reason. One walk of the two directories, whose result the panel's
+  // list, `rigline layout presets` and this all read (D133).
+  const presets = bakePresets(listPresets(presetDirsFor(options)));
   const harvested: Harvested[] = [];
   const versions: VersionReport[] = [];
   let configNotes: readonly string[] = [];
@@ -429,6 +440,7 @@ function updateHeld(options: UpdateOptions): FlowReport {
         payloadDir: options.payloadDir,
         plugins: options.plugins,
         anchors: overrides,
+        presets,
         ...(config === undefined ? {} : { config }),
         ...(options.wholeness === undefined ? {} : { wholeness: options.wholeness }),
         log: (line) => log.push(line),
@@ -666,6 +678,15 @@ function settle(
     cleared,
     attention,
   };
+}
+
+/**
+ * The two directories to bake presets from: what the caller said, else a person's own beside the
+ * engine's shipped set. `null` bakes none, and so reaches `bundledPresetsDir()` not at all.
+ */
+function presetDirsFor(options: FlowOptions): PresetDirs {
+  if (options.presetDirs === null) return { yours: "", shipped: "" };
+  return options.presetDirs ?? { yours: riglinePaths().presets, shipped: bundledPresetsDir() };
 }
 
 /** A refused version, as the line under *Needs you* that says whose move it is. */

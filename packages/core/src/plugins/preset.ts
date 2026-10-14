@@ -9,7 +9,10 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, dirname, extname, isAbsolute, join, sep } from "node:path";
 import {
+  type BakedPreset,
   type Layout,
+  MAX_BAKED_PRESET_BYTES,
+  MAX_BAKED_PRESETS,
   MAX_LAYOUT_ENTRIES,
   MAX_NAME,
   type Placement,
@@ -18,7 +21,7 @@ import {
   placementLabel,
   placeName,
   plainText,
-  RIGLINE,
+  pluginsNamed,
   withRigline,
 } from "@rigline/plugin-api/internal";
 import { Document } from "yaml";
@@ -76,6 +79,13 @@ export interface Preset {
 /** Where a preset is kept: a person's own, or one shipped inside the engine. */
 export type PresetOrigin = "yours" | "shipped";
 
+/**
+ * One preset found in a directory, read whole.
+ *
+ * `listPresets` is the only walk of the two directories, and `rigline layout presets`, the bake and
+ * the panel all read its result: a second walk would need a second rule for a file it cannot read,
+ * and a name is only unique once the dedupe here has run.
+ */
 export interface PresetListing {
   readonly name: string;
   readonly origin: PresetOrigin;
@@ -85,6 +95,8 @@ export interface PresetListing {
   readonly shadows: boolean;
   /** Why it cannot be read, for a file in the directory that is not a preset. */
   readonly problem: string | null;
+  /** What was read, or null where `problem` says why nothing was. */
+  readonly preset: Preset | null;
 }
 
 /** The two directories a name is looked up in, in the order they win. */
@@ -154,24 +166,68 @@ export function listPresets(dirs: PresetDirs): PresetListing[] {
       const name = basename(path, extname(path));
       if (taken.has(name)) continue;
       taken.add(name);
-      let description: string | null = null;
+      let preset: Preset | null = null;
       let problem: string | null = null;
       try {
-        description = readPreset(path).description;
+        preset = readPreset(path);
       } catch (error) {
+        // Kept rather than thrown, and the file is still a row: an unreadable preset is inert, so
+        // nothing needs repairing before the next command, and `apply` refuses it by name (D133).
         problem = error instanceof UserError ? error.message : String(error);
       }
       listings.push({
         name,
         origin,
         path,
-        description,
+        description: preset?.description ?? null,
         shadows: origin === "yours" && shippedHas(dirs.shipped, name),
         problem,
+        preset,
       });
     }
   }
   return listings.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export interface BakedPresets {
+  readonly presets: readonly BakedPreset[];
+  /** How many of a person's own were left out by a bound, for the one line that says so. */
+  readonly omitted: number;
+}
+
+/**
+ * The listings as the registry carries them: shipped always, then a person's own up to the bounds
+ * (D133).
+ *
+ * The shipped ones are in whatever a person owns, since they are the engine's and are small. Beyond
+ * them the count and the baked size both cap, because these are files of a person's that end up in
+ * a module the webview imports on every panel load. What a bound leaves out is counted rather than
+ * listed: a thousand rows saying "left out" would defeat the bound they came from.
+ */
+export function bakePresets(listings: readonly PresetListing[]): BakedPresets {
+  const of = (l: PresetListing): BakedPreset => ({
+    name: l.name,
+    origin: l.origin,
+    description: l.description,
+    problem: l.problem,
+    layout: l.preset?.layout ?? {},
+  });
+  const presets = listings.filter((l) => l.origin === "shipped").map(of);
+  let bytes = JSON.stringify(presets).length;
+  let mine = 0;
+  let omitted = 0;
+  for (const listing of listings.filter((l) => l.origin === "yours")) {
+    const baked = of(listing);
+    const size = JSON.stringify(baked).length + 1;
+    if (mine >= MAX_BAKED_PRESETS || bytes + size > MAX_BAKED_PRESET_BYTES) {
+      omitted++;
+      continue;
+    }
+    presets.push(baked);
+    bytes += size;
+    mine++;
+  }
+  return { presets, omitted };
 }
 
 function presetFiles(dir: string): string[] {
@@ -355,21 +411,6 @@ export function presetFromConfig(
     plugins[name] = { npm: source?.kind === "npm" ? source.name : null };
   }
   return { description: options.description ?? null, plugins, layout: config.layout };
-}
-
-/**
- * Every plugin a layout names, each once, in the order it first names them. Rigline's own elements
- * are not a plugin's: nothing installs `rigline`, so nothing says where it comes from (D97).
- */
-function pluginsNamed(layout: Layout): string[] {
-  const names = new Set<string>();
-  for (const entries of Object.values(layout)) {
-    for (const entry of entries) {
-      const plugin = entry.split("/")[0];
-      if (plugin !== undefined && plugin !== "" && plugin !== RIGLINE) names.add(plugin);
-    }
-  }
-  return [...names];
 }
 
 export interface ApplyResult {

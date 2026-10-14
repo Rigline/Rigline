@@ -345,6 +345,32 @@ describe("a second run writes nothing", () => {
     }
   });
 
+  it("bakes the presets it is handed, and none when it is handed none (D133)", () => {
+    const ext = fixture();
+    const presets = {
+      presets: [
+        {
+          name: "minimal",
+          origin: "shipped" as const,
+          description: "One footer line.",
+          problem: null,
+          layout: { off: ["clock/face"] },
+        },
+      ],
+      omitted: 2,
+    };
+    install(ext, { payloadDir: payload(), plugins: withPlugins([]), presets });
+    const written = readFileSync(join(payloadOutDir(ext), "registry.js"), "utf8");
+    expect(written).toContain('"name":"minimal"');
+    expect(written).toContain("export const presetsOmitted = 2;");
+
+    const bare = fixture({ version: "2.1.270" });
+    install(bare, { payloadDir: payload(), plugins: withPlugins([]) });
+    expect(readFileSync(join(payloadOutDir(bare), "registry.js"), "utf8")).toContain(
+      "export const presets = [];",
+    );
+  });
+
   it("bakes no Save without a token path", () => {
     const ext = fixture();
     install(ext, { payloadDir: payload(), plugins: withPlugins([]) });
