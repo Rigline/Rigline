@@ -58,6 +58,18 @@ identifier types an author compiles against, which is why none are published (D4
 plugin or to a named anchor. A feature that is cleanly missing is preferred to one that is subtly
 wrong. Where a check cannot be made loud, the reason is written down beside it.
 
+**P9. The line is a person's control and Anthropic's restrictions, not read against write.** Rigline
+may do anything that leaves a person in control of their own tools and leaves every restriction
+Anthropic wants to enforce standing. It never subverts Anthropic's control over model access, how
+subscriptions and API keys work, or the prohibitions on reverse-engineering model weights and
+decompiling Claude into something a person can read. Direction is the wrong test because it does not
+track harm: a write a person asked for, to a choice the panel already offers them, takes nothing from
+anybody, where a read that gathered their usage off the machine would. The test is whether a person's
+gesture causes it, whether the panel already offers them that same choice, and whether every
+restriction still stands once it has run. A capability failing any of the three is refused whatever
+its shape; one passing all three is not refused for being a write. D77 is this stated publicly, and
+D120 derives the host's own requests from it.
+
 ## Decisions
 
 ### Injection and boot
@@ -3082,6 +3094,17 @@ that flag ([plan.md](plan.md), *Deferred*).
 
 The first request the host sends is `get_context_usage` (D121).
 
+**Amended under P9 (2026-10-14):** reading was a proxy for the line, not the line, so the first
+condition narrows to what it was protecting. The host may also send a request that *writes*, where a
+person causes it — a click, or a standing instruction they wrote in their own config — and the panel
+offers them that same choice through a control of its own. Such a write is a second button for their
+decision, not Rigline taking one, so applying a default they recorded when a session starts is theirs
+and not ours. The other four conditions hold unchanged, and two more apply to a write: the plugin
+asks for it and never composes it, so the payload is built in host code from a bounded set of values
+rather than handed over; and nothing originates one on Rigline's own initiative — not from a timer,
+not from a tap reacting to unrelated traffic, and not from a heuristic about what somebody probably
+wanted. Still never `io_message`, which is a prompt, and so a turn in the person's transcript.
+
 **D121. How full the context is, as a host service, and the host's first ask (2026-10-06, Leo).**
 The panel's own indicator shows only past half full, and only once a turn has finished in that
 panel, since its window size arrives with a `result`. A plugin showing it at all times needs both
@@ -3372,52 +3395,52 @@ it? If not, it goes in the docs.
 This binds the bundled plugins and the host's own UI, not a third-party plugin, which writes for
 its own readers. A check's line in *Diagnostics* is exempt: it is read when something looks wrong,
 which is when a reason earns its place.
-
-**D131. A layout preset is a layout, not a rig (2026-10-14, Leo).** A preset file carries the
-`layout` a person would otherwise have written by hand, and nothing else that changes a machine:
-not `disabled`, not a plugin to install. `rigline layout apply` writes that layout, names what
-moved, and names any plugin the layout mentions that is not installed. It installs nothing.
-
-The one dangerous thing about a file people download and share is one that installs code, and this
-keeps that out of the format rather than guarding it. It also makes `apply` a single `writeLayout`
-— the call D93 already built for the panel's Save — so the panel can offer a preset without any new
-power, and D92's kept entry means a preset can name a plugin you have not got: add it later and its
-elements land where the preset put them.
-
-A preset therefore cannot decline a plugin. Hiding an element is `off`, which is a place, and that
-is what a preset says instead.
-
-`preset.plugins` is the file's claim about where a plugin comes from, and is repeated in that voice:
-never as `rigline add <name>`, because a package name chosen by whoever wrote the file, printed as a
-command by Rigline, reads as Rigline recommending that install. No version either — a pin shared a
-year later is the wrong version to fetch, and `add` follows a tag.
-
-Shipped presets live beside the plugins whose elements they name, in the engine's `dist/bundled`, so
-a renamed element moves them in the same release; a test applies each one against the bundled
-manifests. They are also the only advert the layout engine has: nobody discovers rows, sides and
-anchors by reading `config.yaml`.
-
-Not taken, and not for taste: applying a preset inside the panel is lossy for a row that holds only
-an absent plugin's elements, because `edit()` is `compactRows`, which numbers rows from the ones
-that show something (D122). The entry survives in the file and in the bake, and a panel edit drops
-it. Widening `compactRows` is not the fix — the panel would hold a row it must show and cannot, and
-`also`'s next-row target is computed from the shown rows, so a person's new row would merge with the
-reserved one. The concept the panel lacks is **a place reserved for something not installed**;
-naming it properly waits for somebody to lose a row, which needs a third-party plugin with users.
-
-**D132. The preset reader refuses where `readConfig` carries forward (2026-10-14).** `config.yaml` is
-a person's own file that a later Rigline may have written, so an unknown key is named and kept
-(D110) and an absent `layout` is no layout. A preset is a stranger's file with no later engine to
-defer to, and every one of those kindnesses becomes a way for it to do something other than what it
-says. So `apply` refuses, by name, and writes nothing, for:
-
-- **no `layout`**, which a misspelt key gives — read leniently, that applies an empty layout, which
-  is a silent `reset` with only `layout undo` to get back;
-- **an unknown key**, at the top level or inside `preset`, which is a typo or a newer Rigline's and
-  either way is not what this engine will do;
-- **a place this engine cannot read.** This is the one that matters for the companion: an entry that
-  does not resolve is a note at exit 0 (D98), but an unreadable *place* reaches *Needs you* and
-  exits 1, so carrying one in from a downloaded file would park the status item there for good.
-
-An entry naming a plugin that is not installed is not refused. That is the state D92 built, and it
+
+**D131. A layout preset is a layout, not a rig (2026-10-14, Leo).** A preset file carries the
+`layout` a person would otherwise have written by hand, and nothing else that changes a machine:
+not `disabled`, not a plugin to install. `rigline layout apply` writes that layout, names what
+moved, and names any plugin the layout mentions that is not installed. It installs nothing.
+
+The one dangerous thing about a file people download and share is one that installs code, and this
+keeps that out of the format rather than guarding it. It also makes `apply` a single `writeLayout`
+— the call D93 already built for the panel's Save — so the panel can offer a preset without any new
+power, and D92's kept entry means a preset can name a plugin you have not got: add it later and its
+elements land where the preset put them.
+
+A preset therefore cannot decline a plugin. Hiding an element is `off`, which is a place, and that
+is what a preset says instead.
+
+`preset.plugins` is the file's claim about where a plugin comes from, and is repeated in that voice:
+never as `rigline add <name>`, because a package name chosen by whoever wrote the file, printed as a
+command by Rigline, reads as Rigline recommending that install. No version either — a pin shared a
+year later is the wrong version to fetch, and `add` follows a tag.
+
+Shipped presets live beside the plugins whose elements they name, in the engine's `dist/bundled`, so
+a renamed element moves them in the same release; a test applies each one against the bundled
+manifests. They are also the only advert the layout engine has: nobody discovers rows, sides and
+anchors by reading `config.yaml`.
+
+Not taken, and not for taste: applying a preset inside the panel is lossy for a row that holds only
+an absent plugin's elements, because `edit()` is `compactRows`, which numbers rows from the ones
+that show something (D122). The entry survives in the file and in the bake, and a panel edit drops
+it. Widening `compactRows` is not the fix — the panel would hold a row it must show and cannot, and
+`also`'s next-row target is computed from the shown rows, so a person's new row would merge with the
+reserved one. The concept the panel lacks is **a place reserved for something not installed**;
+naming it properly waits for somebody to lose a row, which needs a third-party plugin with users.
+
+**D132. The preset reader refuses where `readConfig` carries forward (2026-10-14).** `config.yaml` is
+a person's own file that a later Rigline may have written, so an unknown key is named and kept
+(D110) and an absent `layout` is no layout. A preset is a stranger's file with no later engine to
+defer to, and every one of those kindnesses becomes a way for it to do something other than what it
+says. So `apply` refuses, by name, and writes nothing, for:
+
+- **no `layout`**, which a misspelt key gives — read leniently, that applies an empty layout, which
+  is a silent `reset` with only `layout undo` to get back;
+- **an unknown key**, at the top level or inside `preset`, which is a typo or a newer Rigline's and
+  either way is not what this engine will do;
+- **a place this engine cannot read.** This is the one that matters for the companion: an entry that
+  does not resolve is a note at exit 0 (D98), but an unreadable *place* reaches *Needs you* and
+  exits 1, so carrying one in from a downloaded file would park the status item there for good.
+
+An entry naming a plugin that is not installed is not refused. That is the state D92 built, and it
 is how a preset names what it wants before you have it.
