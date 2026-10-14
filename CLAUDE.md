@@ -90,6 +90,14 @@ Written for somebody else, so don't rewrite them for us:
 
 ## Rules that will cost you if you break them
 
+- **Expose a curated verb, never a channel.** Which Claude Code functionality a plugin may reach is
+  Rigline's decision and not an author's: a plugin names no message type, no settings key and no
+  payload, and a verb's field set is closed and enumerated in host code (P9, D120 as amended). The
+  tell that a capability has become a channel is that its reach widens when the extension's does,
+  with no decision of ours in between. `apply_settings` is the worked case — it takes arbitrary keys,
+  so having the host build the payload bounded the values and left Claude Code's whole settings table
+  reachable. A write needs a person as well as a verb, and the rule supplying the person is not the
+  same one everywhere — read D120 rather than assuming user activation covers it.
 - **Never name a minified JS identifier.** Bundler-generated, changes every build. Plugin-facing
   hooks come from harvested layers or the curated anchor table. Build-time harvesting may anchor on
   unminified property names only because codegen asserts every anchor and fails loudly.
