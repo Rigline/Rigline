@@ -30,6 +30,7 @@ const fail = (message) => failWith(message, "bundle-assets");
 
 const BUNDLED = join(ROOT, "packages", "core", "dist", "bundled");
 const PLUGINS_DIR = join(ROOT, "plugins");
+const PRESETS_DIR = join(ROOT, "presets");
 
 /** The two hook files the host builds to, taken from its `dist` and laid flat in `dist/bundled`. */
 const PAYLOAD_FILES = ["pre.js", "post.js"];
@@ -103,6 +104,15 @@ for (const name of plugins) {
   copy(join(from, entry), join(to, entry));
 }
 
+// The shipped presets, beside the plugins whose elements they name, so a renamed element moves a
+// preset in the same release (D131). Found rather than listed, as the plugins are.
+const presets = existsSync(PRESETS_DIR)
+  ? readdirSync(PRESETS_DIR).filter((name) => name.endsWith(".yaml"))
+  : [];
+for (const name of presets) {
+  copy(join(PRESETS_DIR, name), join(BUNDLED, "presets", name));
+}
+
 // The companion, so `rigline` can install it without a second fetch (D76, D80).
 //
 // Deliberately not added to `assertBundledIsCurrent`'s links. That chain exists because a stale
@@ -122,6 +132,6 @@ writeFileSync(
 );
 
 say(
-  `bundled ${PAYLOAD_FILES.length} payload files, the runtime, ${plugins.length} plugins and the companion ` +
-    `into ${BUNDLED}`,
+  `bundled ${PAYLOAD_FILES.length} payload files, the runtime, ${plugins.length} plugins, ` +
+    `${presets.length} presets and the companion into ${BUNDLED}`,
 );

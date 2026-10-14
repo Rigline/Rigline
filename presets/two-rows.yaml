@@ -1,0 +1,23 @@
+# A Rigline layout preset. Apply it with `rigline layout apply <file>`.
+# https://github.com/Rigline/Rigline/blob/main/docs/presets.md
+preset:
+  description: Context on the first row, what the session is costing on the second.
+
+layout:
+  rigRow:
+    - context-meter/bar
+  rigRow right:
+    - rigline/edit
+  rigRow 2:
+    - usage-meter/cost
+    - usage-meter/five-hour
+    - usage-meter/seven-day
+  before footerSpacer:
+    - session-id/short-id
+    - worktree/short-name
+  off:
+    - context-meter/percent
+    - session-id/full-id
+    - session-id/address
+    - worktree/full-name
+    - rigline/reload

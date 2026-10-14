@@ -13,6 +13,17 @@ hole, or raises the Node or VS Code it needs, its entry says so.
 
 ### Added
 
+- Layout presets: a layout in a file, to keep, to swap between, or to share.
+  - `rigline layout presets` lists them, `rigline layout apply NAME|FILE` puts one in place of your
+    layout and says what moved, `rigline layout export NAME|FILE` saves yours as one, and `rigline
+    layout undo` goes back to the layout the last apply replaced — so trying one costs nothing.
+  - A bare word is a name in `~/.rigline/presets`; anything with a separator or a `.yaml` extension
+    is a path, so a preset somebody sent you applies from wherever you saved it.
+  - Three ship with Rigline: `minimal`, `two-rows` and `everything`.
+  - A preset carries a layout and nothing else. It never installs a plugin and never switches one
+    off: where it names a plugin you have not got, Rigline says what the file claims about where it
+    comes from and leaves it to you, and the layout entry waits until you add it.
+  - [docs/presets.md](docs/presets.md) is the whole of it.
 - A sixth bundled plugin, `usage-meter`, with three pills under the composer.
   - **Session cost**: Claude Code's own estimate of what the session has cost so far. On a claude.ai
     plan it reads `~$1.23`, since that is the list price of what was used and not what you pay.

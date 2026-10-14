@@ -200,3 +200,8 @@ export function bundledDir(): string {
 export function bundledPluginsDir(): string {
   return join(bundledDir(), "plugins");
 }
+
+/** The shipped layout presets, beside the plugins whose elements they name (D131). */
+export function bundledPresetsDir(): string {
+  return join(bundledDir(), "presets");
+}

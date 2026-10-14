@@ -177,14 +177,22 @@ function freshConfig(): Document {
   return doc;
 }
 
-function parseConfig(path: string, text: string): Document {
+/**
+ * `text` as a YAML document whose top level is a mapping, or a person's mistake named with the file
+ * and the line. Shared with the preset reader, which wants the same two refusals in its own words.
+ */
+export function parseYamlMapping(path: string, text: string, what: string): Document {
   const doc = parseDocument(text, { prettyErrors: true });
   const error = doc.errors[0];
   if (error) throw new UserError(`${path} is not valid YAML: ${error.message.trimEnd()}`);
   if (doc.contents !== null && !isMap(doc.contents)) {
-    throw new UserError(`${path} must be a mapping of setting names to values`);
+    throw new UserError(`${path} must be a mapping of ${what}`);
   }
   return doc;
+}
+
+function parseConfig(path: string, text: string): Document {
+  return parseYamlMapping(path, text, "setting names to values");
 }
 
 function configOf(path: string, doc: Document): PluginsConfig {
@@ -202,7 +210,7 @@ function configOf(path: string, doc: Document): PluginsConfig {
       .filter((key) => !COMPANION_SETTINGS.includes(key))
       .map((key) => `companion.${key}`),
   ];
-  return { path, disabled, layout: layoutOf(path, value.layout), unknownKeys };
+  return { path, disabled, layout: parseLayoutValue(path, value.layout), unknownKeys };
 }
 
 function companionOf(path: string, value: unknown): CompanionSettings {
@@ -225,7 +233,7 @@ function companionOf(path: string, value: unknown): CompanionSettings {
  * The layout's shape, which is a person's mistake when wrong and so loud. What its entries mean is
  * `layoutProblems`', and reported rather than thrown.
  */
-function layoutOf(path: string, value: unknown): Layout {
+export function parseLayoutValue(path: string, value: unknown): Layout {
   if (value === undefined || value === null) return {};
   if (typeof value !== "object" || Array.isArray(value)) {
     throw new UserError(`${path}: "layout" must be a mapping of places to lists of elements`);

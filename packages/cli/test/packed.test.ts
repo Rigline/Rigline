@@ -262,6 +262,20 @@ describe("the published tarballs, installed and run", () => {
     expect(out).not.toContain("rigline: installing the engine");
   });
 
+  it("carries the shipped presets, and exports a layout as one (D131)", () => {
+    // What only this tier can ask: whether the presets reached the tarball. They are copied into
+    // `dist/bundled` by a workspace step, so a published engine missing them would still pass every
+    // other test in the repo and list nothing for a person who typed `rigline layout presets`.
+    const rigline = riglineCommand();
+    const listed = rigline.run(["layout", "presets"]);
+    for (const name of ["everything", "minimal", "two-rows"]) expect(listed).toContain(name);
+    expect(listed).toContain("shipped");
+
+    // Neither verb injects, so this says nothing about an extension directory and touches none.
+    expect(rigline.run(["layout", "export", "mine"])).toContain("saved your layout to");
+    expect(rigline.run(["layout", "presets"])).toMatch(/yours\s+mine/);
+  });
+
   it("is runnable by name, which is the first thing a person touches", () => {
     // An install that writes no `rigline` command is the failure this covers, and nothing else here
     // would see it: every other assertion runs `dist/index.js` by path, which works whether or not

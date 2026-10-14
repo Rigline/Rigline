@@ -73,6 +73,10 @@ Written for somebody else, so don't rewrite them for us:
   plugin-policy.md's walls, so the two change together.
 - [docs/config.md](docs/config.md): `~/.rigline/config.yaml`, what it holds and how commands edit it,
   and the files beside it. Written for a user. The header every new `config.yaml` carries links it.
+- [docs/presets.md](docs/presets.md): a layout in a file — the four verbs, what a preset carries and
+  what it refuses, and the three that ship. Written for a user. The foundation is D131: a preset is
+  a layout, never a rig, so it installs nothing and switches nothing off; the reader's strictness is
+  D132. In-panel apply is not built, and the limit it will carry is recorded in D131.
 - [docs/anchors.md](docs/anchors.md): what an anchor is, and repairing one through
   `~/.rigline/anchors.json` without waiting for a release. Written for a user.
 - [docs/support.md](docs/support.md): where Rigline works and what is not supported yet, as a
@@ -165,6 +169,10 @@ Written for somebody else, so don't rewrite them for us:
     pnpm rigline enable N   # switch it back on, and re-inject
     pnpm rigline list       # every plugin, in load order: version, origin, source, switch, uses
     pnpm rigline layout     # where each element is; place, order or reset, and re-inject
+    pnpm rigline layout presets          # the shipped presets and yours
+    pnpm rigline layout apply NAME|FILE  # a preset in place of your layout, and re-inject
+    pnpm rigline layout export NAME|FILE # your layout as a preset
+    pnpm rigline layout undo             # the layout the last apply replaced, and re-inject
     pnpm rigline status     # per version: vanilla or patched, by backup
     pnpm rigline restore    # every version back to the extension's bytes
     pnpm rigline vscode-setup  # install the companion into every VS Code on PATH (--remove undoes)

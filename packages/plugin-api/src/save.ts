@@ -2,7 +2,7 @@
  * Saving a layout from the panel (D93). The panel builds a Save link's payload and the engine reads
  * it, both through these functions, so the one format the save defines has one definition.
  */
-import type { Layout } from "./layout.ts";
+import { type Layout, MAX_LAYOUT_ENTRIES, plainText } from "./layout.ts";
 
 /** What `install` bakes for the panel's Save. */
 export interface SaveRecord {
@@ -29,8 +29,6 @@ export interface SavePayload {
  * the engine on. A real layout is a few hundred characters.
  */
 export const MAX_SAVE_PAYLOAD = 16 * 1024;
-const MAX_ENTRIES = 1024;
-const MAX_TEXT = 256;
 
 export function encodeSavePayload(payload: SavePayload): string {
   const bytes = new TextEncoder().encode(JSON.stringify(payload));
@@ -92,16 +90,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Non-empty, bounded, and free of control characters, which have no business in a place or a name. */
-function plainText(text: string): boolean {
-  if (text.length === 0 || text.length > MAX_TEXT) return false;
-  for (let i = 0; i < text.length; i++) {
-    const code = text.charCodeAt(i);
-    if (code < 32 || code === 127) return false;
-  }
-  return true;
-}
-
 /** A layout, or why it is not one. `fromEntries`, so a `__proto__` key stays an ordinary key. */
 function readLayout(value: unknown, label: string): Layout | string {
   if (!isRecord(value)) return `"${label}" is not a layout`;
@@ -113,7 +101,7 @@ function readLayout(value: unknown, label: string): Layout | string {
       return `"${label}.${place}" is not a list of plugin/element names`;
     }
     count += 1 + names.length;
-    if (count > MAX_ENTRIES) return `"${label}" has more than ${MAX_ENTRIES} entries`;
+    if (count > MAX_LAYOUT_ENTRIES) return `"${label}" has more than ${MAX_LAYOUT_ENTRIES} entries`;
   }
   return Object.fromEntries(entries) as Layout;
 }

@@ -34,8 +34,10 @@ import {
   addPlugin,
   addToList,
   addWhereMissing,
+  applyPreset,
   bundledDir,
   bundledPluginsDir,
+  bundledPresetsDir,
   COMPANION_RELOAD,
   CORE_VERSION,
   carriedCompanion,
@@ -78,21 +80,28 @@ import {
   installedExtensions,
   listJson,
   listPlugins,
+  listPresets,
   markRestored,
   orderInLayout,
   type Placement,
   type PluginListing,
+  type PresetDirs,
+  type PresetListing,
   parseWhere,
   placeInLayout,
+  presetFromConfig,
+  presetTarget,
   type RiglinePaths,
   readAnchorOverrides,
   readBundles,
   readCompanionSettings,
   readConfig,
+  readPreset,
   refusalOf,
   removeFromList,
   removePlugin,
   resetLayout,
+  resolvePreset,
   restoreAll,
   restoredAt,
   restoredSince,
@@ -105,6 +114,7 @@ import {
   setupCompanion,
   splitLegacyConfig,
   UserError,
+  undoLayout,
   update,
   updatePlugins,
   verdict,
@@ -112,6 +122,7 @@ import {
   watch,
   withInjectionLock,
   workspaceRoot,
+  writePreset,
 } from "../index.ts";
 import { buildPlugin } from "./build.ts";
 
@@ -177,6 +188,17 @@ const USAGE = `rigline ${CORE_VERSION}
       footerSpacer, off, or default to put it back where its plugin puts it. order sets
       which elements come first in a place, in that order. reset empties the layout. Each
       edits ~/.rigline/config.yaml, keeping your comments, and re-injects.
+
+  rigline layout presets
+  rigline layout apply NAME|FILE
+  rigline layout export NAME|FILE
+  rigline layout undo
+      Presets: a layout in a file, to keep or to share. presets lists the ones shipped with
+      Rigline and the ones in ~/.rigline/presets, yours winning a shared name. apply puts
+      one in place of your layout, names what moved, and names any plugin it mentions that
+      you do not have; it installs nothing. export saves your layout as one. A bare word is
+      a name in ~/.rigline/presets; anything with a separator or a .yaml extension is a
+      path. undo puts back the layout the last apply replaced.
 
   rigline list [--json]
       Every plugin found, in the order they load: its version, where it came from, whether
@@ -537,6 +559,34 @@ function switchCommand(args: string[], enabled: boolean): number {
   return reinject();
 }
 
+/** Where a preset name is looked up: a person's own directory, then the shipped set (D131). */
+function presetDirs(): PresetDirs {
+  return { yours: riglinePaths().presets, shipped: bundledPresetsDir() };
+}
+
+/** Every preset by origin, in the order a name is looked up, so what wins reads top to bottom. */
+function formatPresets(listings: readonly PresetListing[]): string {
+  if (listings.length === 0) {
+    return "there are no presets; `rigline layout export NAME` saves your layout as one";
+  }
+  const width = Math.max(...listings.map((preset) => preset.name.length));
+  const lines: string[] = [];
+  for (const origin of ["yours", "shipped"] as const) {
+    const mine = listings.filter((preset) => preset.origin === origin);
+    if (mine.length === 0) continue;
+    lines.push(origin);
+    for (const preset of mine) {
+      const notes = [
+        ...(preset.description === null ? [] : [preset.description]),
+        ...(preset.shadows ? ["hides the shipped preset of this name"] : []),
+        ...(preset.problem === null ? [] : [preset.problem]),
+      ];
+      lines.push(`  ${preset.name.padEnd(width)}  ${notes.join("; ")}`.trimEnd());
+    }
+  }
+  return lines.join("\n");
+}
+
 /**
  * `layout`, which prints, and `layout place`, `order` and `reset`, which edit `config.yaml` and
  * re-inject for the reason `enable` does (D56, D92).
@@ -588,6 +638,59 @@ function layoutCommand(args: string[]): number {
         ? `emptied the layout in ${paths.config}`
         : `${paths.config} has no layout`,
     );
+  } else if (verb === "presets") {
+    if (rest.length > 0) throw new UserError("presets takes no arguments");
+    console.log(formatPresets(listPresets(presetDirs())));
+    return 0;
+  } else if (verb === "apply") {
+    const [name, ...extra] = rest;
+    if (name === undefined || extra.length > 0) {
+      throw new UserError("apply takes one preset, by name or path");
+    }
+    const preset = readPreset(resolvePreset(name, presetDirs()));
+    const result = applyPreset(paths, discovered, preset);
+    console.log(
+      result.changed
+        ? `applied ${preset.name} from ${preset.path}`
+        : `${paths.config} already held ${preset.name}'s layout`,
+    );
+    for (const line of result.moved) console.log(`  ${line}`);
+    for (const line of result.needs) console.log(line);
+    if (result.changed) {
+      console.log(
+        `the layout it replaced is in ${result.stashed}; \`rigline layout undo\` puts it back`,
+      );
+    }
+  } else if (verb === "export") {
+    const [name, ...extra] = rest;
+    if (name === undefined || extra.length > 0) {
+      throw new UserError("export takes one name or path to write");
+    }
+    const config = readConfig(paths.config);
+    const target = presetTarget(name, presetDirs());
+    writePreset(
+      target,
+      presetFromConfig(config, {
+        discovered,
+        bundledRoot: bundledPluginsDir(),
+        sourcesPath: paths.sources,
+      }),
+    );
+    console.log(`saved your layout to ${target}`);
+    if (Object.keys(config.layout).length === 0) {
+      console.log(
+        `${paths.config} has no layout, so it says every element is where its plugin puts it`,
+      );
+    }
+    return 0;
+  } else if (verb === "undo") {
+    if (rest.length > 0) throw new UserError("undo takes no arguments");
+    const result = undoLayout(paths);
+    console.log(
+      result.changed
+        ? `put back the layout from before the last apply, kept in ${result.from}`
+        : `${paths.config} already holds the layout in ${result.from}`,
+    );
   } else if (verb === "save") {
     // The companion's, with a panel's Save link (D93), so the help leaves it out. The first line is
     // the outcome the companion shows.
@@ -602,7 +705,9 @@ function layoutCommand(args: string[]): number {
           : `saved the panel's layout to ${paths.config}`,
     );
   } else {
-    throw new UserError(`unknown layout command "${verb}": place, order or reset`);
+    throw new UserError(
+      `unknown layout command "${verb}": place, order, reset, presets, apply, export or undo`,
+    );
   }
   console.log("");
   return reinject({ companion: verb === "save" });

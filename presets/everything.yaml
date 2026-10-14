@@ -1,0 +1,22 @@
+# A Rigline layout preset. Apply it with `rigline layout apply <file>`.
+# https://github.com/Rigline/Rigline/blob/main/docs/presets.md
+preset:
+  description: Every element the bundled plugins have, on, to see what there is.
+
+layout:
+  rigRow:
+    - context-meter/bar
+    - usage-meter/cost
+    - usage-meter/five-hour
+    - usage-meter/seven-day
+  rigRow right:
+    - rigline/edit
+    - rigline/reload
+  rigRow 2:
+    - session-id/short-id
+    - session-id/full-id
+    - session-id/address
+    - worktree/short-name
+    - worktree/full-name
+  before footerSpacer:
+    - context-meter/percent

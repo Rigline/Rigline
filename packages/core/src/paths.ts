@@ -28,6 +28,10 @@ export interface RiglinePaths {
   readonly legacyConfig: string;
   /** Plugins installed for this user, one directory each, discovered like any other plugin root. */
   readonly plugins: string;
+  /** Layout presets a person saved or downloaded, one file each, named without their extension. */
+  readonly presets: string;
+  /** The layout from before the last `layout apply`, which `layout undo` puts back. */
+  readonly previousLayout: string;
   /** Local overrides and additions to the curated anchor table (D44). */
   readonly anchors: string;
   /** The last harvest, as a scan, for "what changed" after an extension update. */
@@ -49,6 +53,8 @@ export function riglinePaths(home = riglineHome()): RiglinePaths {
     sources: join(home, "sources.json"),
     legacyConfig: join(home, "config.json"),
     plugins: join(home, "plugins"),
+    presets: join(home, "presets"),
+    previousLayout: join(home, "previous-layout.yaml"),
     anchors: join(home, "anchors.json"),
     baseline: join(home, "baseline.json"),
     drift: join(home, "drift.txt"),

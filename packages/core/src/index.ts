@@ -19,6 +19,7 @@ export { missingAnchorReason, resolveAnchors, uncountedClasses } from "./anchors
 export {
   bundledDir,
   bundledPluginsDir,
+  bundledPresetsDir,
   checkoutPluginsDir,
   corePackageDir,
   workspaceRoot,
@@ -139,6 +140,8 @@ export {
   addToList,
   describeSource,
   editConfig,
+  parseLayoutValue,
+  parseYamlMapping,
   readCompanionSettings,
   readConfig,
   readSources,
@@ -197,6 +200,27 @@ export {
   releaseAgeProblem,
   resolveVersion,
 } from "./plugins/npm.ts";
+export type {
+  ApplyResult,
+  Preset,
+  PresetDirs,
+  PresetListing,
+  PresetOrigin,
+  PresetPlugin,
+  UndoResult,
+} from "./plugins/preset.ts";
+export {
+  applyPreset,
+  isPresetPath,
+  listPresets,
+  MAX_PRESET_BYTES,
+  presetFromConfig,
+  presetTarget,
+  readPreset,
+  resolvePreset,
+  undoLayout,
+  writePreset,
+} from "./plugins/preset.ts";
 export type {
   Placement,
   PluginUpdate,

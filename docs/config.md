@@ -104,6 +104,10 @@ go — is named by `rigline install` and `rigline check`. The element stays wher
 and the entry stays in the file, so a plugin you remove and add back finds its place waiting. An
 element listed under two places goes to the first, and the second is reported.
 
+A layout you want to keep, swap between or hand to somebody else is a *preset*: `rigline layout
+export` saves this block as a file, `rigline layout apply` puts one back, and Rigline ships a few.
+[presets.md](presets.md) is the whole of it.
+
 ## Which VS Code profiles get the companion
 
 If you installed the companion extension with `rigline vscode-setup`, it goes into every VS Code
@@ -147,6 +151,10 @@ changing what an existing one takes, so an older one reads the rest of the file 
 its pinned version and the hash of what was downloaded — and is what `rigline update` reads. It is
 Rigline's record, not a setting, so it is not meant for editing. A plugin you copied into
 `~/.rigline/plugins/` yourself has no entry, and `update` leaves it alone.
+
+`~/.rigline/presets/` holds the layout presets you have saved or been sent, and
+`~/.rigline/previous-layout.yaml` is what the last `rigline layout apply` replaced, which `rigline
+layout undo` reads. Both are described in [presets.md](presets.md).
 
 `~/.rigline/anchors.json` repairs an anchor without waiting for a release; [anchors.md](anchors.md)
 says when you need one.

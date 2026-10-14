@@ -21,6 +21,25 @@ import {
 /** Each place, as the file spells it, to the elements listed there as `plugin/element`. */
 export type Layout = Readonly<Record<string, readonly string[]>>;
 
+/** The longest a place or an element name may be, wherever one arrives from outside. */
+export const MAX_NAME = 256;
+
+/** The most places and names together a layout may carry from outside: a Save link, a preset. */
+export const MAX_LAYOUT_ENTRIES = 1024;
+
+/**
+ * Non-empty, bounded, and free of control characters, which have no business in a place or an
+ * element name. Checked wherever a layout arrives from outside: a Save link, a preset file.
+ */
+export function plainText(text: string): boolean {
+  if (text.length === 0 || text.length > MAX_NAME) return false;
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (code < 32 || code === 127) return false;
+  }
+  return true;
+}
+
 /** The place an element goes to be switched off. */
 export const OFF = "off";
 

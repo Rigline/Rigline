@@ -85,17 +85,24 @@ Rigline out until you put it back.
 - **`~/.rigline/anchors.json`**, in the format [anchors.md](anchors.md) describes.
 - **`~/.rigline/sources.json`**, where `rigline add` records each plugin's source. It is Rigline's
   record rather than a setting, but a later 1.x reads what an earlier one wrote.
+- **A layout preset**, in the format [presets.md](presets.md) describes: the `layout` block
+  `config.yaml` holds, under the same promises as the words above, and the `preset` block beside it.
+  A later 1.x only adds to it as new keys, and reads one an earlier wrote. It is a file people share,
+  so a preset Rigline refuses is a refusal that names what it refused. `~/.rigline/presets/` and
+  `~/.rigline/previous-layout.yaml` are where yours are kept, and `rigline layout export` writes one
+  a later 1.x can read.
 - **A plugin you put in `~/.rigline/plugins/` yourself**, under the plugin rules above.
 - **`$RIGLINE_HOME`**, which moves `~/.rigline` somewhere else. Set it where VS Code sees it too
   ([config.md](config.md)).
 - **The commands in the usage, `rigline --help`, with their flags, and `rigline --version`.** A later
   1.x accepts every invocation an earlier one did, and an earlier one refuses a flag it does not know
   rather than ignoring it. The commands that change or check the install — `install`, `check`,
-  `update`, `add`, `remove`, `enable`, `disable`, `layout`'s edits, `restore` and `codegen --check`
+  `update`, `add`, `remove`, `enable`, `disable`, `layout`'s edits, `layout apply` and `undo`,
+  `restore` and `codegen --check`
   — exit 1 when something needs you and 0 when nothing does; for `check`, a version not injected
   needs you, unless `rigline restore` is holding Rigline out, which it says instead. The reports —
-  `list`, `status`, `doctor`, `diff` and a bare `layout` — exit 0 whenever they produced their
-  report. A command that cannot run at all exits 1.
+  `list`, `status`, `doctor`, `diff`, `layout presets`, `layout export` and a bare `layout` — exit 0
+  whenever they produced their report. A command that cannot run at all exits 1.
 - **`rigline list --json`**, which prints JSON and nothing else on stdout, even on the run that
   installs the engine: `{ "v": 1, "plugins": [...] }`, each plugin with
   - `name`, and `version` or null;

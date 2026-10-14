@@ -1,0 +1,20 @@
+# A Rigline layout preset. Apply it with `rigline layout apply <file>`.
+# https://github.com/Rigline/Rigline/blob/main/docs/presets.md
+preset:
+  description: One footer line, and no rows under the composer.
+
+layout:
+  before footerSpacer:
+    - session-id/short-id
+    - worktree/short-name
+    - context-meter/percent
+  off:
+    - context-meter/bar
+    - usage-meter/cost
+    - usage-meter/five-hour
+    - usage-meter/seven-day
+    - session-id/full-id
+    - session-id/address
+    - worktree/full-name
+    - rigline/edit
+    - rigline/reload
