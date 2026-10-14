@@ -376,7 +376,14 @@ what a plugin is written against.
 
 - **Per-plugin settings.** time-marks keeps its toggle in `localStorage`, which is right for a value
   only the panel cares about. A `ctx.settings` API earns its place when a value must be editable from
-  outside the panel.
+  outside the panel, and that trigger has fired: a favourites list is hand-edited and listed by the
+  CLI, so the API is being designed with the feature that needs it rather than ahead of it. Two
+  constraints on the stored shape, both of which retrofit badly. A plugin must tolerate a value it
+  did not write — unknown keys, missing keys, an older or newer shape — which is D110 one level down,
+  and matters because a setting that ever rides in a preset reaches a plugin version that is not its
+  author's. And whether a setting can be consequential is decided before the shape, not after: D131
+  lets a preset carry nothing that changes a machine, so if settings are one undifferentiated bag
+  then a preset can carry none of them.
 - **What a diagnostic check may do**, left open by phase 6. Be `async`: no for now, because lines
   landing at different times make the badge count briefly wrong. Be collapsed per contributor: when
   `core` outgrows a screen. Ask for host state: that is a request for a capability, decided by name.
