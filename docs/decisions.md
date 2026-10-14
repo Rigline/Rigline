@@ -3372,52 +3372,52 @@ it? If not, it goes in the docs.
 This binds the bundled plugins and the host's own UI, not a third-party plugin, which writes for
 its own readers. A check's line in *Diagnostics* is exempt: it is read when something looks wrong,
 which is when a reason earns its place.
-
-**D131. A layout preset is a layout, not a rig (2026-10-14, Leo).** A preset file carries the
-`layout` a person would otherwise have written by hand, and nothing else that changes a machine:
-not `disabled`, not a plugin to install. `rigline layout apply` writes that layout, names what
-moved, and names any plugin the layout mentions that is not installed. It installs nothing.
-
-The one dangerous thing about a file people download and share is one that installs code, and this
-keeps that out of the format rather than guarding it. It also makes `apply` a single `writeLayout`
-— the call D93 already built for the panel's Save — so the panel can offer a preset without any new
-power, and D92's kept entry means a preset can name a plugin you have not got: add it later and its
-elements land where the preset put them.
-
-A preset therefore cannot decline a plugin. Hiding an element is `off`, which is a place, and that
-is what a preset says instead.
-
-`preset.plugins` is the file's claim about where a plugin comes from, and is repeated in that voice:
-never as `rigline add <name>`, because a package name chosen by whoever wrote the file, printed as a
-command by Rigline, reads as Rigline recommending that install. No version either — a pin shared a
-year later is the wrong version to fetch, and `add` follows a tag.
-
-Shipped presets live beside the plugins whose elements they name, in the engine's `dist/bundled`, so
-a renamed element moves them in the same release; a test applies each one against the bundled
-manifests. They are also the only advert the layout engine has: nobody discovers rows, sides and
-anchors by reading `config.yaml`.
-
-Not taken, and not for taste: applying a preset inside the panel is lossy for a row that holds only
-an absent plugin's elements, because `edit()` is `compactRows`, which numbers rows from the ones
-that show something (D122). The entry survives in the file and in the bake, and a panel edit drops
-it. Widening `compactRows` is not the fix — the panel would hold a row it must show and cannot, and
-`also`'s next-row target is computed from the shown rows, so a person's new row would merge with the
-reserved one. The concept the panel lacks is **a place reserved for something not installed**;
-naming it properly waits for somebody to lose a row, which needs a third-party plugin with users.
-
-**D132. The preset reader refuses where `readConfig` carries forward (2026-10-14).** `config.yaml` is
-a person's own file that a later Rigline may have written, so an unknown key is named and kept
-(D110) and an absent `layout` is no layout. A preset is a stranger's file with no later engine to
-defer to, and every one of those kindnesses becomes a way for it to do something other than what it
-says. So `apply` refuses, by name, and writes nothing, for:
-
-- **no `layout`**, which a misspelt key gives — read leniently, that applies an empty layout, which
-  is a silent `reset` with only `layout undo` to get back;
-- **an unknown key**, at the top level or inside `preset`, which is a typo or a newer Rigline's and
-  either way is not what this engine will do;
-- **a place this engine cannot read.** This is the one that matters for the companion: an entry that
-  does not resolve is a note at exit 0 (D98), but an unreadable *place* reaches *Needs you* and
-  exits 1, so carrying one in from a downloaded file would park the status item there for good.
-
-An entry naming a plugin that is not installed is not refused. That is the state D92 built, and it
+
+**D131. A layout preset is a layout, not a rig (2026-10-14, Leo).** A preset file carries the
+`layout` a person would otherwise have written by hand, and nothing else that changes a machine:
+not `disabled`, not a plugin to install. `rigline layout apply` writes that layout, names what
+moved, and names any plugin the layout mentions that is not installed. It installs nothing.
+
+The one dangerous thing about a file people download and share is one that installs code, and this
+keeps that out of the format rather than guarding it. It also makes `apply` a single `writeLayout`
+— the call D93 already built for the panel's Save — so the panel can offer a preset without any new
+power, and D92's kept entry means a preset can name a plugin you have not got: add it later and its
+elements land where the preset put them.
+
+A preset therefore cannot decline a plugin. Hiding an element is `off`, which is a place, and that
+is what a preset says instead.
+
+`preset.plugins` is the file's claim about where a plugin comes from, and is repeated in that voice:
+never as `rigline add <name>`, because a package name chosen by whoever wrote the file, printed as a
+command by Rigline, reads as Rigline recommending that install. No version either — a pin shared a
+year later is the wrong version to fetch, and `add` follows a tag.
+
+Shipped presets live beside the plugins whose elements they name, in the engine's `dist/bundled`, so
+a renamed element moves them in the same release; a test applies each one against the bundled
+manifests. They are also the only advert the layout engine has: nobody discovers rows, sides and
+anchors by reading `config.yaml`.
+
+Not taken, and not for taste: applying a preset inside the panel is lossy for a row that holds only
+an absent plugin's elements, because `edit()` is `compactRows`, which numbers rows from the ones
+that show something (D122). The entry survives in the file and in the bake, and a panel edit drops
+it. Widening `compactRows` is not the fix — the panel would hold a row it must show and cannot, and
+`also`'s next-row target is computed from the shown rows, so a person's new row would merge with the
+reserved one. The concept the panel lacks is **a place reserved for something not installed**;
+naming it properly waits for somebody to lose a row, which needs a third-party plugin with users.
+
+**D132. The preset reader refuses where `readConfig` carries forward (2026-10-14).** `config.yaml` is
+a person's own file that a later Rigline may have written, so an unknown key is named and kept
+(D110) and an absent `layout` is no layout. A preset is a stranger's file with no later engine to
+defer to, and every one of those kindnesses becomes a way for it to do something other than what it
+says. So `apply` refuses, by name, and writes nothing, for:
+
+- **no `layout`**, which a misspelt key gives — read leniently, that applies an empty layout, which
+  is a silent `reset` with only `layout undo` to get back;
+- **an unknown key**, at the top level or inside `preset`, which is a typo or a newer Rigline's and
+  either way is not what this engine will do;
+- **a place this engine cannot read.** This is the one that matters for the companion: an entry that
+  does not resolve is a note at exit 0 (D98), but an unreadable *place* reaches *Needs you* and
+  exits 1, so carrying one in from a downloaded file would park the status item there for good.
+
+An entry naming a plugin that is not installed is not refused. That is the state D92 built, and it
 is how a preset names what it wants before you have it.
