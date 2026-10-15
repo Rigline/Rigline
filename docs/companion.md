@@ -345,6 +345,19 @@ and these reproduce the cases on demand:
 - **The webview telling the companion it is patched.** The payload's `postMessage` reaches Claude
   Code's host code, not ours. A link reaches the companion only when a person clicks it (D93), so
   nothing can tell the companion anything unprompted.
+- **A two-way channel between the panel and the companion**, or a virtual one made of two one-way
+  halves. A URI handler cannot reply: `handleUri` returns nothing, and the opener is a click. The
+  reverse half would have to push into the webview, which needs either an egress the CSP does not
+  have or a patch that forwards a message — and a patch is an equal-length byte substitution and
+  never code, which is a **published guarantee** about what a hostile plugin cannot do (D25, D79),
+  not a preference. So the reverse half stays a file the panel re-reads under a fresh query (D93),
+  polled on focus rather than pushed (D126).
+
+  The limitation is also load-bearing, which is the part worth not forgetting: because a link
+  reaches the companion only on a click, every write from the panel *is* a person's gesture by
+  construction. A proper channel would remove the structural reason for that and leave P9's
+  "a person caused it" to be re-established in software. The cost of the channel is not only
+  building it.
 - **Asking which directory is running.** `extensions.all` describes what is installed; the
   `start`/`moved` split is what answers the question instead.
 - **Embedding the engine in the VSIX** (D80), and **`ELECTRON_RUN_AS_NODE`** (above).

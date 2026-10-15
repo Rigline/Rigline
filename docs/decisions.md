@@ -3552,3 +3552,18 @@ about the shape inside, which it cannot know, so tolerating a value it did not w
 obligation and belongs in plugin-policy.md's second half, as the two cases that arrive: a key never
 heard of, and an expected key missing. That is owed to hand editing alone — `config.yaml` is a file
 people edit, so a typo reaches a plugin without anybody sharing anything.
+
+**VS Code's own settings were considered for this and declined (2026-10-15, Leo asked).** They would
+give the companion `onDidChangeConfiguration` instead of a poll, a settings UI free from a
+`package.json` schema, and Settings Sync across machines. Against that: D91's reasons stand, since
+hand-editing is the point and JSONC was already rejected for its braces and commas; the engine runs
+outside VS Code and would have to parse a profile-specific `settings.json`, which is the one file
+the profile trap is about; and plugin configuration would become editor-specific, inverting an
+architecture where the engine owns the config and the companion is a retrieval layer (D69, D80).
+
+The deciding point is that it buys nothing on the side that matters. The webview cannot read VS Code
+settings either — it has no channel to any extension host but Claude Code's — so the value would
+still be baked into `registry.js` and read from there exactly as now. What would actually shorten
+the loop is the companion watching `config.yaml` and re-baking, which is the same poll it already
+runs for the extension directories and needs no change of store. Reopen this only for the settings
+UI, which is the one thing a file watcher cannot supply.
