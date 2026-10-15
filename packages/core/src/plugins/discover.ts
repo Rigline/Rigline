@@ -253,6 +253,36 @@ export function layoutNotes(config: PluginsConfig, enabled: readonly DiscoveredP
     .map((problem) => `${config.path}: ${problem}`);
 }
 
+/** What one plugin's settings may bake to, so a hand-edited file cannot grow the payload (D134). */
+export const MAX_SETTINGS_SECTION = 16 * 1024;
+
+/**
+ * The settings to bake, and what to say about the ones left out. A section for a plugin that is not
+ * enabled is skipped in silence: switching a plugin off and keeping its settings is the ordinary
+ * case, so reporting it every install would be noise, where an oversized one costs a plugin its
+ * settings and has to be said (D134).
+ */
+export function bakedSettings(
+  config: PluginsConfig,
+  enabled: readonly DiscoveredPlugin[],
+): { settings: Record<string, Readonly<Record<string, unknown>>>; notes: string[] } {
+  const names = new Set(enabled.map((p) => p.name));
+  const settings: Record<string, Readonly<Record<string, unknown>>> = {};
+  const notes: string[] = [];
+  for (const [name, section] of Object.entries(config.settings)) {
+    if (!names.has(name)) continue;
+    const size = JSON.stringify(section).length;
+    if (size > MAX_SETTINGS_SECTION) {
+      notes.push(
+        `${config.path}: "settings.${name}" is ${size} bytes, over the ${MAX_SETTINGS_SECTION} a section may bake; ${name} loads without its settings`,
+      );
+      continue;
+    }
+    settings[name] = section;
+  }
+  return { settings, notes };
+}
+
 /** Every enabled plugin's declared host patches, flattened and named by the plugin that owns each. */
 export function declaredPatches(enabled: readonly DiscoveredPlugin[]): DeclaredPatch[] {
   return enabled.flatMap((p) => p.manifest.patches.map((patch) => ({ plugin: p.name, patch })));
@@ -275,6 +305,7 @@ export function bakeRegistry(
   outcomes: readonly PatchOutcome[],
   layout: Layout = {},
   save: SaveRecord | null = null,
+  settings: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {},
 ): string {
   const entries = enabled.map((p) =>
     JSON.stringify({
@@ -295,6 +326,7 @@ ${body}
 export const patches = ${JSON.stringify(outcomes)};
 export const layout = ${JSON.stringify(layout)};
 export const save = ${JSON.stringify(save)};
+export const settings = ${JSON.stringify(settings)};
 `;
 }
 

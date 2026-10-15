@@ -47,6 +47,7 @@ import { leftoverExtensions } from "../extension/locate.ts";
 import { harvestAll } from "../layers/index.ts";
 import { type PluginsConfig, readConfig } from "../plugins/config.ts";
 import {
+  bakedSettings,
   bakeRegistry,
   capabilityUseNotes,
   capabilityUseProblems,
@@ -535,6 +536,8 @@ export function install(ext: string, options: InstallOptions): InstallReport {
     });
     const enabled = enabledPlugins(discovered, config, note);
     configNotes.push(...layoutNotes(config, enabled));
+    const settings = bakedSettings(config, enabled);
+    configNotes.push(...settings.notes);
     enabledNames = enabled.map((p) => p.name);
     const enabledSet = new Set(enabledNames);
     disabledNames = discovered.filter((p) => !enabledSet.has(p.name)).map((p) => p.name);
@@ -590,7 +593,9 @@ export function install(ext: string, options: InstallOptions): InstallReport {
         : saveRecord(ext, tokenPath, (line) => {
             tokenProblem = line;
           });
-    const baked = Buffer.from(bakeRegistry(enabled, outcomes, config.layout, save));
+    const baked = Buffer.from(
+      bakeRegistry(enabled, outcomes, config.layout, save, settings.settings),
+    );
     if (writeIfChanged(join(state.payloadDir, "registry.js"), baked)) wrotePayload = true;
 
     // Before the notes, because this is the one report that says whether a plugin will work here.
