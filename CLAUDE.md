@@ -25,7 +25,7 @@ no new plans. Update the plan before writing code; log status there, not here.
   `Atomics.wait` rather than making `install` async. Carries a negative result worth not
   re-proposing: a content check on the bundle's tail was evidenced against the corpus and rejected,
   because a rule that fits today's bundler refuses every install the day it changes.
-- [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D130.
+- [docs/decisions.md](docs/decisions.md): principles P1 to P9 and decisions D1 to D132.
 
 The internals, for a contributor to Rigline itself. The shape, not the argument — the argument is in
 decisions.md, and each doc cites the decisions it rests on.
@@ -96,8 +96,9 @@ Written for somebody else, so don't rewrite them for us:
   tell that a capability has become a channel is that its reach widens when the extension's does,
   with no decision of ours in between. `apply_settings` is the worked case — it takes arbitrary keys,
   so having the host build the payload bounded the values and left Claude Code's whole settings table
-  reachable. A write needs a person as well as a verb, and the rule supplying the person is not the
-  same one everywhere — read D120 rather than assuming user activation covers it.
+  reachable. A write that reaches Claude Code's own settings or behaviour needs a person as well as a
+  verb — a plugin persisting state of its own does not — and the rule supplying the person is not the
+  same one everywhere, so read D120 rather than assuming user activation covers it.
 - **Never name a minified JS identifier.** Bundler-generated, changes every build. Plugin-facing
   hooks come from harvested layers or the curated anchor table. Build-time harvesting may anchor on
   unminified property names only because codegen asserts every anchor and fails loudly.
