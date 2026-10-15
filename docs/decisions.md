@@ -3469,3 +3469,49 @@ says. So `apply` refuses, by name, and writes nothing, for:
 
 An entry naming a plugin that is not installed is not refused. That is the state D92 built, and it
 is how a preset names what it wants before you have it.
+
+**D133. Engine configuration is not a plugin setting (2026-10-15, Leo).** A value the engine acts on
+with nobody present belongs to `rigline`, not to the plugin whose feature it serves. The case that
+raised it is a favourite model applied when a session starts: the *host* applies it, with no plugin
+in the call, so it is the engine's own behaviour configured by a person rather than a setting a
+plugin reads. It is set by a CLI verb and lives outside `settings`.
+
+Worth having by name, because the alternative on the table was a rule about which keys of a plugin's
+settings are consequential — which needs somebody to classify each one, and an author classifying
+their own is the trust the capability model exists not to extend. Two owners decides it with no
+classification: ask who acts on the value, not what the value means.
+
+It also settles where each may be written from. A plugin setting is panel-editable, because the worst
+a wrong one can cost is bounded by that plugin's declared capabilities. Engine configuration is not:
+a Save payload is constructible by any plugin (D93) and a link can be dressed up, so a deceived click
+would otherwise set something the engine acts on at every launch from then on. A terminal has no
+payload to forge and no link to dress up.
+
+**D134. Per-plugin settings are YAML sections, and a plugin saves its own (2026-10-15, Leo).** D91
+left `config.yaml` holding "the layout and per-plugin settings as they arrive"; these are them. A
+`settings` mapping keyed by plugin name, named in `SETTINGS` so the unknown-key report stops flagging
+it, with D110 applied one level down: a key under a plugin's own block that this engine does not
+understand is kept and carried forward, because the engine never knows a plugin's schema and a newer
+plugin's key has to survive an older engine.
+
+`ctx.settings` hands over a frozen deep clone and nothing else. The registry is written at `install`,
+so a value changes on re-inject and reload and at no other time, and a subscription would promise
+live updates that do not exist (P5). It needs no capability switch: reading one's own configuration
+grants nothing that was not already granted, so it is unconditional and `rigline list` has nothing
+to report.
+
+`ctx.saveSettings(value, section?)` defaults the section to the caller's own name, and the host
+checks it in one small function rather than by making the section impossible to name. Expressiveness
+is the point: a permission to write another plugin's section, or an exemption for a first-party one,
+is then a change inside that check and not a new mechanism (Leo). The payload carries a map of
+sections, so batching several writes or a privileged writer needs no change to the format or the
+companion. The check is the host's because only the host knows the caller — the engine receives a
+Save with no authenticated sender, so it validates shape and that each section names an installed
+plugin, and writes. What the check does not stop is a hand-constructed payload; what bounds that is
+D93's click being a person's and visible, and a section being inert.
+
+The engine guarantees the value is an object, within a size bound, and frozen. It guarantees nothing
+about the shape inside, which it cannot know, so tolerating a value it did not write is the author's
+obligation and belongs in plugin-policy.md's second half, as the two cases that arrive: a key never
+heard of, and an expected key missing. That is owed to hand editing alone — `config.yaml` is a file
+people edit, so a typo reaches a plugin without anybody sharing anything.
