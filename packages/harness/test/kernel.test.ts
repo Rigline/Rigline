@@ -41,6 +41,12 @@ interface GestureWindow {
     readonly activationInTimer: boolean | null;
     readonly trustedFromClick: boolean | null;
     readonly trustedFromScript: boolean | null;
+    readonly phaseInHandler: number | null;
+    readonly phaseAfterDispatch: number | null;
+    readonly forgedReadsTrue: boolean | null;
+    readonly forgeThrew: boolean | null;
+    readonly forgedDesc: Record<string, unknown> | null;
+    readonly realDesc: Record<string, unknown> | null;
   };
 }
 
@@ -1845,30 +1851,82 @@ export default { setup(ctx) {
       const ua = navigator.userActivation;
       return ua ? ua.isActive : null;
     };
+    window.__gestureThrew = null;
+    try {
+    // Where isTrusted actually lives decides how the host must read it, so find out rather than
+    // assume: walk the chain from the instance and describe what owns it.
+    const describe = (e) => {
+      let o = e;
+      while (o !== null) {
+        const d = Object.getOwnPropertyDescriptor(o, "isTrusted");
+        if (d) {
+          return {
+            owner: o === e ? "instance" : (o.constructor && o.constructor.name) || "proto",
+            kind: d.get ? "getter" : "value",
+            value: d.get ? null : d.value,
+            configurable: d.configurable,
+            writable: d.writable === undefined ? null : d.writable,
+          };
+        }
+        o = Object.getPrototypeOf(o);
+      }
+      return null;
+    };
+    const reallyTrusted = (e) => e.isTrusted === true;
     window.__gesture = {
       supported: !!navigator.userActivation,
       activationAtSetup: activation(),
       activationInTimer: null,
       trustedFromClick: null,
       trustedFromScript: null,
+      phaseInHandler: null,
+      phaseAfterDispatch: null,
+      forgedReadsTrue: null,
+      forgeThrew: null,
+      forgedDesc: null,
+      realDesc: null,
     };
     setTimeout(() => { window.__gesture.activationInTimer = activation(); }, 0);
+
+    // A plugin's best effort at a trusted-looking event of its own.
+    const forged = new MouseEvent("click");
+    window.__gesture.forgedDesc = describe(forged);
+    try {
+      Object.defineProperty(forged, "isTrusted", { value: true, configurable: true });
+      window.__gesture.forgeThrew = false;
+    } catch (e) {
+      window.__gesture.forgeThrew = true;
+    }
+    window.__gesture.forgedReadsTrue = forged.isTrusted === true;
+
     ctx.watch("modelPill", (el) => ctx.mountAfter(el, () => {
       const b = document.createElement("button");
       b.className = "harness-gesture";
       b.textContent = "G";
       b.addEventListener("click", (e) => {
-        if (e.isTrusted) window.__gesture.trustedFromClick = true;
-        else window.__gesture.trustedFromScript = false;
+        if (reallyTrusted(e)) {
+          window.__gesture.trustedFromClick = true;
+          window.__gesture.realDesc = describe(e);
+          window.__gesture.phaseInHandler = e.eventPhase;
+          // Held past its dispatch, which is what a write after an await would be working from.
+          setTimeout(() => { window.__gesture.phaseAfterDispatch = e.eventPhase; }, 0);
+        } else {
+          window.__gesture.trustedFromScript = false;
+        }
       });
       // A plugin firing its own control, which is the case the rule has to exclude.
       setTimeout(() => b.click(), 0);
       return b;
     }));
+    } catch (err) { window.__gestureThrew = String(err && err.message || err); }
   } };`,
       };
       const booted = await boot({ plugins: [gesture] });
       try {
+        const threw = await booted.page.evaluate(
+          () => (window as unknown as { __gestureThrew?: string | null }).__gestureThrew,
+        );
+        expect(threw).toBeNull();
         await booted.page.waitForSelector(".harness-gesture");
         // Read before clicking: activation is *transient*, so a read taken afterwards cannot tell
         // "the timer had none" from "the click's had not expired yet".
@@ -1876,12 +1934,35 @@ export default { setup(ctx) {
           () => (window as unknown as GestureWindow).__gesture,
         );
         await booted.page.click(".harness-gesture");
+        // The handler holds the event into a timer, so wait for that rather than racing it.
+        await booted.page.waitForFunction(
+          () => (window as unknown as GestureWindow).__gesture?.phaseAfterDispatch !== null,
+        );
         const g = await booted.page.evaluate(() => (window as unknown as GestureWindow).__gesture);
 
         // `isTrusted` is the discriminator that works, in both directions: the plugin's own
         // `b.click()` is untrusted, a person's click is trusted.
         expect(g?.trustedFromScript).toBe(false);
         expect(g?.trustedFromClick).toBe(true);
+
+        // Why a plain `event.isTrusted === true` is enough, and no prototype-getter trick is
+        // wanted: Blink puts `isTrusted` on the *instance* as a non-configurable accessor, so a
+        // plugin cannot shadow it. `defineProperty` throws, and the value still reads false.
+        expect(g?.realDesc).toEqual({
+          owner: "instance",
+          kind: "getter",
+          value: null,
+          configurable: false,
+          writable: null,
+        });
+        expect(g?.forgedDesc).toEqual(g?.realDesc);
+        expect(g?.forgeThrew).toBe(true);
+        expect(g?.forgedReadsTrue).toBe(false);
+
+        // And the dispatch has to still be running, so a write cannot work from an event held
+        // past its handler: NONE is 0.
+        expect(g?.phaseInHandler).not.toBe(0);
+        expect(g?.phaseAfterDispatch).toBe(0);
 
         // `navigator.userActivation` exists but is **not** usable here, and this records why so
         // nobody reaches for it again: it reads active at setup and inside a timer, before any

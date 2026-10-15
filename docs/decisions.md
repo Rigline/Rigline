@@ -3121,12 +3121,22 @@ tap on unrelated traffic satisfies every other condition here, and "a person cau
 obligation on an author rather than something the architecture holds. Neither of those supplies an
 instruction of either kind, which is exactly why they are excluded.
 
-The host knows which it is in, rather than asking the author: a capture-phase listener on
-`document` — the technique the form guard already uses — sets a flag when a trusted event arrives
-and clears it in a microtask, so the flag is true for exactly that dispatch and false in the task
-after it. A plugin's handler runs inside the dispatch, so a write from it passes; one from a timer,
-a bus tap or `setup` does not. A plugin firing its own control reaches an untrusted event and so
-fails too.
+The verb takes the event the caller is handling, and the host checks it: `isTrusted`, and that
+`eventPhase` is not `NONE`. Both halves are needed and neither is a convention an author could get
+wrong — the first excludes an event the plugin made or dispatched itself, the second an event held
+past its handler, which is what a write after an `await` would be working from. A write from a
+timer, a bus tap or `setup` has no event to pass at all.
+
+Taking the event beats a flag the host keeps. A flag set in a capture-phase listener and cleared in
+a microtask looks right and is not: microtasks drain between event listeners, so it would be false
+again by the time the plugin's own handler ran. A flag cleared on the bubble at `window` fixes that
+and then sticks forever the first time anything calls `stopPropagation`.
+
+`isTrusted` carries this because it cannot be forged, which was measured rather than assumed: Blink
+defines it on the event *instance* as a non-configurable accessor, so `defineProperty` throws and
+the value still reads false. A plain `event.isTrusted === true` is therefore enough, and reaching
+through a prototype getter — the defence written before the measurement — protects against nothing,
+since `Event.prototype` has no such descriptor at all.
 
 **`navigator.userActivation` is not the mechanism, and this is the negative result: it reads active
 with no gesture at all.** It exists in the webview, but `isActive` is already true during `setup`
