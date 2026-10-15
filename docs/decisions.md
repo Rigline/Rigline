@@ -3572,6 +3572,16 @@ time and a jump additionally gets a lead, on the same node. And **no anchor can 
 version and the stamp's CSS module does not exist before 2.1.285, so the attribute is named in CSS
 and a contributed check reports the day it changes, rather than two times quietly appearing.
 
-Deferred: our own time does not answer to `timeFormat` or `timeZone`, so a person who has asked for
-24-hour or UTC sees that on the app's rows and this plugin's default on the rest. It needs the state
-message read off the bus, and every row where the setting is most visible is a row the app stamps.
+**`timeFormat` and `timeZone` are not read, and that is the decision rather than a gap** (Leo,
+2026-10-15: "nobody wants to see UTC and the 24-hour option is likely to go unused as well"). The
+options above are the app's defaults, so the two agree for anybody who has not set either. Somebody
+who has set one sees it honoured on Claude Code's own rows and the default on this plugin's, and the
+answer to that is not to read the setting but to leave it: the cost is a format nobody has asked for
+on a handful of rows, against a bus declaration, a message shape and a refusal path to maintain for
+it. The same holds for a `timeFormat` of Rigline's own — one more place to set a thing the app
+already sets.
+
+One accepted consequence, so it does not read as a bug: on a user prompt row the app's stamp is a
+line in the content rather than a label in the padding, so a day or pause divider sits in the band
+*above* it. The row then reads divider, then the app's time on its own line, then the prompt, which
+is one line lower than the eye expects. Looked at live on 2.1.300 and kept (Leo, 2026-10-15).

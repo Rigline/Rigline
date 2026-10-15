@@ -71,7 +71,7 @@ const DAY_IN_YEAR = new Intl.DateTimeFormat(undefined, {
   year: "numeric",
 });
 // The options the app's own stamp uses, so a column of times reads as one feature whichever side
-// drew each row. It answers to the person's `timeFormat` and this does not yet (D135).
+// drew each row. The person's `timeFormat` and `timeZone` are deliberately not read (D135).
 const TIME = new Intl.DateTimeFormat(undefined, {
   hour: "numeric",
   minute: "2-digit",
