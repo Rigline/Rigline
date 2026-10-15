@@ -62,6 +62,8 @@ export interface PreparePayloadOptions {
   readonly layout?: Layout;
   /** What the panel's Save goes through, as `install` would bake it (D93). */
   readonly save?: SaveRecord | null;
+  /** Per-plugin settings by plugin name, as `install` would bake them (D134). */
+  readonly settings?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   /** Selectors written over the resolved ones, as a refinement in `anchors.json` would be. */
   readonly selectors?: Readonly<Record<string, string>>;
 }
@@ -105,6 +107,7 @@ export const plugins = ${JSON.stringify(plugins, null, 2)};
 export const patches = [];
 export const layout = ${JSON.stringify(options.layout ?? {})};
 export const save = ${JSON.stringify(options.save ?? null)};
+export const settings = ${JSON.stringify(options.settings ?? {})};
 `;
   writeFileSync(join(dir, "registry.js"), registrySource, "utf8");
 

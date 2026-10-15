@@ -34,6 +34,19 @@ interface SurvivorWindow {
   readonly __detach?: () => void;
 }
 
+interface SettingsWindow {
+  readonly __settings?: {
+    readonly own: Record<string, unknown>;
+    readonly frozen: boolean;
+    readonly deeplyFrozen: boolean;
+    readonly threw: string | null;
+  };
+  readonly __bystander?: {
+    readonly settings: Record<string, unknown>;
+    readonly frozen: boolean;
+  };
+}
+
 interface FixtureWindow {
   readonly __staleImported?: boolean;
   readonly __optional?: {
@@ -1803,6 +1816,73 @@ export default { setup(ctx) {
         // neither reached diagnostics.errors, where it would have been counted a second time.
         const d = await booted.diagnostics();
         expect(d.plugins).toContainEqual({ name: "checker", status: "loaded" });
+        expect(d.errors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
+    it("hands each plugin its own settings, frozen, and {} to one with none (D134)", async () => {
+      const reader: FixturePlugin = {
+        name: "reader",
+        manifest: { uses: { anchors: ["modelPill"], mount: true } },
+        source: `export default { setup(ctx) {
+    let threw = null;
+    try {
+      ctx.settings.favourites.push("sneaked");
+    } catch (e) {
+      threw = String(e && e.message);
+    }
+    window.__settings = {
+      own: ctx.settings,
+      frozen: Object.isFrozen(ctx.settings),
+      deeplyFrozen: Object.isFrozen(ctx.settings.favourites),
+      threw,
+    };
+    ctx.watch("modelPill", (el) => ctx.mountAfter(el, () => {
+      const s = document.createElement("span");
+      s.className = "harness-badge";
+      s.textContent = "S";
+      return s;
+    }));
+  } };`,
+      };
+      const bystander: FixturePlugin = {
+        name: "bystander",
+        manifest: { uses: {} },
+        source: `export default { setup(ctx) {
+    window.__bystander = { settings: ctx.settings, frozen: Object.isFrozen(ctx.settings) };
+  } };`,
+      };
+      const booted = await boot({
+        plugins: [reader, bystander],
+        settings: {
+          reader: { favourites: ["opus"], somethingNewer: 3 },
+          absent: { kept: true },
+        },
+      });
+      try {
+        await booted.page.waitForSelector(".harness-badge");
+        const read = await booted.page.evaluate(
+          () => (window as unknown as SettingsWindow).__settings,
+        );
+        expect(read?.own).toEqual({ favourites: ["opus"], somethingNewer: 3 });
+        expect(read?.frozen).toBe(true);
+        // Deep, for the reason a tap's view is deep: a shallow freeze leaves the arrays writable,
+        // which is the whole of what the guarantee was about.
+        expect(read?.deeplyFrozen).toBe(true);
+        expect(read?.threw).toMatch(/read only|not extensible|frozen/i);
+
+        // A plugin with no section gets {}, never another plugin's, and never the whole mapping.
+        const other = await booted.page.evaluate(
+          () => (window as unknown as SettingsWindow).__bystander,
+        );
+        expect(other?.settings).toEqual({});
+        expect(other?.frozen).toBe(true);
+
+        const d = await booted.diagnostics();
+        expect(d.plugins).toContainEqual({ name: "reader", status: "loaded" });
+        expect(d.plugins).toContainEqual({ name: "bystander", status: "loaded" });
         expect(d.errors).toEqual([]);
       } finally {
         await booted.close();

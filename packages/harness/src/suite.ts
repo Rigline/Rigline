@@ -115,6 +115,8 @@ export interface BootOptions {
   readonly remove?: RemovedIdentifiers;
   readonly layout?: Layout;
   readonly save?: SaveRecord | null;
+  /** Per-plugin settings by plugin name, as `install` would bake them (D134). */
+  readonly settings?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   /** Selectors written over the resolved ones, as a refinement in `anchors.json` would be. */
   readonly selectors?: Readonly<Record<string, string>>;
   /** Where the page's clock starts, installed before it loads, for a test that moves time. */
@@ -180,6 +182,7 @@ export function register(version: string): (options?: BootOptions) => Promise<Bo
       remove: options.remove,
       layout: options.layout,
       save: options.save,
+      settings: options.settings,
       selectors: options.selectors,
     });
     const harness: Harness = await startHarness({

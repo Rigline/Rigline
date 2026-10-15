@@ -24,6 +24,12 @@ hole, or raises the Node or VS Code it needs, its entry says so.
     off: where it names a plugin you have not got, Rigline says what the file claims about where it
     comes from and leaves it to you, and the layout entry waits until you add it.
   - [docs/presets.md](docs/presets.md) is the whole of it.
+- Per-plugin settings in `~/.rigline/config.yaml`, under a `settings:` block keyed by plugin name,
+  so a plugin can be configured by hand in the same file as the rest of your Rigline.
+  - A plugin reads its own with `ctx.settings`, and only its own.
+  - A key Rigline does not understand is kept and passed through, so a newer plugin's setting
+    survives an older Rigline and a hand edit is never quietly dropped.
+  - Settings for a plugin you have switched off stay in the file and come back with it.
 - A sixth bundled plugin, `usage-meter`, with three pills under the composer.
   - **Session cost**: Claude Code's own estimate of what the session has cost so far. On a claude.ai
     plan it reads `~$1.23`, since that is the list price of what was used and not what you pay.
