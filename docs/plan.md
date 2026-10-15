@@ -644,3 +644,7 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   its position and format (D135). The corpus and the harness move to 2.1.300, whose new webview hook
   surface holds transcript rows hidden until its engine answers — an open question at the foot of
   *Open questions*, and a harness caveat in verification.md.
+- 2026-10-15: time-marks follows the app's own `timeFormat` and `timeZone`, read off
+  `state.claudeSettings.effective` on two optionally-declared carriers, so one column of times is
+  one format whichever side drew the row (D135, amended). A strftime `timeFormat` is the stated
+  limit.

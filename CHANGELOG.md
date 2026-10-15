@@ -58,6 +58,9 @@ its own.
   top right of the row, where Claude Code puts its own, and read in the same format, so one column
   of times runs down the transcript whichever of the two drew a given row. Turn
   `claudeCode.showMessageTimestamps` off and every row gets a Rigline marker instead.
+- Time markers follow Claude Code's own `timeFormat` and `timeZone`, so `12-hour`, `24-hour` and
+  `24-hour-utc` read the same on a Rigline marker as on Claude Code's own stamp. A `timeFormat`
+  written as a strftime pattern is the one it cannot follow, and falls back to the 12-hour default.
 - Time markers flickered, and most rows never had one at all. Rigline matches a transcript row to
   its message through React, which keeps two versions of every row and tells us about whichever one
   it built the row from; where those two disagreed, Rigline played safe and decorated nothing. On a

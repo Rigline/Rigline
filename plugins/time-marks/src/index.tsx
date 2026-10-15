@@ -70,13 +70,93 @@ const DAY_IN_YEAR = new Intl.DateTimeFormat(undefined, {
   month: "long",
   year: "numeric",
 });
-// The options the app's own stamp uses, so a column of times reads as one feature whichever side
-// drew each row. The person's `timeFormat` and `timeZone` are deliberately not read (D135).
-const TIME = new Intl.DateTimeFormat(undefined, {
-  hour: "numeric",
-  minute: "2-digit",
-  hourCycle: "h12",
-});
+/**
+ * How a time is written: the app's own `timeFormat` and `timeZone`, reduced to what an
+ * `Intl.DateTimeFormat` needs plus the one thing it cannot express (D135).
+ */
+export interface Display {
+  readonly hourCycle: "h12" | "h23";
+  /** The zone to render in, or undefined for the runtime's. */
+  readonly timeZone: string | undefined;
+  /** Whether a `Z` is appended, which is what `24-hour-utc` means beyond being UTC. */
+  readonly utc: boolean;
+}
+
+export const DEFAULT_DISPLAY: Display = { hourCycle: "h12", timeZone: undefined, utc: false };
+
+/**
+ * The app's `timeFormat` and `timeZone` as a `Display`, mirroring its own rules: `auto` and
+ * anything unrecognised keep h12 rather than following the locale, and `24-hour-utc` is h23 in UTC
+ * with a `Z`. A `timeFormat` the app would read as a strftime pattern falls back to `auto`, which
+ * is the one thing here that does not match it (D135).
+ *
+ * A zone is accepted only if `Intl` accepts it, because it throws on an unknown one and this
+ * feeds a formatter built inside `build()`, where a throw disables the plugin.
+ */
+export function displayFor(timeFormat: unknown, timeZone: unknown): Display {
+  const zone = usableZone(timeZone);
+  if (timeFormat === "24-hour-utc") return { hourCycle: "h23", timeZone: "UTC", utc: true };
+  if (timeFormat === "24-hour") return { hourCycle: "h23", timeZone: zone, utc: false };
+  return { hourCycle: "h12", timeZone: zone, utc: false };
+}
+
+/** Two displays that would format identically. */
+function sameDisplay(a: Display, b: Display): boolean {
+  return a.hourCycle === b.hourCycle && a.timeZone === b.timeZone && a.utc === b.utc;
+}
+
+/** A value that might be an object, without asserting anything about its contents. */
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function usableZone(timeZone: unknown): string | undefined {
+  if (typeof timeZone !== "string" || timeZone === "") return undefined;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone }).format(0);
+    return timeZone;
+  } catch {
+    return undefined;
+  }
+}
+
+/** One formatter per display, kept because a rebuild formats every row on screen. */
+const formatters = new Map<string, Intl.DateTimeFormat>();
+
+function formatterFor(display: Display): Intl.DateTimeFormat {
+  const key = `${display.hourCycle}|${display.timeZone ?? ""}`;
+  const kept = formatters.get(key);
+  if (kept !== undefined) return kept;
+  const made = new Intl.DateTimeFormat(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+    hourCycle: display.hourCycle,
+    ...(display.timeZone === undefined ? {} : { timeZone: display.timeZone }),
+  });
+  formatters.set(key, made);
+  return made;
+}
+
+/**
+ * One instant as the app's own stamp writes it. The options are the app's; the locale is left
+ * undefined, as the app leaves it, so the rest of the panel's conventions apply.
+ *
+ * The `Z` replaces the last minute-or-second part rather than being appended to the formatted
+ * string, which is how the app does it and the only version that puts it in the right place in a
+ * locale that writes anything after the minute.
+ */
+export function formatTime(at: number, display: Display): string {
+  const format = formatterFor(display);
+  if (!display.utc) return format.format(at);
+  const parts = format.formatToParts(at);
+  const last = parts.reduce(
+    (found, part, index) => (part.type === "minute" || part.type === "second" ? index : found),
+    -1,
+  );
+  return parts.map((part, index) => (index === last ? `${part.value}Z` : part.value)).join("");
+}
 
 /** One mark to draw, or null for nothing. */
 interface Mark {
@@ -149,9 +229,13 @@ export function gapName(ms: number): string {
  * negative number, so it falls into the no-divider branch on its own; a resumed session does not
  * print "3h later" above a message that in fact came first.
  */
-export function markFor(entry: TranscriptEntry, entries: readonly TranscriptEntry[]): Mark | null {
+export function markFor(
+  entry: TranscriptEntry,
+  entries: readonly TranscriptEntry[],
+  display: Display = DEFAULT_DISPLAY,
+): Mark | null {
   if (entry.at === null) return null;
-  const time = TIME.format(entry.at);
+  const time = formatTime(entry.at, display);
 
   let previousAt: number | null = null;
   for (let i = entry.index - 1; i >= 0; i--) {
@@ -333,10 +417,12 @@ export default definePlugin({
     let marked = 0;
     let unmarkedSince: number | null = null;
 
+    let display = DEFAULT_DISPLAY;
+
     function build(entry: TranscriptEntry, entries: readonly TranscriptEntry[]): Element | null {
       asked += 1;
       if (unmarkedSince === null) unmarkedSince = performance.now();
-      const mark = markFor(entry, entries);
+      const mark = markFor(entry, entries, display);
       if (mark === null) return null;
       marked += 1;
       return mark.lead === null ? buildPlain(mark.time) : buildDivider(mark.lead, mark.time);
@@ -349,6 +435,12 @@ export default definePlugin({
     function decorate(): void {
       decorateOff = ctx.decorateTranscript(build);
       drawnOn = new Date().toDateString();
+    }
+
+    /** Re-register, which redraws every row on screen: what both the date and the format moving need. */
+    function redraw(): void {
+      decorateOff?.();
+      decorate();
     }
 
     function applyDecoration(): void {
@@ -367,9 +459,27 @@ export default definePlugin({
 
     const midnight = setInterval(() => {
       if (decorateOff === null || new Date().toDateString() === drawnOn) return;
-      decorateOff();
-      decorate();
+      redraw();
     }, MIDNIGHT_POLL_MS);
+
+    /**
+     * Follow the app's own `timeFormat` and `timeZone`, so one column of times is one format
+     * whichever side drew each row (D135). `init_response` carries the settings at boot, replayed
+     * to this tap however late the plugin loaded, and `update_state` carries them again on a
+     * change; both are declared optional, so a version that renames either leaves the marks in the
+     * default rather than refusing the plugin.
+     */
+    for (const type of ["init_response", "update_state"] as const) {
+      ctx.onMessage(type, (payload) => {
+        const state = asRecord(asRecord(payload)?.state);
+        const effective = asRecord(asRecord(state?.claudeSettings)?.effective);
+        if (effective === null) return;
+        const next = displayFor(effective.timeFormat, effective.timeZone);
+        if (sameDisplay(next, display)) return;
+        display = next;
+        if (decorateOff !== null) redraw();
+      });
+    }
 
     ctx.menu(() => <Toggle visible={visible} />);
 

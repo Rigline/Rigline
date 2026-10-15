@@ -11,7 +11,8 @@
     "transcript": true,
     "menu": true,
     "optional": {
-      "anchors": ["itemTime"]
+      "anchors": ["itemTime"],
+      "messages": ["init_response", "update_state"]
     }
   }
 }

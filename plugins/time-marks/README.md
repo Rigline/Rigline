@@ -10,9 +10,15 @@ is why the plugin is installed.
 
 Claude Code stamps user prompts and its own text replies itself, on by default
 (`claudeCode.showMessageTimestamps`). On those rows its stamp is the one that stays — same instant,
-your `timeFormat`, and the date on hover — and this plugin fills in what it leaves bare: tool calls,
-thinking blocks, and the breaks. Switch its stamps off and every row gets one of these instead; no
-setting here, and nothing to keep in step.
+and the date on hover — and this plugin fills in what it leaves bare: tool calls, thinking blocks,
+and the breaks. Switch its stamps off and every row gets one of these instead; there is no setting
+here to keep in step.
+
+The format follows Claude Code's own `timeFormat` and `timeZone`, so one column of times reads the
+same whichever side drew a given row: `12-hour`, `24-hour`, and `24-hour-utc` with its `Z`. A
+`timeFormat` written as a strftime pattern is the one it cannot follow and falls back to the
+12-hour default. Changing those settings while the panel is open reaches this at the next reload,
+since the extension pushes its state on its own configuration changes rather than on the CLI's.
 
 ## Depends on
 
@@ -28,6 +34,10 @@ setting here, and nothing to keep in step.
 - `uses.optional.anchors: ["itemTime"]` — cosmetic: a borrowed style class that makes this
   plugin's time read like the app's own dimmed label; without it the time still renders, from
   inline styles alone.
+- `uses.optional.messages: ["init_response", "update_state"]` — cosmetic: the two carriers of
+  `state.claudeSettings.effective`, where Claude Code's `timeFormat` and `timeZone` live. Optional
+  because a version that renames either should cost the format and not every row's time: a tap on
+  an absent type never fires, and the default stands.
 - `uses.style`, required — injecting the one stylesheet rule.
 - `uses.menu`, required — the Time markers toggle in Rigline's menu.
 

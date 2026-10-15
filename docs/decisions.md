@@ -3572,14 +3572,35 @@ time and a jump additionally gets a lead, on the same node. And **no anchor can 
 version and the stamp's CSS module does not exist before 2.1.285, so the attribute is named in CSS
 and a contributed check reports the day it changes, rather than two times quietly appearing.
 
-**`timeFormat` and `timeZone` are not read, and that is the decision rather than a gap** (Leo,
-2026-10-15: "nobody wants to see UTC and the 24-hour option is likely to go unused as well"). The
-options above are the app's defaults, so the two agree for anybody who has not set either. Somebody
-who has set one sees it honoured on Claude Code's own rows and the default on this plugin's, and the
-answer to that is not to read the setting but to leave it: the cost is a format nobody has asked for
-on a handful of rows, against a bus declaration, a message shape and a refusal path to maintain for
-it. The same holds for a `timeFormat` of Rigline's own — one more place to set a thing the app
-already sets.
+**`timeFormat` and `timeZone` are the app's own settings, and this follows them** (Leo, 2026-10-15:
+"I want to keep our timestamps consistent with the built-in ones"). They are read from
+`state.claudeSettings.effective`, carried on `init_response` — whose `state` the webview feeds its
+`config` signal from, and which the replay buffer hands a late-loading plugin — and again on the
+`update_state` request the extension pushes on a change. `get_claude_state_response.config` is a
+different config, the CLI's models and the rest, and carries none of it. Both types are declared
+under `uses.optional.messages`, so a version that renames either leaves the marks in the default
+instead of refusing a plugin over a cosmetic setting (D41). A change re-registers the decorator,
+which is the redraw the midnight poll already uses.
+
+What is mirrored is `cA0`/`lA0`: `auto` and anything unrecognised keep h12, which is the app's own
+`auto` rather than the locale's preference; `12-hour` and `24-hour` are the two cycles; and
+`24-hour-utc` is h23 in UTC with a `Z` appended to the last minute-or-second part through
+`formatToParts`, as the app appends it, rather than onto the formatted string, which would put it in
+the wrong place in any locale that writes anything after the minute. A zone is used only if `Intl`
+accepts it, decided by trying it: `Intl` throws on an unknown zone and this feeds a formatter called
+from `build()`, where a throw disables the plugin.
+
+**One limit, stated rather than fixed.** `timeFormat` also accepts a strftime-style pattern, which
+the app renders with a full `%`-directive formatter; a pattern falls back to `auto` here rather than
+carrying a second copy of somebody else's date formatter against a setting with no UI. Somebody with
+a pattern sees it on the app's rows and h12 on ours, and the trigger for revisiting is somebody
+turning up with one. An edit to `~/.claude/settings.json` mid-session also does not necessarily push
+`update_state`, since the extension pushes on its own configuration changes, so a change there lands
+at the next panel reload.
+
+This replaces an earlier paragraph here that recorded the opposite, on a reading of the settings as
+Rigline's own rather than the app's — in which they were a format nobody had asked for, instead of
+the one the person is already looking at.
 
 One accepted consequence, so it does not read as a bug: on a user prompt row the app's stamp is a
 line in the content rather than a label in the padding, so a day or pause divider sits in the band

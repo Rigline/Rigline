@@ -175,6 +175,31 @@ describe.skipIf(skipReason !== null)(
       }
     }, 20000);
 
+    it("follows the CLI's own timeFormat, down to the Z", async () => {
+      const booted = await boot({
+        plugins: [timeMarks as FixturePlugin],
+        appTimestamps: false,
+        appTimeFormat: "24-hour-utc",
+      });
+      const { page } = booted;
+      try {
+        // The setting travels init_response -> the plugin's tap -> a redraw -> this text, so a
+        // match here is the whole path and not just the formatter, which tier 1 pins on its own.
+        await page.waitForFunction(() =>
+          [...document.getElementsByClassName("rigline-tm-stamp")].some((span) =>
+            /\d{2}:\d{2}Z/.test(span.textContent ?? ""),
+          ),
+        );
+        const texts = await page.evaluate(() =>
+          [...document.getElementsByClassName("rigline-tm-stamp")].map((span) => span.textContent),
+        );
+        for (const text of texts) expect(text).toMatch(/^\d{2}:\d{2}Z$/);
+        expect(booted.consoleErrors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
     it("says Yesterday over the rows once the panel has sat open past midnight", async () => {
       const lateEvening = new Date();
       lateEvening.setHours(23, 58, 0, 0);

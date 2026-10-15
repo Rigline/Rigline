@@ -40,6 +40,8 @@ export interface HarnessOptions {
   readonly port?: number;
   /** Whether the fake host says the app should stamp its own messages; on by default, as live. */
   readonly appTimestamps?: boolean;
+  /** The CLI's `timeFormat` in `init`'s state; absent leaves `claudeSettings` out. */
+  readonly appTimeFormat?: string;
 }
 
 export interface Harness {
@@ -70,6 +72,7 @@ async function handle(
       surface: options.surface,
       nonce: NONCE,
       appTimestamps: options.appTimestamps,
+      appTimeFormat: options.appTimeFormat,
     });
     await send(res, 200, page, "text/html");
     return;

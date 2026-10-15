@@ -128,6 +128,11 @@ export interface BootOptions {
    * extension host's own default is on, so that is the panel a plugin meets (D135).
    */
   readonly appTimestamps?: boolean;
+  /**
+   * The CLI's `timeFormat`, which the app's own stamp follows and a plugin may follow with it
+   * (D135). Absent leaves `claudeSettings` out of the state altogether, which is the ordinary case.
+   */
+  readonly appTimeFormat?: string;
 }
 
 interface HarnessWindow {
@@ -198,6 +203,7 @@ export function register(version: string): (options?: BootOptions) => Promise<Bo
       payloadDir: dir,
       surface: options.surface ?? "editor",
       appTimestamps: options.appTimestamps,
+      appTimeFormat: options.appTimeFormat,
     });
     const page = await browser.newPage();
     // Inside every test's own timeout, so a wait that hangs fails naming what it waited for.

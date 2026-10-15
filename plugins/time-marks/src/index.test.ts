@@ -6,7 +6,7 @@
  */
 import type { TranscriptEntry } from "@rigline/plugin-api";
 import { describe, expect, it } from "vitest";
-import { dayName, gapName, markFor, styleRules } from "./index.tsx";
+import { dayName, displayFor, formatTime, gapName, markFor, styleRules } from "./index.tsx";
 
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
@@ -144,6 +144,60 @@ describe("markFor", () => {
     // the same branch an ordinary short gap takes.
     const entries = entriesAt(noon(10), noon(10) - 3 * HOUR);
     expect(markFor(at(entries, 1), entries)?.lead).toBeNull();
+  });
+});
+
+describe("displayFor", () => {
+  it("keeps the app's h12 for auto, for a pattern, and for anything unrecognised", () => {
+    // `auto` is the app's own h12 rather than the locale's preference, and a strftime pattern is
+    // the limit this does not match: it falls back to auto rather than carrying a date formatter.
+    for (const value of ["auto", "%H:%M", "", undefined, 24]) {
+      expect(displayFor(value, undefined).hourCycle, String(value)).toBe("h12");
+    }
+  });
+
+  it("follows the two 24-hour presets, and puts only the utc one in UTC", () => {
+    expect(displayFor("24-hour", undefined)).toEqual({
+      hourCycle: "h23",
+      timeZone: undefined,
+      utc: false,
+    });
+    expect(displayFor("24-hour-utc", "Australia/Sydney")).toEqual({
+      hourCycle: "h23",
+      timeZone: "UTC",
+      utc: true,
+    });
+  });
+
+  it("takes a zone Intl accepts and drops one it does not", () => {
+    expect(displayFor("12-hour", "Australia/Sydney").timeZone).toBe("Australia/Sydney");
+    // Not a fussy input check: Intl throws on an unknown zone, and this feeds a formatter called
+    // from build(), where a throw disables the plugin.
+    expect(displayFor("12-hour", "Middle/Earth").timeZone).toBeUndefined();
+    expect(displayFor("12-hour", 42).timeZone).toBeUndefined();
+  });
+});
+
+describe("formatTime", () => {
+  // 2026-09-10T04:05:00Z, which is 14:05 in Sydney and 04:05 in UTC.
+  const AT = Date.parse("2026-09-10T04:05:00Z");
+
+  it("writes an unpadded 12-hour time, as the app's own stamp does", () => {
+    const text = formatTime(AT, { hourCycle: "h12", timeZone: "Australia/Sydney", utc: false });
+    expect(text).toMatch(/\b2[:.]05\b/);
+    expect(text).not.toMatch(/^0/);
+  });
+
+  it("writes a 24-hour time in the given zone", () => {
+    const text = formatTime(AT, { hourCycle: "h23", timeZone: "Australia/Sydney", utc: false });
+    expect(text).toContain("14");
+    expect(text).toContain("05");
+  });
+
+  it("marks the utc preset with a Z after the minute, not after the string", () => {
+    const text = formatTime(AT, { hourCycle: "h23", timeZone: "UTC", utc: true });
+    expect(text).toContain("04");
+    expect(text).toMatch(/05Z/);
   });
 });
 
