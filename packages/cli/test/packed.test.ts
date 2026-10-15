@@ -65,6 +65,7 @@ function run(
     const e = error as { stdout?: string; stderr?: string; message?: string };
     throw new Error(
       `${command} ${args.join(" ")} failed in ${cwd}\n${e.stdout ?? ""}\n${e.stderr ?? e.message ?? ""}`,
+      { cause: error },
     );
   }
 }

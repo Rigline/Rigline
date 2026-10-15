@@ -19,14 +19,12 @@ function noon(day: number): number {
 
 /** Alternating user/assistant entries at the given epoch times, `null` where a record has no time yet. */
 function entriesAt(...times: readonly (number | null)[]): TranscriptEntry[] {
-  return times.map(
-    (at, index): TranscriptEntry => ({
-      id: `entry-${index}`,
-      role: index % 2 === 0 ? "user" : "assistant",
-      at,
-      index,
-    }),
-  );
+  return times.map((at, index): TranscriptEntry => ({
+    id: `entry-${index}`,
+    role: index % 2 === 0 ? "user" : "assistant",
+    at,
+    index,
+  }));
 }
 
 /** `entries[i]`, asserted present: every test below builds its own fixed-length list by hand. */

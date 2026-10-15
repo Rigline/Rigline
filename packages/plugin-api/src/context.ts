@@ -125,7 +125,7 @@ export interface PluginContext {
    * unwrapped under its inner type; `onMessage("request")` and `onMessage("response")` see the
    * envelopes. The payload is a frozen deep clone. Requires the type under `uses.messages`.
    */
-  onMessage(type: MessageType, handler: (payload: Payload) => void): Teardown;
+  onMessage: (type: MessageType, handler: (payload: Payload) => void) => Teardown;
 
   /**
    * Keep `build()`'s result inside `target`, re-placing it if a re-render removes it. Mounts from
@@ -168,7 +168,7 @@ export interface PluginContext {
    * declared optional that this extension has not got watches nothing and tears down cleanly, which
    * is the same answer every other optional dependency gives.
    */
-  // biome-ignore lint/suspicious/noConfusingVoidType: a callback with nothing to tear down simply returns; `undefined` would force an explicit return
+  // A callback with nothing to tear down simply returns; `undefined` would force an explicit return.
   watch(name: AnchorName, onFound: (element: Element) => Teardown | void): Teardown;
 
   /**
@@ -206,7 +206,7 @@ export interface PluginContext {
    * exactly like one that worked, so anything that acts on the world rather than merely observing
    * it wants `onToolResult` instead.
    */
-  onToolUse(handler: (tool: ToolUse) => void): Teardown;
+  onToolUse: (handler: (tool: ToolUse) => void) => Teardown;
 
   /**
    * Every tool call's outcome, joined back to the call it answers, so the handler gets the tool's
@@ -214,33 +214,33 @@ export interface PluginContext {
    * a declined permission produces `ok: false`. Requires `uses.tools`, the same declaration
    * `onToolUse` needs, because it is a second reading of one stream and not a second dependency.
    */
-  onToolResult(handler: (result: ToolResult) => void): Teardown;
+  onToolResult: (handler: (result: ToolResult) => void) => Teardown;
 
   /**
    * The session this panel is hosting: called at once with the current id, null if none, and
    * again on every change. Host-derived through the farewell rule. Requires `uses.session`.
    */
-  onSessionId(handler: (sessionId: string | null) => void): Teardown;
+  onSessionId: (handler: (sessionId: string | null) => void) => Teardown;
 
   /**
    * How full the panel's session's context is: called at once and again on every change, once per
    * API call at most. `limit` is where Claude Code compacts on its own, the same threshold the
    * panel's own indicator counts against. Host-derived (D121). Requires `uses.context`.
    */
-  onContextUsage(handler: (usage: ContextUsage) => void): Teardown;
+  onContextUsage: (handler: (usage: ContextUsage) => void) => Teardown;
 
   /**
    * What the panel's session has cost, as Claude Code estimates it: called at once and again on
    * every change, once per finished turn at most. Host-derived (D129). Requires `uses.cost`.
    */
-  onSessionCost(handler: (cost: SessionCost) => void): Teardown;
+  onSessionCost: (handler: (cost: SessionCost) => void) => Teardown;
 
   /**
    * How much of the plan's five-hour and weekly limits is used, as the panel's own usage bars read
    * it: called at once and again on every change, including when a window resets. Account-wide, so
    * every panel sees the same. Host-derived (D129). Requires `uses.limits`.
    */
-  onUsageLimits(handler: (limits: UsageLimits) => void): Teardown;
+  onUsageLimits: (handler: (limits: UsageLimits) => void) => Teardown;
 
   /**
    * Draw on every transcript entry. `build` runs once per entry whenever the entry list changes
@@ -270,7 +270,7 @@ export interface PluginContext {
 
 /** The default export of a plugin's entry module. */
 export interface RiglinePlugin {
-  // biome-ignore lint/suspicious/noConfusingVoidType: a plugin with nothing to tear down simply returns; `undefined` would force an explicit return
+  // A plugin with nothing to tear down simply returns; `undefined` would force an explicit return.
   setup(ctx: PluginContext): void | Teardown;
 }
 

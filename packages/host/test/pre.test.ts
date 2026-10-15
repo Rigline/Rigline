@@ -106,7 +106,7 @@ const TOUCHED_GLOBALS = [
 ] as const;
 
 function globalRecord(): Record<string, unknown> {
-  return globalThis as unknown as Record<string, unknown>;
+  return globalThis;
 }
 
 let savedGlobals: Map<string, unknown>;
@@ -143,16 +143,16 @@ async function boot(existingHook?: DevtoolsHook): Promise<Harness> {
 
   const g = globalRecord();
   g.document = { querySelector: () => ({ childElementCount: 0 }) };
-  g.addEventListener = ((type: string, listener: MessageListener) => {
+  g.addEventListener = (type: string, listener: MessageListener) => {
     if (type === "message") listeners.push(listener);
-  }) as unknown;
-  g.acquireVsCodeApi = (() => ({
+  };
+  g.acquireVsCodeApi = () => ({
     postMessage: (message: unknown) => {
       sent.push(message);
     },
     getState: () => undefined,
     setState: () => {},
-  })) as unknown;
+  });
   delete g.__rigline;
   if (existingHook) g[HOOK] = existingHook;
   else delete g[HOOK];
@@ -674,7 +674,7 @@ describe("an ask (D120)", () => {
     const tapped: unknown[] = [];
     h.bridge.bus.on("request", (payload) => tapped.push(payload));
     void h.bridge.bus.ask("ch-1", "get_context_usage");
-    await null;
+    await Promise.resolve();
 
     const sent = h.sent[0] as AskEnvelope;
     expect(sent).toMatchObject({
@@ -693,7 +693,7 @@ describe("an ask (D120)", () => {
     h.bridge.bus.on("response", (payload) => tapped.push(payload));
     h.bridge.bus.on("get_context_usage_response", (payload) => tapped.push(payload));
     const answer = h.bridge.bus.ask("ch-1", "get_context_usage");
-    await null;
+    await Promise.resolve();
 
     const { requestId } = h.sent[0] as AskEnvelope;
     const response = { type: "get_context_usage_response", usage: { totalTokens: 9 } };
@@ -730,7 +730,7 @@ describe("an ask (D120)", () => {
       void h.bridge.bus.ask((payload as { channelId: string }).channelId, "get_context_usage");
     });
     h.api.postMessage({ type: "launch_claude", channelId: "ch-1" });
-    await null;
+    await Promise.resolve();
 
     expect(h.sent.map((m) => (m as { type: string }).type)).toEqual(["launch_claude", "request"]);
   });

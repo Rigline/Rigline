@@ -21,8 +21,7 @@ export interface Carried {
 
 /** `companion-status`'s answer, or why there is none. */
 export type CompanionStatus =
-  | { readonly current: boolean; readonly carried: Carried | null }
-  | { readonly problem: string };
+  { readonly current: boolean; readonly carried: Carried | null } | { readonly problem: string };
 
 interface Attempt {
   readonly fingerprint: string;

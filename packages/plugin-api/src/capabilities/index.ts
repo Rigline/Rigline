@@ -36,7 +36,7 @@ export const CONTRACTS: readonly CapabilityContract[] = [
   limitsContract,
   // Each contract is typed to its own key; the registry erases that once, here, and every walk
   // over it re-narrows by `contract.key`.
-] as unknown as readonly CapabilityContract[];
+];
 
 /** Every gap in one half of a manifest's declarations, in registry order. */
 function gapsOf(declared: Declarations, tables: IdentifierTables): string[] {

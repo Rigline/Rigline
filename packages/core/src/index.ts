@@ -93,10 +93,7 @@ export {
   supersededExtensions,
   URL_SCHEME,
 } from "./extension/locate.ts";
-export type {
-  DeclaredPatch,
-  PatchOutcome,
-} from "./inject/hostpatch.ts";
+export type { DeclaredPatch, PatchOutcome } from "./inject/hostpatch.ts";
 export { applyPatches, patchRefusal } from "./inject/hostpatch.ts";
 export type { ResolvedImports } from "./inject/imports.ts";
 export { importProblem, resolveRuntimeImports } from "./inject/imports.ts";
@@ -195,11 +192,7 @@ export type {
 } from "./plugins/manage.ts";
 export { addPlugin, removePlugin, setPluginEnabled } from "./plugins/manage.ts";
 export type { FetchLike, RegistryOptions, ResolvedVersion } from "./plugins/npm.ts";
-export {
-  parsePluginSpec,
-  releaseAgeProblem,
-  resolveVersion,
-} from "./plugins/npm.ts";
+export { parsePluginSpec, releaseAgeProblem, resolveVersion } from "./plugins/npm.ts";
 export type {
   ApplyResult,
   BakedPresets,

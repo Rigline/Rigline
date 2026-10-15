@@ -17,7 +17,6 @@ import {
   layoutProblems,
   parsePlace,
   type SaveRecord,
-  type Uses,
   undeclaredUse,
   unusedDeclaration,
   type ValidManifest,
@@ -366,7 +365,7 @@ function shippedSource(dir: string, kind: RegExp): string {
  */
 export function capabilityUseNotes(plugins: readonly DiscoveredPlugin[]): string[] {
   return plugins.flatMap((p) =>
-    unusedDeclaration(p.manifest.uses as Uses, capabilityUse(shippedSource(p.dir, SCRIPT))).map(
+    unusedDeclaration(p.manifest.uses, capabilityUse(shippedSource(p.dir, SCRIPT))).map(
       (note) => `${p.name}: ${note}`,
     ),
   );
@@ -378,7 +377,7 @@ export function capabilityUseNotes(plugins: readonly DiscoveredPlugin[]): string
  */
 export function capabilityUseProblems(plugins: readonly DiscoveredPlugin[]): string[] {
   return plugins.flatMap((p) =>
-    undeclaredUse(p.manifest.uses as Uses, capabilityUse(shippedSource(p.dir, SCRIPT))).map(
+    undeclaredUse(p.manifest.uses, capabilityUse(shippedSource(p.dir, SCRIPT))).map(
       (problem) => `${p.name}: ${problem}`,
     ),
   );

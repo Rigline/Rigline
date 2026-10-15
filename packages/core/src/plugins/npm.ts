@@ -262,7 +262,7 @@ async function request(
   options: RegistryOptions,
   headers?: Record<string, string>,
 ): Promise<FetchResponse> {
-  const impl = options.fetchImpl ?? (globalThis.fetch as unknown as FetchLike);
+  const impl = options.fetchImpl ?? globalThis.fetch;
   if (typeof impl !== "function") {
     throw new UserError("this Node has no fetch, so nothing can be installed from a registry");
   }

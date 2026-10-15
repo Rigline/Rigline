@@ -77,7 +77,7 @@ function readJson(path: string): unknown {
   try {
     return JSON.parse(readFileSync(path, "utf8"));
   } catch (error) {
-    throw new Error(`${path} could not be read: ${(error as Error).message}`);
+    throw new Error(`${path} could not be read: ${(error as Error).message}`, { cause: error });
   }
 }
 

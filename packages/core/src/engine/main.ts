@@ -1116,7 +1116,8 @@ function codegen(args: string[]): number {
     options: { check: { type: "boolean", default: false }, out: { type: "string" } },
     allowPositionals: true,
   });
-  if (positionals.length > 1) throw new UserError(`expected at most one directory: ${positionals}`);
+  if (positionals.length > 1)
+    throw new UserError(`expected at most one directory: ${positionals.join(" ")}`);
   const ext = positionals[0] ?? findExtension();
   const out = values.out ?? defaultGeneratedPath();
 
@@ -1194,7 +1195,8 @@ async function build(args: string[]): Promise<number> {
     options: { source: { type: "string" } },
     allowPositionals: true,
   });
-  if (positionals.length > 1) throw new UserError(`expected at most one directory: ${positionals}`);
+  if (positionals.length > 1)
+    throw new UserError(`expected at most one directory: ${positionals.join(" ")}`);
   const built = await buildPlugin({ dir: positionals[0], source: values.source });
   console.log(`built ${built.input} -> ${built.output}`);
   return 0;

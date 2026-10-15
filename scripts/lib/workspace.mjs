@@ -138,7 +138,9 @@ function view(name, field, absent) {
     return JSON.parse(capture("npm", ["view", name, field, "--json"]));
   } catch (error) {
     if (String(error.stderr ?? "").includes("E404")) return absent;
-    throw new Error(`npm view ${name} ${field} failed: ${String(error.stderr ?? error).trim()}`);
+    throw new Error(`npm view ${name} ${field} failed: ${String(error.stderr ?? error).trim()}`, {
+      cause: error,
+    });
   }
 }
 

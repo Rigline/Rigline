@@ -75,8 +75,7 @@ type SlotAnchor = {
 
 /** A placement as an author writes it, narrowed to the zones and slots that exist. */
 export type DeclaredPlacement =
-  | ZoneName
-  | { readonly anchor: SlotAnchor; readonly at: SlotPosition };
+  ZoneName | { readonly anchor: SlotAnchor; readonly at: SlotPosition };
 
 export interface DeclaredElement {
   readonly title: string;

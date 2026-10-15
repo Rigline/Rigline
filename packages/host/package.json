@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "node ../../scripts/clean-dist.mjs && rolldown -c rolldown.config.ts",
-    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.config.json"
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.config.json && tsc -p test/tsconfig.json"
   },
   "dependencies": {
     "@rigline/plugin-api": "workspace:*"

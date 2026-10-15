@@ -144,7 +144,7 @@ export interface Bridge {
   readonly bus: Bus;
   readonly react: ReactBridge;
   /** Count one event against a named hot path's current second. See the pre hook's own `meter`. */
-  meter(name: string): void;
+  meter: (name: string) => void;
 }
 
 /** The bridge, or null when the pre hook did not run, in which case nothing can be loaded. */

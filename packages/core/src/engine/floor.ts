@@ -22,8 +22,13 @@ export function nodeFloorProblem(running: string, range: string | undefined): st
   return null;
 }
 
-/** `engines.node` from this package's own manifest, which the floor is declared in once. */
+/**
+ * `engines.node` from this package's own manifest, which the floor is declared in once. The wrapper
+ * keeps the same read in `packages/cli/src/floor.ts`.
+ */
 export function enginesNode(): string | undefined {
-  const manifest = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
-  return manifest?.engines?.node;
+  const manifest = JSON.parse(
+    readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+  ) as { engines?: { node?: string } };
+  return manifest.engines?.node;
 }

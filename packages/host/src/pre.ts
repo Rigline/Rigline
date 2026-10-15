@@ -367,13 +367,11 @@ interface RiglineBridge {
    * than registered, so the set stays the one declared here and a typo cannot invent a meter that
    * nothing reports.
    */
-  meter(name: string): void;
+  meter: (name: string) => void;
 }
 
 declare global {
-  // eslint-disable-next-line no-var
   var __rigline: RiglineBridge | undefined;
-  // eslint-disable-next-line no-var
   var acquireVsCodeApi: (() => VsCodeApi) | undefined;
 }
 
@@ -551,7 +549,7 @@ try {
 
     const inner = outer.request as Record<string, unknown> | undefined;
     const wrapped = outer.type === "request" && !!inner && typeof inner.type === "string";
-    const target = (wrapped ? inner : outer) as Record<string, unknown>;
+    const target = wrapped ? inner : outer;
     const type = target.type as string;
 
     lastOutbound.set(type, { channelId: outer.channelId, wrapped, payload: target });
@@ -840,7 +838,7 @@ try {
             : (last.payload as Record<string, unknown>);
           const patched = applyChain(
             type,
-            envelope as Record<string, unknown>,
+            envelope,
             last.payload as Record<string, unknown>,
             last.wrapped,
           );

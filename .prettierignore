@@ -1,0 +1,15 @@
+# Generated, vendored, or byte-asserted by a test.
+**/dist/**
+node_modules/
+docs/archive/
+generated.ts
+packages/create-plugin/template/
+packages/plugin-api/schema/
+.local/
+.claude/worktrees/
+
+# Prettier formats Markdown and YAML where Biome did not. The prose here is hand-wrapped and the
+# workflows are hand-maintained, so running a formatter over them is churn rather than a fix.
+*.md
+*.yaml
+*.yml

@@ -11,6 +11,13 @@ hole, or raises the Node or VS Code it needs, its entry says so.
 
 ## Unreleased
 
+### Changed
+
+- `@rigline/plugin-api`: `ctx`'s `on*` subscriptions and a `Store`'s members are declared as
+  properties rather than methods, so handing one straight to `storeFrom` — as the scaffold and the
+  bundled plugins do — no longer reads as an unbound method to a plugin's own linter. Calling them
+  is unchanged.
+
 ## 1.1.0 — 2026-10-15
 
 ### Added

@@ -1,21 +1,23 @@
-# LF in the repository and in the working tree.
+# LF in the repository, the platform's own convention in the working tree.
 #
-# `text=auto` stores LF whatever the tree holds, so history is safe either way; `eol=lf` settles
-# what every tool and script sees, which is the half anybody has to think about. CRLF is not the
-# neutral choice here: almost everything that writes a file in this repo is a Node script, the
-# formatter or an agent, and all of them emit LF, so a CRLF tree makes each one apply an ending it
-# would otherwise never think about. Doing that twice over writes CR CRLF, which stops git
-# normalising the file at all, silently — it has happened twice, and
-# `c:/dev/knowledge/git-text-and-binary.md` has the mechanism. Nothing tracked here is a `.bat`,
-# `.cmd` or `.sh`, so no interpreter has a stake in it. Biome agrees by its own default, and VS
-# Code through `files.eol` in `.vscode/settings.json`.
+# Everything here is normalised to LF when it is committed, so history and diffs never depend on
+# who checked the file out, and a Windows checkout gets CRLF because that is what the tools on a
+# Windows machine write. Forcing LF into the working tree with `eol=lf` was tried and reversed
+# twice, most recently on 2026-10-15: it makes the ending load-bearing on a platform that does not
+# want it, so every tool that writes a file has to be taught about it. Prettier's
+# `endOfLine: "auto"` preserves whatever a file already has, which leaves nothing to teach.
+# `c:/dev/knowledge/node-tooling.md` has both sides.
 #
 # The byte-exact things this repo asserts are unaffected, and it is worth knowing why. The two
 # injected lines are string literals with escape sequences rather than literal newlines in source,
 # so PATCH_BYTES is 133 whatever this file says. Bundles are read and written as Buffers and never
 # through a text encoding (D37), so an extension's own CRLF survives a patch untouched. The corpus
 # lives outside the repo and git never sees it.
-* text=auto eol=lf
+* text=auto
+
+# `schema.test.ts` compares the schema with what `manifestSchemaJson()` writes, byte for byte, so a
+# CRLF checkout would fail it on Windows alone.
+packages/plugin-api/schema/manifest.json eol=lf
 
 # Harvested from the extension bundle, not written by hand. Marked generated so review tools
 # collapse them by default, but NOT -diff: these exist to be diffed across extension versions, and

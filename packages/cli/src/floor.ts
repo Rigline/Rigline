@@ -21,8 +21,13 @@ export function belowFloor(running: string, range: string | undefined): string |
   return null;
 }
 
-/** `engines.node` from the wrapper's own manifest, which the floor is declared in once. */
+/**
+ * `engines.node` from the wrapper's own manifest, which the floor is declared in once. The engine
+ * keeps the same read in `packages/core/src/engine/floor.ts`.
+ */
 export function enginesNode(): string | undefined {
-  const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
-  return manifest?.engines?.node;
+  const manifest = JSON.parse(
+    readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+  ) as { engines?: { node?: string } };
+  return manifest.engines?.node;
 }

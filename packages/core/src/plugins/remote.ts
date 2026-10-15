@@ -77,13 +77,7 @@ async function fetchAndAdd(resolved: ResolvedVersion, options: RemoteOptions): P
 export interface PluginUpdate {
   readonly name: string;
   readonly outcome:
-    | "updated"
-    | "current"
-    | "pinned"
-    | "local"
-    | "unmanaged"
-    | "withheld"
-    | "failed";
+    "updated" | "current" | "pinned" | "local" | "unmanaged" | "withheld" | "failed";
   /** The version it was on, for an npm source. */
   readonly from?: string;
   /** The version it is on now, or the one that was withheld. */

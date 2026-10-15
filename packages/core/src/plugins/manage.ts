@@ -23,12 +23,7 @@ import {
   statSync,
 } from "node:fs";
 import { basename, dirname, join, relative, resolve } from "node:path";
-import {
-  describeElements,
-  describeUses,
-  type Uses,
-  type ValidManifest,
-} from "@rigline/plugin-api/internal";
+import { describeElements, describeUses, type ValidManifest } from "@rigline/plugin-api/internal";
 import { UserError } from "../errors.ts";
 import { parseJson } from "../json.ts";
 import {
@@ -218,7 +213,7 @@ function place(placement: Placement): AddResult {
     overridesBundled,
     disabled,
     can: [
-      ...describeUses(manifest.uses as Uses),
+      ...describeUses(manifest.uses),
       ...describeElements(manifest.elements, name, config.layout),
     ],
     manifest,

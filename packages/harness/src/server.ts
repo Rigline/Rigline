@@ -49,12 +49,7 @@ export interface Harness {
   close(): Promise<void>;
 }
 
-async function send(
-  res: ServerResponse,
-  status: number,
-  body: string | Buffer,
-  type: string,
-): Promise<void> {
+function send(res: ServerResponse, status: number, body: string | Buffer, type: string): void {
   res.writeHead(status, { "content-type": type });
   res.end(body);
 }
@@ -74,18 +69,18 @@ async function handle(
       appTimestamps: options.appTimestamps,
       appTimeFormat: options.appTimeFormat,
     });
-    await send(res, 200, page, "text/html");
+    send(res, 200, page, "text/html");
     return;
   }
   if (path === "/index.css") {
     const body = await readFile(join(options.bundleDir, "index.css"));
-    await send(res, 200, body, "text/css");
+    send(res, 200, body, "text/css");
     return;
   }
   if (path === "/index.js") {
     const bundle = await readFile(join(options.bundleDir, "index.js"));
     const injected = Buffer.concat([Buffer.from(PRE_LINE), bundle, Buffer.from(POST_LINE)]);
-    await send(res, 200, injected, "application/javascript");
+    send(res, 200, injected, "application/javascript");
     return;
   }
   if (path.startsWith("/rigline/")) {
@@ -94,14 +89,14 @@ async function handle(
     const rel = normalize(path.slice("/rigline/".length)).replace(/^([.][.][/\\])+/, "");
     const file = join(options.payloadDir, rel);
     if (!file.startsWith(options.payloadDir + sep) && file !== options.payloadDir) {
-      await send(res, 403, "forbidden", "text/plain");
+      send(res, 403, "forbidden", "text/plain");
       return;
     }
     const body = await readFile(file);
-    await send(res, 200, body, contentType(file));
+    send(res, 200, body, contentType(file));
     return;
   }
-  await send(res, 404, `not found: ${path}`, "text/plain");
+  send(res, 404, `not found: ${path}`, "text/plain");
 }
 
 /** Start the harness server. Resolves once it is listening. */

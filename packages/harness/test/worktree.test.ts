@@ -193,7 +193,7 @@ describe.skipIf(skipReason !== null)(
       const sent = await booted.sent();
       return sent
         .filter((m) => m.request?.type === "rename_tab")
-        .map((m) => (typeof m.request?.title === "string" ? (m.request?.title as string) : null));
+        .map((m) => (typeof m.request?.title === "string" ? m.request?.title : null));
     }
 
     async function waitForRenameCount(booted: Booted, count: number): Promise<void> {
@@ -507,7 +507,7 @@ describe.skipIf(skipReason !== null)(
         await hostTool(booted, "EnterWorktree", { name: WORKTREE_NAME });
         await page.waitForSelector(SHORT_PILL);
         const pill = await page.evaluate((selector) => {
-          const p = document.querySelector(selector) as HTMLElement | null;
+          const p = document.querySelector<HTMLElement>(selector);
           return {
             text: p?.textContent ?? null,
             title: p?.title ?? null,

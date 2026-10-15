@@ -819,10 +819,7 @@ describe.skipIf(skip !== null)(`a row's two sides${skip ? ` (${skip})` : ""}`, (
 
       // Two of them overfill the row, but the widest on the left and the right together fit.
       await width(0.35);
-      const tight = (await measure(page, "rigRow", ["one", "two", "three"])).at as Record<
-        string,
-        DOMRect
-      >;
+      const tight = (await measure(page, "rigRow", ["one", "two", "three"])).at;
       expect(tight.two?.top).toBeGreaterThan(tight.one?.top ?? 0);
       expect(tight.three?.left).toBeGreaterThan(tight.one?.right ?? 0);
       expect(tight.three?.top).toBeLessThan((tight.two?.top ?? 0) + (tight.two?.height ?? 0));
@@ -830,10 +827,7 @@ describe.skipIf(skip !== null)(`a row's two sides${skip ? ` (${skip})` : ""}`, (
 
       // Now they do not, so the right side has a line of its own, still at the edge.
       await width(0.55);
-      const narrow = (await measure(page, "rigRow", ["one", "two", "three"])).at as Record<
-        string,
-        DOMRect
-      >;
+      const narrow = (await measure(page, "rigRow", ["one", "two", "three"])).at;
       expect(narrow.three?.top).toBeGreaterThanOrEqual(
         (narrow.two?.top ?? 0) + (narrow.two?.height ?? 0),
       );

@@ -273,7 +273,8 @@ that changes how a value reads. A minor caveat goes in the plugin's README.
 stability.md binds from 1.0.0. Choose the right shape, and where a person's files need it, migrate
 them once; an older alpha failing on a migrated file is expected.
 
-Toolchain: pnpm 12, Node 22.12+ (26 here), TypeScript 7, Rolldown, Vitest, Biome. Semicolons are
+Toolchain: pnpm 12, Node 22.12+ (26 here), TypeScript 6, Rolldown, Vitest, ESLint with
+typescript-eslint, and Prettier (D136). Semicolons are
 required. CI runs lint, typecheck, build and test on every push and pull request, over a Node
 matrix whose lowest rung is the `engines` floor the published packages declare (D59) — so moving
 that floor means moving the rung and six manifests together.

@@ -6,11 +6,11 @@
 import type { Teardown } from "./context.ts";
 
 export interface Store<T> {
-  get(): T;
+  get: () => T;
   /** Replace the value, and tell every subscriber unless it is the same value. */
-  set(next: T): void;
+  set: (next: T) => void;
   /** Call `listener` after every change. Returns the removal. */
-  subscribe(listener: () => void): Teardown;
+  subscribe: (listener: () => void) => Teardown;
 }
 
 export function store<T>(initial: T): Store<T> {

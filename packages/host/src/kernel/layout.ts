@@ -127,7 +127,7 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
   let noticed = -Infinity;
   const baseline = store(baked);
   const working = store(baked);
-  const view = store(layoutView(baked, plugins));
+  const view = store<readonly ViewPlace[]>(layoutView(baked, plugins));
   const newer = store(false);
   const saving = store<SaveState>("idle");
   const editing = store(false);

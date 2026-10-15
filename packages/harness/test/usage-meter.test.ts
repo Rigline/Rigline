@@ -50,8 +50,7 @@ function send(page: Page, how: "pushRecord" | "push", message: unknown): Promise
 /** As rendered: `textContent` keeps a space the pill's flex layout drops. */
 function waitForText(page: Page, element: string, text: string): Promise<unknown> {
   return page.waitForFunction(
-    ({ selector, text }) =>
-      (document.querySelector(selector) as HTMLElement | null)?.innerText === text,
+    ({ selector, text }) => document.querySelector<HTMLElement>(selector)?.innerText === text,
     { selector: pill(element), text },
   );
 }
@@ -104,7 +103,7 @@ describe.skipIf(skip !== null)(
         await waitForText(booted.page, "five-hour", "5h: 42%");
         await waitForText(booted.page, "seven-day", "7d: 18%");
         const title = await booted.page.evaluate(
-          (selector) => (document.querySelector(selector) as HTMLElement | null)?.title ?? "",
+          (selector) => document.querySelector<HTMLElement>(selector)?.title ?? "",
           pill("five-hour"),
         );
         expect(title).toMatch(/^Five-hour limit: 42% used, resets /);

@@ -36,7 +36,11 @@ async function pushAddress(
       const envelope = (message: Record<string, unknown>) => ({
         type: "io_message",
         channelId: "harness-address-channel",
-        message: { uuid: `${id}-${message.type}`, timestamp: new Date().toISOString(), ...message },
+        message: {
+          uuid: `${id}-${String(message.type)}`,
+          timestamp: new Date().toISOString(),
+          ...message,
+        },
       });
       push(
         envelope({
@@ -80,7 +84,7 @@ async function pushLaunch(page: Page): Promise<void> {
 /** The short id's tooltip, which names the address while one is offered. */
 function tooltip(page: Page): Promise<string> {
   return page.evaluate(
-    (selector) => (document.querySelector(selector) as HTMLElement | null)?.title ?? "",
+    (selector) => document.querySelector<HTMLElement>(selector)?.title ?? "",
     SHORT_ID,
   );
 }
@@ -127,7 +131,7 @@ describe.skipIf(skip !== null)(
         // The spacer rather than the model pill, because the footer measures its children and moves
         // the pill out of itself at its widest stage (D54); Rigline's pill sits between, last by order.
         const info = await booted.page.evaluate((selector) => {
-          const pill = document.querySelector(selector) as HTMLElement | null;
+          const pill = document.querySelector<HTMLElement>(selector);
           const slot = pill?.closest("[data-rigline-slot]") ?? null;
           const next = slot?.nextElementSibling ?? null;
           return {
@@ -169,15 +173,14 @@ describe.skipIf(skip !== null)(
         await booted.page.waitForSelector(SHORT_ID);
         const read = () =>
           booted.page.evaluate((selector) => {
-            const pill = document.querySelector(selector) as HTMLElement | null;
+            const pill = document.querySelector<HTMLElement>(selector);
             return { text: pill?.textContent ?? null, title: pill?.title ?? null };
           }, SHORT_ID);
         const before = await read();
 
         await pushAddress(booted.page);
         await booted.page.waitForFunction(
-          (selector) =>
-            (document.querySelector(selector) as HTMLElement | null)?.title.includes("fa26a5"),
+          (selector) => document.querySelector<HTMLElement>(selector)?.title.includes("fa26a5"),
           SHORT_ID,
         );
 
@@ -200,15 +203,14 @@ describe.skipIf(skip !== null)(
         await booted.page.waitForSelector(SHORT_ID);
         await pushAddress(booted.page);
         await booted.page.waitForFunction(
-          (selector) =>
-            (document.querySelector(selector) as HTMLElement | null)?.title.includes("fa26a5"),
+          (selector) => document.querySelector<HTMLElement>(selector)?.title.includes("fa26a5"),
           SHORT_ID,
         );
 
         await pushAddress(booted.page, "Read", "bbbbbb");
         await booted.page.waitForTimeout(500);
         const title = await booted.page.evaluate(
-          (selector) => (document.querySelector(selector) as HTMLElement | null)?.title ?? "",
+          (selector) => document.querySelector<HTMLElement>(selector)?.title ?? "",
           SHORT_ID,
         );
         expect(title).toContain("[fa26a5]");
@@ -225,21 +227,18 @@ describe.skipIf(skip !== null)(
         await page.waitForSelector(SHORT_ID);
         await pushAddress(page);
         await page.waitForFunction(
-          (selector) =>
-            (document.querySelector(selector) as HTMLElement | null)?.title.includes("fa26a5"),
+          (selector) => document.querySelector<HTMLElement>(selector)?.title.includes("fa26a5"),
           SHORT_ID,
         );
         await pushLaunch(page);
         await page.waitForFunction(
-          (selector) =>
-            !(document.querySelector(selector) as HTMLElement | null)?.title.includes("fa26a5"),
+          (selector) => !document.querySelector<HTMLElement>(selector)?.title.includes("fa26a5"),
           SHORT_ID,
         );
 
         await pushAddress(page, "ListAgents", "cccccc", STABLE);
         await page.waitForFunction(
-          (selector) =>
-            (document.querySelector(selector) as HTMLElement | null)?.title.includes("cccccc"),
+          (selector) => document.querySelector<HTMLElement>(selector)?.title.includes("cccccc"),
           SHORT_ID,
         );
         await pushLaunch(page);

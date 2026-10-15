@@ -97,12 +97,9 @@ function label(place: string): string {
  * A place `parsePlace` understands, or `default` where the command takes it; anything else is
  * refused with the places there are.
  */
-export function parseWhere(words: readonly string[], orDefault: true): Placement | null | "default";
+export function parseWhere(words: readonly string[], orDefault: true): Placement | null;
 export function parseWhere(words: readonly string[], orDefault: false): Placement | null;
-export function parseWhere(
-  words: readonly string[],
-  orDefault: boolean,
-): Placement | null | "default" {
+export function parseWhere(words: readonly string[], orDefault: boolean): Placement | null {
   const where = words.join(" ");
   if (where === "default") {
     if (orDefault) return "default";
@@ -177,7 +174,7 @@ export function placeInLayout(
   configPath: string,
   discovered: readonly DiscoveredPlugin[],
   name: string,
-  where: Placement | null | "default",
+  where: Placement | null,
 ): PlaceResult {
   const { spec } = findElement(discovered, name);
   if (where !== "default") checkPlace(name, spec, where);

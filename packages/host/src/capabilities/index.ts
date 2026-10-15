@@ -31,4 +31,4 @@ export const MODULES: readonly CapabilityModule[] = [
   contextModule,
   costModule,
   limitsModule,
-] as unknown as readonly CapabilityModule[];
+];

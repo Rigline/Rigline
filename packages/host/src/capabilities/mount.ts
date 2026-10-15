@@ -1,4 +1,4 @@
-import { ANCHORS, type AnchorName, type AnchorSpec, CONTRACTS } from "@rigline/plugin-api/internal";
+import { ANCHORS, type AnchorSpec, CONTRACTS } from "@rigline/plugin-api/internal";
 import {
   type CapabilityModule,
   CapabilityViolation,
@@ -95,7 +95,7 @@ export const mountModule: CapabilityModule<"mount"> = {
         // Through `AnchorSpec` rather than the `const`-asserted literal's own type: the table is one
         // object literal per anchor and only some carry `surfaces`, so the narrowed entry type does
         // not have the field at all.
-        const spec: AnchorSpec | undefined = ANCHORS[name as AnchorName];
+        const spec: AnchorSpec | undefined = ANCHORS[name];
         // An anchor this *surface* has not got, which is the same answer to the plugin as an
         // optional anchor this *extension* has not got: there is nothing to mount on, so watch
         // nothing and tear down cleanly (D41). The composer footer is the case — `footerSpacer` is

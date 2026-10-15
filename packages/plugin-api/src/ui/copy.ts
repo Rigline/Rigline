@@ -19,7 +19,7 @@ export function copyText(text: string): boolean {
   try {
     ok = document.execCommand("copy");
   } catch {
-    ok = false;
+    // The initial false stands.
   }
   area.remove();
   if (back instanceof HTMLElement) back.focus();

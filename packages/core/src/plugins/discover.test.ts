@@ -53,7 +53,7 @@ function writePlugin(
     ...overrides,
   };
   writeFileSync(join(dir, "rigline.json"), JSON.stringify(manifest));
-  const entryPath = join(dir, (manifest.entry as string) ?? "index.js");
+  const entryPath = join(dir, manifest.entry ?? "index.js");
   mkdirSync(dirname(entryPath), { recursive: true });
   writeFileSync(entryPath, entrySource);
   return dir;
@@ -446,7 +446,7 @@ describe("capabilityUseNotes and capabilityUseProblems", () => {
         description: null,
         entry: "index.js",
         surfaces: ["editor", "sidebar", "sessionList"],
-        uses: { ...EMPTY_USES, ...uses } as never,
+        uses: { ...EMPTY_USES, ...uses },
         elements: {},
         patches: [],
       },
@@ -535,7 +535,7 @@ describe("handWrittenClasses", () => {
           description: null,
           entry: "index.js",
           surfaces: ["editor", "sidebar", "sessionList"],
-          uses: EMPTY_USES as never,
+          uses: EMPTY_USES,
           elements: {},
           patches: [],
         },

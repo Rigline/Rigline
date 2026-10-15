@@ -191,7 +191,7 @@ interface MenuState {
   readonly panel: HTMLElement | null;
   enter(depth: number, id: string, row: HTMLElement): void;
   back(): void;
-  forget(id: string): void;
+  forget: (id: string) => void;
   close(restoreFocus: boolean): void;
 }
 

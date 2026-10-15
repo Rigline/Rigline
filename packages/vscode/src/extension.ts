@@ -99,9 +99,13 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // From the manifest VS Code read, never from disk: inside a VSIX the wrapper's own lookup
   // resolves to the extensions directory, where there is no manifest to find.
-  const version = String(context.extension.packageJSON.version ?? "0.0.0");
+  const manifest = context.extension.packageJSON as {
+    version?: string;
+    engines?: { node?: string };
+  };
+  const version = String(manifest.version ?? "0.0.0");
   // The Node floor, written there from the wrapper's manifest by `build-manifest.mjs`.
-  const floor: unknown = context.extension.packageJSON.engines?.node;
+  const floor: unknown = manifest.engines?.node;
   const nodeFloor = typeof floor === "string" ? floor : undefined;
 
   const own = context.extension.extensionUri.fsPath;
@@ -296,7 +300,7 @@ function probeNode(path: string): Promise<string> {
       (error, stdout) => {
         if (error === null) done(stdout);
         else if (error.killed) fail(new Error(`no answer in ${PROBE_TIMEOUT_MS / 1000} seconds`));
-        else fail(error);
+        else fail(new Error(error.message, { cause: error }));
       },
     );
   });

@@ -82,7 +82,7 @@ describe("scaffold", () => {
     const workflow = read(result, ".github/workflows/release.yml");
     expect(workflow).toContain("id-token: write");
     expect(workflow).toContain("pnpm stage publish -r");
-    // biome-ignore lint/suspicious/noTemplateCurlyInString: a GitHub expression, not a template.
+    // A GitHub expression, not a template.
     expect(workflow).toContain("DRY_RUN: ${{ inputs.dry_run }}");
     expect(workflow).toContain("## Dry run: nothing was staged");
   });

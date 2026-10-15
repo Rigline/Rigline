@@ -112,7 +112,7 @@ describe.skipIf(skip !== null)(
         });
         await waitForPercent(booted.page, "75%");
         const title = await booted.page.evaluate(
-          (selector) => (document.querySelector(selector) as HTMLElement | null)?.title ?? "",
+          (selector) => document.querySelector<HTMLElement>(selector)?.title ?? "",
           PERCENT,
         );
         expect(title).toContain("75% of the way to auto-compact");

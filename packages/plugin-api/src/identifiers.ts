@@ -42,7 +42,7 @@
  * declared in a module the index only re-exports: an augmentation resolves its target through the
  * alias, verified against both tsconfig `paths` to source and the emitted `.d.ts` in node_modules.
  */
-// biome-ignore lint/suspicious/noEmptyInterface: empty is the published state; augmentation is the entire mechanism
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- empty is the published state, and augmentation is the entire mechanism
 export interface RiglineIdentifiers {}
 
 /** `RiglineIdentifiers[K]` when the augmentation supplied `K`, and `Fallback` when it did not. */

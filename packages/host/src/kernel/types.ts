@@ -72,11 +72,11 @@ export interface Grant {
   readonly plugin: PluginRecord;
   readonly kernel: Kernel;
   /** Register anything that must be undone when the plugin is disabled or torn down. */
-  own(teardown: Teardown): Teardown;
+  own: (teardown: Teardown) => Teardown;
   /** Disable this plugin with an attributable reason. Idempotent. */
-  disable(reason: string): void;
+  disable: (reason: string) => void;
   /** Wrap a plugin callback so a throw disables the plugin rather than escaping. */
-  guard<A extends unknown[]>(what: string, fn: (...args: A) => void): (...args: A) => void;
+  guard: <A extends unknown[]>(what: string, fn: (...args: A) => void) => (...args: A) => void;
 }
 
 export interface CapabilityModule<K extends UsesKey = UsesKey> {

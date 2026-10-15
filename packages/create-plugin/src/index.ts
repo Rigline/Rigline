@@ -147,7 +147,7 @@ function walk(root: string): string[] {
 function substitute(text: string, substitutions: Substitutions): string {
   let out = text;
   for (const [key, value] of Object.entries(substitutions)) {
-    out = out.split(`__${key}__`).join(value);
+    out = out.split(`__${key}__`).join(String(value));
   }
   return out;
 }

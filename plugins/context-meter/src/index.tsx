@@ -82,7 +82,7 @@ function Bar({ usage }: Props): ReactNode {
   const current = useStore(usage);
   const percent = percentUsed(current);
   return (
-    // biome-ignore lint/a11y/useSemanticElements: a native <meter> paints through pseudo-elements, which inline styles cannot reach
+    // A native <meter> paints through pseudo-elements, which inline styles cannot reach.
     <div
       role="meter"
       aria-label="Context used"

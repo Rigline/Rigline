@@ -35,14 +35,7 @@ export {
   ZONES,
 } from "./elements.ts";
 export * from "./index.ts";
-export type {
-  ElementPlace,
-  Layout,
-  LayoutPlugin,
-  Side,
-  ViewElement,
-  ViewPlace,
-} from "./layout.ts";
+export type { ElementPlace, Layout, LayoutPlugin, Side, ViewElement, ViewPlace } from "./layout.ts";
 export {
   compactRows,
   describeElements,
@@ -90,11 +83,7 @@ export {
   validateManifest,
 } from "./manifest.ts";
 export type { BakedPreset } from "./preset.ts";
-export {
-  isApplicable,
-  MAX_BAKED_PRESET_BYTES,
-  MAX_BAKED_PRESETS,
-} from "./preset.ts";
+export { isApplicable, MAX_BAKED_PRESET_BYTES, MAX_BAKED_PRESETS } from "./preset.ts";
 export type { RuntimeSpecifier } from "./runtime.ts";
 export { isRuntimeSpecifier, RUNTIME_MODULES } from "./runtime.ts";
 export type { SavePayload, SaveRecord } from "./save.ts";

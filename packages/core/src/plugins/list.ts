@@ -11,7 +11,7 @@
  * question, and `check` owns it; nothing here reads an extension directory.
  */
 import { dirname } from "node:path";
-import { describeElements, describeUses, type Uses } from "@rigline/plugin-api/internal";
+import { describeElements, describeUses } from "@rigline/plugin-api/internal";
 import { CORE_VERSION } from "../version.ts";
 import { describeSource, type PluginSource, readConfig, readSources } from "./config.ts";
 import { type DiscoveredPlugin, discoverPlugins } from "./discover.ts";
@@ -102,7 +102,7 @@ export function listPlugins(options: ListOptions): PluginListing[] {
       overridesBundled: plugin.overridesBundled,
       description: plugin.manifest.description,
       can: [
-        ...describeUses(plugin.manifest.uses as Uses),
+        ...describeUses(plugin.manifest.uses),
         ...describeElements(plugin.manifest.elements, plugin.name, config.layout),
       ],
       patches: plugin.manifest.patches.map((patch) => ({

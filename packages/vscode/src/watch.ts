@@ -28,9 +28,9 @@ export interface WatchOptions {
    * Every installed directory for `id`, from disk. Injected, and the one signal that actually
    * moves when VS Code installs a new version under a running window.
    */
-  installed(): readonly string[];
+  installed: () => readonly string[];
   /** What to do when it moved. Never called concurrently with itself. */
-  react(reason: WatchReason): Promise<void>;
+  react: (reason: WatchReason) => Promise<void>;
   /** How often to look when nothing has fired. Half a minute, as the CLI's watcher uses. */
   readonly intervalMs?: number;
   /**
@@ -38,7 +38,7 @@ export interface WatchOptions {
    * the watcher can tell "still being written" from "finished". Injected, because reading a
    * directory is the one thing in here that touches a disk.
    */
-  stamps(path: string | undefined): Stamps;
+  stamps: (path: string | undefined) => Stamps;
   /** How long the directory must look identical before we believe the install finished. */
   readonly settleMs?: number;
   /** How many times to re-sample before giving up and leaving it to the next poll. */

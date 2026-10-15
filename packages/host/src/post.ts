@@ -54,9 +54,10 @@ function disablingOnViolation<T extends object>(members: T, disable: (reason: st
   const record = members as Record<string, unknown>;
   for (const [key, member] of Object.entries(record)) {
     if (typeof member !== "function") continue;
+    const fn = member as (...args: unknown[]) => unknown;
     record[key] = (...args: unknown[]) => {
       try {
-        return member(...args);
+        return fn(...args);
       } catch (e) {
         if (e instanceof CapabilityViolation) disable(e.message);
         throw e;

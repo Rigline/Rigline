@@ -3606,3 +3606,29 @@ One accepted consequence, so it does not read as a bug: on a user prompt row the
 line in the content rather than a label in the padding, so a day or pause divider sits in the band
 *above* it. The row then reads divider, then the app's time on its own line, then the prompt, which
 is one line lower than the eye expects. Looked at live on 2.1.300 and kept (Leo, 2026-10-15).
+
+**D136. ESLint with typescript-eslint and Prettier, and TypeScript back to 6 to allow it
+(2026-10-15, Leo).** This replaces D34's `Biome` and amends its `TypeScript 7`.
+
+The argument is not this repo's to restate: Biome is banned across Leo's repos, the case is in
+`Lindar/docs/04-technical-approach.md`, and `c:/dev/knowledge/node-tooling.md` summarises it with
+the sources. The short of it is that typescript-eslint runs its rules against the real type
+checker where Biome reimplements the analysis, and that across dozens of Windows repos most of
+Leo's formatter and lint friction has been in the Biome ones.
+
+TypeScript 6 is what makes the linter possible at all: 7's native compiler removed the public API
+typescript-eslint walks, so on 7 there is no type-aware linting. Nothing here paid for 7 — every
+flag in `tsconfig.base.json` predates it — so the cost is compile speed and the gain is
+`no-floating-promises` and its family. 7 returns when typescript-eslint supports it.
+
+What the first lint run found is the argument for having one. Eleven files in `packages/host/test`
+belonged to no tsconfig, so neither the typecheck nor any linter had ever read them; they have
+their own now. `Grant`'s and `RiglineBridge`'s helpers were declared as methods while being passed
+around unbound, and `RiglineBridge` is declared twice, so the two copies had drifted. And
+`Store<ViewPlace[]>` was being assigned to `Store<readonly ViewPlace[]>`, which method shorthand's
+bivariance had hidden — so the subscription members of `PluginContext` and `Store` are now declared
+as properties, which is what passing them to `storeFrom` always needed.
+
+`eol=lf` went out with Biome the same day it arrived, because Biome's lack of a preserve mode was
+the only argument for it. Prettier's `endOfLine: "auto"` keeps whatever a file has, so nothing
+imposes an ending and `.gitattributes` is back to `* text=auto` alone.

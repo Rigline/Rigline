@@ -112,7 +112,7 @@ describe("harvestProtocol", () => {
   it("does not let braces inside string or template literals perturb the depth walk", () => {
     const js = webviewBundle({
       pushCases: {
-        // biome-ignore lint/suspicious/noTemplateCurlyInString: this literally is the JS source under test.
+        // This literally is the JS source under test.
         push_0: 'let s="{not a case}";let t=`template ${1 + 1} more {}`;noop()',
         push_1: "noop()",
         ...namedCases("filler", 6),

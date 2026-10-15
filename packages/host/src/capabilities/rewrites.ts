@@ -1,4 +1,4 @@
-import { CONTRACTS, type Payload, patchViolation } from "@rigline/plugin-api/internal";
+import { CONTRACTS, patchViolation } from "@rigline/plugin-api/internal";
 import type { RewriteRecord } from "../kernel/bridge.ts";
 import { type CapabilityModule, CapabilityViolation } from "../kernel/types.ts";
 
@@ -50,7 +50,7 @@ export const rewritesModule: CapabilityModule<"rewrites"> = {
           record.ran++;
           let patch: unknown;
           try {
-            patch = transform(payload as Payload);
+            patch = transform(payload);
           } catch (e) {
             disable(`rewrite("${type}") threw: ${e instanceof Error ? e.message : String(e)}`);
             return null;

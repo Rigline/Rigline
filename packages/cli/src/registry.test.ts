@@ -50,7 +50,7 @@ function response(status: number, body: unknown) {
     status,
     json: async () => JSON.parse(bytes.toString("utf8")) as unknown,
     arrayBuffer: async () =>
-      bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
+      bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
   };
 }
 
