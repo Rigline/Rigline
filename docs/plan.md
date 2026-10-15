@@ -345,6 +345,21 @@ what a plugin is written against.
   reported as changing nothing, which is the signal that the shipped table has caught up and the
   entry can go. What is missing is the other end — how an entry gets into the shipped table, and on
   whose say-so.
+- **What Rigline is for once Claude Code has its own webview hooks.** 2.1.300 ships a first-party
+  surface that overlaps several of ours. Read in that bundle: a stylesheet module `mLbNFw` whose
+  class names are `mark`, `rowMark`, `askMark`, `band`, `bandRoom`, `abovePrompt`, `promptLabel`,
+  `statusLine`, `statusLines`, `toast`, `tab`, `tabs`, `inlinePane`, `paneOwner`, `plugin`,
+  `pluginName`, `heldNote`, `rowReleasedNote`, `toolRowHeld`, `edited`, `givesWay`, `unmarked`; three
+  new message types, `engine_hooks_kept`, `engine_prompt_ask` and `engine_surface_state`; and a row
+  store with `rowStanding`, `mayAsk`, `noteRow` and `holdUnpainted`. A row whose standing is *held*
+  renders `visibility: hidden` until the engine answers for it or twenty seconds pass, so text a
+  hook would redact is never shown first — the notification beside it reads "This was shown before
+  your plugins checked it. Text they would hide may have been visible."
+  That is zones above the prompt, status lines, toasts, panes and per-row decorations, from the app,
+  for CLI-side plugins. None of it is reachable by a webview plugin of ours and none of it changes
+  anything Rigline does today; what it changes is the argument for what Rigline should be doing in a
+  year, and whether some capabilities are better spent elsewhere. Nothing here is a decision yet, and
+  the first move is to read the mechanism properly rather than to react to its class names.
 
 ## Deferred, with triggers
 
@@ -621,3 +636,11 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
 - 2026-10-14: Presets in the panel: baked into the registry off the one directory read, listed in the
   edit bar, and applied as an unsaved change (D133). A reserved place stays unbuilt, with its limit
   stated in D133 and in presets.md.
+- 2026-10-15: A row's two fibers disagreeing by silence is one answer, not an ambiguity (D134): the
+  half naming a message wins where the roots cannot settle it, which recovered a third of a live
+  transcript and stopped a mark blinking once per React commit. `transcript.rows` counts candidates
+  beside entries, so that shortfall can never be silent again.
+- 2026-10-15: Where Claude Code stamps a row, its time stays and time-marks fills the rest, matching
+  its position and format (D135). The corpus and the harness move to 2.1.300, whose new webview hook
+  surface holds transcript rows hidden until its engine answers — an open question at the foot of
+  *Open questions*, and a harness caveat in verification.md.
