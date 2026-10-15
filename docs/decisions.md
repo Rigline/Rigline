@@ -3114,20 +3114,34 @@ the combination is the vetted unit; widening one, or adding a verb, is a decisio
 a plugin can only reach a choice the person already has.
 
 **A plugin-originated write requires a person's instruction, of which there are two kinds.** One
-made in the moment, proved by transient user activation; or a standing one, proved by the value
-being in that person's own config. Constraining Rigline's own initiative is not enough when the
-caller is the plugin: without this, a write from a timer or from a tap on unrelated traffic
-satisfies every other condition here, and "a person caused it" is an obligation on an author rather
-than something the architecture holds. Neither of those supplies an instruction of either kind,
-which is exactly why they are excluded.
+made in the moment, proved by the write happening inside the dispatch of a **trusted** event; or a
+standing one, proved by the value being in that person's own config. Constraining Rigline's own
+initiative is not enough when the caller is the plugin: without this, a write from a timer or from a
+tap on unrelated traffic satisfies every other condition here, and "a person caused it" is an
+obligation on an author rather than something the architecture holds. Neither of those supplies an
+instruction of either kind, which is exactly why they are excluded.
 
-**Activation is not the general rule, and reaching for it where it does not fit is how this went
-wrong once.** A plugin applying a default when a session starts has nobody present, so activation
-never engages — and that is not an exception to be carved out, nor a reason to move the work to the
-host so the rule appears satisfied. The standing instruction is the person's, and that is the whole
-of what P9 asks. What would break it is the value arriving from somebody else, so the thing to
-constrain is the paths by which a setting can be written (D133), never which code executes the
-write. A later session must not re-derive an actor from this rule.
+The host knows which it is in, rather than asking the author: a capture-phase listener on
+`document` — the technique the form guard already uses — sets a flag when a trusted event arrives
+and clears it in a microtask, so the flag is true for exactly that dispatch and false in the task
+after it. A plugin's handler runs inside the dispatch, so a write from it passes; one from a timer,
+a bus tap or `setup` does not. A plugin firing its own control reaches an untrusted event and so
+fails too.
+
+**`navigator.userActivation` is not the mechanism, and this is the negative result: it reads active
+with no gesture at all.** It exists in the webview, but `isActive` is already true during `setup`
+and inside a `setTimeout` scheduled there, before anything in the page has been clicked, so it
+cannot tell a person's write from a plugin's. Measured in the harness against the real bundle, where
+it is asserted in both directions so a later reader does not re-propose it; `isTrusted` is asserted
+beside it, untrusted for a scripted `click()` and trusted for a person's.
+
+**Nor is the rule "activation", generally, and reaching for one where it does not fit is how this
+went wrong once.** A plugin applying a default when a session starts has nobody present, so no
+gesture can be in evidence — and that is not an exception to carve out, nor a reason to move the
+work to the host so the rule appears satisfied. The standing instruction is the person's, and that
+is the whole of what P9 asks. What would break it is the value arriving from somebody else, so the
+thing to constrain is the paths by which a setting can be written (D133), never which code executes
+the write. A later session must not re-derive an actor from this rule.
 
 Still never `io_message`, which is a prompt, and so a turn in the person's transcript.
 

@@ -97,8 +97,9 @@ Written for somebody else, so don't rewrite them for us:
   with no decision of ours in between. `apply_settings` is the worked case — it takes arbitrary keys,
   so having the host build the payload bounded the values and left Claude Code's whole settings table
   reachable. A write that reaches Claude Code's own settings or behaviour needs a person as well as a
-  verb — a plugin persisting state of its own does not — and the rule supplying the person is not the
-  same one everywhere, so read D120 rather than assuming user activation covers it.
+  verb — a plugin persisting state of its own does not — and what proves the person differs by case,
+  so read D120 rather than assuming one mechanism covers it. `navigator.userActivation` is not that
+  mechanism: it reads active during `setup`, before anything has been clicked.
 - **Never name a minified JS identifier.** Bundler-generated, changes every build. Plugin-facing
   hooks come from harvested layers or the curated anchor table. Build-time harvesting may anchor on
   unminified property names only because codegen asserts every anchor and fails loudly.

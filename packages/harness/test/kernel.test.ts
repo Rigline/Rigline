@@ -34,6 +34,16 @@ interface SurvivorWindow {
   readonly __detach?: () => void;
 }
 
+interface GestureWindow {
+  readonly __gesture?: {
+    readonly supported: boolean;
+    readonly activationAtSetup: boolean | null;
+    readonly activationInTimer: boolean | null;
+    readonly trustedFromClick: boolean | null;
+    readonly trustedFromScript: boolean | null;
+  };
+}
+
 interface SettingsWindow {
   readonly __settings?: {
     readonly own: Record<string, unknown>;
@@ -1817,6 +1827,71 @@ export default { setup(ctx) {
         const d = await booted.diagnostics();
         expect(d.plugins).toContainEqual({ name: "checker", status: "loaded" });
         expect(d.errors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
+    it("tells a person's click from a plugin's by isTrusted, where userActivation cannot (D120)", async () => {
+      // The platform fact uses.modelChoice rests on: a write a person asked for can be told from
+      // one a plugin decided on, without trusting the author to know the difference. Both halves
+      // are asserted, because the one that reads as obvious is the one that was wrong — see the
+      // userActivation expectations at the end.
+      const gesture: FixturePlugin = {
+        name: "gesture",
+        manifest: { uses: { anchors: ["modelPill"], mount: true } },
+        source: `export default { setup(ctx) {
+    const activation = () => {
+      const ua = navigator.userActivation;
+      return ua ? ua.isActive : null;
+    };
+    window.__gesture = {
+      supported: !!navigator.userActivation,
+      activationAtSetup: activation(),
+      activationInTimer: null,
+      trustedFromClick: null,
+      trustedFromScript: null,
+    };
+    setTimeout(() => { window.__gesture.activationInTimer = activation(); }, 0);
+    ctx.watch("modelPill", (el) => ctx.mountAfter(el, () => {
+      const b = document.createElement("button");
+      b.className = "harness-gesture";
+      b.textContent = "G";
+      b.addEventListener("click", (e) => {
+        if (e.isTrusted) window.__gesture.trustedFromClick = true;
+        else window.__gesture.trustedFromScript = false;
+      });
+      // A plugin firing its own control, which is the case the rule has to exclude.
+      setTimeout(() => b.click(), 0);
+      return b;
+    }));
+  } };`,
+      };
+      const booted = await boot({ plugins: [gesture] });
+      try {
+        await booted.page.waitForSelector(".harness-gesture");
+        // Read before clicking: activation is *transient*, so a read taken afterwards cannot tell
+        // "the timer had none" from "the click's had not expired yet".
+        const before = await booted.page.evaluate(
+          () => (window as unknown as GestureWindow).__gesture,
+        );
+        await booted.page.click(".harness-gesture");
+        const g = await booted.page.evaluate(() => (window as unknown as GestureWindow).__gesture);
+
+        // `isTrusted` is the discriminator that works, in both directions: the plugin's own
+        // `b.click()` is untrusted, a person's click is trusted.
+        expect(g?.trustedFromScript).toBe(false);
+        expect(g?.trustedFromClick).toBe(true);
+
+        // `navigator.userActivation` exists but is **not** usable here, and this records why so
+        // nobody reaches for it again: it reads active at setup and inside a timer, before any
+        // click in the page at all, so it cannot tell a person's write from a plugin's.
+        expect(g?.supported).toBe(true);
+        expect(before?.activationAtSetup).toBe(true);
+        expect(before?.activationInTimer).toBe(true);
+
+        const d = await booted.diagnostics();
+        expect(d.plugins).toContainEqual({ name: "gesture", status: "loaded" });
       } finally {
         await booted.close();
       }
