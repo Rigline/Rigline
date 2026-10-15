@@ -191,6 +191,13 @@ tier, so the local run is the stronger one.
    and pushes. Add `--dry-run` to see the version and the changelog section without writing
    anything; it stops before the checks, so a clean dry run says nothing about them. Add
    `--skip-checks` when you have just run them by hand.
+
+   Two things its messages do not spell out. A second run against a version already cut refuses
+   with `` `## Unreleased` is empty ``, because the first run rolled it — so read that as "already
+   released" and check `git tag` before treating it as a failure. And the cut carries
+   `## Unreleased` and nothing else, so an entry written under an already-released heading ships
+   unlisted while that heading claims work it never carried; `git diff v<previous> -- CHANGELOG.md`
+   is the check, and should be purely additive.
 2. Watch the run the tag triggered. Its summary names each package and version staged, because
    nothing notifies you that a stage is waiting. A green tick is not the check. `npm stage list
    --json` is: all four at the new version, each with `"actorType": "trusted automation"`, which only
