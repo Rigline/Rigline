@@ -374,16 +374,11 @@ what a plugin is written against.
   moves D84. Never from the panel: any plugin can read the Save link's token (D93), so an add behind
   it would let one plugin install another. Triggered by the first third-party plugin with users.
 
-- **Per-plugin settings.** time-marks keeps its toggle in `localStorage`, which is right for a value
-  only the panel cares about. A `ctx.settings` API earns its place when a value must be editable from
-  outside the panel, and that trigger has fired: a favourites list is hand-edited and listed by the
-  CLI, so the API is being designed with the feature that needs it rather than ahead of it. Two
-  constraints on the stored shape, both of which retrofit badly. A plugin must tolerate a value it
-  did not write — unknown keys, missing keys, an older or newer shape — which is D110 one level down,
-  and matters because a setting that ever rides in a preset reaches a plugin version that is not its
-  author's. And whether a setting can be consequential is decided before the shape, not after: D131
-  lets a preset carry nothing that changes a machine, so if settings are one undifferentiated bag
-  then a preset can carry none of them.
+- **A preset carrying per-plugin settings.** The format carries a layout and nothing else (D131),
+  and settings are now a thing it could carry. Triggered by somebody wanting it. What it will need
+  deciding first is how much a stranger's settings value can cost, which is bounded by the reading
+  plugin's own declared capabilities rather than by the value — and `rewrites` is the one capability
+  that sends without a gesture, so it is the one to think about.
 - **What a diagnostic check may do**, left open by phase 6. Be `async`: no for now, because lines
   landing at different times make the badge count briefly wrong. Be collapsed per contributor: when
   `core` outgrows a screen. Ask for host state: that is a request for a capability, decided by name.
@@ -626,3 +621,12 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
 - 2026-10-14: Layout presets, the CLI half: `layout presets`, `apply`, `export` and `undo`, three
   shipped presets, and a reader that refuses where the config reader carries forward (D131, D132).
   The panel half is not built, and D131 records the concept it needs.
+- 2026-10-15: P9 states the line Rigline holds — a person in control, Anthropic's restrictions
+  standing — and read-versus-write is explicitly not the test, which D120 narrows to under it: the
+  host may send a request that writes, where a person's instruction causes it and the panel offers
+  them that same choice, with the engine exposing a verb and never a composer. Per-plugin settings
+  read end to end on it (D134): a `settings:` block per plugin name, baked at install, and
+  `ctx.settings` handing each plugin its own section frozen. D133 was filed and retracted the same
+  day — "engine configuration is not a plugin setting" derived the actor from the activation rule
+  and the ownership from the actor; ownership follows understanding, and provenance is what makes
+  acting on a setting safe.
