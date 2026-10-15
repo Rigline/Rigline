@@ -11,6 +11,8 @@ hole, or raises the Node or VS Code it needs, its entry says so.
 
 ## Unreleased
 
+## 1.1.0 — 2026-10-15
+
 ### Added
 
 - Layout presets: a layout in a file, to keep, to swap between, or to share.
