@@ -194,6 +194,16 @@ stylesheet — `.inputFooter_gGYT1w .modelPill_gGYT1w{min-width:240px}`, which t
 a long model name — and then narrows the viewport. A stylesheet is not a mutation inside the footer,
 so it does not reset the ladder itself.
 
+**From 2.1.300 the app holds every transcript row hidden for twenty seconds.** A row whose standing
+is *held* renders with an inline `visibility: hidden` until the app's own hook engine answers for it
+— so that text its hooks would redact is never shown first — and with no engine answering, the hold
+expires on a 20s timer from the moment the channel opens. The fake host answers nothing, so every
+row in the fixture page is hidden for the whole of a test's life. Layout is unaffected, so positions,
+classes, paddings and mounts all still mean what they did; what is no longer readable at this tier
+is *whether something is visible*, because `getComputedStyle` inherits the row's `hidden`. Ask the
+rule instead — `element.matches(theSelector)` — and keep `getBoundingClientRect` for the box. A read
+that wants to screenshot the transcript waits the hold out.
+
 **The harness's only launch is at boot**, before any plugin loads, so a service sees it replayed
 after it was posted. Something that reacts to a `launch_claude` by sending — an ask — is in the
 opposite order live, where a session opened later launches with the plugins already listening. That

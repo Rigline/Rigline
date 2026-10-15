@@ -78,11 +78,13 @@ next plain pull fast-forwards.
 
 `bash -ic` rather than `-lc`: nvm installs into `.bashrc`, which a login shell does not read. The
 corpus lives at a Windows path so its tests skip there with a reason, which is the designed
-behaviour and not a failure — expect 191 skipped. The count grows with every corpus version and
-harness test. To re-measure it on Windows, point `CORPUS` in `packages/core/test/corpus.ts` at a
-directory that does not exist for one `pnpm test`, then put it back with an edit, not `git checkout`,
-which would also drop any change to that file you have not committed. Nothing skips by platform, so
-that count is the Linux one. This is the fast loop; the CI run above is the gate, because it also
+behaviour and not a failure. No figure for how many is kept here, because it moves with every corpus
+version and every harness test added and would be read as fact long after it stopped being one: what
+matters is that the failures are zero and every skip names the corpus. To learn the number before a
+run that has to match it, point `CORPUS` in `packages/core/test/corpus.ts` at a directory that does
+not exist for one `pnpm test` on Windows, then put it back with an edit, not `git checkout`, which
+would also drop any change to that file you have not committed. Nothing skips by platform, so what
+that prints is the Linux number. This is the fast loop; the CI run above is the gate, because it also
 covers the Node matrix and the `--frozen-lockfile` install.
 
 ## One-time setup

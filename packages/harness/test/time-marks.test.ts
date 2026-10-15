@@ -111,12 +111,16 @@ describe.skipIf(skipReason !== null)(
           () => document.getElementsByClassName("rigline-tm-time").length === 2,
         );
 
-        const visibility = await page.evaluate(() =>
-          [...document.getElementsByClassName("rigline-tm-stamp")].map(
-            (span) => getComputedStyle(span).visibility,
+        // Asked of the rule rather than of `getComputedStyle`, which inherits: from 2.1.300 the app
+        // holds every row at `visibility: hidden` for 20s after the channel opens, pending its own
+        // hook engine, so a computed style says nothing about this plugin's rule on this page
+        // (verification.md, *What the harness cannot show*).
+        const hidden = await page.evaluate(() =>
+          [...document.getElementsByClassName("rigline-tm-stamp")].map((span) =>
+            span.matches(".message_07S1Yg:has(> [data-message-stamp]) .rigline-tm-stamp"),
           ),
         );
-        expect(visibility).toEqual(["hidden", "hidden"]);
+        expect(hidden).toEqual([true, true]);
 
         // The box is kept, which is what stops a divider's rule running under the app's stamp.
         const width = await page.evaluate(
@@ -150,12 +154,12 @@ describe.skipIf(skipReason !== null)(
         );
         expect(stamps).toBe(0);
 
-        const visibility = await page.evaluate(() =>
-          [...document.getElementsByClassName("rigline-tm-stamp")].map(
-            (span) => getComputedStyle(span).visibility,
+        const hidden = await page.evaluate(() =>
+          [...document.getElementsByClassName("rigline-tm-stamp")].map((span) =>
+            span.matches(".message_07S1Yg:has(> [data-message-stamp]) .rigline-tm-stamp"),
           ),
         );
-        expect(visibility).toEqual(["visible", "visible"]);
+        expect(hidden).toEqual([false, false]);
 
         // The band comes from the app's own variable, and a literal padding with it, so a row that
         // sets its own padding outright cannot keep a smaller one.
