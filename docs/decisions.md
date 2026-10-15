@@ -3113,20 +3113,21 @@ the combination is the vetted unit; widening one, or adding a verb, is a decisio
 **The value is validated against what the panel is itself offering**, not against a table of ours, so
 a plugin can only reach a choice the person already has.
 
-**A plugin-originated write requires transient user activation.** Constraining Rigline's own
-initiative is not enough when the caller is the plugin: without this, a write from a timer or from a
-tap on unrelated traffic satisfies every other condition here, and "a person caused it" is an
-obligation on an author rather than something the architecture holds. Activation is the enforceable
-form of it, and it costs a click handler nothing. The host's own launch-time application of a
-recorded default needs no activation and is not an exception, because no plugin is in that call.
+**A plugin-originated write requires a person's instruction, of which there are two kinds.** One
+made in the moment, proved by transient user activation; or a standing one, proved by the value
+being in that person's own config. Constraining Rigline's own initiative is not enough when the
+caller is the plugin: without this, a write from a timer or from a tap on unrelated traffic
+satisfies every other condition here, and "a person caused it" is an obligation on an author rather
+than something the architecture holds. Neither of those supplies an instruction of either kind,
+which is exactly why they are excluded.
 
-**Which means activation is not what keeps that path safe, and the next reader needs telling.** A
-default the host applies at launch runs with nobody present and no plugin in the call, so activation
-never engages and every other condition here is satisfied. What holds it is P9's narrower word: a
-standing instruction *they wrote*. A value reaching that path from somebody else's file — a preset,
-or anything else shared — is not theirs, and it is D131 keeping it out of the format that stops it,
-not anything in this decision. So a later session must not relax the preset side on the grounds that
-activation covers the launch flag. It does not, and it cannot.
+**Activation is not the general rule, and reaching for it where it does not fit is how this went
+wrong once.** A plugin applying a default when a session starts has nobody present, so activation
+never engages — and that is not an exception to be carved out, nor a reason to move the work to the
+host so the rule appears satisfied. The standing instruction is the person's, and that is the whole
+of what P9 asks. What would break it is the value arriving from somebody else, so the thing to
+constrain is the paths by which a setting can be written (D133), never which code executes the
+write. A later session must not re-derive an actor from this rule.
 
 Still never `io_message`, which is a prompt, and so a turn in the person's transcript.
 
@@ -3470,22 +3471,34 @@ says. So `apply` refuses, by name, and writes nothing, for:
 An entry naming a plugin that is not installed is not refused. That is the state D92 built, and it
 is how a preset names what it wants before you have it.
 
-**D133. Engine configuration is not a plugin setting (2026-10-15, Leo).** A value the engine acts on
-with nobody present belongs to `rigline`, not to the plugin whose feature it serves. The case that
-raised it is a favourite model applied when a session starts: the *host* applies it, with no plugin
-in the call, so it is the engine's own behaviour configured by a person rather than a setting a
-plugin reads. It is set by a CLI verb and lives outside `settings`.
+**D133. A setting belongs to whoever understands it; what makes acting on it safe is where it came
+from (2026-10-15, Leo).** Ownership follows understanding, not consequence. A value only one plugin
+can interpret is that plugin's setting even when acting on it changes something, because the engine
+has no business knowing what a model is, and a setting that kept working after `rigline disable
+model-favourites` would be absurd. So a favourite applied when a session starts is
+`model-favourites`' own setting, applied by the plugin, which sees the channel start by tapping
+`launch_claude` as any declared tap would.
 
-Worth having by name, because the alternative on the table was a rule about which keys of a plugin's
-settings are consequential — which needs somebody to classify each one, and an author classifying
-their own is the trust the capability model exists not to extend. Two owners decides it with no
-classification: ask who acts on the value, not what the value means.
+Recorded here first, and wrong, was that such a value is "engine configuration". It derived the
+actor from D120's activation rule and then used the actor to settle the ownership, when that rule
+was a constraint chosen to make plugin writes safe rather than a fact about them — circular, and
+the sort of circle that reads as a principle. It was also wrong about the parts: the engine is Node,
+it bakes `registry.js` at install and is not running when a session launches, so nothing it owns
+could act at that moment. It only ever transported the value.
 
-It also settles where each may be written from. A plugin setting is panel-editable, because the worst
-a wrong one can cost is bounded by that plugin's declared capabilities. Engine configuration is not:
-a Save payload is constructible by any plugin (D93) and a link can be dressed up, so a deceived click
-would otherwise set something the engine acts on at every launch from then on. A terminal has no
-payload to forge and no link to dress up.
+The question it was reaching for is real, and it is **provenance**. A standing instruction in a
+person's own config is that person's instruction, which is what P9 asks for, so acting on it
+unattended needs no activation (D120, as amended). What would break that is the value arriving from
+somebody else. So the constraint belongs on the paths by which a setting can be written, and the
+ownership question is left alone.
+
+**A setting that drives an unattended action may still be written from the panel.** The exposure a
+deceived click leaves open (D93) is bounded here by the thing not being silent: a wrong launch
+default shows in the pill the plugin draws, on every session, and that same element flags a
+combination that is not one of the person's favourites. Visibility is the mitigation that works.
+A terminal-only setting would instead put friction on the main path of a feature whose whole point
+is removing it, and buy little: the money at stake is real, but a default nobody can see is the
+hazard, not a default written from the wrong window.
 
 **D134. Per-plugin settings are YAML sections, and a plugin saves its own (2026-10-15, Leo).** D91
 left `config.yaml` holding "the layout and per-plugin settings as they arrive"; these are them. A
