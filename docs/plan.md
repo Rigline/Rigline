@@ -629,4 +629,7 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   `ctx.settings` handing each plugin its own section frozen. D133 was filed and retracted the same
   day — "engine configuration is not a plugin setting" derived the actor from the activation rule
   and the ownership from the actor; ownership follows understanding, and provenance is what makes
-  acting on a setting safe.
+  acting on a setting safe. What proves a person asked for a write in the moment was measured in
+  the harness and is the event itself: `navigator.userActivation` reads active during `setup`, and
+  a flag the host keeps cannot survive microtasks draining between listeners, where `isTrusted` is
+  an instance accessor Blink will not let anything forge.
