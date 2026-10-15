@@ -40,15 +40,6 @@ hole, or raises the Node or VS Code it needs, its entry says so.
 - `@rigline/plugin-api`: `uses.limits` and `ctx.onUsageLimits`, how much of the plan's five-hour and
   weekly limits is used, and when each resets.
 
-## 1.0.0 — 2026-10-07
-
-The first stable release. Every 1.x keeps what
-[stability.md](https://github.com/Rigline/Rigline/blob/main/docs/stability.md) promises, and only a
-2.0 may break it.
-
-Coming from an alpha, run `npm i -g rigline@latest`, then `rigline update`; the companion follows on
-its own.
-
 ### Fixed
 
 - Time markers no longer double up with Claude Code's own message timestamps, which it shows by
@@ -69,6 +60,18 @@ its own.
   sees the rows it should have been seeing all along.
 - *Diagnostics* now reports how many transcript rows Rigline could not match to a message, beside
   the ones it could, so a shortfall like that one is on screen rather than silent.
+
+## 1.0.0 — 2026-10-07
+
+The first stable release. Every 1.x keeps what
+[stability.md](https://github.com/Rigline/Rigline/blob/main/docs/stability.md) promises, and only a
+2.0 may break it.
+
+Coming from an alpha, run `npm i -g rigline@latest`, then `rigline update`; the companion follows on
+its own.
+
+### Fixed
+
 - In Edit in place, an element with nothing to show, such as the worktree pills outside a worktree,
   sat in the bar as "not showing" instead of where it is placed. It now shows its name at its place
   while you edit, so you can see where it is and move it like any other, and still shows nothing
