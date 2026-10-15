@@ -98,6 +98,79 @@ describe.skipIf(skipReason !== null)(
       }
     }, 20000);
 
+    it("defers to Claude Code's own stamp where there is one, keeping the divider", async () => {
+      const booted = await boot({ plugins: [timeMarks as FixturePlugin] });
+      const { page } = booted;
+      try {
+        // The app stamping is the trigger, so it is waited for rather than assumed: with it absent
+        // every assertion below would pass on nothing at all.
+        await page.waitForFunction(
+          () => document.querySelectorAll("[data-message-stamp] time").length === 2,
+        );
+        await page.waitForFunction(
+          () => document.getElementsByClassName("rigline-tm-time").length === 2,
+        );
+
+        const visibility = await page.evaluate(() =>
+          [...document.getElementsByClassName("rigline-tm-stamp")].map(
+            (span) => getComputedStyle(span).visibility,
+          ),
+        );
+        expect(visibility).toEqual(["hidden", "hidden"]);
+
+        // The box is kept, which is what stops a divider's rule running under the app's stamp.
+        const width = await page.evaluate(
+          () =>
+            document.getElementsByClassName("rigline-tm-stamp")[0]?.getBoundingClientRect().width ??
+            0,
+        );
+        expect(width).toBeGreaterThan(0);
+
+        // The lead and its rule are the divider's own and survive the dedupe.
+        const leads = await page.evaluate(
+          () => document.getElementsByClassName("rigline-tm-lead").length,
+        );
+        expect(leads).toBe(1);
+
+        expect(booted.consoleErrors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
+    it("shows its own time, in its own band, where Claude Code stamps nothing", async () => {
+      const booted = await boot({ plugins: [timeMarks as FixturePlugin], appTimestamps: false });
+      const { page } = booted;
+      try {
+        await page.waitForFunction(
+          () => document.getElementsByClassName("rigline-tm-time").length === 2,
+        );
+        const stamps = await page.evaluate(
+          () => document.querySelectorAll("[data-message-stamp]").length,
+        );
+        expect(stamps).toBe(0);
+
+        const visibility = await page.evaluate(() =>
+          [...document.getElementsByClassName("rigline-tm-stamp")].map(
+            (span) => getComputedStyle(span).visibility,
+          ),
+        );
+        expect(visibility).toEqual(["visible", "visible"]);
+
+        // The band comes from the app's own variable, and a literal padding with it, so a row that
+        // sets its own padding outright cannot keep a smaller one.
+        const padding = await page.evaluate(() =>
+          [...document.getElementsByClassName("rigline-tm-time")].map((node) =>
+            node.parentElement ? getComputedStyle(node.parentElement).paddingTop : null,
+          ),
+        );
+        expect(padding).toEqual(["24px", "24px"]);
+        expect(booted.consoleErrors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
     it("says Yesterday over the rows once the panel has sat open past midnight", async () => {
       const lateEvening = new Date();
       lateEvening.setHours(23, 58, 0, 0);

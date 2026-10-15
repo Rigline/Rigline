@@ -16,6 +16,9 @@ import type { Surface } from "@rigline/plugin-api/internal";
 export interface FixturePageOptions {
   readonly surface: Surface;
   readonly nonce: string;
+  /** Whether the fake host says the app should stamp its own messages. The extension host's own
+   * default is on, so this is on unless a test asks for the other half (D135). */
+  readonly appTimestamps?: boolean;
 }
 
 /**
@@ -59,15 +62,21 @@ export const REPLY_TABLE: Readonly<Record<string, Readonly<Record<string, unknow
 };
 
 /**
- * `REPLY_TABLE` as a literal for the page's inline script. `</` is split because the browser ends a
- * `<script>` at the first one, whatever the JavaScript around it means.
+ * `REPLY_TABLE` as a literal for the page's inline script, with `showMessageTimestamps` folded into
+ * `init`'s state. `</` is split because the browser ends a `<script>` at the first one, whatever the
+ * JavaScript around it means.
  */
-function replyTableLiteral(): string {
-  return JSON.stringify(REPLY_TABLE).split("</").join("<\\/");
+function replyTableLiteral(appTimestamps: boolean): string {
+  const init = REPLY_TABLE.init as { readonly state: Record<string, unknown> };
+  const table = {
+    ...REPLY_TABLE,
+    init: { ...REPLY_TABLE.init, state: { ...init.state, showMessageTimestamps: appTimestamps } },
+  };
+  return JSON.stringify(table).split("</").join("<\\/");
 }
 
-const FAKE_HOST = `
-  const replyTable = ${replyTableLiteral()};
+const fakeHost = (appTimestamps: boolean): string => `
+  const replyTable = ${replyTableLiteral(appTimestamps)};
 
   function sendFromExtension(message) {
     window.postMessage({ type: "from-extension", message }, "*");
@@ -187,7 +196,7 @@ export function fixturePage(options: FixturePageOptions): string {
     window.IS_SIDEBAR = ${isSidebar};
     window.IS_FULL_EDITOR = ${isFullEditor};
     window.IS_SESSION_LIST_ONLY = ${isSessionListOnly};
-${FAKE_HOST}
+${fakeHost(options.appTimestamps ?? true)}
   </script>
 
   <script nonce="${nonce}" src="index.js" type="module"></script>

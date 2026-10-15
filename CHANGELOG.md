@@ -51,6 +51,13 @@ its own.
 
 ### Fixed
 
+- Time markers no longer double up with Claude Code's own message timestamps, which it shows by
+  default on your prompts and its text replies. On those rows its stamp is the one you see — same
+  instant, your own time format, and the date on hover — and Rigline's marker fills in the rows it
+  leaves bare: tool calls, thinking blocks, and the day and pause dividers. Markers now sit at the
+  top right of the row, where Claude Code puts its own, and read in the same format, so one column
+  of times runs down the transcript whichever of the two drew a given row. Turn
+  `claudeCode.showMessageTimestamps` off and every row gets a Rigline marker instead.
 - Time markers flickered, and most rows never had one at all. Rigline matches a transcript row to
   its message through React, which keeps two versions of every row and tells us about whichever one
   it built the row from; where those two disagreed, Rigline played safe and decorated nothing. On a

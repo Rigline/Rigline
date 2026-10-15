@@ -88,6 +88,15 @@ describe("markFor", () => {
     }
   });
 
+  it("formats the hour as the app's own stamp does, unpadded", () => {
+    // The app formats with hour:"numeric" and hourCycle:"h12", so a one-digit hour has no leading
+    // zero and ours must not either, or one column holds "9:04" against "09:04" (D135). Asserted
+    // by the padding rather than by a literal, which would pin the runner's locale.
+    const entries = entriesAt(new Date(2026, 8, 10, 9, 4).getTime());
+    expect(markFor(at(entries, 0), entries)?.time).not.toMatch(/^0/);
+    expect(markFor(at(entries, 0), entries)?.time).toMatch(/\b9[:.]04\b/);
+  });
+
   it("gives the first timed entry a non-null lead", () => {
     const entries = entriesAt(noon(10));
     expect(markFor(at(entries, 0), entries)?.lead).not.toBeNull();
@@ -169,5 +178,27 @@ describe("styleRules", () => {
 
   it("takes the row class from the caller rather than hardcoding it", () => {
     expect(styleRules("otherRow_ABCDEF")).not.toContain("07S1Yg");
+  });
+
+  it("asks for no band on a row the app has stamped, which has reserved its own", () => {
+    expect(styleRules(ROW_CLASS)).toContain(
+      `.${ROW_CLASS}:has(> .rigline-tm-time):not(:has(> [data-message-stamp]))`,
+    );
+  });
+
+  it("still gives a divider its band, stamped or not", () => {
+    // The one node that needs the room whatever the app is doing: its lead and rule live there.
+    const [band] = styleRules(ROW_CLASS).split("}");
+    expect(band).toContain(`.${ROW_CLASS}:has(> .rigline-tm-lead)`);
+  });
+
+  it("hides the clock time on a stamped row without taking away its box", () => {
+    // visibility, never display: the box is what stops a divider's rule running under the app's
+    // stamp, and it needs no width of its own to do it (D135).
+    const css = styleRules(ROW_CLASS);
+    expect(css).toContain(
+      `.${ROW_CLASS}:has(> [data-message-stamp]) .rigline-tm-stamp{visibility:hidden}`,
+    );
+    expect(css).not.toContain("display:none");
   });
 });

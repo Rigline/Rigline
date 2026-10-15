@@ -3529,3 +3529,49 @@ check said 98.6% of rows asked were marked, and neither could see the 68 rows th
 candidates. `diagnostics.transcript.rows` is now counted beside `entries` and printed in the check's
 detail, with no verdict on the gap — some row kinds are legitimately not entries, so a threshold
 would be a number nobody could defend, while the number on screen is a person's to read (P8).
+
+**D135. Where Claude Code stamps a row, its time is the one that stays (2026-10-15, Leo).** The
+webview has stamped its own messages since 2.1.285, on by default — the extension host returns
+`c4("showMessageTimestamps") ?? true` — as `<time>` inside a `[data-message-stamp]` div, at
+`top: 6px; right: 0` on an assistant row and as a line of its own on a prompt row. It stamps a user
+message with text, an image or a document, and an assistant message with a non-empty text block,
+once nothing in it is partial: never a tool call, never a thinking block. So two features drew the
+same clock on the same rows, in different places and different formats.
+
+**Defer, do not hide.** The app's stamp is the better label on the rows it covers: the same instant
+(`createdAt` is the CLI record's own `timestamp`, not the row's `Date.now()` that D24 is about), the
+person's `timeFormat` and `timeZone` honoured, and the full date on hover. And
+[anthropic-compliance.md](anthropic-compliance.md) claims Rigline degrades no feature of the
+extension, which is D77's position with Anthropic as its audience: filling in what the app does not
+say keeps that sentence true, and switching off something it ships to put ours in its place is a
+claim we would have to go back on. So time-marks fills the rows the app leaves bare, in the app's
+own position, with the app's own `Intl` options — and a column read down the transcript is one
+feature whichever side drew each row.
+
+**One rule, keyed on the stamp itself, not on the setting.** `:has(> [data-message-stamp])` matches
+what the app actually rendered, so switching `claudeCode.showMessageTimestamps` off brings every one
+of our times back with no code involved, and so does a version that stops stamping. The plugin never
+learns the setting exists. `visibility: hidden` rather than `display: none` on our clock time: the
+span keeps its box, so a divider's rule stops exactly where the app's stamp begins — to the pixel,
+since both render the same string in the same font — and no magic width has to be maintained for
+it. Hidden that way it is out of find-in-page, out of a selection and out of the accessibility tree,
+which is what the toggle's remove-rather-than-hide rule is actually protecting.
+
+**The band is the app's convention, at the app's value.** A row showing a time of ours takes
+`--message-padding-top: 24px`, which is what the app raises for its own stamp. It costs 16px of
+height on a tool-call or thinking row and is the only shape that cannot collide: the free seam the
+time used to hang in is gone, because a row carrying the Copy and Bookmark actions has
+`padding-bottom: 0` and those buttons sit at the same x as the old label. Narrowing the content
+remains forbidden (D22's lesson, asserted by name in the plugin's tests); vertical room is not.
+
+Two things kept because they would otherwise be re-proposed. **Marking only the jumps was tried and
+says almost nothing** — a working session is mostly tool calls seconds apart, so no pause threshold
+fires inside a busy stretch, and a busy stretch is most of the transcript; every timed entry gets a
+time and a jump additionally gets a lead, on the same node. And **no anchor can cover
+`data-message-stamp`**: `resolve.test.ts` holds every curated anchor to resolving in every corpus
+version and the stamp's CSS module does not exist before 2.1.285, so the attribute is named in CSS
+and a contributed check reports the day it changes, rather than two times quietly appearing.
+
+Deferred: our own time does not answer to `timeFormat` or `timeZone`, so a person who has asked for
+24-hour or UTC sees that on the app's rows and this plugin's default on the rest. It needs the state
+message read off the bus, and every row where the setting is most visible is a row the app stamps.

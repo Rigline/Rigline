@@ -123,6 +123,11 @@ export interface BootOptions {
   readonly selectors?: Readonly<Record<string, string>>;
   /** Where the page's clock starts, installed before it loads, for a test that moves time. */
   readonly clock?: Date;
+  /**
+   * Whether the fake host says the app should stamp its own messages. On by default, because the
+   * extension host's own default is on, so that is the panel a plugin meets (D135).
+   */
+  readonly appTimestamps?: boolean;
 }
 
 interface HarnessWindow {
@@ -192,6 +197,7 @@ export function register(version: string): (options?: BootOptions) => Promise<Bo
       bundleDir: join(versionDir(version), "webview"),
       payloadDir: dir,
       surface: options.surface ?? "editor",
+      appTimestamps: options.appTimestamps,
     });
     const page = await browser.newPage();
     // Inside every test's own timeout, so a wait that hangs fails naming what it waited for.

@@ -38,6 +38,8 @@ export interface HarnessOptions {
   readonly surface: Surface;
   /** Fixed port, for a test that wants a stable URL. Ephemeral (0) by default. */
   readonly port?: number;
+  /** Whether the fake host says the app should stamp its own messages; on by default, as live. */
+  readonly appTimestamps?: boolean;
 }
 
 export interface Harness {
@@ -64,7 +66,12 @@ async function handle(
   const path = url.pathname;
 
   if (path === "/") {
-    await send(res, 200, fixturePage({ surface: options.surface, nonce: NONCE }), "text/html");
+    const page = fixturePage({
+      surface: options.surface,
+      nonce: NONCE,
+      appTimestamps: options.appTimestamps,
+    });
+    await send(res, 200, page, "text/html");
     return;
   }
   if (path === "/index.css") {
