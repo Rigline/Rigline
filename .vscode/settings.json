@@ -1,0 +1,4 @@
+{
+  // LF everywhere, including what this editor writes: see .gitattributes.
+  "files.eol": "\n"
+}

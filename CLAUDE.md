@@ -122,20 +122,10 @@ Written for somebody else, so don't rewrite them for us:
 - **Bound any regex you run over a stringified record.** `JSON.stringify` output is one line;
   `.*` and `(.+?)` cross into unrelated fields. Exclude `"` and `\` and cap the length.
 - **Patch bundles byte-faithfully, and whole.** Write through `writeFileAtomic` (D114), and read and
-  write bytes: text-mode I/O rewrites every line ending on Windows. Line endings in the repo are git's problem, not yours: `* text=auto`
-  normalises to LF on commit and checks out native, so write files however your tools write
-  them, and run `pnpm format` before `pnpm lint`: Biome's `lineEnding: "auto"` wants the platform's
-  ending, so a file written with LF fails lint on Windows until it is formatted. Format before
-  `pnpm build` too: it rewrites sources, and a build older than its sources is one `bundledDir()`
-  refuses, which fails every harness file at once. Only `packages/plugin-api/schema/manifest.json`
-  is pinned to LF, because a test compares its bytes with the generator's; `codegen` reads
-  `generated.ts` in either ending, as an author's checkout needs.
-- **Code that parses a repo file must not assume LF.** The working tree carries whatever git
-  checked out, which here is CRLF, so `indexOf("## Heading\n")` finds nothing and `/^\n+/` strips
-  nothing — on the machine this is developed on, not somebody else's. Find the end of a line rather
-  than the newline you assume ends it, and compose with the endings the file already has. It is
-  quiet in both directions: a search that fails reads as "the section is missing", and a rewrite
-  that fails reads as a successful no-op, which is how it survives a green run.
+  write bytes: text-mode I/O rewrites every line ending on Windows. Format before `pnpm build`: it
+  rewrites sources, and a build older than its sources is one `bundledDir()` refuses, which fails
+  every harness file at once. `codegen` reads `generated.ts` in either ending, which a plugin
+  author's own checkout elsewhere may need.
 - **Keep `index.js.orig` and `extension.js.orig` intact.** They are the only recovery from a blank
   panel or a broken extension host.
 - **Never point a test at the live extension directory.** Copies only.
