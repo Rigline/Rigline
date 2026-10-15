@@ -95,8 +95,10 @@ type RowIdentity = Omit<TranscriptEntry, "at" | "index">;
  * thing here that knows the order.
  *
  * The fiber on an element can be the stale one of React's pair, parents and all, once the row has
- * been reused for another message. Where the two disagree, the current one is the one whose root
- * its `FiberRoot` calls current, and neither is taken when that does not settle it (D103, P5).
+ * been reused for another message. Where the two disagree about *which* message, the current one is
+ * the one whose root its `FiberRoot` calls current, and neither is taken when that does not settle
+ * it (D103, P5). Where only one half names a message at all, that is not a disagreement about which
+ * and the half that names one is taken (D134).
  */
 export function rowIdentity(fiber: FiberLike | null | undefined): RowIdentity | null {
   const own = propsIdentity(fiber);
@@ -105,8 +107,12 @@ export function rowIdentity(fiber: FiberLike | null | undefined): RowIdentity | 
   const other = propsIdentity(alternate);
   if (own?.id === other?.id && own?.role === other?.role) return own;
   const ownIsCurrent = rootIsCurrent(fiber);
-  if (ownIsCurrent === rootIsCurrent(alternate)) return null;
-  return ownIsCurrent ? own : other;
+  if (ownIsCurrent !== rootIsCurrent(alternate)) return ownIsCurrent ? own : other;
+  // Unsettled, so the roots cannot say which tree is on screen. One answer and one silence is
+  // still one answer; two different answers is the ambiguity there is nothing left to resolve (D134).
+  if (own === null) return other;
+  if (other === null) return own;
+  return null;
 }
 
 function rootIsCurrent(fiber: FiberLike | null | undefined): boolean {

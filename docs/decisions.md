@@ -3497,3 +3497,35 @@ bake have the concept and the panel's layout model does not. Widening `compactRo
 the panel would hold a row it must show and cannot, and `also`'s next-row target is computed from the
 shown rows, so a person's new row would merge with the reserved one. Triggered by somebody losing a
 row, which needs a third-party plugin with users.
+
+**D134. One answer and one silence is one answer (2026-10-15).** D103 reads both halves of React's
+fiber pair and, where they disagree, takes the one whose root its `FiberRoot` calls current — and
+neither when that does not settle it, because inventing an identity for a row is exactly what P5
+refuses. The rule was written for a row *reused for another message*, where both halves name a
+message and only one of them is on screen. It was applied to a case that is not that one: a pair
+where one half names a message and the other names nothing a bounded walk finds. Nothing is in
+dispute there. The id returned is one a fiber actually carries, and the alternative is not a
+cautious answer but no row at all.
+
+Measured live, in a 182-row transcript on 2.1.300: 68 rows had exactly one half naming a message,
+**0** had two halves naming different ones, and the root tie-break failed to settle every one of
+the 68 — so a third of the transcript was unidentified, permanently, and one row of it flipped
+between settled and unsettled on every React commit. That flip changed the entry list, so
+`entriesDiffer` fired, so the whole decorator was torn down and rebuilt: 24,212 rebuilds against
+26,878 sweeps, where the comparison exists to make rebuilds rare. One mark appeared and disappeared
+once a second at rest, and as fast as the tokens arrived while a thinking block streamed.
+
+So the tie-break keeps its job and loses the case it was never about: where the roots cannot settle
+it, the half that names a message wins, and only two *different* messages with nothing to choose
+between them still identify nothing. Where the roots *do* settle, the current half's silence is
+believed — if the tree on screen says this element is not a row we show, it is not one.
+
+Two notes worth keeping. The tie-break has never been observed to settle in a live panel, and
+`bothDiffer` measured zero, so D103's guard is carried unexercised: it is cheap, the ambiguity is
+real in principle, and the harness pins it (`kernel.test.ts` drives a row React hands to a second
+message against the real bundle). And **the shortfall was silent**, which is the part that cost
+months rather than minutes: `entries` against `timed` said the join was healthy, the plugin's own
+check said 98.6% of rows asked were marked, and neither could see the 68 rows that were never
+candidates. `diagnostics.transcript.rows` is now counted beside `entries` and printed in the check's
+detail, with no verdict on the gap — some row kinds are legitimately not entries, so a threshold
+would be a number nobody could defend, while the number on screen is a person's to read (P8).

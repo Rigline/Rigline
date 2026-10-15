@@ -197,6 +197,60 @@ describe("rowIdentity", () => {
       expect(rowIdentity(node)).toEqual({ id: A, role: "user" });
     });
   });
+
+  describe("on a row where one half of the pair names no message", () => {
+    type Node = {
+      memoizedProps?: unknown;
+      return: Node | null;
+      alternate?: Node;
+      stateNode?: unknown;
+    };
+
+    /**
+     * A pair that disagrees by silence rather than by message: one half carries the row's own
+     * message, the other carries nothing a bounded walk finds, and both halves walk to one root
+     * that calls neither current — so the tie-break cannot settle it. This is the state 68 of 182
+     * rows were measured in, live, and it is what D134 is about.
+     */
+    function lopsided(): { named: Node; silent: Node } {
+      const root: Node = { return: null };
+      root.stateNode = { current: null };
+      const named: Node = {
+        memoizedProps: { className: "message_07S1Yg" },
+        return: { memoizedProps: { message: { uuid: A, type: "assistant" } }, return: root },
+      };
+      const silent: Node = {
+        memoizedProps: { className: "message_07S1Yg" },
+        return: { memoizedProps: {}, return: root },
+      };
+      named.alternate = silent;
+      silent.alternate = named;
+      return { named, silent };
+    }
+
+    it("takes the message from whichever half has one, whichever the element holds", () => {
+      const { named, silent } = lopsided();
+      expect(rowIdentity(named)).toEqual({ id: A, role: "assistant" });
+      expect(rowIdentity(silent)).toEqual({ id: A, role: "assistant" });
+    });
+
+    it("believes the silence when the roots do settle, and identifies nothing", () => {
+      const current: Node = { return: null };
+      const stale: Node = { return: null };
+      const fiberRoot = { current };
+      current.stateNode = fiberRoot;
+      stale.stateNode = fiberRoot;
+      const silent: Node = { memoizedProps: {}, return: current };
+      const named: Node = {
+        memoizedProps: { message: { uuid: A, type: "assistant" } },
+        return: stale,
+      };
+      silent.alternate = named;
+      named.alternate = silent;
+      expect(rowIdentity(silent)).toBeNull();
+      expect(rowIdentity(named)).toBeNull();
+    });
+  });
 });
 
 describe("entriesDiffer", () => {

@@ -77,11 +77,11 @@ export const transcriptModule: CapabilityModule<"transcript"> = {
           }
           const gaps = contract.gaps(true, kernel.tables);
           if (gaps.length > 0) return { verdict: "n/a", detail: gaps.join("; ") };
-          const { entries, timed } = kernel.diagnostics.transcript;
+          const { rows, entries, timed } = kernel.diagnostics.transcript;
           if (entries === 0 || timed > 0) untimedSince = null;
           else if (untimedSince === null) untimedSince = performance.now();
           const stuck = untimedSince === null ? null : performance.now() - untimedSince;
-          return transcriptVerdict(used, entries, timed, stuck);
+          return transcriptVerdict(used, rows, entries, timed, stuck);
         },
       },
     ];

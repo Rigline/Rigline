@@ -182,12 +182,17 @@ interface RiglineBridge {
      * What decorateTranscript is seeing. Published by post.ts, which owns the concept; declared
      * here because this is where the bridge's shape lives.
      *
-     * `entries` against `timed` is the health of the join: a row whose time no record has supplied
-     * yet is normal for a moment and wrong if it persists, and the two numbers tell those apart
-     * without anyone having to reason about which message should have carried it. `rebuilds`
-     * against `sweeps` is the same ratio one level down from `commits`/`notified`.
+     * Three numbers for one funnel, because a shortfall at each step means something different.
+     * `rows` against `entries` is how many candidates we could not identify at all, which was
+     * silence until it was counted: a third of a real transcript went unmarked indefinitely while
+     * every other number here looked healthy (D134). `entries` against `timed` is the health of the
+     * join: a row whose time no record has supplied yet is normal for a moment and wrong if it
+     * persists, and the two tell those apart without anyone having to reason about which message
+     * should have carried it. `rebuilds` against `sweeps` is the same ratio one level down from
+     * `commits`/`notified` — and a rebuild per sweep says the entry list is not holding still.
      */
     transcript: {
+      rows: number;
       entries: number;
       timed: number;
       sweeps: number;
@@ -765,7 +770,7 @@ try {
       identifiersFor: null,
       engine: null,
       react: { hook: "installed", version: null, commits: 0, notified: 0, foreign: 0 },
-      transcript: { entries: 0, timed: 0, sweeps: 0, rebuilds: 0 },
+      transcript: { rows: 0, entries: 0, timed: 0, sweeps: 0, rebuilds: 0 },
       mounts: {
         driver: "commit",
         active: 0,

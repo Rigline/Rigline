@@ -68,7 +68,14 @@ that into "not a row", which is the safe answer.
 alternate, and writes the element's property only when it creates the element. After a row is
 reused for another message, the one on the element can be the half still holding the old message,
 parents included, until the row next renders. So `rowIdentity` reads both, and where they disagree
-takes the one whose root fiber its `FiberRoot` calls `current`, or neither (D103). `__reactProps$`
+about *which* message takes the one whose root fiber its `FiberRoot` calls `current`, or neither
+(D103).
+
+A pair can also disagree by silence: one half names a message and the other names nothing within
+the walk. That is not a dispute about which message, so the half that names one wins when the roots
+cannot settle it — and the alternative is not caution but a row dropped from the list, which is a
+third of a real transcript left undecorated (D134). Where the roots *do* settle, the current half's
+silence is believed. `__reactProps$`
 cannot settle it: React rewrites that only when the element's own props change, and a row's div can
 keep its props while the message above it changes.
 
@@ -92,11 +99,14 @@ Order is part of the comparison. Up to 2.1.284 rows are keyed by index, so the s
 different order leave each element showing another message, and comparing sets would leave every
 decoration one row out of place.
 
-`diagnostics.transcript` carries the four numbers that describe this. `entries` against `timed` is
-the health of the join — a row whose time no record has supplied yet is normal for a moment and
-wrong if it persists, and the two tell those apart without anyone reasoning about which message
-should have carried it. `rebuilds` against `sweeps` is the same ratio one level down from
-`commits`/`notified`.
+`diagnostics.transcript` carries the five numbers that describe this. `rows` against `entries` is
+how many candidates were not identified at all — some row kinds legitimately never are, so the
+number is printed and never judged, and until it was printed a third of a transcript could carry no
+decoration with every other number here healthy (D134). `entries` against `timed` is the health of
+the join — a row whose time no record has supplied yet is normal for a moment and wrong if it
+persists, and the two tell those apart without anyone reasoning about which message should have
+carried it. `rebuilds` against `sweeps` is the same ratio one level down from `commits`/`notified`,
+and close to 1 means the entry list is not holding still.
 
 ## Decorating
 

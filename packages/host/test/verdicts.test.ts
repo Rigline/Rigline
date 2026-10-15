@@ -415,22 +415,30 @@ describe("sessionIdVerdict", () => {
 
 describe("transcriptVerdict", () => {
   it("is n/a with nobody decorating, or with no rows yet", () => {
-    expect(transcriptVerdict(false, 0, 0, null).detail).toContain("no plugin here");
-    expect(transcriptVerdict(true, 0, 0, null).verdict).toBe("n/a");
+    expect(transcriptVerdict(false, 0, 0, 0, null).detail).toContain("no plugin here");
+    expect(transcriptVerdict(true, 0, 0, 0, null).verdict).toBe("n/a");
   });
 
   it("passes once anything is timed", () => {
-    expect(transcriptVerdict(true, 12, 9, null).verdict).toBe("pass");
+    expect(transcriptVerdict(true, 14, 12, 9, null).verdict).toBe("pass");
   });
 
   it("stays n/a while untimed rows are still young", () => {
-    expect(transcriptVerdict(true, 12, 0, 1200).verdict).toBe("n/a");
+    expect(transcriptVerdict(true, 14, 12, 0, 1200).verdict).toBe("n/a");
   });
 
   it("fails only past the five-second mark with nothing timed", () => {
-    const result = transcriptVerdict(true, 12, 0, 9000);
+    const result = transcriptVerdict(true, 14, 12, 0, 9000);
     expect(result.verdict).toBe("fail");
     expect(result.detail).toContain("9000ms");
+  });
+
+  it("prints the candidates it could not identify in every detail it has one for", () => {
+    // The gap is not a verdict, so the number being on screen is the whole mechanism (D134).
+    for (const stuck of [null, 1200, 9000]) {
+      expect(transcriptVerdict(true, 182, 114, 0, stuck).detail).toContain("rows=182 entries=114");
+    }
+    expect(transcriptVerdict(true, 182, 114, 113, null).detail).toContain("rows=182 entries=114");
   });
 });
 

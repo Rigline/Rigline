@@ -77,6 +77,7 @@ export function snapshot(diagnostics: Diagnostics, at: number): Record<string, u
     inbound: diagnostics.inboundCount,
     sweeps: diagnostics.transcript.sweeps,
     rebuilds: diagnostics.transcript.rebuilds,
+    rows: diagnostics.transcript.rows,
     entries: diagnostics.transcript.entries,
     mounts: diagnostics.mounts.active,
     replaced: diagnostics.mounts.replaced,

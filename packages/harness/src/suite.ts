@@ -57,6 +57,7 @@ export interface HarnessDiagnostics {
   readonly plugins: readonly PluginStatus[];
   readonly rewrites: readonly RewriteRecord[];
   readonly transcript: {
+    readonly rows: number;
     readonly entries: number;
     readonly timed: number;
     readonly sweeps: number;

@@ -458,21 +458,29 @@ export function sessionIdVerdict(used: boolean, id: string | null): CheckVerdict
  * more than five seconds with nothing timed, which is the join being broken rather than merely not
  * yet caught up; an untimed row younger than that (a prompt just sent, a session still loading) is
  * ordinary.
+ *
+ * `rows` is in the detail and in no verdict. Some candidates are legitimately not entries — the
+ * row kinds `rowIdentity` skips because no record will ever time them — so a gap is not a fault and
+ * a threshold would be a number nobody could defend. What it buys is a person seeing the gap at
+ * all: `rows=182 entries=114` is a third of the transcript carrying no decoration, and before it
+ * was printed the panel said nothing but `pass` about that (D134).
  */
 export function transcriptVerdict(
   used: boolean,
+  rows: number,
   entries: number,
   timed: number,
   msSinceEntriesUntimed: number | null,
 ): CheckVerdict {
   if (!used) return { verdict: "n/a", detail: "no plugin here decorates the transcript" };
   if (entries === 0) return { verdict: "n/a", detail: "no transcript rows yet" };
-  if (timed > 0) return { verdict: "pass", detail: `entries=${entries} timed=${timed}` };
+  const counts = `rows=${rows} entries=${entries}`;
+  if (timed > 0) return { verdict: "pass", detail: `${counts} timed=${timed}` };
   if (msSinceEntriesUntimed !== null && msSinceEntriesUntimed > 5000) {
     return {
       verdict: "fail",
-      detail: `entries=${entries} timed=0 after ${Math.round(msSinceEntriesUntimed)}ms`,
+      detail: `${counts} timed=0 after ${Math.round(msSinceEntriesUntimed)}ms`,
     };
   }
-  return { verdict: "n/a", detail: `entries=${entries} timed=0, waiting` };
+  return { verdict: "n/a", detail: `${counts} timed=0, waiting` };
 }

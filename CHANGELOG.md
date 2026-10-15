@@ -51,6 +51,14 @@ its own.
 
 ### Fixed
 
+- Time markers flickered, and most rows never had one at all. Rigline matches a transcript row to
+  its message through React, which keeps two versions of every row and tells us about whichever one
+  it built the row from; where those two disagreed, Rigline played safe and decorated nothing. On a
+  long transcript that was a third of the rows left bare, and one row whose marker came and went
+  about once a second — faster while Claude was thinking. A plugin that draws on transcript rows now
+  sees the rows it should have been seeing all along.
+- *Diagnostics* now reports how many transcript rows Rigline could not match to a message, beside
+  the ones it could, so a shortfall like that one is on screen rather than silent.
 - In Edit in place, an element with nothing to show, such as the worktree pills outside a worktree,
   sat in the bar as "not showing" instead of where it is placed. It now shows its name at its place
   while you edit, so you can see where it is and move it like any other, and still shows nothing

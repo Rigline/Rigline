@@ -99,7 +99,8 @@ export function createTranscriptService(
     // row's class (D7). The fiber check below would have dropped a stray anyway — a class proposes
     // and the fiber disposes — but paying for a wrong candidate on every sweep, several hundred
     // rows deep, is a cost with nothing on the other side of it.
-    for (const row of document.querySelectorAll(rowSelector)) {
+    const candidates = document.querySelectorAll(rowSelector);
+    for (const row of candidates) {
       const identity = rowIdentity(react.fiberFor(row) as FiberLike | null);
       if (!identity) continue;
       found.push({ ...identity, at: times.get(identity.id) ?? null, index: found.length });
@@ -107,6 +108,10 @@ export function createTranscriptService(
     }
     diagnostics.sweeps++;
     meter("sweep");
+    // Kept beside `entries` because the gap between them is the one failure nothing else here
+    // shows: a candidate we cannot identify is a row with no decoration, and it reads exactly like
+    // a row the app never rendered (D134).
+    diagnostics.rows = candidates.length;
     diagnostics.entries = found.length;
     diagnostics.timed = found.reduce((n, e) => n + (e.at === null ? 0 : 1), 0);
 

@@ -35,7 +35,7 @@ function diagnostics(over: Partial<Diagnostics> = {}): Diagnostics {
     hostPatches: [],
     identifiersFor: "2.1.270",
     react: { hook: "installed", version: "19.1.0", commits: 400, notified: 40, foreign: 0 },
-    transcript: { entries: 319, timed: 300, sweeps: 88, rebuilds: 9 },
+    transcript: { rows: 334, entries: 319, timed: 300, sweeps: 88, rebuilds: 9 },
     mounts: { driver: "commit", active: 6, replaced: 1, lost: 0 },
     meters: {
       commit: { peak: 142, peakAt: 1_700_000_000_000, recent: 3 },
@@ -54,6 +54,8 @@ describe("snapshot", () => {
     expect(s.at).toBe(1234);
     expect(s.outbound).toBe(12);
     expect(s.rebuilds).toBe(9);
+    expect(s.rows).toBe(334);
+    expect(s.entries).toBe(319);
     expect(s.mounts).toBe(6);
     expect(s.peaks).toEqual({ commit: 142 });
   });

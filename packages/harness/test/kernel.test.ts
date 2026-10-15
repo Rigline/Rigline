@@ -422,6 +422,9 @@ export default { setup() {} };`,
 
         const d = await booted.diagnostics();
         expect(d.transcript.timed).toBe(2);
+        // Every candidate the selector found was identified: the shortfall that reads as a row the
+        // app never rendered, and went uncounted until it was a third of a live transcript (D134).
+        expect(d.transcript.rows).toBe(d.transcript.entries);
         expect(booted.consoleErrors).toEqual([]);
       } finally {
         await booted.close();
