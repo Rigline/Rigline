@@ -293,6 +293,11 @@ Read defensively and fall back to your own default.
 `SaveSettings` wraps whatever you draw in the link a save travels on. One real click both does the
 thing and saves the settings that doing it produced.
 
+It is for **a control in the panel** — a star on a model, a toggle on a pill — where the click that
+does the thing is the click that saves it. It is not for building a settings screen of your own:
+settings a person sits down to change belong in one consistent place rather than in a different
+shape per plugin, and that place is Rigline's to provide, not yours to invent.
+
 ```tsx
 import { definePlugin, store } from "@rigline/plugin-api";
 import { Pill, SaveSettings, useStore } from "@rigline/plugin-api/ui";
