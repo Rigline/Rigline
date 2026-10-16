@@ -31,7 +31,82 @@ export interface SavePayload {
 export const MAX_SAVE_PAYLOAD = 16 * 1024;
 
 export function encodeSavePayload(payload: SavePayload): string {
-  const bytes = new TextEncoder().encode(JSON.stringify(payload));
+  return toBase64Url(JSON.stringify(payload));
+}
+
+export const SETTINGS_PAYLOAD_VERSION = 1;
+
+/** One plugin's section: what the panel's copy started from, and what to write (D134). */
+export interface SettingsSave {
+  readonly from: Readonly<Record<string, unknown>>;
+  readonly to: Readonly<Record<string, unknown>>;
+}
+
+export interface SettingsPayload {
+  readonly v: typeof SETTINGS_PAYLOAD_VERSION;
+  readonly token: string;
+  /** By plugin name, and only the sections being written — never every section the panel holds. */
+  readonly sections: Readonly<Record<string, SettingsSave>>;
+}
+
+/**
+ * The same cap as a layout's, and for the same reason: this reaches the engine on a command line.
+ *
+ * So the panel saves far less than `install` will bake (`MAX_SETTINGS_SECTION`). A plugin keeping
+ * bulk data under its own key can read it and cannot save it from the panel, which is the right way
+ * round — the panel's editor is for settings a person edits.
+ */
+export const MAX_SETTINGS_PAYLOAD = 16 * 1024;
+
+export function encodeSettingsPayload(payload: SettingsPayload): string {
+  return toBase64Url(JSON.stringify(payload));
+}
+
+/** The payload a settings Save link carried, or why it is not one. */
+export function decodeSettingsPayload(
+  encoded: string,
+): { readonly payload: SettingsPayload } | { readonly problem: string } {
+  if (encoded.length > MAX_SETTINGS_PAYLOAD) {
+    return { problem: `the payload is longer than ${MAX_SETTINGS_PAYLOAD} characters` };
+  }
+  const text = fromBase64Url(encoded);
+  if (text === null) return { problem: "the payload is not base64url-encoded UTF-8" };
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    return { problem: "the payload is not JSON" };
+  }
+  if (!isRecord(value)) return { problem: "the payload is not an object" };
+  if (value.v !== SETTINGS_PAYLOAD_VERSION) {
+    return {
+      problem: `the payload is version ${String(value.v)}, and this engine reads ${SETTINGS_PAYLOAD_VERSION}`,
+    };
+  }
+  if (typeof value.token !== "string" || !plainText(value.token)) {
+    return { problem: "the payload has no token" };
+  }
+  if (!isRecord(value.sections)) return { problem: '"sections" is not a mapping of plugin names' };
+  const entries: [string, SettingsSave][] = [];
+  for (const [name, section] of Object.entries(value.sections)) {
+    if (!plainText(name)) return { problem: '"sections" names a plugin that is not plain text' };
+    if (!isRecord(section)) return { problem: `"sections.${name}" is not an object` };
+    if (!isRecord(section.from)) return { problem: `"sections.${name}.from" is not an object` };
+    if (!isRecord(section.to)) return { problem: `"sections.${name}.to" is not an object` };
+    entries.push([name, { from: section.from, to: section.to }]);
+  }
+  // fromEntries, so a `__proto__` key stays an ordinary key, as the layout's reader does.
+  return {
+    payload: {
+      v: SETTINGS_PAYLOAD_VERSION,
+      token: value.token,
+      sections: Object.fromEntries(entries),
+    },
+  };
+}
+
+function toBase64Url(text: string): string {
+  const bytes = new TextEncoder().encode(text);
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
   return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
