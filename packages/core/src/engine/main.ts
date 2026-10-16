@@ -109,7 +109,9 @@ import {
   SKIP_PROFILES,
   sameSource,
   saveFromPanel,
+  saveSettingsFromPanel,
   scanOf,
+  type SettingsSaved,
   setPluginEnabled,
   setupCompanion,
   splitLegacyConfig,
@@ -711,6 +713,63 @@ function layoutCommand(args: string[]): number {
   }
   console.log("");
   return reinject({ companion: verb === "save" });
+}
+
+/** What `settings save` says it did, first line first: the line the companion shows (D93, D138). */
+function settingsOutcome(configPath: string, saved: SettingsSaved): string[] {
+  const lines: string[] = [];
+  if (saved.wrote.length === 0) {
+    lines.push(
+      saved.unknown.length === 0
+        ? "the Save link named no settings, so nothing was written"
+        : `nothing saved to ${configPath}: no plugin named ${saved.unknown.join(", ")} is installed`,
+    );
+    return lines;
+  }
+  lines.push(
+    !saved.changed
+      ? `${configPath} already held the panel's settings`
+      : saved.overChange.length === 0
+        ? `saved the panel's settings to ${configPath}`
+        : `saved the panel's settings to ${configPath}, over a change to ${saved.overChange.join(", ")} made since the panel loaded`,
+  );
+  for (const name of saved.unknown) {
+    lines.push(`  skipped "${name}": no plugin of that name is installed`);
+  }
+  return lines;
+}
+
+/**
+ * `settings save PAYLOAD`: the companion's, with a panel's Save link (D93, D138), so the usage
+ * leaves it out, as `layout save`'s is. Nested under a command of its own although `save` is the
+ * only verb, so the name survives a `settings` printer arriving later.
+ */
+function settingsCommand(args: string[]): number {
+  const [verb, ...rest] = args;
+  if (verb !== "save") {
+    throw new UserError(
+      verb === undefined
+        ? "settings takes a command, and the only one is save, which the companion uses"
+        : `unknown settings command "${verb}": save`,
+    );
+  }
+  if (rest.length !== 1) {
+    throw new UserError("settings save takes the payload of a panel's Save link");
+  }
+  const paths = riglinePaths();
+  const discovered = discoverPlugins(discoveryRoots(), {
+    last: ["probe"],
+    bundledRoot: bundledPluginsDir(),
+  });
+  const saved = saveSettingsFromPanel(
+    paths.config,
+    paths.token,
+    rest[0] as string,
+    new Set(discovered.map((plugin) => plugin.name)),
+  );
+  for (const line of settingsOutcome(paths.config, saved)) console.log(line);
+  console.log("");
+  return reinject({ companion: true });
 }
 
 function removeCommand(args: string[]): number {
@@ -1455,6 +1514,8 @@ async function main(argv: string[]): Promise<number> {
       return listCommand(rest);
     case "layout":
       return layoutCommand(rest);
+    case "settings":
+      return settingsCommand(rest);
     case "vscode-setup":
       return vscodeSetupCommand(rest);
     case "companion-status":

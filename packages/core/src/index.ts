@@ -231,6 +231,8 @@ export {
   saveFromPanel,
   saveRecord,
 } from "./plugins/save.ts";
+export type { SettingsSaved } from "./plugins/settings.ts";
+export { saveSettingsFromPanel, writeSettings } from "./plugins/settings.ts";
 export type { BaselineSource } from "./update/baseline.ts";
 export {
   GENERATED_FILE,

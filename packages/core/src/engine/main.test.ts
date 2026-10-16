@@ -14,7 +14,10 @@ import {
   type MockInstance,
   vi,
 } from "vitest";
+import { type SettingsSave, encodeSettingsPayload } from "@rigline/plugin-api/internal";
 import { writeFixtureExtension } from "../../test/fixtures.ts";
+import { readConfig } from "../plugins/config.ts";
+import { ensureToken } from "../plugins/save.ts";
 import { EXTENSIONS_DIR } from "../extension/locate.ts";
 import { restoredAt } from "../inject/restored.ts";
 import { runEngine } from "./main.ts";
@@ -261,6 +264,85 @@ describe("status and restore (W34)", () => {
       `No Claude Code extension is installed in ${EXTENSIONS_DIR}, so there was nothing to restore.`,
     );
   });
+});
+
+/**
+ * `settings save`, which is the companion's verb and so not in the usage (D93, D138). No extension
+ * is installed here, so `reinject` finds nothing and says so — the save has already printed by then,
+ * which is the point: its first line is what the companion shows.
+ */
+describe("settings save (D138)", () => {
+  const rigline = (): string => join(home, ".rigline");
+  const configPath = (): string => join(rigline(), "config.yaml");
+
+  /** A plugin discovery will find, which is all this needs of one. */
+  function installed(name: string): void {
+    const dir = join(rigline(), "plugins", name);
+    mkdirSync(join(dir, "dist"), { recursive: true });
+    writeFileSync(
+      join(dir, "rigline.json"),
+      JSON.stringify({ api: 1, name, entry: "dist/index.js", uses: {} }),
+    );
+    writeFileSync(join(dir, "dist", "index.js"), "export default { setup() {} };" + "\n");
+  }
+
+  function link(sections: Record<string, SettingsSave>): string {
+    const made = ensureToken(join(rigline(), "token"));
+    if ("problem" in made) throw new Error(made.problem);
+    return encodeSettingsPayload({ v: 1, token: made.token, sections });
+  }
+
+  const lines = (): string[] => log.mock.calls.flat().map(String);
+
+  afterEach(() => {
+    rmSync(rigline(), { recursive: true, force: true });
+  });
+
+  it.each([
+    ["settings"],
+    ["settings", "nonsense"],
+    ["settings", "save"],
+    ["settings", "save", "one", "two"],
+  ])("refuses %s %s %s, rather than saving something it half understood", async (...argv) => {
+    expect(await runEngine(argv)).toBe(1);
+    expect(error.mock.calls[0]?.[0]).toMatch(/^rigline: (settings|unknown settings command)/);
+  });
+
+  it("writes the section, and leads with the outcome", async () => {
+    installed("clock");
+
+    expect(
+      await runEngine(["settings", "save", link({ clock: { from: {}, to: { tick: 1 } } })]),
+    ).toBe(0);
+
+    expect(lines()[0]).toBe(`saved the panel's settings to ${configPath()}`);
+    expect(readConfig(configPath()).settings).toEqual({ clock: { tick: 1 } });
+  }, 60_000);
+
+  it("skips a section naming a plugin that is not installed, and names it after the outcome", async () => {
+    installed("clock");
+
+    const payload = link({
+      clock: { from: {}, to: { tick: 1 } },
+      gone: { from: {}, to: { tick: 2 } },
+    });
+    expect(await runEngine(["settings", "save", payload])).toBe(0);
+
+    expect(lines()[0]).toBe(`saved the panel's settings to ${configPath()}`);
+    expect(lines()[1]).toBe(`  skipped "gone": no plugin of that name is installed`);
+    expect(readConfig(configPath()).settings).toEqual({ clock: { tick: 1 } });
+  }, 60_000);
+
+  it("writes nothing, and says so, when no section names a plugin it has", async () => {
+    installed("clock");
+
+    expect(
+      await runEngine(["settings", "save", link({ gone: { from: {}, to: { tick: 2 } } })]),
+    ).toBe(0);
+
+    expect(lines()[0]).toBe(`nothing saved to ${configPath()}: no plugin named gone is installed`);
+    expect(existsSync(configPath())).toBe(false);
+  }, 60_000);
 });
 
 describe("dev (W2)", () => {

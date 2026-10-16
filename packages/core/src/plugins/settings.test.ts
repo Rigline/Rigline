@@ -103,8 +103,9 @@ describe("saveSettingsFromPanel", () => {
         configPath,
         tokenPath,
         link(token, { a: { from: { x: 1 }, to: { x: 2 } } }),
+        new Set(["a"]),
       ),
-    ).toEqual({ changed: true, overChange: [] });
+    ).toEqual({ changed: true, wrote: ["a"], overChange: [], unknown: [] });
     expect(readConfig(configPath).settings).toEqual({ a: { x: 2 } });
   });
 
@@ -116,9 +117,10 @@ describe("saveSettingsFromPanel", () => {
       configPath,
       tokenPath,
       link(token, { a: { from: { x: 1 }, to: { x: 2 } }, b: { from: { y: 1 }, to: { y: 2 } } }),
+      new Set(["a", "b"]),
     );
     // `a` moved under the panel; `b` did not. The write still lands, as the layout's does (D92).
-    expect(saved).toEqual({ changed: true, overChange: ["a"] });
+    expect(saved).toEqual({ changed: true, wrote: ["a", "b"], overChange: ["a"], unknown: [] });
     expect(readConfig(configPath).settings).toEqual({ a: { x: 2 }, b: { y: 2 } });
   });
 
@@ -127,8 +129,58 @@ describe("saveSettingsFromPanel", () => {
     writeFileSync(configPath, "disabled: []\n");
 
     expect(
-      saveSettingsFromPanel(configPath, tokenPath, link(token, { a: { from: {}, to: { x: 1 } } })),
-    ).toEqual({ changed: true, overChange: [] });
+      saveSettingsFromPanel(
+        configPath,
+        tokenPath,
+        link(token, { a: { from: {}, to: { x: 1 } } }),
+        new Set(["a"]),
+      ),
+    ).toEqual({ changed: true, wrote: ["a"], overChange: [], unknown: [] });
+  });
+
+  it("skips a section naming a plugin this machine has not got, and writes the rest", () => {
+    const { configPath, tokenPath, token } = home();
+    writeFileSync(configPath, "settings:\n  a:\n    x: 1\n");
+
+    const saved = saveSettingsFromPanel(
+      configPath,
+      tokenPath,
+      link(token, { a: { from: { x: 1 }, to: { x: 2 } }, gone: { from: {}, to: { y: 1 } } }),
+      new Set(["a"]),
+    );
+    expect(saved).toEqual({ changed: true, wrote: ["a"], overChange: [], unknown: ["gone"] });
+    // No block invented for a plugin that was never here, and `a` still saved.
+    expect(readConfig(configPath).settings).toEqual({ a: { x: 2 } });
+  });
+
+  it("writes a section for a plugin that is only switched off", () => {
+    const { configPath, tokenPath, token } = home();
+    writeFileSync(configPath, "disabled:\n  - a\nsettings:\n  a:\n    x: 1\n");
+
+    // Discovered, not enabled: `remove` leaves a section behind and the bake skips an unenabled
+    // one, so a switched-off plugin's block lives in the file legitimately.
+    const saved = saveSettingsFromPanel(
+      configPath,
+      tokenPath,
+      link(token, { a: { from: { x: 1 }, to: { x: 2 } } }),
+      new Set(["a"]),
+    );
+    expect(saved.wrote).toEqual(["a"]);
+    expect(readConfig(configPath).settings).toEqual({ a: { x: 2 } });
+  });
+
+  it("writes nothing when every section names a plugin that is not installed", () => {
+    const { configPath, tokenPath, token } = home();
+    writeFileSync(configPath, "settings:\n  a:\n    x: 1\n");
+
+    const saved = saveSettingsFromPanel(
+      configPath,
+      tokenPath,
+      link(token, { gone: { from: {}, to: { y: 1 } } }),
+      new Set(["a"]),
+    );
+    expect(saved).toEqual({ changed: false, wrote: [], overChange: [], unknown: ["gone"] });
+    expect(readConfig(configPath).settings).toEqual({ a: { x: 1 } });
   });
 
   it("refuses another machine's token, and a payload that is not one", () => {
@@ -140,9 +192,10 @@ describe("saveSettingsFromPanel", () => {
         configPath,
         tokenPath,
         link("0".repeat(32), { a: { from: {}, to: {} } }),
+        new Set(["a"]),
       ),
     ).toThrow(/token is not this machine's/);
-    expect(() => saveSettingsFromPanel(configPath, tokenPath, "not-a-payload")).toThrow(
+    expect(() => saveSettingsFromPanel(configPath, tokenPath, "not-a-payload", new Set())).toThrow(
       /not saved/,
     );
   });

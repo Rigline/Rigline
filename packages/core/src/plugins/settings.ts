@@ -13,8 +13,12 @@ type Section = Readonly<Record<string, unknown>>;
 
 export interface SettingsSaved {
   readonly changed: boolean;
+  /** The sections the save applied, by name — which is not the same as the file having moved. */
+  readonly wrote: readonly string[];
   /** Sections whose file copy had moved since the panel loaded, by name (D92's rule, per section). */
   readonly overChange: readonly string[];
+  /** Sections naming a plugin this machine has not got, skipped rather than written. */
+  readonly unknown: readonly string[];
 }
 
 /**
@@ -90,11 +94,16 @@ function same(a: unknown, b: unknown): boolean {
 /**
  * The panel's settings Save, by the route D93 built for the layout: the link's payload, checked
  * against this machine's token, written per section.
+ *
+ * `installed` is every discovered plugin's name, not every enabled one: a section naming a plugin
+ * that is only switched off belongs in the file, and one naming a plugin this machine has never had
+ * is skipped rather than refused, so the payload's other sections still land (D138).
  */
 export function saveSettingsFromPanel(
   configPath: string,
   tokenPath: string,
   encoded: string,
+  installed: ReadonlySet<string>,
 ): SettingsSaved {
   const decoded = decodeSettingsPayload(encoded);
   if ("problem" in decoded) throw new UserError(`not saved: ${decoded.problem}`);
@@ -106,12 +115,18 @@ export function saveSettingsFromPanel(
       "not saved: the Save link's token is not this machine's; reload the panel to pick up the current one",
     );
   }
+  const sections = Object.entries(payload.sections);
+  const unknown = sections.filter(([name]) => !installed.has(name)).map(([name]) => name);
+  const known = sections.filter(([name]) => installed.has(name));
   const held = readConfig(configPath).settings;
-  const overChange = Object.entries(payload.sections)
+  const overChange = known
     .filter(([name, section]) => !same(held[name] ?? {}, section.from))
     .map(([name]) => name);
-  const wanted = Object.fromEntries(
-    Object.entries(payload.sections).map(([name, section]) => [name, section.to]),
-  );
-  return { changed: writeSettings(configPath, wanted), overChange };
+  const wanted = Object.fromEntries(known.map(([name, section]) => [name, section.to]));
+  return {
+    changed: writeSettings(configPath, wanted),
+    wrote: known.map(([name]) => name),
+    overChange,
+    unknown,
+  };
 }
