@@ -114,7 +114,11 @@ Written for somebody else, so don't rewrite them for us:
   It cost the settings work D133 and D134, both filed against a free number and both taken on `main`
   by something else by the time the branches met; they are D137 and D138. Renumbering is not just
   the heading — the entry's own cross-references, `CLAUDE.md`, the plans, source comments and test
-  names all cite it. Taking a
+  names all cite it. Find that set by diffing the two refs, never by eye: with both numbers live on
+  both sides, the file cannot tell you which citation means which entry. Afterwards assert every
+  citation resolves to a defined entry. `c:\dev\knowledge\merging-append-only-docs.md` has both as
+  scripts, and the same file's other half is why a cut release swallows a branch's `Unreleased`
+  entries. Taking a
   `P` number for a principle sidesteps the race, since those move far more slowly.
 - **Never name a minified JS identifier.** Bundler-generated, changes every build. Plugin-facing
   hooks come from harvested layers or the curated anchor table. Build-time harvesting may anchor on
@@ -249,6 +253,11 @@ updates itself nor adds itself to other profiles (D99, D100).
 **From a worktree beside another session, stop at the harness.** There is one live extension: an
 `install` from the worktree and one from the main checkout overwrite each other's payload, and the
 next reload re-injects whichever checkout `rigline.enginePath` names. Look at it live after the merge.
+
+**Copy `.local/` out of a worktree before removing it.** It is gitignored and so per working tree,
+which means the plans in `.local/plans/` exist nowhere else, and `git worktree remove` deletes
+ignored files without warning — being ignored is what stops them blocking the removal, not what
+protects them.
 
 An update installs a new versioned directory and deletes the old one, so it silently reverts the
 injection. A window that was open keeps running the old directory until *Developer: Reload Window*.
