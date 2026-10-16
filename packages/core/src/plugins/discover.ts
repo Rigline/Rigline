@@ -253,6 +253,40 @@ export function layoutNotes(config: PluginsConfig, enabled: readonly DiscoveredP
     .map((problem) => `${config.path}: ${problem}`);
 }
 
+/**
+ * A runaway guard on one plugin's settings, not a budget: every webview imports the payload and
+ * retains it, so something writing without bound has to stop somewhere (D138). Generous on purpose —
+ * a plugin keeping real data under its own key is doing what settings are for.
+ */
+export const MAX_SETTINGS_SECTION = 256 * 1024;
+
+/**
+ * The settings to bake, and what to say about the ones left out. A section for a plugin that is not
+ * enabled is skipped in silence: switching a plugin off and keeping its settings is the ordinary
+ * case, so reporting it every install would be noise, where an oversized one costs a plugin its
+ * settings and has to be said (D138).
+ */
+export function bakedSettings(
+  config: PluginsConfig,
+  enabled: readonly DiscoveredPlugin[],
+): { settings: Record<string, Readonly<Record<string, unknown>>>; notes: string[] } {
+  const names = new Set(enabled.map((p) => p.name));
+  const settings: Record<string, Readonly<Record<string, unknown>>> = {};
+  const notes: string[] = [];
+  for (const [name, section] of Object.entries(config.settings)) {
+    if (!names.has(name)) continue;
+    const size = JSON.stringify(section).length;
+    if (size > MAX_SETTINGS_SECTION) {
+      notes.push(
+        `${config.path}: "settings.${name}" is ${size} bytes, over the ${MAX_SETTINGS_SECTION} a section may bake; ${name} loads without its settings`,
+      );
+      continue;
+    }
+    settings[name] = section;
+  }
+  return { settings, notes };
+}
+
 /** Every enabled plugin's declared host patches, flattened and named by the plugin that owns each. */
 export function declaredPatches(enabled: readonly DiscoveredPlugin[]): DeclaredPatch[] {
   return enabled.flatMap((p) => p.manifest.patches.map((patch) => ({ plugin: p.name, patch })));
@@ -277,6 +311,7 @@ export function bakeRegistry(
   layout: Layout = {},
   save: SaveRecord | null = null,
   presets: BakedPresets = { presets: [], omitted: 0 },
+  settings: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {},
 ): string {
   const entries = enabled.map((p) =>
     JSON.stringify({
@@ -299,6 +334,7 @@ export const layout = ${JSON.stringify(layout)};
 export const save = ${JSON.stringify(save)};
 export const presets = ${JSON.stringify(presets.presets)};
 export const presetsOmitted = ${JSON.stringify(presets.omitted)};
+export const settings = ${JSON.stringify(settings)};
 `;
 }
 

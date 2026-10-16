@@ -58,6 +58,18 @@ identifier types an author compiles against, which is why none are published (D4
 plugin or to a named anchor. A feature that is cleanly missing is preferred to one that is subtly
 wrong. Where a check cannot be made loud, the reason is written down beside it.
 
+**P9. The line is a person's control and Anthropic's restrictions, not read against write.** Rigline
+may do anything that leaves a person in control of their own tools and leaves every restriction
+Anthropic wants to enforce standing. It never subverts Anthropic's control over model access, how
+subscriptions and API keys work, or the prohibitions on reverse-engineering model weights and
+decompiling Claude into something a person can read. Direction is the wrong test because it does not
+track harm: a write a person asked for, to a choice the panel already offers them, takes nothing from
+anybody, where a read that gathered their usage off the machine would. The test is whether a person's
+gesture causes it, whether the panel already offers them that same choice, and whether every
+restriction still stands once it has run. A capability failing any of the three is refused whatever
+its shape; one passing all three is not refused for being a write. D77 is this stated publicly, and
+D120 derives the host's own requests from it.
+
 ## Decisions
 
 ### Injection and boot
@@ -1593,6 +1605,28 @@ Said in proportion, without alarm (Leo, 2026-09-24): a dependency in any Node pr
 user's files, network and processes on every machine with Node, where a Rigline plugin reaches only
 people who installed Rigline and chose it, with the panel's reach and nothing more.
 
+**Amended 2026-10-16, Leo — there are three categories here, not two, and the middle one is where
+most design effort belongs.** "Two things kept apart" left no name for a **guardrail**: something
+that makes the right thing easy and the wrong thing inconvenient *and self-evidently unsupported*.
+It is not a guarantee, because a determined author gets past it; it is not a bare obligation,
+because it does not rely on anybody having read a document.
+
+The test is whether an author doing the wrong thing would know. Reaching into `registry.js` to fish
+out a value nothing documents is a thing nobody does by accident, and whoever does it has no
+standing to complain when it stops working. Posting on a channel whose name is public, or derivable,
+is something an author might do without ever realising it was not for them — so a name that must be
+gone looking for is a guardrail, and a name anybody can compute is not one at all.
+
+Which fixes how such a thing is priced. A guardrail is worth real design effort and worth nothing
+spent on making it absolute: the moment the cost is machinery chasing impossibility — a byte
+substitution to hide a constant, a build-time rule that nothing enforces — it has stopped being a
+guardrail and become a guarantee that will not hold. Relaxing one *to a publicly derivable form*
+because it could not be made absolute is the opposite mistake, and was made here once with the
+broadcast channel's name before this amendment put it back.
+
+So [plugin-policy.md](plugin-policy.md) marks which of the three each thing is, because an author
+who knows a guardrail is a guardrail knows that going round it is unsupported rather than clever.
+
 **D80. The companion extension is a second retrieval layer, not a scheduler (2026-09-21).**
 Confirmed by Leo: it plays the role `rigline` plays, in a different shell. It installs and updates
 `@rigline/core` under `<RIGLINE_HOME>/engine` over npm and runs that engine for every piece of work
@@ -3082,6 +3116,74 @@ that flag ([plan.md](plan.md), *Deferred*).
 
 The first request the host sends is `get_context_usage` (D121).
 
+**Amended under P9 (2026-10-14):** reading was a proxy for the line, not the line, so the first
+condition narrows to what it was protecting. The host may also send a request that *writes*, where a
+person causes it — a click, or a standing instruction they wrote in their own config — and the panel
+offers them that same choice through a control of its own. Such a write is a second button for their
+decision, not Rigline taking one, so applying a default they recorded when a session starts is theirs
+and not ours. The other four conditions hold unchanged, and three more apply to a write.
+
+**The engine exposes a verb, never a composer.** A plugin names no message type, no settings key and
+no payload: it calls `setModel` or `setEffort`, and host code owns entirely what each one writes. The
+distinction is load-bearing rather than stylistic, because `apply_settings` carries an arbitrary
+`settings` object that Claude Code's own handler accepts any key of — permission modes and sandbox
+and memory settings among them. A capability shaped as "the host composes what you ask for" would
+hand a third-party plugin that whole surface under the cover of the host having built the message. A
+verb's field set is closed and enumerated in host code, so a verb may write more than one key where
+the combination is the vetted unit; widening one, or adding a verb, is a decision.
+
+**The value is validated against what the panel is itself offering**, not against a table of ours, so
+a plugin can only reach a choice the person already has.
+
+**A plugin-originated write requires a person's instruction, of which there are two kinds.** One
+made in the moment, proved by the write happening inside the dispatch of a **trusted** event; or a
+standing one, proved by the value being in that person's own config. Constraining Rigline's own
+initiative is not enough when the caller is the plugin: without this, a write from a timer or from a
+tap on unrelated traffic satisfies every other condition here, and "a person caused it" is an
+obligation on an author rather than something the architecture holds. Neither of those supplies an
+instruction of either kind, which is exactly why they are excluded.
+
+The verb takes the event the caller is handling, and the host checks `isTrusted`. That excludes an
+event the plugin made or dispatched itself, and a write from a timer, a bus tap or `setup` has no
+event to pass at all. What it is for is keeping D77's claim true — that Rigline changes what the
+panel offers on the person's action — rather than defending against a plugin that is already running
+in the page.
+
+`eventPhase` was checked beside it and is not: requiring the dispatch to still be running forbids
+applying a choice after an `await`, which is an ordinary thing to want — confirm something, then
+apply — and buys little, since a plugin stashing a trusted event is nothing anybody does by
+accident and a plugin minded to misbehave has shorter routes. The threat model is a plugin a person
+chose to install, whose obligations are stated and not enforced (D79); a guard that costs real
+behaviour to raise that bar slightly is the wrong trade.
+
+Taking the event beats a flag the host keeps. A flag set in a capture-phase listener and cleared in
+a microtask looks right and is not: microtasks drain between event listeners, so it would be false
+again by the time the plugin's own handler ran. A flag cleared on the bubble at `window` fixes that
+and then sticks forever the first time anything calls `stopPropagation`.
+
+`isTrusted` carries this because it cannot be forged, which was measured rather than assumed: Blink
+defines it on the event *instance* as a non-configurable accessor, so `defineProperty` throws and
+the value still reads false. A plain `event.isTrusted === true` is therefore enough, and reaching
+through a prototype getter — the defence written before the measurement — protects against nothing,
+since `Event.prototype` has no such descriptor at all.
+
+**`navigator.userActivation` is not the mechanism, and this is the negative result: it reads active
+with no gesture at all.** It exists in the webview, but `isActive` is already true during `setup`
+and inside a `setTimeout` scheduled there, before anything in the page has been clicked, so it
+cannot tell a person's write from a plugin's. Measured in the harness against the real bundle, where
+it is asserted in both directions so a later reader does not re-propose it; `isTrusted` is asserted
+beside it, untrusted for a scripted `click()` and trusted for a person's.
+
+**Nor is the rule "activation", generally, and reaching for one where it does not fit is how this
+went wrong once.** A plugin applying a default when a session starts has nobody present, so no
+gesture can be in evidence — and that is not an exception to carve out, nor a reason to move the
+work to the host so the rule appears satisfied. The standing instruction is the person's, and that
+is the whole of what P9 asks. What would break it is the value arriving from somebody else, so the
+thing to constrain is the paths by which a setting can be written (D137), never which code executes
+the write. A later session must not re-derive an actor from this rule.
+
+Still never `io_message`, which is a prompt, and so a turn in the person's transcript.
+
 **D121. How full the context is, as a host service, and the host's first ask (2026-10-06, Leo).**
 The panel's own indicator shows only past half full, and only once a turn has finished in that
 panel, since its window size arrives with a `result`. A plugin showing it at all times needs both
@@ -3632,3 +3734,75 @@ as properties, which is what passing them to `storeFrom` always needed.
 `eol=lf` went out with Biome the same day it arrived, because Biome's lack of a preserve mode was
 the only argument for it. Prettier's `endOfLine: "auto"` keeps whatever a file has, so nothing
 imposes an ending and `.gitattributes` is back to `* text=auto` alone.
+**D137. A setting belongs to whoever understands it; what makes acting on it safe is where it came
+from (2026-10-15, Leo).** Ownership follows understanding, not consequence. A value only one plugin
+can interpret is that plugin's setting even when acting on it changes something, because the engine
+has no business knowing what a model is, and a setting that kept working after `rigline disable
+model-favourites` would be absurd. So a favourite applied when a session starts is
+`model-favourites`' own setting, applied by the plugin, which sees the channel start by tapping
+`launch_claude` as any declared tap would.
+
+Recorded here first, and wrong, was that such a value is "engine configuration". It derived the
+actor from D120's activation rule and then used the actor to settle the ownership, when that rule
+was a constraint chosen to make plugin writes safe rather than a fact about them — circular, and
+the sort of circle that reads as a principle. It was also wrong about the parts: the engine is Node,
+it bakes `registry.js` at install and is not running when a session launches, so nothing it owns
+could act at that moment. It only ever transported the value.
+
+The question it was reaching for is real, and it is **provenance**. A standing instruction in a
+person's own config is that person's instruction, which is what P9 asks for, so acting on it
+unattended needs no activation (D120, as amended). What would break that is the value arriving from
+somebody else. So the constraint belongs on the paths by which a setting can be written, and the
+ownership question is left alone.
+
+**A setting that drives an unattended action may still be written from the panel.** The exposure a
+deceived click leaves open (D93) is bounded here by the thing not being silent: a wrong launch
+default shows in the pill the plugin draws, on every session, and that same element flags a
+combination that is not one of the person's favourites. Visibility is the mitigation that works.
+A terminal-only setting would instead put friction on the main path of a feature whose whole point
+is removing it, and buy little: the money at stake is real, but a default nobody can see is the
+hazard, not a default written from the wrong window.
+
+**D138. Per-plugin settings are YAML sections, and a plugin saves its own (2026-10-15, Leo).** D91
+left `config.yaml` holding "the layout and per-plugin settings as they arrive"; these are them. A
+`settings` mapping keyed by plugin name, named in `SETTINGS` so the unknown-key report stops flagging
+it, with D110 applied one level down: a key under a plugin's own block that this engine does not
+understand is kept and carried forward, because the engine never knows a plugin's schema and a newer
+plugin's key has to survive an older engine.
+
+`ctx.settings` hands over a frozen deep clone and nothing else. The registry is written at `install`,
+so a value changes on re-inject and reload and at no other time, and a subscription would promise
+live updates that do not exist (P5). It needs no capability switch: reading one's own configuration
+grants nothing that was not already granted, so it is unconditional and `rigline list` has nothing
+to report.
+
+`ctx.saveSettings(value, section?)` defaults the section to the caller's own name, and the host
+checks it in one small function rather than by making the section impossible to name. Expressiveness
+is the point: a permission to write another plugin's section, or an exemption for a first-party one,
+is then a change inside that check and not a new mechanism (Leo). The payload carries a map of
+sections, so batching several writes or a privileged writer needs no change to the format or the
+companion. The check is the host's because only the host knows the caller — the engine receives a
+Save with no authenticated sender, so it validates shape and that each section names an installed
+plugin, and writes. What the check does not stop is a hand-constructed payload; what bounds that is
+D93's click being a person's and visible, and a section being inert.
+
+The engine guarantees the value is an object, within a size bound, and frozen. It guarantees nothing
+about the shape inside, which it cannot know, so tolerating a value it did not write is the author's
+obligation and belongs in plugin-policy.md's second half, as the two cases that arrive: a key never
+heard of, and an expected key missing. That is owed to hand editing alone — `config.yaml` is a file
+people edit, so a typo reaches a plugin without anybody sharing anything.
+
+**VS Code's own settings were considered for this and declined (2026-10-15, Leo asked).** They would
+give the companion `onDidChangeConfiguration` instead of a poll, a settings UI free from a
+`package.json` schema, and Settings Sync across machines. Against that: D91's reasons stand, since
+hand-editing is the point and JSONC was already rejected for its braces and commas; the engine runs
+outside VS Code and would have to parse a profile-specific `settings.json`, which is the one file
+the profile trap is about; and plugin configuration would become editor-specific, inverting an
+architecture where the engine owns the config and the companion is a retrieval layer (D69, D80).
+
+The deciding point is that it buys nothing on the side that matters. The webview cannot read VS Code
+settings either — it has no channel to any extension host but Claude Code's — so the value would
+still be baked into `registry.js` and read from there exactly as now. What would actually shorten
+the loop is the companion watching `config.yaml` and re-baking, which is the same poll it already
+runs for the extension directories and needs no change of store. Reopen this only for the settings
+UI, which is the one thing a file watcher cannot supply.

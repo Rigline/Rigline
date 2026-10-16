@@ -160,6 +160,34 @@ interface RegistryModule {
   /** The presets the editor lists (D133). Absent in a payload older than them. */
   readonly presets?: readonly BakedPreset[];
   readonly presetsOmitted?: number;
+  /** Per-plugin settings, by plugin name (D138). Absent in a payload older than them. */
+  readonly settings?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+}
+
+/**
+ * One plugin's settings, cloned and frozen per plugin for the reason a tap's view is (D138): what a
+ * plugin is handed must not be something it, or anything else, can still change. A clone that fails
+ * is an absent section, never the live object.
+ */
+function ownSettings(
+  all: Readonly<Record<string, Readonly<Record<string, unknown>>>>,
+  name: string,
+): Readonly<Record<string, unknown>> {
+  if (!Object.hasOwn(all, name)) return FROZEN_EMPTY;
+  try {
+    return deepFreeze(structuredClone(all[name])) as Readonly<Record<string, unknown>>;
+  } catch {
+    return FROZEN_EMPTY;
+  }
+}
+
+const FROZEN_EMPTY: Readonly<Record<string, unknown>> = Object.freeze({});
+
+function deepFreeze(value: unknown): unknown {
+  if (value === null || typeof value !== "object" || Object.isFrozen(value)) return value;
+  Object.freeze(value);
+  for (const key of Object.keys(value)) deepFreeze((value as Record<string, unknown>)[key]);
+  return value;
 }
 
 let reads = 0;
@@ -277,6 +305,9 @@ async function loadPlugin(plugin: PluginRecord, kernel: Kernel): Promise<PluginS
   const engine = kernel.diagnostics.engine;
   const ctx = {
     surface: kernel.surface,
+    // Undeclared, like `surface`: reading one's own configuration widens nothing, so there is no
+    // identifier for a manifest to name and no gap a declaration could report (D138).
+    settings: ownSettings(kernel.settings, plugin.name),
     optional: refusingUnknown(
       Object.freeze(disablingOnViolation(optional, disable)),
       "ctx.optional",
@@ -370,6 +401,7 @@ async function main(): Promise<void> {
   let save: SaveRecord | null = null;
   let presets: readonly BakedPreset[] = [];
   let omitted = 0;
+  let settings: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {};
   try {
     const registry = (await import(
       new URL("./registry.js", import.meta.url).href
@@ -379,6 +411,7 @@ async function main(): Promise<void> {
     save = registry.save ?? null;
     presets = registry.presets ?? [];
     omitted = registry.presetsOmitted ?? 0;
+    settings = registry.settings ?? {};
     diagnostics.hostPatches = [...(registry.patches ?? [])];
     // Carried onto diagnostics rather than left in the module, so a plugin reads it the way it
     // reads every other host-provided value and never imports the host to get it (D18, D63, D75).
@@ -425,6 +458,7 @@ async function main(): Promise<void> {
       console.error(`[rigline] shell: ${reason}`);
     }),
     plugins: entries,
+    settings,
   };
 
   // Before the loop, so the host is the first contributor and a capability that has already failed

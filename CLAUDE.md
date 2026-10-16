@@ -11,6 +11,12 @@ from. **New work is planned in `.local/plans/<topic>.md`**, which is gitignored:
 document, and whatever should outlive it goes into `docs/` as the work lands. `docs/plan.md` takes
 no new plans. Update the plan before writing code; log status there, not here.
 
+**List `.local/plans/` before concluding there is no plan.** In-flight work lives there and nothing
+committed points at it, deliberately: a tracked pointer into a gitignored directory goes stale the
+day the plan lands and is deleted, which is how `docs/plan.md` came to name a working plan that no
+longer existed. Where there is more than one, a `README.md` beside them gives the order to read and
+build in. The directory is per working tree, so a worktree's plans are not in the main checkout's.
+
 ## Knowledge base
 
 - [docs/plan.md](docs/plan.md): what Rigline is, the physics that shape it, the architecture,
@@ -25,7 +31,7 @@ no new plans. Update the plan before writing code; log status there, not here.
   `Atomics.wait` rather than making `install` async. Carries a negative result worth not
   re-proposing: a content check on the bundle's tail was evidenced against the corpus and rejected,
   because a rule that fits today's bundler refuses every install the day it changes.
-- [docs/decisions.md](docs/decisions.md): principles P1 to P8 and decisions D1 to D130.
+- [docs/decisions.md](docs/decisions.md): the numbered principles and decisions, in order.
 
 The internals, for a contributor to Rigline itself. The shape, not the argument — the argument is in
 decisions.md, and each doc cites the decisions it rests on.
@@ -92,6 +98,24 @@ Written for somebody else, so don't rewrite them for us:
 
 ## Rules that will cost you if you break them
 
+- **Expose a curated verb, never a channel.** Which Claude Code functionality a plugin may reach is
+  Rigline's decision and not an author's: a plugin names no message type, no settings key and no
+  payload, and a verb's field set is closed and enumerated in host code (P9, D120 as amended). The
+  tell that a capability has become a channel is that its reach widens when the extension's does,
+  with no decision of ours in between. `apply_settings` is the worked case — it takes arbitrary keys,
+  so having the host build the payload bounded the values and left Claude Code's whole settings table
+  reachable. A write that reaches Claude Code's own settings or behaviour needs a person as well as a
+  verb — a plugin persisting state of its own does not — and what proves the person differs by case,
+  so read D120 rather than assuming one mechanism covers it. `navigator.userActivation` is not that
+  mechanism: it reads active during `setup`, before anything has been clicked.
+- **A decision's number is only safe at merge time.** `decisions.md` hands out the next free number,
+  which is a race whenever another session or branch is also appending: check it when you write the
+  entry *and* again before you merge, because the number you took may have been claimed in between.
+  It cost the settings work D133 and D134, both filed against a free number and both taken on `main`
+  by something else by the time the branches met; they are D137 and D138. Renumbering is not just
+  the heading — the entry's own cross-references, `CLAUDE.md`, the plans, source comments and test
+  names all cite it. Taking a
+  `P` number for a principle sidesteps the race, since those move far more slowly.
 - **Never name a minified JS identifier.** Bundler-generated, changes every build. Plugin-facing
   hooks come from harvested layers or the curated anchor table. Build-time harvesting may anchor on
   unminified property names only because codegen asserts every anchor and fails loudly.
@@ -272,6 +296,17 @@ that changes how a value reads. A minor caveat goes in the plugin's README.
 **Until 1.0.0 ships, compatibility with an earlier alpha is not a reason against a design.**
 stability.md binds from 1.0.0. Choose the right shape, and where a person's files need it, migrate
 them once; an older alpha failing on a migrated file is expected.
+
+**Transient version skew between live parts earns almost no machinery** (Leo, 2026-10-16). Two
+windows can run different payloads, because a window keeps the extension directory it booted with
+until a reload, and an older companion can meet a newer engine. Those windows are narrow and they
+*settle* — the companion offers the reload that ends them — so reduced or absent functionality while
+they last is the right answer, and a version that says "I do not understand this, fall back" is the
+whole of what is wanted. What this rules out is building compatibility across the skew: translating
+between protocol versions, keeping two shapes alive, or arguing that a format must be right first
+time because peers coexist. It is not a reason against getting a shape right, and not a licence for
+a skew that *does not* settle — a file on disk outlives every window, so what persists is governed
+by stability.md instead.
 
 Toolchain: pnpm 12, Node 22.12+ (26 here), TypeScript 6, Rolldown, Vitest, ESLint with
 typescript-eslint, and Prettier (D136). Semicolons are

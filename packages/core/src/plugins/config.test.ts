@@ -68,7 +68,46 @@ describe("readCompanionSettings", () => {
 describe("readConfig", () => {
   it("returns an empty disabled list when the file is absent, and still says where it looked", () => {
     const path = join(tempDir(), "config.yaml");
-    expect(readConfig(path)).toEqual({ path, disabled: [], layout: {}, unknownKeys: [] });
+    expect(readConfig(path)).toEqual({
+      path,
+      disabled: [],
+      layout: {},
+      settings: {},
+      unknownKeys: [],
+    });
+  });
+
+  it("carries a settings section whole, including keys it does not understand (D138)", () => {
+    const path = join(tempDir(), "config.yaml");
+    writeFileSync(
+      path,
+      [
+        "settings:",
+        "  model-favourites:",
+        "    favourites:",
+        "      - {model: opus, effort: xhigh}",
+        "    somethingNewer: 3",
+        "  emptied:",
+        "",
+      ].join("\n"),
+    );
+    const config = readConfig(path);
+    expect(config.settings).toEqual({
+      "model-favourites": {
+        favourites: [{ model: "opus", effort: "xhigh" }],
+        somethingNewer: 3,
+      },
+    });
+    // A key inside a section is the plugin's vocabulary, so it is never an unknown key.
+    expect(config.unknownKeys).toEqual([]);
+  });
+
+  it("refuses a settings block, or a section, that is not a mapping", () => {
+    const path = join(tempDir(), "config.yaml");
+    writeFileSync(path, "settings: [one, two]\n");
+    expect(() => readConfig(path)).toThrow(/"settings" must be a mapping of plugin names/);
+    writeFileSync(path, "settings:\n  worktree: off\n");
+    expect(() => readConfig(path)).toThrow(/"settings.worktree" must be a mapping/);
   });
 
   it("reads the layout as written, a place it does not know included (D92)", () => {

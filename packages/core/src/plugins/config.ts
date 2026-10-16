@@ -49,12 +49,17 @@ export interface PluginsConfig {
   readonly disabled: readonly string[];
   /** As written, entries that do not resolve included (D92). */
   readonly layout: Layout;
+  /**
+   * Per-plugin settings, by plugin name (D138). The engine checks that each section is a mapping
+   * and reads no further: it cannot know a plugin's schema, so what is inside is carried whole.
+   */
+  readonly settings: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   /** Keys this engine does not read, dotted: a typo, or a setting from a later Rigline (D110). */
   readonly unknownKeys: readonly string[];
 }
 
 /** The settings this engine reads, at the top level and in the `companion` block. */
-const SETTINGS = ["disabled", "layout", "companion"];
+const SETTINGS = ["disabled", "layout", "companion", "settings"];
 const COMPANION_SETTINGS = ["everyProfile", "skipProfiles"];
 
 /** `config.yaml`'s `companion` block: which VS Code profiles get the companion (D100). */
@@ -85,7 +90,7 @@ const TO_STRING = { flowCollectionPadding: false } as const;
 
 /** Absent means nothing is disabled; malformed is a person's mistake, loud. */
 export function readConfig(path: string): PluginsConfig {
-  if (!existsSync(path)) return { path, disabled: [], layout: {}, unknownKeys: [] };
+  if (!existsSync(path)) return { path, disabled: [], layout: {}, settings: {}, unknownKeys: [] };
   return configOf(path, parseConfig(path, readFileSync(path, "utf8")));
 }
 
@@ -210,7 +215,39 @@ function configOf(path: string, doc: Document): PluginsConfig {
       .filter((key) => !COMPANION_SETTINGS.includes(key))
       .map((key) => `companion.${key}`),
   ];
-  return { path, disabled, layout: parseLayoutValue(path, value.layout), unknownKeys };
+  return {
+    path,
+    disabled,
+    layout: parseLayoutValue(path, value.layout),
+    settings: settingsOf(path, value.settings),
+    unknownKeys,
+  };
+}
+
+/**
+ * `settings:` is a mapping per plugin name, and the walk stops there: a key inside a section is the
+ * plugin's own vocabulary, so it is never an unknown key and never validated here (D138).
+ */
+function settingsOf(
+  path: string,
+  value: unknown,
+): Readonly<Record<string, Readonly<Record<string, unknown>>>> {
+  if (value === undefined || value === null) return {};
+  if (typeof value !== "object" || Array.isArray(value)) {
+    throw new UserError(`${path}: "settings" must be a mapping of plugin names`);
+  }
+  const sections: Record<string, Readonly<Record<string, unknown>>> = {};
+  for (const [name, section] of Object.entries(value as Record<string, unknown>)) {
+    // An emptied section is a person deleting the lines under a name they kept.
+    if (section === undefined || section === null) continue;
+    if (typeof section !== "object" || Array.isArray(section)) {
+      throw new UserError(
+        `${path}: "settings.${name}" must be a mapping of that plugin's settings`,
+      );
+    }
+    sections[name] = section as Readonly<Record<string, unknown>>;
+  }
+  return sections;
 }
 
 function companionOf(path: string, value: unknown): CompanionSettings {

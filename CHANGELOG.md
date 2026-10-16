@@ -11,6 +11,15 @@ hole, or raises the Node or VS Code it needs, its entry says so.
 
 ## Unreleased
 
+### Added
+
+- Per-plugin settings in `~/.rigline/config.yaml`, under a `settings:` block keyed by plugin name,
+  so a plugin can be configured by hand in the same file as the rest of your Rigline.
+  - A plugin reads its own with `ctx.settings`, and only its own.
+  - A key Rigline does not understand is kept and passed through, so a newer plugin's setting
+    survives an older Rigline and a hand edit is never quietly dropped.
+  - Settings for a plugin you have switched off stay in the file and come back with it.
+
 ### Changed
 
 - `@rigline/plugin-api`: `ctx`'s `on*` subscriptions and a `Store`'s members are declared as

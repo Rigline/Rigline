@@ -65,6 +65,8 @@ export interface Kernel {
    * per-plugin verdicts live on `diagnostics.plugins`, which is where the loop writes them.
    */
   readonly plugins: readonly PluginRecord[];
+  /** Every plugin's settings as the injector baked them, by plugin name (D138). */
+  readonly settings: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
 }
 
 /** What `grant` receives for one plugin. */

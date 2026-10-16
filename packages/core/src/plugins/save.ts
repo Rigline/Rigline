@@ -115,7 +115,7 @@ export function saveFromPanel(configPath: string, tokenPath: string, encoded: st
   return { changed: writeLayout(configPath, payload.to), overChange };
 }
 
-function sameToken(a: string, b: string): boolean {
+export function sameToken(a: string, b: string): boolean {
   const x = Buffer.from(a);
   const y = Buffer.from(b);
   return x.length === y.length && timingSafeEqual(x, y);

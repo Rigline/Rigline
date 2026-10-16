@@ -76,6 +76,15 @@ export interface PluginContext {
   readonly surface: Surface;
 
   /**
+   * This plugin's own settings from `config.yaml`, frozen, and `{}` when it has none (D138).
+   *
+   * A snapshot rather than a subscription: the registry is written at `install`, so a value changes
+   * on re-inject and reload and at no other time. Tolerate what you did not write — a person edits
+   * this file by hand, and a key here may be one an older build of yours never knew.
+   */
+  readonly settings: Readonly<Record<string, unknown>>;
+
+  /**
    * The lookups that may come back null, for identifiers declared under `uses.optional`. Everything
    * else optional needs no API: an undelivered message, an un-fired rewrite and a switch whose
    * handler never runs are already what absence does, and the declaration only stops them refusing

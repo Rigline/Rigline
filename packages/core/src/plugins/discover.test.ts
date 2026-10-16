@@ -10,6 +10,7 @@ import { UserError } from "../errors.ts";
 import { harvestAll } from "../layers/index.ts";
 import type { DiscoveredPlugin } from "./discover.ts";
 import {
+  bakedSettings,
   bakeRegistry,
   capabilityUseNotes,
   capabilityUseProblems,
@@ -19,6 +20,7 @@ import {
   handWrittenClasses,
   handWrittenClassNotes,
   isPluginOutput,
+  MAX_SETTINGS_SECTION,
   readManifest,
 } from "./discover.ts";
 import type { BakedPresets } from "./preset.ts";
@@ -239,6 +241,44 @@ describe("discoverPlugins", () => {
   });
 });
 
+describe("bakedSettings", () => {
+  const config = (settings: Record<string, Record<string, unknown>>) => ({
+    path: "config.yaml",
+    disabled: [],
+    layout: {},
+    settings,
+    unknownKeys: [],
+  });
+
+  it("bakes an enabled plugin's section and skips an absent one in silence", () => {
+    const root = tempDir();
+    writePlugin(root, "alpha");
+    const enabled = discoverPlugins([root]);
+
+    const baked = bakedSettings(
+      config({ alpha: { favourites: ["opus"] }, gone: { kept: true } }),
+      enabled,
+    );
+    expect(baked.settings).toEqual({ alpha: { favourites: ["opus"] } });
+    expect(baked.notes).toEqual([]);
+  });
+
+  it("drops a section over the size bound, and says so by name", () => {
+    const root = tempDir();
+    writePlugin(root, "alpha");
+    const enabled = discoverPlugins([root]);
+
+    const baked = bakedSettings(
+      config({ alpha: { big: "x".repeat(MAX_SETTINGS_SECTION) } }),
+      enabled,
+    );
+    expect(baked.settings).toEqual({});
+    expect(baked.notes).toHaveLength(1);
+    expect(baked.notes[0]).toContain('"settings.alpha"');
+    expect(baked.notes[0]).toContain("loads without its settings");
+  });
+});
+
 describe("enabledPlugins", () => {
   it("preserves discovery order, filtering out disabled names", () => {
     const root = tempDir();
@@ -251,6 +291,7 @@ describe("enabledPlugins", () => {
       path: "config.yaml",
       disabled: ["beta"],
       layout: {},
+      settings: {},
       unknownKeys: [],
     });
     expect(enabled.map((p) => p.name)).toEqual(["alpha", "gamma"]);
@@ -263,8 +304,10 @@ describe("enabledPlugins", () => {
     const lines: string[] = [];
 
     const path = join(tempDir(), "config.yaml");
-    enabledPlugins(discovered, { path, disabled: ["ghost"], layout: {}, unknownKeys: [] }, (line) =>
-      lines.push(line),
+    enabledPlugins(
+      discovered,
+      { path, disabled: ["ghost"], layout: {}, settings: {}, unknownKeys: [] },
+      (line) => lines.push(line),
     );
 
     // Names the file a person has to open, not the shape of its name: a message that says
@@ -388,6 +431,7 @@ describe("bakeRegistry", () => {
       path: "config.yaml",
       disabled: ["beta"],
       layout: {},
+      settings: {},
       unknownKeys: [],
     });
 

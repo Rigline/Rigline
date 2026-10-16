@@ -308,7 +308,7 @@ owed: a Save through a released engine, since every save so far ran this checkou
 
 ## 1.0 — in progress
 
-The bar a 1.0 release clears, agreed 2026-09-26; the working plan is `.local/plans/1.0-bar.md`.
+The bar a 1.0 release clears, agreed 2026-09-26.
 
 - A written statement of what 1.x holds stable, and of what the wrapper and the companion rely on.
 - The wrapper installs the engine and forwards everything else, `update` and `add` included, so its
@@ -389,9 +389,11 @@ what a plugin is written against.
   moves D84. Never from the panel: any plugin can read the Save link's token (D93), so an add behind
   it would let one plugin install another. Triggered by the first third-party plugin with users.
 
-- **Per-plugin settings.** time-marks keeps its toggle in `localStorage`, which is right for a value
-  only the panel cares about. A `ctx.settings` API earns its place when a value must be editable from
-  outside the panel.
+- **A preset carrying per-plugin settings.** The format carries a layout and nothing else (D131),
+  and settings are now a thing it could carry. Triggered by somebody wanting it. What it will need
+  deciding first is how much a stranger's settings value can cost, which is bounded by the reading
+  plugin's own declared capabilities rather than by the value — and `rewrites` is the one capability
+  that sends without a gesture, so it is the one to think about.
 - **What a diagnostic check may do**, left open by phase 6. Be `async`: no for now, because lines
   landing at different times make the badge count briefly wrong. Be collapsed per contributor: when
   `core` outgrows a screen. Ask for host state: that is a request for a capability, decided by name.
@@ -412,10 +414,40 @@ what a plugin is written against.
 - **Merging layout edits from several sources.** A save from the panel overwrites the file's layout
   and warns when that replaces a change made since the panel loaded (D92). Revisit when that warning
   costs somebody work.
-- **A backstop timer for a newer saved layout** (D126). The panel looks when the person comes back
-  to it, which misses two windows on screen side by side with the pointer never entering this one.
-  Triggered by that case costing somebody; a read every five minutes while visible keeps about 2 MB
-  a day.
+- **Telling the other panels a save happened** (D126). The panel looks when the person comes back to
+  it, which misses two windows on screen side by side with the pointer never entering this one. The
+  candidate is a `BroadcastChannel`, not the timer this entry used to propose: the webview origin is
+  stable and keyed by viewType and extension id, so every editor-tab panel shares one origin across
+  tabs *and* windows. It carries the changed sections, so a receiver needs no second read and acts on
+  what it is handed. **The name is `sha256(token + "/broadcast")`, computed at install and baked into
+  `registry.js`**: a guardrail in D79's middle sense, since nobody stumbles onto it and whoever digs
+  it out of the registry knows they are unsupported. Derived from the token because it has to persist
+  across installs — every extension-host start runs one, so a regenerated name would rotate on every
+  reload anywhere and cut off every open webview, which is not the narrow settling skew but a
+  constant one — and because the token already persists, is already created race-safely, and is
+  already per home. Derived rather than reused, so the name does not hand anybody the token. Not a
+  wall, so not worth the install-time substitution into `post.js` or a build-time rule about inlining
+  that nothing enforces; and not derived from the *home path* either, since a computable name is a
+  public one and an author might post on it never realising it was not theirs. The envelope is `{ v, from, ns, type, body }`, namespaced so
+  that what is enumerable is **who may claim a namespace** rather than what anyone may say in one:
+  `ns` is stamped by the host as a settings section is, and `rigline` carries `type: "registry"` with
+  the changed exports as its body. Keying it by registry part instead would have been closed only by
+  choosing the domain. `v` buys only "I do not
+  understand this, fall back", as an unknown `ns` or `type` does one level down: two payload versions
+  coexist until the reload the companion offers, and that window is narrow enough that a mismatch
+  costs nothing worth building for (CLAUDE.md, *transient version skew*). It stays a hint that
+  shortens the wait and is never relied on, as the companion's `extensions.onDidChange` is, so the
+  look-on-focus remains the backstop. Posting on the save rather than after the write confirms puts
+  the broadcast ahead of the file, so **a value applied from a broadcast is optimistic and expires**:
+  while it is unexpired a read finding the file still at the pre-broadcast baseline is ignored, since
+  that is the write not having landed rather than divergence, while a read finding anything else wins.
+  A second post when the save settles ends it early and is the common case; expiry is the backstop
+  for a saver whose window closed mid-save, at `CONFIRM_FOR_MS` plus a random spread so panels do not
+  all resume trusting the file at once. No plugin capability comes with it: only room for one. Two things it does not reach: the sidebar, which is a different
+  viewType and so a different origin, and any edit made outside a panel, since the engine is not in a
+  webview. **Whether it crosses webviews at all is a live-panel question** — the harness is one page
+  on one origin, so a test there would pass and prove nothing. It would also make `ctx.onSettings`
+  honest, which D138 currently rules out.
 - **Decorations in React.** Per-row transcript decorations stay DOM. Triggered by a decoration DOM
   makes painful; first answer the cost of one portal per row at several hundred rows, and the frame
   in which a new row's node is empty before React renders into it.
@@ -648,3 +680,15 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   `state.claudeSettings.effective` on two optionally-declared carriers, so one column of times is
   one format whichever side drew the row (D135, amended). A strftime `timeFormat` is the stated
   limit.
+- 2026-10-15: P9 states the line Rigline holds — a person in control, Anthropic's restrictions
+  standing — and read-versus-write is explicitly not the test, which D120 narrows to under it: the
+  host may send a request that writes, where a person's instruction causes it and the panel offers
+  them that same choice, with the engine exposing a verb and never a composer. Per-plugin settings
+  read end to end on it (D138): a `settings:` block per plugin name, baked at install, and
+  `ctx.settings` handing each plugin its own section frozen. D137 was filed and retracted the same
+  day — "engine configuration is not a plugin setting" derived the actor from the activation rule
+  and the ownership from the actor; ownership follows understanding, and provenance is what makes
+  acting on a setting safe. What proves a person asked for a write in the moment was measured in
+  the harness and is the event itself: `navigator.userActivation` reads active during `setup`, and
+  a flag the host keeps cannot survive microtasks draining between listeners, where `isTrusted` is
+  an instance accessor Blink will not let anything forge.

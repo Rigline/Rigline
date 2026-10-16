@@ -119,6 +119,8 @@ export interface BootOptions {
   /** The presets the editor lists, as `install` would bake them (D133). */
   readonly presets?: readonly BakedPreset[];
   readonly presetsOmitted?: number;
+  /** Per-plugin settings by plugin name, as `install` would bake them (D138). */
+  readonly settings?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   /** Selectors written over the resolved ones, as a refinement in `anchors.json` would be. */
   readonly selectors?: Readonly<Record<string, string>>;
   /** Where the page's clock starts, installed before it loads, for a test that moves time. */
@@ -196,6 +198,7 @@ export function register(version: string): (options?: BootOptions) => Promise<Bo
       save: options.save,
       presets: options.presets,
       presetsOmitted: options.presetsOmitted,
+      settings: options.settings,
       selectors: options.selectors,
     });
     const harness: Harness = await startHarness({

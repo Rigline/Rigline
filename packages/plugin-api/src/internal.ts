@@ -86,12 +86,16 @@ export type { BakedPreset } from "./preset.ts";
 export { isApplicable, MAX_BAKED_PRESET_BYTES, MAX_BAKED_PRESETS } from "./preset.ts";
 export type { RuntimeSpecifier } from "./runtime.ts";
 export { isRuntimeSpecifier, RUNTIME_MODULES } from "./runtime.ts";
-export type { SavePayload, SaveRecord } from "./save.ts";
+export type { SavePayload, SaveRecord, SettingsPayload, SettingsSave } from "./save.ts";
 export {
   decodeSavePayload,
+  decodeSettingsPayload,
   encodeSavePayload,
+  encodeSettingsPayload,
   MAX_SAVE_PAYLOAD,
+  MAX_SETTINGS_PAYLOAD,
   SAVE_PAYLOAD_VERSION,
+  SETTINGS_PAYLOAD_VERSION,
 } from "./save.ts";
 export { manifestSchema, manifestSchemaJson } from "./schema.ts";
 export { nextSessionId } from "./session.ts";
