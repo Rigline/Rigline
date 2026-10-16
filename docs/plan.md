@@ -404,18 +404,16 @@ what a plugin is written against.
   candidate is a `BroadcastChannel`, not the timer this entry used to propose: the webview origin is
   stable and keyed by viewType and extension id, so every editor-tab panel shares one origin across
   tabs *and* windows. It carries the changed sections, so a receiver needs no second read and acts on
-  what it is handed. **The name is derived from the Rigline home and is not a secret**: making it
-  unguessable would have meant an install-time substitution into `post.js`, since exports on
-  `registry.js` are readable, plus a build-time constraint nothing enforces — all to stop an
-  installed plugin forging a message it can nearly send already through a deceived click, which is
-  the wrong trade against plugins a person chose (D79). Deriving it from the home keeps the property
-  that mattered, which is that two homes never cross-talk. The envelope is `{ v, from, ns, type,
-  body }`, namespaced so that what is enumerable is **who may claim a namespace** rather than what
-  anyone may say in one: `ns` is stamped by the host as a settings section is, and `rigline` carries
-  `type: "registry"` with the changed exports as its body. Keying it by registry part instead would
-  have been closed only by choosing the domain. The namespace is a convention rather than a wall,
-  said plainly so nothing claims otherwise, and it is what a plugin verb would route on. `v` buys
-  only "I do not
+  what it is handed. **The name is random per Rigline home**, generated beside the token and baked into
+  `registry.js`: a guardrail in D79's middle sense, since nobody stumbles onto it and whoever digs it
+  out of the registry knows they are unsupported. Not a wall, so not worth the install-time
+  substitution into `post.js` or a build-time rule about inlining that nothing enforces; and not
+  *derived* from the home either, since a computable name is a public one and an author might post on
+  it never realising it was not theirs. The envelope is `{ v, from, ns, type, body }`, namespaced so
+  that what is enumerable is **who may claim a namespace** rather than what anyone may say in one:
+  `ns` is stamped by the host as a settings section is, and `rigline` carries `type: "registry"` with
+  the changed exports as its body. Keying it by registry part instead would have been closed only by
+  choosing the domain. `v` buys only "I do not
   understand this, fall back", as an unknown `ns` or `type` does one level down: two payload versions
   coexist until the reload the companion offers, and that window is narrow enough that a mismatch
   costs nothing worth building for (CLAUDE.md, *transient version skew*). It stays a hint that

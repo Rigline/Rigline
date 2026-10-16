@@ -1605,6 +1605,28 @@ Said in proportion, without alarm (Leo, 2026-09-24): a dependency in any Node pr
 user's files, network and processes on every machine with Node, where a Rigline plugin reaches only
 people who installed Rigline and chose it, with the panel's reach and nothing more.
 
+**Amended 2026-10-16, Leo — there are three categories here, not two, and the middle one is where
+most design effort belongs.** "Two things kept apart" left no name for a **guardrail**: something
+that makes the right thing easy and the wrong thing inconvenient *and self-evidently unsupported*.
+It is not a guarantee, because a determined author gets past it; it is not a bare obligation,
+because it does not rely on anybody having read a document.
+
+The test is whether an author doing the wrong thing would know. Reaching into `registry.js` to fish
+out a value nothing documents is a thing nobody does by accident, and whoever does it has no
+standing to complain when it stops working. Posting on a channel whose name is public, or derivable,
+is something an author might do without ever realising it was not for them — so a name that must be
+gone looking for is a guardrail, and a name anybody can compute is not one at all.
+
+Which fixes how such a thing is priced. A guardrail is worth real design effort and worth nothing
+spent on making it absolute: the moment the cost is machinery chasing impossibility — a byte
+substitution to hide a constant, a build-time rule that nothing enforces — it has stopped being a
+guardrail and become a guarantee that will not hold. Relaxing one *to a publicly derivable form*
+because it could not be made absolute is the opposite mistake, and was made here once with the
+broadcast channel's name before this amendment put it back.
+
+So [plugin-policy.md](plugin-policy.md) marks which of the three each thing is, because an author
+who knows a guardrail is a guardrail knows that going round it is unsupported rather than clever.
+
 **D80. The companion extension is a second retrieval layer, not a scheduler (2026-09-21).**
 Confirmed by Leo: it plays the role `rigline` plays, in a different shell. It installs and updates
 `@rigline/core` under `<RIGLINE_HOME>/engine` over npm and runs that engine for every piece of work
