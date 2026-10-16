@@ -11,6 +11,12 @@ from. **New work is planned in `.local/plans/<topic>.md`**, which is gitignored:
 document, and whatever should outlive it goes into `docs/` as the work lands. `docs/plan.md` takes
 no new plans. Update the plan before writing code; log status there, not here.
 
+**List `.local/plans/` before concluding there is no plan.** In-flight work lives there and nothing
+committed points at it, deliberately: a tracked pointer into a gitignored directory goes stale the
+day the plan lands and is deleted, which is how `docs/plan.md` came to name a working plan that no
+longer existed. Where there is more than one, a `README.md` beside them gives the order to read and
+build in. The directory is per working tree, so a worktree's plans are not in the main checkout's.
+
 ## Knowledge base
 
 - [docs/plan.md](docs/plan.md): what Rigline is, the physics that shape it, the architecture,
