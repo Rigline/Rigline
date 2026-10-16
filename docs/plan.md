@@ -308,7 +308,7 @@ owed: a Save through a released engine, since every save so far ran this checkou
 
 ## 1.0 — in progress
 
-The bar a 1.0 release clears, agreed 2026-09-26; the working plan is `.local/plans/1.0-bar.md`.
+The bar a 1.0 release clears, agreed 2026-09-26.
 
 - A written statement of what 1.x holds stable, and of what the wrapper and the companion rely on.
 - The wrapper installs the engine and forwards everything else, `update` and `add` included, so its
