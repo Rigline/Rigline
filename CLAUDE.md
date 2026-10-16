@@ -106,6 +106,13 @@ Written for somebody else, so don't rewrite them for us:
   verb — a plugin persisting state of its own does not — and what proves the person differs by case,
   so read D120 rather than assuming one mechanism covers it. `navigator.userActivation` is not that
   mechanism: it reads active during `setup`, before anything has been clicked.
+- **A decision's number is only safe at merge time.** `decisions.md` hands out the next free number,
+  which is a race whenever another session or branch is also appending: check it when you write the
+  entry *and* again before you merge, because the number you took may have been claimed in between.
+  It cost this branch D133 and D134, both filed against a free number and both taken on `main` by
+  something else by the time the branches met. Renumbering is not just the heading — the entry's own
+  cross-references, `CLAUDE.md`, the plans, source comments and test names all cite it. Taking a
+  `P` number for a principle sidesteps the race, since those move far more slowly.
 - **Never name a minified JS identifier.** Bundler-generated, changes every build. Plugin-facing
   hooks come from harvested layers or the curated anchor table. Build-time harvesting may anchor on
   unminified property names only because codegen asserts every anchor and fails loudly.
