@@ -403,16 +403,18 @@ what a plugin is written against.
   it, which misses two windows on screen side by side with the pointer never entering this one. The
   candidate is a `BroadcastChannel`, not the timer this entry used to propose: the webview origin is
   stable and keyed by viewType and extension id, so every editor-tab panel shares one origin across
-  tabs *and* windows. It carries the changed sections, so a receiver needs no second read. It cannot
-  be authenticated — the token guards pages and not the panel (D93), and a secret shared between
-  webviews has to be baked to be shared — so the rule is that **the channel is for speed and the
-  file is for authority**: a panel may show what a broadcast carried, and reads the file before
-  acting on anything with nobody present (D133). It is a hint that shortens the wait and is never
-  relied on, as the companion's `extensions.onDidChange` is, so the look-on-focus stays. Two things
-  it does not reach: the sidebar, which is a different viewType and so a different origin, and any
-  edit made outside a panel, since the engine is not in a webview. **Whether it crosses webviews at
-  all is a live-panel question** — the harness is one page on one origin, so a test there would pass
-  and prove nothing. It would also make `ctx.onSettings` honest, which D134 currently rules out.
+  tabs *and* windows. It carries the changed sections, so a receiver needs no second read and acts on
+  what it is handed. **The channel is the host's**: its name is the secret, baked as a non-exported
+  literal in `post.js` rather than an export on `registry.js`, since any module in the payload
+  directory is importable and its exports readable — and a name rather than a token in the message,
+  because a broadcast reaches every listener and would disclose a token on first use. Nothing
+  enumerates channel names, so a plugin can neither post nor listen. It stays a hint that shortens
+  the wait and is never relied on, as the companion's `extensions.onDidChange` is, so the
+  look-on-focus remains the backstop. Two things it does not reach: the sidebar, which is a different
+  viewType and so a different origin, and any edit made outside a panel, since the engine is not in a
+  webview. **Whether it crosses webviews at all is a live-panel question** — the harness is one page
+  on one origin, so a test there would pass and prove nothing. It would also make `ctx.onSettings`
+  honest, which D134 currently rules out.
 - **Decorations in React.** Per-row transcript decorations stay DOM. Triggered by a decoration DOM
   makes painful; first answer the cost of one portal per row at several hundred rows, and the frame
   in which a new row's node is empty before React renders into it.
