@@ -408,9 +408,16 @@ what a plugin is written against.
   literal in `post.js` rather than an export on `registry.js`, since any module in the payload
   directory is importable and its exports readable — and a name rather than a token in the message,
   because a broadcast reaches every listener and would disclose a token on first use. Nothing
-  enumerates channel names, so a plugin can neither post nor listen. It stays a hint that shortens
-  the wait and is never relied on, as the companion's `extensions.onDidChange` is, so the
-  look-on-focus remains the backstop. Two things it does not reach: the sidebar, which is a different
+  enumerates channel names, so a plugin can neither post nor listen, and the name is per Rigline home
+  so two homes never cross-talk. The envelope is built once for everything that rides it, since what
+  rides it is always the same thing — the baked registry moved: `{ v, from, parts }`, keyed by which
+  export changed and carrying its value, with a closed key set because that list is closed, unknown
+  keys ignored, and `from` so a panel skips its own. **`v` is not future-proofing**: a window keeps
+  the extension directory it booted with until *Reload Window*, so a Rigline update between two
+  windows' boots leaves an older payload and a newer one sharing this channel, and a receiver that
+  does not know `v` falls back to the look-on-focus read. It stays a hint that shortens the wait and
+  is never relied on, as the companion's `extensions.onDidChange` is, so the look-on-focus remains
+  the backstop. Two things it does not reach: the sidebar, which is a different
   viewType and so a different origin, and any edit made outside a panel, since the engine is not in a
   webview. **Whether it crosses webviews at all is a live-panel question** — the harness is one page
   on one origin, so a test there would pass and prove nothing. It would also make `ctx.onSettings`
