@@ -404,12 +404,16 @@ what a plugin is written against.
   candidate is a `BroadcastChannel`, not the timer this entry used to propose: the webview origin is
   stable and keyed by viewType and extension id, so every editor-tab panel shares one origin across
   tabs *and* windows. It carries the changed sections, so a receiver needs no second read and acts on
-  what it is handed. **The name is random per Rigline home**, generated beside the token and baked into
-  `registry.js`: a guardrail in D79's middle sense, since nobody stumbles onto it and whoever digs it
-  out of the registry knows they are unsupported. Not a wall, so not worth the install-time
-  substitution into `post.js` or a build-time rule about inlining that nothing enforces; and not
-  *derived* from the home either, since a computable name is a public one and an author might post on
-  it never realising it was not theirs. The envelope is `{ v, from, ns, type, body }`, namespaced so
+  what it is handed. **The name is `sha256(token + "/broadcast")`, computed at install and baked into
+  `registry.js`**: a guardrail in D79's middle sense, since nobody stumbles onto it and whoever digs
+  it out of the registry knows they are unsupported. Derived from the token because it has to persist
+  across installs — every extension-host start runs one, so a regenerated name would rotate on every
+  reload anywhere and cut off every open webview, which is not the narrow settling skew but a
+  constant one — and because the token already persists, is already created race-safely, and is
+  already per home. Derived rather than reused, so the name does not hand anybody the token. Not a
+  wall, so not worth the install-time substitution into `post.js` or a build-time rule about inlining
+  that nothing enforces; and not derived from the *home path* either, since a computable name is a
+  public one and an author might post on it never realising it was not theirs. The envelope is `{ v, from, ns, type, body }`, namespaced so
   that what is enumerable is **who may claim a namespace** rather than what anyone may say in one:
   `ns` is stamped by the host as a settings section is, and `rigline` carries `type: "registry"` with
   the changed exports as its body. Keying it by registry part instead would have been closed only by
