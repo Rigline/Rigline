@@ -409,15 +409,19 @@ what a plugin is written against.
   directory is importable and its exports readable — and a name rather than a token in the message,
   because a broadcast reaches every listener and would disclose a token on first use. Nothing
   enumerates channel names, so a plugin can neither post nor listen, and the name is per Rigline home
-  so two homes never cross-talk. The envelope is built once for everything that rides it, since what
-  rides it is always the same thing — the baked registry moved: `{ v, from, parts }`, keyed by which
-  export changed and carrying its value, with a closed key set because that list is closed, unknown
-  keys ignored, and `from` so a panel skips its own. **`v` is not future-proofing**: a window keeps
-  the extension directory it booted with until *Reload Window*, so a Rigline update between two
-  windows' boots leaves an older payload and a newer one sharing this channel, and a receiver that
-  does not know `v` falls back to the look-on-focus read. It stays a hint that shortens the wait and
-  is never relied on, as the companion's `extensions.onDidChange` is, so the look-on-focus remains
-  the backstop. Two things it does not reach: the sidebar, which is a different
+  so two homes never cross-talk. The envelope is `{ v, from, ns, type, body }`, namespaced so that
+  what is closed is **who may claim a namespace** rather than what anyone may say in one: `ns` is
+  stamped by the host as a settings section is, `rigline` carries `type: "registry"` with the changed
+  exports as its body, and a plugin could never claim another's name. Keying it by registry part
+  instead would have been closed only by choosing the domain. The host stays the only party on the
+  channel, so if plugins ever post it is through a verb and the name stays a secret they do not hold
+  — which is why the namespace belongs there now, since adding it later is a reshape across payload
+  versions that run side by side. **`v` is not future-proofing**: a window keeps the extension
+  directory it booted with until *Reload Window*, so a Rigline update between two windows' boots
+  leaves an older payload and a newer one sharing this channel, and a receiver that does not know `v`
+  falls back to the look-on-focus read, as it does for an unknown `ns` or `type`. It stays a hint
+  that shortens the wait and is never relied on, as the companion's `extensions.onDidChange` is, so
+  the look-on-focus remains the backstop. No plugin capability comes with it: only room for one. Two things it does not reach: the sidebar, which is a different
   viewType and so a different origin, and any edit made outside a panel, since the engine is not in a
   webview. **Whether it crosses webviews at all is a live-panel question** — the harness is one page
   on one origin, so a test there would pass and prove nothing. It would also make `ctx.onSettings`
