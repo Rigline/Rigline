@@ -289,6 +289,17 @@ that changes how a value reads. A minor caveat goes in the plugin's README.
 stability.md binds from 1.0.0. Choose the right shape, and where a person's files need it, migrate
 them once; an older alpha failing on a migrated file is expected.
 
+**Transient version skew between live parts earns almost no machinery** (Leo, 2026-10-16). Two
+windows can run different payloads, because a window keeps the extension directory it booted with
+until a reload, and an older companion can meet a newer engine. Those windows are narrow and they
+*settle* — the companion offers the reload that ends them — so reduced or absent functionality while
+they last is the right answer, and a version that says "I do not understand this, fall back" is the
+whole of what is wanted. What this rules out is building compatibility across the skew: translating
+between protocol versions, keeping two shapes alive, or arguing that a format must be right first
+time because peers coexist. It is not a reason against getting a shape right, and not a licence for
+a skew that *does not* settle — a file on disk outlives every window, so what persists is governed
+by stability.md instead.
+
 Toolchain: pnpm 12, Node 22.12+ (26 here), TypeScript 7, Rolldown, Vitest, Biome. Semicolons are
 required. CI runs lint, typecheck, build and test on every push and pull request, over a Node
 matrix whose lowest rung is the `engines` floor the published packages declare (D59) — so moving
