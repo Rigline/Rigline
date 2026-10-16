@@ -446,6 +446,36 @@ export function usageLimitsVerdict(
   return { verdict: "pass", detail: known.join(", ") };
 }
 
+/**
+ * The model list has arrived, once some plugin here follows it.
+ *
+ * The detail says how many replies and updates it took, because a list standing on a cached reply
+ * alone is the state a one-slot service would have shown as empty, and it reads the same as a
+ * working one.
+ */
+export function modelStateVerdict(
+  used: boolean,
+  state: {
+    readonly models: readonly unknown[];
+    readonly current: { readonly value: string } | null;
+    readonly setting: string | null;
+  },
+  stats: { readonly replies: number; readonly stored: number; readonly updates: number },
+): CheckVerdict {
+  if (!used) return { verdict: "n/a", detail: "no plugin here follows the model list" };
+  if (state.models.length === 0) {
+    return {
+      verdict: "n/a",
+      detail: `no models from ${stats.replies} replies and ${stats.updates} updates`,
+    };
+  }
+  const live =
+    state.current !== null
+      ? state.current.value
+      : `${state.setting ?? "unset"}, which this install does not offer`;
+  return { verdict: "pass", detail: `${String(state.models.length)} models, live ${live}` };
+}
+
 /** A session id has arrived, once some plugin on this surface is following one. */
 export function sessionIdVerdict(used: boolean, id: string | null): CheckVerdict {
   if (!used) return { verdict: "n/a", detail: "no plugin here follows the session" };

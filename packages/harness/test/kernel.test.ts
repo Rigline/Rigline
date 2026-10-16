@@ -11,7 +11,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { bundledDir, harvestReact } from "@rigline/core";
 import { EMPTY_DECLARATIONS } from "@rigline/plugin-api/internal";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { FixturePlugin } from "../src/payload.ts";
 import { harnessSkipReason, register, HARNESS_VERSION as VERSION } from "../src/suite.ts";
 
@@ -47,6 +47,18 @@ interface GestureWindow {
     readonly forgeThrew: boolean | null;
     readonly forgedDesc: Record<string, unknown> | null;
     readonly realDesc: Record<string, unknown> | null;
+  };
+}
+
+interface ModelsWindow {
+  readonly __harness?: { readonly push: (message: unknown) => void };
+  readonly __models?: {
+    readonly calls: number;
+    readonly models: readonly { readonly value: string; readonly supportsEffort: boolean }[];
+    readonly unavailable: readonly string[];
+    readonly current: string | null;
+    readonly setting: string | null;
+    readonly effort: string | null;
   };
 }
 
@@ -2047,6 +2059,142 @@ export default { setup(ctx) {
         await booted.close();
       }
     }, 20000);
+    it("derives the model list across both messages, live config winning (D120)", async () => {
+      const watcher: FixturePlugin = {
+        name: "watcher",
+        manifest: { uses: { models: true } },
+        source: `export default { setup(ctx) {
+    window.__models = { calls: 0, models: [], unavailable: [], current: null, setting: null, effort: null };
+    ctx.onModelState((state) => {
+      window.__models = {
+        calls: window.__models.calls + 1,
+        models: state.models.map((m) => ({ value: m.value, supportsEffort: m.supportsEffort })),
+        unavailable: state.unavailable,
+        current: state.current ? state.current.value : null,
+        setting: state.setting,
+        effort: state.effort,
+      };
+    });
+  } };`,
+      };
+      const booted = await boot({ plugins: [watcher] });
+      const read = () => booted.page.evaluate(() => (window as unknown as ModelsWindow).__models);
+      const push = (message: unknown) =>
+        booted.page.evaluate((m) => {
+          const harness = (window as unknown as ModelsWindow).__harness;
+          if (!harness) throw new Error("harness missing");
+          harness.push(m);
+        }, message);
+      try {
+        // The fake host answers `get_claude_state` with a live `config: {}`, so the service has a
+        // live config and an empty list before anything here pushes.
+        await vi.waitFor(async () => {
+          expect((await read())?.calls).toBeGreaterThan(0);
+        });
+        expect((await read())?.models).toEqual([]);
+
+        // A stored reply does not win over a live config, which is the panel's own precedence:
+        // `drawn = live ?? stored`. Shadowed here rather than ignored, and a one-slot service
+        // would show these models.
+        await push({
+          type: "response",
+          requestId: "state-stored",
+          response: {
+            type: "get_claude_state_response",
+            cached: true,
+            stored: true,
+            config: {
+              models: [
+                {
+                  value: "opus",
+                  resolvedModel: "claude-opus-5",
+                  displayName: "Opus",
+                  supportsEffort: true,
+                  supportedEffortLevels: ["medium", "high"],
+                },
+                { value: "haiku", resolvedModel: "claude-haiku-5-5", displayName: "Haiku" },
+              ],
+              unavailable_models: ["sonnet"],
+            },
+          },
+        });
+        await booted.page.waitForTimeout(100);
+        expect((await read())?.models).toEqual([]);
+
+        // A live reply does.
+        await push({
+          type: "response",
+          requestId: "state-live",
+          response: {
+            type: "get_claude_state_response",
+            cached: false,
+            config: {
+              models: [
+                {
+                  value: "opus",
+                  resolvedModel: "claude-opus-5",
+                  displayName: "Opus",
+                  supportsEffort: true,
+                  supportedEffortLevels: ["medium", "high"],
+                },
+                { value: "haiku", resolvedModel: "claude-haiku-5-5", displayName: "Haiku" },
+              ],
+              unavailable_models: ["sonnet"],
+            },
+          },
+        });
+        await vi.waitFor(async () => {
+          expect((await read())?.models).toHaveLength(2);
+        });
+        expect((await read())?.unavailable).toEqual(["sonnet"]);
+        // The list is known and nothing is live yet, since no state has named a model.
+        expect((await read())?.current).toBeNull();
+
+        // `update_state` carrying state but no config keeps the list and names what is live.
+        await push({
+          type: "request",
+          channelId: "",
+          requestId: "state-named",
+          request: {
+            type: "update_state",
+            state: { modelSetting: "opus[1m]", settings: { effortLevel: "high" } },
+          },
+        });
+        await vi.waitFor(async () => {
+          expect((await read())?.setting).toBe("opus[1m]");
+        });
+        // The million-token marker is stripped to find the entry, and the effort is one it takes.
+        expect((await read())?.current).toBe("opus");
+        expect((await read())?.effort).toBe("high");
+        expect((await read())?.models).toHaveLength(2);
+
+        // And one carrying a config replaces the list wholesale.
+        await push({
+          type: "request",
+          channelId: "",
+          requestId: "state-replaced",
+          request: {
+            type: "update_state",
+            state: {},
+            config: { models: [{ value: "haiku", resolvedModel: "claude-haiku-5-5" }] },
+          },
+        });
+        await vi.waitFor(async () => {
+          expect((await read())?.models).toHaveLength(1);
+        });
+        // The setting survives the replacement; the model it named does not, which is the state
+        // the weak mode exists to draw.
+        expect((await read())?.setting).toBe("opus[1m]");
+        expect((await read())?.current).toBeNull();
+
+        const d = await booted.diagnostics();
+        expect(d.plugins).toContainEqual({ name: "watcher", status: "loaded" });
+        expect(d.errors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
     it("renders a settings save as a real link, and refuses another plugin's section (D138)", async () => {
       const saver: FixturePlugin = {
         name: "saver",

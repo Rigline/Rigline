@@ -72,6 +72,23 @@ export {
   nextReset,
   UNKNOWN_LIMITS,
 } from "./limits.ts";
+export type { ClaudeConfig, Configs, ModelEntry, ModelState } from "./models.ts";
+export {
+  configsAfterReply,
+  configsAfterState,
+  currentModel,
+  DEFAULT_EFFORT_LEVELS,
+  drawnConfig,
+  effortOf,
+  modelStateOf,
+  modelsOf,
+  NO_CONFIGS,
+  NO_MODEL_STATE,
+  sameModelState,
+  settingOf,
+  supportsEffort,
+  unavailableOf,
+} from "./models.ts";
 export type { ValidManifest } from "./manifest.ts";
 export {
   byteLength,

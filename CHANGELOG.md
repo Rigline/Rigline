@@ -13,6 +13,12 @@ hole, or raises the Node or VS Code it needs, its entry says so.
 
 ### Added
 
+- `uses.models`, so a plugin can read which models your install offers and which model and effort
+  are live. The list is your own install's, so enterprise and non-Anthropic models arrive with it
+  and nothing has to be typed in by hand.
+  - Read-only. Changing a model is a separate capability, and this one grants nothing towards it.
+  - A model your settings name that the install no longer offers reads as nothing being live,
+    rather than as an error, so a plugin can say so.
 - Per-plugin settings in `~/.rigline/config.yaml`, under a `settings:` block keyed by plugin name,
   so a plugin can be configured by hand in the same file as the rest of your Rigline.
   - A plugin reads its own with `ctx.settings`, and only its own.

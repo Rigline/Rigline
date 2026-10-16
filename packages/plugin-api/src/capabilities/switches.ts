@@ -97,3 +97,17 @@ export const limitsContract = switchContract({
   anchors: [],
   summary: "follows how much of the plan's usage limits is used",
 });
+
+/**
+ * Which models this install offers and which is live, derived by the host (D120 as amended).
+ *
+ * Both message types, because the list arrives on one and is replaced on the other: a service
+ * tapping only the reply would hold a list that was right at boot and stopped (P2, P5).
+ */
+export const modelsContract = switchContract({
+  key: "models",
+  grants: ["onModelState"],
+  messages: ["get_claude_state_response", "update_state"],
+  anchors: [],
+  summary: "reads which models this install offers, and which model and effort are live",
+});

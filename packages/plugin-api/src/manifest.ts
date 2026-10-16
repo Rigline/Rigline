@@ -113,6 +113,7 @@ export const EMPTY_DECLARATIONS: Declarations = Object.freeze({
   context: false,
   cost: false,
   limits: false,
+  models: false,
 });
 
 export const EMPTY_USES: Uses = Object.freeze({

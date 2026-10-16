@@ -148,6 +148,10 @@
           "type": "boolean",
           "description": "follows how much of the plan's usage limits is used"
         },
+        "models": {
+          "type": "boolean",
+          "description": "reads which models this install offers, and which model and effort are live"
+        },
         "optional": {
           "title": "uses.optional",
           "description": "The same keys, for what this plugin can do without. A missing one is reported and costs the plugin that decoration; it never refuses the plugin.",
@@ -249,6 +253,10 @@
             "limits": {
               "type": "boolean",
               "description": "follows how much of the plan's usage limits is used"
+            },
+            "models": {
+              "type": "boolean",
+              "description": "reads which models this install offers, and which model and effort are live"
             }
           }
         }

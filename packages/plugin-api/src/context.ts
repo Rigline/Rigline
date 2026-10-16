@@ -15,6 +15,7 @@ import type { CheckVerdict } from "./checks.ts";
 import type { SessionCost } from "./cost.ts";
 import type { MessageType, ModuleClasses, ModuleId, OutboundFields } from "./identifiers.ts";
 import type { UsageLimits } from "./limits.ts";
+import type { ModelState } from "./models.ts";
 import type { ToolResult, ToolUse } from "./stream.ts";
 import type { TranscriptEntry } from "./transcript.ts";
 import type { ContextUsage } from "./usage.ts";
@@ -250,6 +251,15 @@ export interface PluginContext {
    * every panel sees the same. Host-derived (D129). Requires `uses.limits`.
    */
   onUsageLimits: (handler: (limits: UsageLimits) => void) => Teardown;
+
+  /**
+   * Which models this install offers and which one is live: called at once and again on every
+   * change. The list is the person's own install's, so enterprise and non-Anthropic entries arrive
+   * with it and nobody has to type a model id. `current` is null where the live setting names a
+   * model this install no longer offers, which is a real state and not an error. Host-derived
+   * (D120 as amended). Requires `uses.models`.
+   */
+  onModelState: (handler: (state: ModelState) => void) => Teardown;
 
   /**
    * Draw on every transcript entry. `build` runs once per entry whenever the entry list changes

@@ -8,6 +8,7 @@ import { classesModule } from "./classes.ts";
 import { contextModule } from "./context.ts";
 import { costModule } from "./cost.ts";
 import { limitsModule } from "./limits.ts";
+import { modelsModule } from "./models.ts";
 import { menuModule } from "./menu.ts";
 import { messagesModule } from "./messages.ts";
 import { mountModule } from "./mount.ts";
@@ -31,4 +32,5 @@ export const MODULES: readonly CapabilityModule[] = [
   contextModule,
   costModule,
   limitsModule,
+  modelsModule,
 ];

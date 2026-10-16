@@ -32,6 +32,7 @@ import { createContextService } from "./kernel/context.ts";
 import { createCostService } from "./kernel/cost.ts";
 import { createLayoutEditor, type SavedState } from "./kernel/layout.ts";
 import { createLimitsService } from "./kernel/limits.ts";
+import { createModelsService } from "./kernel/models.ts";
 import { guardLinks } from "./kernel/links.ts";
 import { settingsSaver } from "./kernel/save.ts";
 import { createMountService } from "./kernel/mounts.ts";
@@ -444,6 +445,7 @@ async function main(): Promise<void> {
     context: createContextService(bus, tables.messageTypes),
     cost: createCostService(bus),
     limits: createLimitsService(bus),
+    models: createModelsService(bus),
     transcript: createTranscriptService(
       bus,
       react,

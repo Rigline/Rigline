@@ -38,6 +38,8 @@ export type {
   RiglineIdentifiers,
 } from "./identifiers.ts";
 export type { LimitWindow, UsageLimits } from "./limits.ts";
+export type { ModelEntry, ModelState } from "./models.ts";
+export { DEFAULT_EFFORT_LEVELS, supportsEffort } from "./models.ts";
 export type { DeclaredUses, HostPatch, Manifest } from "./manifest.ts";
 export type { Store } from "./store.ts";
 export { store, storeFrom } from "./store.ts";
