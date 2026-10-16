@@ -399,10 +399,17 @@ what a plugin is written against.
 - **Merging layout edits from several sources.** A save from the panel overwrites the file's layout
   and warns when that replaces a change made since the panel loaded (D92). Revisit when that warning
   costs somebody work.
-- **A backstop timer for a newer saved layout** (D126). The panel looks when the person comes back
-  to it, which misses two windows on screen side by side with the pointer never entering this one.
-  Triggered by that case costing somebody; a read every five minutes while visible keeps about 2 MB
-  a day.
+- **Telling the other panels a save happened** (D126). The panel looks when the person comes back to
+  it, which misses two windows on screen side by side with the pointer never entering this one. The
+  candidate is a `BroadcastChannel`, not the timer this entry used to propose: the webview origin is
+  stable and keyed by viewType and extension id, so every editor-tab panel shares one origin across
+  tabs *and* windows. It carries **no payload** — only "read again" — because anything in the
+  webview can post to it, and the file stays the truth; and it is a hint that shortens the wait and
+  is never relied on, as the companion's `extensions.onDidChange` is, so the look-on-focus stays.
+  Two things it does not reach: the sidebar, which is a different viewType and so a different
+  origin, and any edit made outside a panel, since the engine is not in a webview. **Whether it
+  crosses webviews at all is a live-panel question** — the harness is one page on one origin, so a
+  test there would pass and prove nothing.
 - **Decorations in React.** Per-row transcript decorations stay DOM. Triggered by a decoration DOM
   makes painful; first answer the cost of one portal per row at several hundred rows, and the frame
   in which a new row's node is empty before React renders into it.
