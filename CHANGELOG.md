@@ -27,6 +27,12 @@ hole, or raises the Node or VS Code it needs, its entry says so.
   bundled plugins do — no longer reads as an unbound method to a plugin's own linter. Calling them
   is unchanged.
 
+### Fixed
+
+- Time markers read `5:29` where Claude Code's own stamp read `05:29`, on either 24-hour format and
+  only for the first ten hours of the day. Rigline now formats a marker in the same locale Claude
+  Code formats its stamp in, so the two agree whatever the editor's own language is.
+
 ## 1.1.0 — 2026-10-15
 
 ### Added

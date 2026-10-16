@@ -122,6 +122,9 @@ function usableZone(timeZone: unknown): string | undefined {
   }
 }
 
+/** The locale the app formats every stamp in, whatever the webview's own is. */
+const APP_LOCALE = "en-US";
+
 /** One formatter per display, kept because a rebuild formats every row on screen. */
 const formatters = new Map<string, Intl.DateTimeFormat>();
 
@@ -129,7 +132,7 @@ function formatterFor(display: Display): Intl.DateTimeFormat {
   const key = `${display.hourCycle}|${display.timeZone ?? ""}`;
   const kept = formatters.get(key);
   if (kept !== undefined) return kept;
-  const made = new Intl.DateTimeFormat(undefined, {
+  const made = new Intl.DateTimeFormat(APP_LOCALE, {
     hour: "numeric",
     minute: "2-digit",
     hourCycle: display.hourCycle,
@@ -140,8 +143,10 @@ function formatterFor(display: Display): Intl.DateTimeFormat {
 }
 
 /**
- * One instant as the app's own stamp writes it. The options are the app's; the locale is left
- * undefined, as the app leaves it, so the rest of the panel's conventions apply.
+ * One instant as the app's own stamp writes it, in the app's own options and the app's own locale
+ * (D135). It pins `en-US` rather than taking the runtime's, which is load-bearing: under `h23` a
+ * locale decides whether `hour: "numeric"` pads, so a column of times read `5:29` beside the app's
+ * `05:29` wherever the webview did not resolve to en-US.
  *
  * The `Z` replaces the last minute-or-second part rather than being appended to the formatted
  * string, which is how the app does it and the only version that puts it in the right place in a

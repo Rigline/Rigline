@@ -692,3 +692,8 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   the harness and is the event itself: `navigator.userActivation` reads active during `setup`, and
   a flag the host keeps cannot survive microtasks draining between listeners, where `isTrusted` is
   an instance accessor Blink will not let anything forge.
+- 2026-10-16: time-marks formats in the app's own `en-US` rather than the runtime's locale (D135).
+  Under `h23` a locale decides whether `hour: "numeric"` pads, so the marker read `5:29` beside the
+  app's `05:29` on any webview not resolving to en-US — which is also why the harness case for it
+  failed only in the first ten hours of UTC, and passed in the unit tier on an en-AU machine. The
+  app pins the locale; read it in `aA0` in the 2.1.300 webview bundle.

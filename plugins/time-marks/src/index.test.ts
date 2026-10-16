@@ -192,6 +192,13 @@ describe("formatTime", () => {
     expect(text).toContain("05");
   });
 
+  it("pads the 24-hour hour, which the runtime's locale must not decide", () => {
+    // en-GB resolves `hour: "numeric"` under h23 to one digit where en-US pads, so leaving the
+    // locale undefined put `5:29` beside the app's `05:29` on any webview that is not en-US.
+    const text = formatTime(AT, { hourCycle: "h23", timeZone: "UTC", utc: false });
+    expect(text).toMatch(/^04:05$/);
+  });
+
   it("marks the utc preset with a Z after the minute, not after the string", () => {
     const text = formatTime(AT, { hourCycle: "h23", timeZone: "UTC", utc: true });
     expect(text).toContain("04");
