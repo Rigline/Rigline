@@ -253,8 +253,12 @@ export function layoutNotes(config: PluginsConfig, enabled: readonly DiscoveredP
     .map((problem) => `${config.path}: ${problem}`);
 }
 
-/** What one plugin's settings may bake to, so a hand-edited file cannot grow the payload (D134). */
-export const MAX_SETTINGS_SECTION = 16 * 1024;
+/**
+ * A runaway guard on one plugin's settings, not a budget: every webview imports the payload and
+ * retains it, so something writing without bound has to stop somewhere (D134). Generous on purpose —
+ * a plugin keeping real data under its own key is doing what settings are for.
+ */
+export const MAX_SETTINGS_SECTION = 256 * 1024;
 
 /**
  * The settings to bake, and what to say about the ones left out. A section for a plugin that is not

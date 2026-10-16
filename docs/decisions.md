@@ -3121,11 +3121,18 @@ tap on unrelated traffic satisfies every other condition here, and "a person cau
 obligation on an author rather than something the architecture holds. Neither of those supplies an
 instruction of either kind, which is exactly why they are excluded.
 
-The verb takes the event the caller is handling, and the host checks it: `isTrusted`, and that
-`eventPhase` is not `NONE`. Both halves are needed and neither is a convention an author could get
-wrong — the first excludes an event the plugin made or dispatched itself, the second an event held
-past its handler, which is what a write after an `await` would be working from. A write from a
-timer, a bus tap or `setup` has no event to pass at all.
+The verb takes the event the caller is handling, and the host checks `isTrusted`. That excludes an
+event the plugin made or dispatched itself, and a write from a timer, a bus tap or `setup` has no
+event to pass at all. What it is for is keeping D77's claim true — that Rigline changes what the
+panel offers on the person's action — rather than defending against a plugin that is already running
+in the page.
+
+`eventPhase` was checked beside it and is not: requiring the dispatch to still be running forbids
+applying a choice after an `await`, which is an ordinary thing to want — confirm something, then
+apply — and buys little, since a plugin stashing a trusted event is nothing anybody does by
+accident and a plugin minded to misbehave has shorter routes. The threat model is a plugin a person
+chose to install, whose obligations are stated and not enforced (D79); a guard that costs real
+behaviour to raise that bar slightly is the wrong trade.
 
 Taking the event beats a flag the host keeps. A flag set in a capture-phase listener and cleared in
 a microtask looks right and is not: microtasks drain between event listeners, so it would be false
