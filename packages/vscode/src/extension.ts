@@ -10,7 +10,15 @@ import { existsSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import * as vscode from "vscode";
-import { acquireAndInject, ENGINE_SETTING, marked, saveLayout, showPlugins } from "./acquire.ts";
+import {
+  acquireAndInject,
+  ENGINE_SETTING,
+  marked,
+  type SaveLayoutOptions,
+  saveLayout,
+  saveSettings,
+  showPlugins,
+} from "./acquire.ts";
 import { localTime } from "./clock.ts";
 import { CLAUDE_CODE, type Editor, type Health } from "./editor.ts";
 import { PROBE_ARGS, PROBE_TIMEOUT_MS } from "./node.ts";
@@ -44,6 +52,18 @@ const HEALTH: Record<
   stale: { icon: "$(refresh)", command: RELOAD_COMMAND },
   // No command: unlike `stale`, there is no offer behind it to re-show.
   ready: { icon: "$(check-all)" },
+};
+
+/**
+ * Which Save each link path is, and so the only paths the handler answers.
+ *
+ * A path each rather than one payload naming the verb: an older companion meeting a newer panel
+ * then logs a clean no-op somebody can be asked about, where a shared path would hand the wrong
+ * verb a payload it half understands (D93).
+ */
+const SAVES: Record<string, ((options: SaveLayoutOptions) => Promise<void>) | undefined> = {
+  "/layout": saveLayout,
+  "/settings": saveSettings,
 };
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -163,8 +183,9 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.window.registerUriHandler({
       handleUri: (uri) => {
-        const payload = uri.path === "/layout" ? new URLSearchParams(uri.query).get("p") : null;
-        if (payload === null) {
+        const save = SAVES[uri.path];
+        const payload = save === undefined ? null : new URLSearchParams(uri.query).get("p");
+        if (save === undefined || payload === null) {
           editor.log(`ignored a link Rigline does not answer: ${uri.path}`);
           return;
         }
@@ -173,7 +194,7 @@ export function activate(context: vscode.ExtensionContext): void {
         saving = saving
           .then(async () => {
             const wrapper = await import("rigline/engine");
-            await saveLayout({
+            await save({
               editor,
               ensureEngine: (opts) => wrapper.ensureEngine(opts),
               exists: existsSync,

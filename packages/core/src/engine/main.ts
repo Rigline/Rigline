@@ -715,28 +715,30 @@ function layoutCommand(args: string[]): number {
   return reinject({ companion: verb === "save" });
 }
 
-/** What `settings save` says it did, first line first: the line the companion shows (D93, D138). */
-function settingsOutcome(configPath: string, saved: SettingsSaved): string[] {
-  const lines: string[] = [];
-  if (saved.wrote.length === 0) {
-    lines.push(
-      saved.unknown.length === 0
-        ? "the Save link named no settings, so nothing was written"
-        : `nothing saved to ${configPath}: no plugin named ${saved.unknown.join(", ")} is installed`,
-    );
-    return lines;
-  }
-  lines.push(
-    !saved.changed
-      ? `${configPath} already held the panel's settings`
-      : saved.overChange.length === 0
-        ? `saved the panel's settings to ${configPath}`
-        : `saved the panel's settings to ${configPath}, over a change to ${saved.overChange.join(", ")} made since the panel loaded`,
-  );
-  for (const name of saved.unknown) {
-    lines.push(`  skipped "${name}": no plugin of that name is installed`);
-  }
-  return lines;
+/**
+ * What `settings save` says it did, outcome first.
+ *
+ * **The companion reads this line** — it depends on no Rigline package (D69), so this prose is the
+ * interface. It takes the first non-empty line as the outcome, warns rather than informs when that
+ * line says `over a change` or `skipped`, and reads a refusal off the `rigline: ` line instead. The
+ * other copy of that rule is `saidAboutSave` in `packages/vscode/src/acquire.ts`; change either
+ * wording and change it there.
+ */
+function settingsOutcome(configPath: string, saved: SettingsSaved): string {
+  const over =
+    saved.overChange.length === 0
+      ? ""
+      : `, over a change to ${saved.overChange.join(", ")} made since the panel loaded`;
+  // In the outcome rather than a line after it, because `reinject` prints below this and a rule
+  // about what follows would fire on that. It is also the line the notification shows.
+  const skipped =
+    saved.unknown.length === 0
+      ? ""
+      : `; skipped ${saved.unknown.map((name) => `"${name}"`).join(", ")}: no plugin of that name is installed`;
+  const outcome = saved.changed
+    ? `saved the panel's settings to ${configPath}${over}`
+    : `${configPath} already held the panel's settings`;
+  return `${outcome}${skipped}`;
 }
 
 /**
@@ -767,7 +769,16 @@ function settingsCommand(args: string[]): number {
     rest[0] as string,
     new Set(discovered.map((plugin) => plugin.name)),
   );
-  for (const line of settingsOutcome(paths.config, saved)) console.log(line);
+  // A save that wrote nothing is a failed request, not a result, so it refuses in the shape
+  // `saveFromPanel` does — before anything is printed, since the first line is read as the outcome.
+  if (saved.wrote.length === 0) {
+    throw new UserError(
+      saved.unknown.length === 0
+        ? "not saved: the Save link named no settings"
+        : `not saved: no plugin named ${saved.unknown.join(", ")} is installed`,
+    );
+  }
+  console.log(settingsOutcome(paths.config, saved));
   console.log("");
   return reinject({ companion: true });
 }

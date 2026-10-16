@@ -328,19 +328,24 @@ describe("settings save (D138)", () => {
     });
     expect(await runEngine(["settings", "save", payload])).toBe(0);
 
-    expect(lines()[0]).toBe(`saved the panel's settings to ${configPath()}`);
-    expect(lines()[1]).toBe(`  skipped "gone": no plugin of that name is installed`);
+    // In the outcome, not a line after it: `reinject` prints below, so a rule about what follows
+    // would fire on that instead.
+    expect(lines()[0]).toBe(
+      `saved the panel's settings to ${configPath()}; skipped "gone": no plugin of that name is installed`,
+    );
     expect(readConfig(configPath()).settings).toEqual({ clock: { tick: 1 } });
   }, 60_000);
 
-  it("writes nothing, and says so, when no section names a plugin it has", async () => {
+  it("refuses, rather than reporting a save, when no section names a plugin it has", async () => {
     installed("clock");
 
+    // A save that wrote nothing is a failed request, so it arrives at the companion on the
+    // `rigline: ` line its refusal path already reads, not as an outcome it has to recognise.
     expect(
       await runEngine(["settings", "save", link({ gone: { from: {}, to: { tick: 2 } } })]),
-    ).toBe(0);
+    ).toBe(1);
 
-    expect(lines()[0]).toBe(`nothing saved to ${configPath()}: no plugin named gone is installed`);
+    expect(error.mock.calls[0]?.[0]).toBe("rigline: not saved: no plugin named gone is installed");
     expect(existsSync(configPath())).toBe(false);
   }, 60_000);
 });

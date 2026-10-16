@@ -365,25 +365,55 @@ function listed(reasons: readonly string[]): string {
 }
 
 /**
- * A Save link from the panel: run `layout save` with its payload, and say how it went in a
- * notification. The engine prints the outcome first; a refusal and a save over a change are
- * warnings, since a person needs to know either (D92). Never awaits a notification: one stands until
- * it is dismissed, and every save after this one waits for this one to finish.
+ * What the engine's lines say a Save did: the reason it refused, or the sentence to show.
+ *
+ * **The wording is the engine's, and this is the only place that reads it.** This package depends on
+ * no Rigline package (D69), so a severity cannot be imported and is matched off the prose instead;
+ * the other copy of the rule is beside the engine's save branches in
+ * `packages/core/src/engine/main.ts` (`settingsOutcome`, and `layout`'s `verb === "save"`). The
+ * engine prints the outcome first, so the first non-empty line is it, and a refusal arrives on the
+ * `rigline: ` line. Nothing at all counts as a refusal: a save that printed nothing did not happen.
  */
-export async function saveLayout(options: SaveLayoutOptions): Promise<void> {
-  const lines = await onDisk(options, ["layout", "save", options.payload]);
+function saidAboutSave(lines: readonly string[]): { refused: string } | { outcome: string } {
+  const first = lines.find((line) => line.trim() !== "") ?? "";
+  if (first === "" || first.startsWith(ENGINE_PROBLEM)) {
+    const reason = first.slice(ENGINE_PROBLEM.length).replace(/^not saved: /, "");
+    return { refused: reason || "the engine said nothing; the Rigline output has the rest" };
+  }
+  return { outcome: first.charAt(0).toUpperCase() + first.slice(1) };
+}
+
+/**
+ * A Save link from the panel: run the engine's verb with its payload, and say how it went in a
+ * notification. A refusal, a save over somebody else's change, and a section skipped are all
+ * warnings, since a person needs to know any of them (D92). Never awaits a notification: one stands
+ * until it is dismissed, and every save after this one waits for this one to finish.
+ *
+ * The outcome is not the last line the engine writes — the re-injection's report follows it — so
+ * what makes a warning is read off the outcome itself, never off what came after.
+ */
+async function reportSave(
+  options: SaveLayoutOptions,
+  argv: readonly string[],
+  subject: string,
+): Promise<void> {
+  const lines = await onDisk(options, argv);
   if (lines === null) return;
-  const outcome = lines.find((line) => line.trim() !== "") ?? "";
-  if (outcome === "" || outcome.startsWith(ENGINE_PROBLEM)) {
-    const reason = outcome.slice(ENGINE_PROBLEM.length).replace(/^not saved: /, "");
-    void options.editor.ask(
-      "warn",
-      `The layout was not saved: ${reason || "the engine said nothing; the Rigline output has the rest"}`,
-    );
+  const said = saidAboutSave(lines);
+  if ("refused" in said) {
+    void options.editor.ask("warn", `${subject} not saved: ${said.refused}`);
     return;
   }
-  const sentence = outcome.charAt(0).toUpperCase() + outcome.slice(1);
-  void options.editor.ask(outcome.includes("over a change") ? "warn" : "info", sentence);
+  const wanted = /over a change|skipped/.test(said.outcome);
+  void options.editor.ask(wanted ? "warn" : "info", said.outcome);
+}
+
+export async function saveLayout(options: SaveLayoutOptions): Promise<void> {
+  await reportSave(options, ["layout", "save", options.payload], "The layout was");
+}
+
+export async function saveSettings(options: SaveLayoutOptions): Promise<void> {
+  await reportSave(options, ["settings", "save", options.payload], "The settings were");
 }
 
 /**

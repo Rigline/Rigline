@@ -15,6 +15,7 @@ import {
   marked,
   needsYou,
   saveLayout,
+  saveSettings,
   showPlugins,
 } from "./acquire.ts";
 import type { Probe } from "./node.ts";
@@ -972,5 +973,66 @@ describe("saveLayout", () => {
     expect(a.calls).toEqual([]);
     expect(updateCalled).toBe(false);
     expect(e.asked[0]).toMatchObject({ level: "warn" });
+  });
+});
+
+describe("saveSettings", () => {
+  const PAYLOAD = "eyJ2IjoxfQ";
+
+  async function save(lines: readonly string[], code = 0) {
+    const e = editor();
+    const a = acquisition({}, { lines, code });
+    await saveSettings({
+      editor: e.editor,
+      ensureEngine: a.acquisition.ensureEngine,
+      runEngine: a.runEngine,
+      probe: a.probe,
+      version: "1.0.0-alpha.11",
+      exists: (p) => p === NODE,
+      env: { PATH: NODE_DIR },
+      payload: PAYLOAD,
+    });
+    return { e, a };
+  }
+
+  it("runs the settings verb, not the layout's, and says the outcome it printed first", async () => {
+    const { e, a } = await save([
+      "saved the panel's settings to /home/.rigline/config.yaml",
+      "",
+      "2.1.280: refreshed",
+    ]);
+    expect(a.calls).toEqual([["settings", "save", PAYLOAD]]);
+    expect(e.asked).toEqual([
+      {
+        level: "info",
+        message: "Saved the panel's settings to /home/.rigline/config.yaml",
+        actions: [],
+      },
+    ]);
+  });
+
+  it("warns when a section was skipped, which the outcome line carries", async () => {
+    const { e } = await save([
+      `saved the panel's settings to /c.yaml; skipped "gone": no plugin of that name is installed`,
+      "",
+      "2.1.280: refreshed",
+    ]);
+    // The warning has to survive the re-injection's report following it, so the rule reads the
+    // outcome and never what came after.
+    expect(e.asked[0]).toMatchObject({
+      level: "warn",
+      message: expect.stringContaining("skipped"),
+    });
+  });
+
+  it("warns with the engine's reason when nothing it was given was installed", async () => {
+    const { e } = await save(["rigline: not saved: no plugin named gone is installed"], 1);
+    expect(e.asked).toEqual([
+      {
+        level: "warn",
+        message: "The settings were not saved: no plugin named gone is installed",
+        actions: [],
+      },
+    ]);
   });
 });
