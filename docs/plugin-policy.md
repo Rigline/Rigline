@@ -26,6 +26,12 @@ help: there is no clever way to reach something that is not there.
   patch is not code either. It is a declared byte substitution in `rigline.json` — `find`,
   `replace`, a mandatory `why`, the same byte length — applied by our installer against the pristine
   bundle.
+- **No settings but your own, and no save without a person.** `ctx.settings` hands you your own
+  section and nothing else, and a save goes as a link to the companion extension, which only a
+  click a person made reaches: one your code dispatches is cancelled before it navigates. So a
+  plugin cannot read another plugin's settings, cannot write one, and cannot write its own
+  unprompted. What this does *not* wall off is a plugin drawing a link that claims to do one thing
+  and saves another — see the deception rule below, which is where that belongs.
 - **No install-time execution.** `rigline add` never runs a lifecycle script. The tar reader writes
   regular files and refuses everything else by name.
 
@@ -53,6 +59,12 @@ worst case is bounded and local, not that there is no bad case.
 - **Write to the bus through `ctx`.** What your manifest declares is what `ctx` lets you do, and it
   is what somebody deciding whether to install your plugin reads. Sending through the app's own code
   what `ctx` would not send is doing something your manifest does not say.
+- **Cope with a settings value you did not write.** `~/.rigline/config.yaml` is a file people edit
+  by hand, and Rigline passes an unknown key through rather than dropping it, because it does not
+  know your schema. So your section can hold a key you have never heard of, be missing one you
+  expect, or carry the wrong shape entirely, and none of that is checked for you. Read it
+  defensively and fall back to your own default; do not treat your own written shape as a
+  guarantee.
 - **Do not route Claude usage.** No endpoint substitution, no proxying, no reselling, no billing
   anything to anyone but the user whose account it is.
 - **Change what passes between the panel and the extension, never what leaves the machine.** A

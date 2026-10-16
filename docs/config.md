@@ -29,6 +29,40 @@ put them back.
 A name nothing has installed is reported by `install` rather than ignored, since it is usually a
 typo.
 
+## A plugin's own settings
+
+`settings` holds a block per plugin, under the plugin's name, and what goes inside is the plugin's
+own business — Rigline passes it through without reading it. The plugin's README says what it
+takes.
+
+    settings:
+      model-favourites:
+        # Starred in the panel, or written here; either way it is this list.
+        favourites:
+          - opus
+          - haiku
+
+Some plugins can save their own settings from the panel, with a click on whatever they draw — the
+star in the example above. That writes only that plugin's block and leaves the rest of the file as
+you wrote it, comments included, the same as a `rigline layout` edit does. It goes through the
+companion extension, so without one installed the panel says so instead of offering it. A plugin
+can only ever write its own block, never another plugin's.
+
+A key Rigline does not understand inside a plugin's block is **kept and passed on**, unlike one at
+the top level: Rigline never knows a plugin's own settings, so it cannot tell a typo from a key a
+newer version of that plugin added. That means a hand edit is never quietly dropped, and it also
+means a misspelling here is yours to spot.
+
+Settings for a plugin you have switched off, or removed, stay in the file and come back with it.
+Only the plugin itself ever has to make sense of them, and it is asked to cope with whatever it
+finds — a key it has never heard of, or one it expects that is missing.
+
+A block big enough to be a nuisance is dropped at install time with a line saying so, which costs
+that plugin its settings; the limit is far above anything a person would type. Saving from the
+panel has a much smaller limit than that, because a save travels as a link, so a plugin keeping
+bulk data under its own key can read it and cannot save it back from the panel. It says so rather
+than failing after you have done the work.
+
 ## Where things go in the panel
 
 Some plugins put things in the panel: a pill in the composer's footer, a line in the row under the

@@ -82,6 +82,15 @@ Rigline out until you put it back.
   `before`, `after` or `inside` an anchor's name — and the names of the bundled plugins, their
   elements, and Rigline's own elements, `rigline/edit` and `rigline/reload`. A third-party plugin's
   names are its author's.
+- **The `settings` block in that file**, keyed by plugin name. Rigline keeps the block, the keying
+  and the passing-through; **what is inside a plugin's section belongs to that plugin**, and
+  Rigline neither reads it nor promises anything about it. So the rule above is inverted one level
+  down: a key Rigline does not know *inside* a section is kept and carried forward rather than
+  reported, because it cannot tell a typo from a key a newer version of that plugin added. A later
+  1.x reads a section an earlier one wrote, and a plugin is asked to cope with whatever it finds
+  ([plugin-policy.md](plugin-policy.md)). Settings for a plugin that is switched off or removed
+  stay in the file. What a plugin's own keys mean, and whether they survive its updates, is its
+  author's promise rather than ours.
 - **`~/.rigline/anchors.json`**, in the format [anchors.md](anchors.md) describes.
 - **`~/.rigline/sources.json`**, where `rigline add` records each plugin's source. It is Rigline's
   record rather than a setting, but a later 1.x reads what an earlier one wrote.

@@ -140,9 +140,9 @@ and says so when the two disagree. A call you did not declare is in the plain re
 `rigline dev`'s, since it will disable the plugin; a declaration you never call is behind
 `--verbose`, since it costs nothing yet.
 
-Two members of `ctx` are on it without a declaration, because neither widens what you can reach:
-`ctx.surface`, which is a string, and `ctx.check`, below. `ctx.element` is declared by `elements`
-rather than by `uses`, also below.
+Three members of `ctx` are on it without a declaration, because none widens what you can reach:
+`ctx.surface`, which is a string, `ctx.check`, below, and `ctx.settings`, which is your own
+configuration. `ctx.element` is declared by `elements` rather than by `uses`, also below.
 
 ### React, and state that outlives a component
 
@@ -274,6 +274,67 @@ re-measure each time, and one in `rigRow` whose height keeps changing re-renders
 
 `ctx.mount*` still places plain DOM, and is the tool for decorating every row of something, where
 there is no single place for an element to be.
+
+## Settings: `ctx.settings`, and saving them
+
+`ctx.settings` is your own block of the person's `~/.rigline/config.yaml`, under your plugin's
+name — a frozen snapshot of what it held when the panel loaded, and `{}` when there is none. No
+declaration: reading your own configuration reaches nothing you could not already reach. You never
+see another plugin's.
+
+**Tolerate what you find.** It is a file people edit by hand, so expect a key you have never heard
+of, a key you expect that is missing, and a value of the wrong shape. Rigline cannot check any of
+it for you: it does not know your schema, and it deliberately passes an unknown key through rather
+than dropping it, so a newer version of your plugin keeps its settings under an older Rigline.
+Read defensively and fall back to your own default.
+
+### Saving from the panel
+
+`SaveSettings` wraps whatever you draw in the link a save travels on. One real click both does the
+thing and saves the settings that doing it produced.
+
+```tsx
+import { definePlugin, store } from "@rigline/plugin-api";
+import { Pill, SaveSettings, useStore } from "@rigline/plugin-api/ui";
+
+export default definePlugin({
+  setup(ctx) {
+    const starred = store(ctx.settings.favourites ?? []);
+    ctx.element("star", () => {
+      const favourites = useStore(starred);
+      return (
+        <SaveSettings value={{ favourites: [...favourites, "opus"] }} title="Star Opus">
+          <Pill>*</Pill>
+        </SaveSettings>
+      );
+    });
+  },
+});
+```
+
+`value` is the **whole** of your section as the click would leave it, not a patch: a key you leave
+out is deleted. Comments on the keys you did not change survive, as they do for every other command
+that edits that file.
+
+Three things about it are worth knowing before you design around it.
+
+- **It has to be a click, and the component has to be the thing clicked.** A save travels to
+  Rigline's companion extension as a link, and only a click a person made reaches the editor's
+  handler — one your code dispatches does not, by design. So you cannot save as a side effect of
+  something else happening, on a timer, or when a message arrives. Put the component around the
+  control: the star *is* the link.
+- **The section is Rigline's to decide, not yours.** You do not name it; the host stamps your own.
+  There is a `section` prop for the writer that is allowed to name one, and today it refuses
+  anything but your own name.
+- **A save is not always possible, and the component says so.** Without the companion extension,
+  without a token, or with a section larger than a link can carry, it renders your children with
+  no link and the reason as their tooltip. The last one matters if you keep bulk data in settings:
+  the limit on what `install` will load is far higher than the limit on what the panel can save
+  back, so you can read more than you can write from here.
+
+Nothing confirms instantly. The write goes through the companion and the engine, and Rigline shows
+its own notification; your snapshot does not change until the panel reloads. Draw from your own
+store, as above, rather than from `ctx.settings`, or the control will not move when it is clicked.
 
 ## Say when you are working: `ctx.check`
 
