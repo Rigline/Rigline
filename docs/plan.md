@@ -422,7 +422,13 @@ what a plugin is written against.
   coexist until the reload the companion offers, and that window is narrow enough that a mismatch
   costs nothing worth building for (CLAUDE.md, *transient version skew*). It stays a hint that
   shortens the wait and is never relied on, as the companion's `extensions.onDidChange` is, so the
-  look-on-focus remains the backstop. No plugin capability comes with it: only room for one. Two things it does not reach: the sidebar, which is a different
+  look-on-focus remains the backstop. Posting on the save rather than after the write confirms puts
+  the broadcast ahead of the file, so **a value applied from a broadcast is optimistic and expires**:
+  while it is unexpired a read finding the file still at the pre-broadcast baseline is ignored, since
+  that is the write not having landed rather than divergence, while a read finding anything else wins.
+  A second post when the save settles ends it early and is the common case; expiry is the backstop
+  for a saver whose window closed mid-save, at `CONFIRM_FOR_MS` plus a random spread so panels do not
+  all resume trusting the file at once. No plugin capability comes with it: only room for one. Two things it does not reach: the sidebar, which is a different
   viewType and so a different origin, and any edit made outside a panel, since the engine is not in a
   webview. **Whether it crosses webviews at all is a live-panel question** — the harness is one page
   on one origin, so a test there would pass and prove nothing. It would also make `ctx.onSettings`
