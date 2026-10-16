@@ -324,10 +324,16 @@ interface RiglineBridge {
     };
     /**
      * Send a request of the host's own on `channelId`, and resolve with its reply's payload, or
-     * null if none comes. Which types may be asked is post.ts's list (D120); this side owns only
-     * that the request is not tapped and its reply never reaches a tap.
+     * null if none comes. Which types may be asked, and which fields each may carry, is post.ts's
+     * list (D120); this side owns only that the request is not tapped and its reply never reaches
+     * a tap. `fields` is spread into the request beside its type, so a caller composing one is
+     * composing the whole payload and nothing here bounds it.
      */
-    ask(channelId: string, type: string): Promise<unknown>;
+    ask(
+      channelId: string,
+      type: string,
+      fields?: Readonly<Record<string, unknown>>,
+    ): Promise<unknown>;
   };
   /**
    * What React tells us, through the devtools hook installed below.
@@ -854,7 +860,7 @@ try {
           return outboundByType.get(type) ?? 0;
         },
       },
-      ask(channelId, type) {
+      ask(channelId, type, fields) {
         const post = realPost;
         if (!post) return Promise.resolve(null);
         if (asks.size >= ASK_LIMIT) {
@@ -876,7 +882,7 @@ try {
           // the extension ahead of the launch.
           queueMicrotask(() => {
             try {
-              post({ type: "request", channelId, requestId, request: { type } });
+              post({ type: "request", channelId, requestId, request: { type, ...fields } });
             } catch (e) {
               bridge.diagnostics.errors.push(
                 `ask:${type}:${e instanceof Error ? e.message : String(e)}`,

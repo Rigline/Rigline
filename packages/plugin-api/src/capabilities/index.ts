@@ -12,6 +12,7 @@ import {
   costContract,
   limitsContract,
   menuContract,
+  modelChoiceContract,
   modelsContract,
   mountContract,
   sessionContract,
@@ -36,6 +37,7 @@ export const CONTRACTS: readonly CapabilityContract[] = [
   costContract,
   limitsContract,
   modelsContract,
+  modelChoiceContract,
   // Each contract is typed to its own key; the registry erases that once, here, and every walk
   // over it re-narrows by `contract.key`.
 ];

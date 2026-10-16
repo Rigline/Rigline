@@ -134,6 +134,7 @@ the whole plugin. Resolve an optional name through `ctx.optional.anchor()`, whic
 | `cost` | `ctx.onSessionCost` — what the session has cost, by Claude Code's estimate, and whether it is billed per token |
 | `limits` | `ctx.onUsageLimits` — how much of the plan's five-hour and weekly limits is used, and when each resets |
 | `models` | `ctx.onModelState` — which models this install offers, and which model and effort are live |
+| `modelChoice` | `ctx.applyChoice` — change the model and effort, on an event a person caused |
 
 Calling one you did not declare throws and disables the plugin. That is deliberate: a declaration
 you can forget is a declaration the install cannot check. `rigline install` scans your built source

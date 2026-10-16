@@ -72,8 +72,18 @@ export {
   nextReset,
   UNKNOWN_LIMITS,
 } from "./limits.ts";
-export type { ClaudeConfig, Configs, ModelEntry, ModelState } from "./models.ts";
+export type {
+  AppliedChoice,
+  ChoiceResult,
+  ClaudeConfig,
+  Configs,
+  ModelChoice,
+  ModelEntry,
+  ModelState,
+} from "./models.ts";
 export {
+  appliedModelOf,
+  choiceProblem,
   configsAfterReply,
   configsAfterState,
   currentModel,
@@ -85,6 +95,7 @@ export {
   NO_CONFIGS,
   NO_MODEL_STATE,
   sameModelState,
+  setModelField,
   settingOf,
   supportsEffort,
   unavailableOf,

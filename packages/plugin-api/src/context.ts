@@ -15,7 +15,7 @@ import type { CheckVerdict } from "./checks.ts";
 import type { SessionCost } from "./cost.ts";
 import type { MessageType, ModuleClasses, ModuleId, OutboundFields } from "./identifiers.ts";
 import type { UsageLimits } from "./limits.ts";
-import type { ModelState } from "./models.ts";
+import type { ChoiceResult, ModelChoice, ModelState } from "./models.ts";
 import type { ToolResult, ToolUse } from "./stream.ts";
 import type { TranscriptEntry } from "./transcript.ts";
 import type { ContextUsage } from "./usage.ts";
@@ -260,6 +260,21 @@ export interface PluginContext {
    * (D120 as amended). Requires `uses.models`.
    */
   onModelState: (handler: (state: ModelState) => void) => Teardown;
+
+  /**
+   * Change the model, and the effort or thinking level that goes with it, through the channel the
+   * panel's own pickers use.
+   *
+   * **Hand it the event from whatever the person did.** A choice applies only on an event the
+   * browser made — a real click, a real keypress — so there is no writing on a timer, from a tap,
+   * or at load. The host validates the choice against the live list and composes every payload, so
+   * a plugin names a model and an effort and never a message or a settings key. Resolves with what
+   * was applied, or with the reason it was not. Requires `uses.modelChoice`.
+   */
+  applyChoice: (
+    choice: ModelChoice,
+    event: { readonly isTrusted: boolean },
+  ) => Promise<ChoiceResult>;
 
   /**
    * Draw on every transcript entry. `build` runs once per entry whenever the entry list changes

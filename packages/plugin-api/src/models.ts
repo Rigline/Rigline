@@ -240,3 +240,81 @@ function sameEntry(a: ModelEntry, b: ModelEntry | undefined): boolean {
     a.supportedEffortLevels.every((level, i) => level === b.supportedEffortLevels[i])
   );
 }
+
+/**
+ * What a favourite is: a model, and the effort or thinking level that goes with it (D120 as
+ * amended).
+ *
+ * **The field set is closed here and nowhere else.** `apply_settings` reaches six keys of Claude
+ * Code's own `WEBVIEW_WRITABLE_SETTINGS`, so a bag a plugin could add a key to would be a pipe into
+ * all six; enumerating them is what makes the combination the vetted unit rather than the transport.
+ * Every field is optional, and one omitted is left alone.
+ */
+export interface ModelChoice {
+  /** A model's `value` from the live list. `"default"` is one of them where the install offers it. */
+  readonly model?: string;
+  /** One of that model's `supportedEffortLevels`. Only for a model whose `supportsEffort` is true. */
+  readonly effort?: string;
+  /** The other mechanism, for a model whose `supportsEffort` is false. Never both. */
+  readonly thinkingLevel?: string;
+  readonly ultracode?: boolean;
+}
+
+/** What a choice turned out to be, as far as the panel could tell. */
+export interface AppliedChoice {
+  /**
+   * What `set_model_response` said was applied, or null where it said nothing — the reply omits
+   * `applied` when the write returned nothing, so not knowing is a real answer and not a failure.
+   */
+  readonly model: string | null;
+  readonly effort: string | null;
+  readonly thinkingLevel: string | null;
+  readonly ultracode: boolean | null;
+}
+
+/** A choice applied, or why it was not. A caller that cannot tell the two apart is P5's mistake. */
+export type ChoiceResult = { readonly applied: AppliedChoice } | { readonly refused: string };
+
+/**
+ * Why `choice` cannot be applied against `state`, or null.
+ *
+ * Validated against the live list and never a table of ours: a favourite pairing a model with an
+ * effort it does not support is incoherent, and a model's supported set moves under it as models are
+ * released. Which is also why this takes the state rather than caching anything.
+ */
+export function choiceProblem(state: ModelState, choice: ModelChoice): string | null {
+  const keys = Object.keys(choice);
+  if (keys.length === 0) return "a choice has to name something";
+  if (choice.effort !== undefined && choice.thinkingLevel !== undefined) {
+    return "a choice carries an effort or a thinking level, never both";
+  }
+  // The model the rest of the choice is judged against: the one being set, else the live one.
+  const target =
+    choice.model === undefined ? state.current : currentModel(state.models, choice.model);
+  if (choice.model !== undefined && target === null) {
+    return `this install does not offer the model "${choice.model}"`;
+  }
+  if (choice.effort !== undefined) {
+    if (target === null) return "no model is live, so there is nothing an effort applies to";
+    if (!target.supportsEffort) return `${target.value} does not take an effort level`;
+    if (!target.supportedEffortLevels.includes(choice.effort)) {
+      return `${target.value} does not take the effort "${choice.effort}"`;
+    }
+  }
+  if (choice.thinkingLevel !== undefined && target !== null && target.supportsEffort) {
+    return `${target.value} takes an effort level rather than a thinking level`;
+  }
+  return null;
+}
+
+/** The `model` field `set_model` requires: an object whose `value` is a string. */
+export function setModelField(model: string): { readonly value: string } {
+  return { value: model };
+}
+
+/** The `applied` a `set_model_response` carries, or null where it carried none. */
+export function appliedModelOf(reply: unknown): string | null {
+  const record = reply as { readonly applied?: unknown } | null;
+  const applied = typeof record === "object" && record !== null ? record.applied : undefined;
+  return typeof applied === "string" && applied !== "" ? applied : null;
+}

@@ -51,6 +51,12 @@ export const REPLY_TABLE: Readonly<Record<string, Readonly<Record<string, unknow
   webview_focused: { type: "webview_focused_response" },
   get_mcp_servers: { type: "get_mcp_servers_response", mcpServers: [] },
   rename_tab: { type: "rename_tab_response" },
+  // What the host sends for a model choice (D120). `applied` is the concrete id the alias
+  // resolved to, as the real reply carries it; the real one omits it when the write returned
+  // nothing, which the derivation reads as not knowing.
+  set_model: { type: "set_model_response", applied: "claude-opus-5" },
+  apply_settings: { type: "apply_settings_response" },
+  set_thinking_level: { type: "set_thinking_level_response" },
   // What the host asks for the context meter (D121): 15% of the way to auto-compact.
   get_context_usage: {
     type: "get_context_usage_response",

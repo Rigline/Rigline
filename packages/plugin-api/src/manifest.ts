@@ -114,6 +114,7 @@ export const EMPTY_DECLARATIONS: Declarations = Object.freeze({
   cost: false,
   limits: false,
   models: false,
+  modelChoice: false,
 });
 
 export const EMPTY_USES: Uses = Object.freeze({

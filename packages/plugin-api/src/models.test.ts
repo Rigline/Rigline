@@ -4,6 +4,8 @@
  */
 import { describe, expect, it } from "vitest";
 import {
+  appliedModelOf,
+  choiceProblem,
   configsAfterReply,
   configsAfterState,
   currentModel,
@@ -15,6 +17,7 @@ import {
   modelsOf,
   NO_CONFIGS,
   sameModelState,
+  setModelField,
   settingOf,
   supportsEffort,
   unavailableOf,
@@ -197,5 +200,79 @@ describe("sameModelState", () => {
     expect(
       sameModelState(base, modelStateOf({ live: moved, stored: undefined }, "opus", "high")),
     ).toBe(false);
+  });
+});
+
+describe("choiceProblem", () => {
+  const state = modelStateOf({ live: config, stored: undefined }, "opus", "high");
+
+  it("accepts a model the install offers, with an effort it takes", () => {
+    expect(choiceProblem(state, { model: "opus", effort: "medium" })).toBeNull();
+  });
+
+  it("refuses a model the install does not offer, by name", () => {
+    expect(choiceProblem(state, { model: "gone" })).toMatch(/does not offer the model "gone"/);
+  });
+
+  it("refuses an effort the named model does not take", () => {
+    // Validated against the live list, never a table of ours: `opus` lists medium and high here.
+    expect(choiceProblem(state, { model: "opus", effort: "low" })).toMatch(/the effort "low"/);
+  });
+
+  it("judges the effort against the model being set, not the one that is live", () => {
+    // `haiku` takes no effort, so pairing it with one is incoherent even though `opus` is live.
+    expect(choiceProblem(state, { model: "haiku", effort: "high" })).toMatch(
+      /does not take an effort level/,
+    );
+  });
+
+  it("judges an effort alone against the live model", () => {
+    expect(choiceProblem(state, { effort: "medium" })).toBeNull();
+    const onHaiku = modelStateOf({ live: config, stored: undefined }, "haiku", null);
+    expect(choiceProblem(onHaiku, { effort: "medium" })).toMatch(/does not take an effort/);
+  });
+
+  it("refuses an effort with no model live to apply it to", () => {
+    const nothing = modelStateOf({ live: config, stored: undefined }, "gone", null);
+    expect(choiceProblem(nothing, { effort: "high" })).toMatch(/no model is live/);
+  });
+
+  it("refuses an effort and a thinking level together, which are the two mechanisms", () => {
+    expect(choiceProblem(state, { effort: "high", thinkingLevel: "deep" })).toMatch(/never both/);
+  });
+
+  it("refuses a thinking level for a model that takes an effort instead", () => {
+    expect(choiceProblem(state, { model: "opus", thinkingLevel: "deep" })).toMatch(
+      /takes an effort level rather than/,
+    );
+  });
+
+  it("accepts a thinking level for a model that takes no effort", () => {
+    expect(choiceProblem(state, { model: "haiku", thinkingLevel: "deep" })).toBeNull();
+  });
+
+  it("refuses a choice that names nothing", () => {
+    expect(choiceProblem(state, {})).toMatch(/has to name something/);
+  });
+
+  it("accepts ultracode on its own, which is a flag and not a model property", () => {
+    expect(choiceProblem(state, { ultracode: true })).toBeNull();
+  });
+});
+
+describe("what set_model needs and answers", () => {
+  it("wraps the model as the object the extension requires", () => {
+    // `setModel` throws `set_model: malformed request` unless `model.value` is a string.
+    expect(setModelField("opus")).toEqual({ value: "opus" });
+    expect(setModelField("default")).toEqual({ value: "default" });
+  });
+
+  it("reads `applied` off the reply, and treats its absence as not knowing", () => {
+    expect(appliedModelOf({ type: "set_model_response", applied: "claude-opus-5" })).toBe(
+      "claude-opus-5",
+    );
+    // The reply omits `applied` when the write returned nothing, which is a real answer.
+    expect(appliedModelOf({ type: "set_model_response" })).toBeNull();
+    expect(appliedModelOf(null)).toBeNull();
   });
 });

@@ -111,3 +111,20 @@ export const modelsContract = switchContract({
   anchors: [],
   summary: "reads which models this install offers, and which model and effort are live",
 });
+
+/**
+ * Changing the model and the effort that goes with it, through the channel the panel's own pickers
+ * use (D120 as amended).
+ *
+ * The summary is the audit surface: the line somebody reads in `rigline list` to know this plugin
+ * can change their model, so it says so plainly rather than describing the mechanism. Both request
+ * types are named here and not by the plugin, so a version renaming either refuses the plugin
+ * rather than letting it misfire (P2).
+ */
+export const modelChoiceContract = switchContract({
+  key: "modelChoice",
+  grants: ["applyChoice"],
+  messages: ["set_model", "apply_settings"],
+  anchors: [],
+  summary: "can change which model and effort Claude Code uses, when you click something",
+});

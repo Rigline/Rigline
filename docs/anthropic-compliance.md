@@ -67,16 +67,34 @@ it can declare a patch to `extension.js`: the same plugin's flips one flag in ho
 sessions for the panel, so sessions in a git worktree are listed too — a listing the extension
 already makes, from the session files on the user's disk, and already uses elsewhere.
 
-Rigline can also ask Claude Code for something on a plugin's behalf, over the channel the panel
-already uses to ask it: only what the panel itself asks for, only to read, and only from a list in
-Rigline's own code. At the time of writing the list holds one thing, the breakdown of the context
+Rigline can also speak to Claude Code on a plugin's behalf, over the channel the panel already uses
+to speak to it. The rule is the same for reading and for changing something: **Rigline goes no
+further than the panel itself does.** It asks for what the panel asks for, it changes only what the
+panel offers the person to change, it does so on that person's own action, and every request comes
+from a list in Rigline's own code rather than from a plugin. A plugin names what it wants in
+Rigline's terms; Rigline composes the message. No plugin can send one of its own.
+
+At the time of writing the list holds two things. Reading, there is the breakdown of the context
 that the panel's `/context` dialog asks for, which tells a plugin how full a session is before its
-first turn. Rigline asks for it only while a plugin uses it, when a session starts, after a
-compaction and when the model changes, and never on a timer. The request stops at Claude Code;
-Rigline calls no endpoint itself. Claude Code answers it as it answers `/context`, which can mean
-counting tokens with Anthropic's token-counting endpoint, using the person's own credentials. What
-Claude Code sends while answering is the only thing a request of Rigline's can lead to leaving the
-machine.
+first turn; Rigline asks for it only while a plugin uses it, when a session starts, after a
+compaction and when the model changes, and never on a timer. Changing, there is the model and the
+effort that goes with it — the same two choices the panel's own pickers offer, applied the same way
+they apply them, so Claude Code writes the person's settings exactly as it does when they use a
+picker. A plugin can offer that as a shortcut, and it takes effect only on a real click or
+keypress: an event the browser itself produced, which code cannot manufacture. Nothing applies on a
+timer, from watching traffic, or while a plugin loads.
+
+Two things bound that, and both are checkable rather than promised. Rigline's own code enumerates
+every field such a request may carry, and validates a model and an effort against the list the
+panel is holding, so a combination Claude Code is not offering cannot be sent. And Claude Code
+validates the write again at its own end: its settings channel accepts a short, fixed set of keys,
+each with its own value check, and refuses anything else by name. The write surface is therefore
+bounded by Anthropic's code as well as by ours.
+
+The request stops at Claude Code; Rigline calls no endpoint itself. Claude Code answers a context
+ask as it answers `/context`, which can mean counting tokens with Anthropic's token-counting
+endpoint, using the person's own credentials. What Claude Code sends while answering is the only
+thing a request of Rigline's can lead to leaving the machine.
 
 ## What Rigline does not do
 
@@ -95,19 +113,23 @@ with Anthropic. Rigline is not a harness and does not host one.
 open a socket, or contact any server, Anthropic's or ours. This one is stronger than a claim about
 our own code: the webview's CSP is `default-src 'none'` with no `connect-src`, so nothing running in
 the panel can make a request of its own — ours, a plugin's, or anybody's. There is no telemetry and no analytics,
-because there is no mechanism by which there could be. Rigline can ask Claude Code, over the
-panel's channel, for what the panel itself asks for; what Claude Code sends while answering is set
-out above.
+because there is no mechanism by which there could be. Rigline can speak to Claude Code over the
+panel's channel, within the rule set out above; what Claude Code sends while answering is set out
+there too.
 
 **It does not redistribute Claude Code.** Rigline ships no Anthropic code, no bundle, no fragment of
 one. It is installed alongside an extension the user obtained from the Marketplace themselves, and
 it is inert without it.
 
 **It does not remove, disable or restrict any authentication method**, degrade any feature, alter
-any model behaviour, or change any request the extension sends off the machine or what comes back
-to it. Asking Claude Code, above, changes no request: it answers Rigline as it answers the panel. What passes between the panel and the extension on the machine, a plugin
-may change, in the two ways above, and that is the line: the panel and the extension are the user's to arrange between
-themselves; what reaches Anthropic is not ours to touch.
+how any model behaves, or change a request on its way off the machine or a reply on its way back.
+Nothing Rigline does reaches into a request in flight. Choosing a model is the one thing that
+changes what a later request names, and it is the person's own choice made through the panel's own
+channel, with the same effect as using the picker: the choice is theirs, the mechanism is Claude
+Code's, and what it then sends is unchanged by us. What passes between the panel and the extension
+on the machine, a plugin may change, in the ways above, and that is the line: the panel and the
+extension are the user's to arrange between themselves; what reaches Anthropic is not ours to
+touch.
 
 **It does not disguise itself.** Rigline announces what it has modified, reports drift after every
 extension update, and ships a diagnostics panel whose entire purpose is to say out loud when

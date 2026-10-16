@@ -152,6 +152,10 @@
           "type": "boolean",
           "description": "reads which models this install offers, and which model and effort are live"
         },
+        "modelChoice": {
+          "type": "boolean",
+          "description": "can change which model and effort Claude Code uses, when you click something"
+        },
         "optional": {
           "title": "uses.optional",
           "description": "The same keys, for what this plugin can do without. A missing one is reported and costs the plugin that decoration; it never refuses the plugin.",
@@ -257,6 +261,10 @@
             "models": {
               "type": "boolean",
               "description": "reads which models this install offers, and which model and effort are live"
+            },
+            "modelChoice": {
+              "type": "boolean",
+              "description": "can change which model and effort Claude Code uses, when you click something"
             }
           }
         }

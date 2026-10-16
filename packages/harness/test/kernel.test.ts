@@ -50,6 +50,18 @@ interface GestureWindow {
   };
 }
 
+interface ChoiceWindow {
+  readonly __harness?: { readonly push: (message: unknown) => void };
+  readonly __choice?: {
+    /** Read in `setup`, before anything has been clicked. */
+    readonly activeAtSetup: boolean | null;
+    readonly forgeThrew: boolean;
+    readonly forgedReads: boolean | null;
+    readonly synthetic: string | null;
+    readonly clicked: string | null;
+  };
+}
+
 interface ModelsWindow {
   readonly __harness?: { readonly push: (message: unknown) => void };
   readonly __models?: {
@@ -2189,6 +2201,109 @@ export default { setup(ctx) {
 
         const d = await booted.diagnostics();
         expect(d.plugins).toContainEqual({ name: "watcher", status: "loaded" });
+        expect(d.errors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
+
+    it("applies a choice only on an event a person caused (D120)", async () => {
+      const chooser: FixturePlugin = {
+        name: "chooser",
+        manifest: {
+          uses: { models: true, modelChoice: true },
+          elements: { go: { title: "Go", placements: ["rigRow"], default: "rigRow" } },
+        },
+        source: `import { jsx } from "react/jsx-runtime";
+export default { setup(ctx) {
+    const activation = navigator.userActivation;
+    window.__choice = {
+      activeAtSetup: activation ? activation.isActive : null,
+      forgeThrew: false,
+      forgedReads: null,
+      synthetic: null,
+      clicked: null,
+    };
+    ctx.element("go", () => jsx("button", {
+      type: "button",
+      className: "harness-choice",
+      onClick: async (event) => {
+        const forged = event.nativeEvent ?? event;
+        try {
+          Object.defineProperty(forged, "isTrusted", { value: true });
+        } catch {
+          window.__choice = { ...window.__choice, forgeThrew: true };
+        }
+        window.__choice = { ...window.__choice, forgedReads: forged.isTrusted };
+        const made = await ctx.applyChoice({ model: "opus" }, new MouseEvent("click"));
+        window.__choice = { ...window.__choice, synthetic: JSON.stringify(made) };
+        const real = await ctx.applyChoice({ model: "opus", effort: "high" }, forged);
+        window.__choice = { ...window.__choice, clicked: JSON.stringify(real) };
+      },
+      children: "go",
+    }));
+  } };`,
+      };
+      const booted = await boot({ plugins: [chooser] });
+      const read = () => booted.page.evaluate(() => (window as unknown as ChoiceWindow).__choice);
+      try {
+        await booted.page.waitForSelector("button.harness-choice");
+
+        // `navigator.userActivation` is useless as a gesture check: it already reads active in
+        // `setup`, before anything has been clicked.
+        expect((await read())?.activeAtSetup).toBe(true);
+
+        // The model list, so the choice has something to validate against.
+        await booted.page.evaluate(
+          (m) => {
+            const harness = (window as unknown as ChoiceWindow).__harness;
+            if (!harness) throw new Error("harness missing");
+            harness.push(m);
+          },
+          {
+            type: "response",
+            requestId: "state-live",
+            response: {
+              type: "get_claude_state_response",
+              cached: false,
+              config: {
+                models: [
+                  {
+                    value: "opus",
+                    resolvedModel: "claude-opus-5",
+                    supportsEffort: true,
+                    supportedEffortLevels: ["medium", "high"],
+                  },
+                ],
+              },
+            },
+          },
+        );
+
+        // A real click from the browser, which is the only kind that counts.
+        await booted.page.click("button.harness-choice");
+        await vi.waitFor(async () => {
+          expect((await read())?.clicked).not.toBeNull();
+        });
+        const state = await read();
+
+        // `isTrusted` cannot be forged: Blink defines it on the instance as a non-configurable
+        // accessor, so the write throws and the value still reads true only because this *is* a
+        // real click. The throw is the fact worth pinning.
+        expect(state?.forgeThrew).toBe(true);
+
+        // A synthetic event is refused, whatever it carries.
+        expect(JSON.parse(state?.synthetic ?? "{}")).toEqual({
+          refused: expect.stringContaining("needs the event from something a person did"),
+        });
+
+        // The real one applies, and resolves with what the reply said rather than with void.
+        expect(JSON.parse(state?.clicked ?? "{}")).toEqual({
+          applied: { model: "claude-opus-5", effort: "high", thinkingLevel: null, ultracode: null },
+        });
+
+        const d = await booted.diagnostics();
+        expect(d.plugins).toContainEqual({ name: "chooser", status: "loaded" });
         expect(d.errors).toEqual([]);
       } finally {
         await booted.close();

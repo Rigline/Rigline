@@ -43,6 +43,8 @@ export interface Declarations {
   readonly limits: boolean;
   /** Whether the plugin follows which models this install offers through `ctx.onModelState()`. */
   readonly models: boolean;
+  /** Whether the plugin changes the model or effort through `ctx.applyChoice()`. */
+  readonly modelChoice: boolean;
 }
 
 /** Everything a plugin declared under `uses`: the required half, plus the optional half nested. */
@@ -105,7 +107,8 @@ export function booleanShape(value: unknown): string | null {
  * with `react`, to what react-dom must still have.
  */
 export function switchContract<
-  K extends "tools" | "session" | "transcript" | "context" | "cost" | "limits" | "models",
+  K extends
+    "tools" | "session" | "transcript" | "context" | "cost" | "limits" | "models" | "modelChoice",
 >(spec: {
   readonly key: K;
   readonly grants: readonly string[];

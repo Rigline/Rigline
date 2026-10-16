@@ -26,6 +26,14 @@ help: there is no clever way to reach something that is not there.
   patch is not code either. It is a declared byte substitution in `rigline.json` — `find`,
   `replace`, a mandatory `why`, the same byte length — applied by our installer against the pristine
   bundle.
+- **No changing Claude Code's own settings except through a curated verb, on a person's click.**
+  A plugin cannot send a message of its own, so the only way to change the model or the effort is
+  Rigline's own verb, which composes every payload itself: a plugin names a model and an effort
+  and never a message type, a settings key or a field. The verb takes the event behind the click
+  and applies nothing unless the browser itself produced it — an event your code made does not
+  count, and a timer or a message tap has none to offer. It also refuses a model this install is
+  not offering, and an effort the chosen model does not take, so a combination Claude Code would
+  not have shown cannot be sent.
 - **No settings but your own, and no save without a person.** `ctx.settings` hands you your own
   section and nothing else, and a save goes as a link to the companion extension, which only a
   click a person made reaches: one your code dispatches is cancelled before it navigates. So a

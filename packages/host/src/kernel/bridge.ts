@@ -120,8 +120,15 @@ export interface Bus {
     resend(type: string): boolean;
     outboundSeen(type: string): number;
   };
-  /** A request of the host's own, untapped; its reply's payload, or null (D120). */
-  ask(channelId: string, type: string): Promise<unknown>;
+  /**
+   * A request of the host's own, untapped; its reply's payload, or null (D120). `fields` is spread
+   * into the request, and what may go in it is the caller's to close.
+   */
+  ask(
+    channelId: string,
+    type: string,
+    fields?: Readonly<Record<string, unknown>>,
+  ): Promise<unknown>;
 }
 
 export interface ReactBridge {

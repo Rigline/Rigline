@@ -476,6 +476,28 @@ export function modelStateVerdict(
   return { verdict: "pass", detail: `${String(state.models.length)} models, live ${live}` };
 }
 
+/**
+ * Choices applied and refused, once some plugin here can apply one.
+ *
+ * A refusal is not a failure: an incoherent favourite and an untrusted event both land here, and
+ * both are the check doing its job. Reported because a plugin whose every choice is refused looks
+ * exactly like one nobody has clicked.
+ */
+export function modelChoiceVerdict(
+  used: boolean,
+  stats: { readonly applied: number; readonly refused: number },
+): CheckVerdict {
+  if (!used) return { verdict: "n/a", detail: "no plugin here can change the model" };
+  if (stats.applied === 0 && stats.refused === 0) {
+    return { verdict: "n/a", detail: "none asked for yet" };
+  }
+  const refusals = stats.refused === 0 ? "" : `, ${String(stats.refused)} refused`;
+  return {
+    verdict: stats.applied > 0 ? "pass" : "n/a",
+    detail: `${String(stats.applied)} applied${refusals}`,
+  };
+}
+
 /** A session id has arrived, once some plugin on this surface is following one. */
 export function sessionIdVerdict(used: boolean, id: string | null): CheckVerdict {
   if (!used) return { verdict: "n/a", detail: "no plugin here follows the session" };

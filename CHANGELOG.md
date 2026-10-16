@@ -13,6 +13,14 @@ hole, or raises the Node or VS Code it needs, its entry says so.
 
 ### Added
 
+- `uses.modelChoice`, so a plugin can offer a one-click shortcut for a model and the effort that
+  goes with it — the same two choices the panel's own pickers offer, applied the same way.
+  - Only on a real click or keypress. An event a plugin makes itself does not count, so nothing
+    changes your model on a timer or in the background.
+  - A plugin names a model and an effort; Rigline builds the message. A combination your install
+    is not offering is refused rather than sent.
+  - `rigline list` says plainly that a plugin declaring this can change which model Claude Code
+    uses.
 - `uses.models`, so a plugin can read which models your install offers and which model and effort
   are live. The list is your own install's, so enterprise and non-Anthropic models arrive with it
   and nothing has to be typed in by hand.
