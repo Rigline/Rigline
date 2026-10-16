@@ -344,7 +344,11 @@ and these reproduce the cases on demand:
 
 - **The webview telling the companion it is patched.** The payload's `postMessage` reaches Claude
   Code's host code, not ours. A link reaches the companion only when a person clicks it (D93), so
-  nothing can tell the companion anything unprompted.
+  nothing can tell the companion anything unprompted. Nor through a VS Code command: the webview has
+  no `vscode` API at all and the engine is a child process, so nothing of ours runs in an extension
+  host to call one. `c:devknowledgescode-extension-internals.md` has what `executeCommand`
+  does between extensions, and why the panel reaching the companion would hand every plugin the
+  same channel.
 - **Asking which directory is running.** `extensions.all` describes what is installed; the
   `start`/`moved` split is what answers the question instead.
 - **Embedding the engine in the VSIX** (D80), and **`ELECTRON_RUN_AS_NODE`** (above).
