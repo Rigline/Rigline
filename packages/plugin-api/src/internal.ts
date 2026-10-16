@@ -87,6 +87,7 @@ export { isApplicable, MAX_BAKED_PRESET_BYTES, MAX_BAKED_PRESETS } from "./prese
 export type { RuntimeSpecifier } from "./runtime.ts";
 export { isRuntimeSpecifier, RUNTIME_MODULES } from "./runtime.ts";
 export type { SavePayload, SaveRecord, SettingsPayload, SettingsSave } from "./save.ts";
+export { COMPANION } from "./save.ts";
 export {
   decodeSavePayload,
   decodeSettingsPayload,

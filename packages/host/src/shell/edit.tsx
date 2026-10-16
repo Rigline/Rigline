@@ -20,7 +20,7 @@ import {
   type ViewPlace,
 } from "@rigline/plugin-api/internal";
 import { copyText, useStore } from "@rigline/plugin-api/ui";
-import { type MenuEntry, MenuPanel } from "@rigline/plugin-api/ui/internal";
+import { type MenuEntry, MenuPanel, NO_SAVER } from "@rigline/plugin-api/ui/internal";
 import {
   type CSSProperties,
   Fragment,
@@ -867,7 +867,7 @@ export function EditLayer(props: EditLayerProps): ReactNode {
           anchor: e.currentTarget,
           // A click the keyboard made has no pointer detail, and opens onto the first move.
           focus: e.detail === 0 ? "first" : "menu",
-          entries: [{ key: 0, owner: "rigline", component, onError }],
+          entries: [{ key: 0, owner: "rigline", component, onError, saver: NO_SAVER }],
         });
       },
     };

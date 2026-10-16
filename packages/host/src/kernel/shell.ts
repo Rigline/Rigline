@@ -33,6 +33,7 @@ import {
   ZONES,
   type ZoneName,
 } from "@rigline/plugin-api/internal";
+import type { SettingsSaver } from "@rigline/plugin-api/ui/internal";
 import type {
   Contribution,
   PanelPlace,
@@ -127,6 +128,7 @@ export function createShellService(
   mounts: MountService,
   checks: CheckService,
   diagnostics: Diagnostics,
+  saver: (plugin: string) => SettingsSaver,
   fail: (reason: string) => void,
 ): ShellService {
   const pill = document.createElement("span");
@@ -404,6 +406,7 @@ export function createShellService(
       title: spec.title,
       component,
       onError,
+      saver: saver(owner),
       target,
       targetKey,
       order: rank,
@@ -452,7 +455,7 @@ export function createShellService(
 
   return {
     contribute(owner, order, component, onError) {
-      const entry = { key: next++, owner, order, component, onError };
+      const entry = { key: next++, owner, order, component, onError, saver: saver(owner) };
       entries.push(entry);
       publish();
       return () => {

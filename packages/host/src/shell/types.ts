@@ -3,6 +3,7 @@
  * it, so the shell shares React and `@rigline/plugin-api/ui` with the plugins it renders (D88).
  */
 import type { ElementComponent, MenuComponent, Store, Surface } from "@rigline/plugin-api/internal";
+import type { SettingsSaver } from "@rigline/plugin-api/ui/internal";
 import type { Diagnostics } from "../kernel/bridge.ts";
 import type { CheckGroup } from "../kernel/checks.ts";
 import type { LayoutEditor } from "../kernel/layout.ts";
@@ -15,6 +16,8 @@ export interface Contribution {
   readonly component: MenuComponent;
   /** The owning plugin's error path: a render throw disables that plugin. */
   readonly onError: (reason: string) => void;
+  /** Its settings saver, stamped with `owner`, which a `SaveSettings` inside it reads (D138). */
+  readonly saver: SettingsSaver;
 }
 
 /** An element with somewhere to render (D90). */
@@ -26,6 +29,8 @@ export interface PlacedElement {
   readonly title: string;
   readonly component: ElementComponent;
   readonly onError: (reason: string) => void;
+  /** Its settings saver, stamped with `owner`, which a `SaveSettings` inside it reads (D138). */
+  readonly saver: SettingsSaver;
   /** The node it portals into: its own slot, or a zone it shares, in order. */
   readonly target: Element;
   /** React's key for the portal into `target`, the same for every element sharing it. */

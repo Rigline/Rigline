@@ -23,6 +23,7 @@ import {
 import { createPortal } from "react-dom";
 import type { MenuComponent } from "../context.ts";
 import { FaultContext, message } from "./fault.ts";
+import { SettingsContext, type SettingsSaver } from "./settings.tsx";
 
 /** Colours are the app's own tokens, each falling back to the theme variable the app aliases it to. */
 export const MENU_CSS = `
@@ -173,6 +174,8 @@ export interface MenuEntry {
   readonly component: MenuComponent;
   /** The owning plugin's error path. */
   readonly onError: (reason: string) => void;
+  /** Its settings saver, stamped with `owner`, which a `SaveSettings` inside it reads (D138). */
+  readonly saver: SettingsSaver;
 }
 
 export interface MenuPanelProps {
@@ -459,9 +462,11 @@ class Boundary extends Component<{ readonly entry: MenuEntry }, { readonly faile
     if (this.state.failed) return null;
     const Contributed = this.props.entry.component as () => ReactNode;
     return (
-      <FaultContext.Provider value={this.props.entry.onError}>
-        <Contributed />
-      </FaultContext.Provider>
+      <SettingsContext.Provider value={this.props.entry.saver}>
+        <FaultContext.Provider value={this.props.entry.onError}>
+          <Contributed />
+        </FaultContext.Provider>
+      </SettingsContext.Provider>
     );
   }
 }

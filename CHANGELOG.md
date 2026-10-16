@@ -19,6 +19,10 @@ hole, or raises the Node or VS Code it needs, its entry says so.
   - A key Rigline does not understand is kept and passed through, so a newer plugin's setting
     survives an older Rigline and a hand edit is never quietly dropped.
   - Settings for a plugin you have switched off stay in the file and come back with it.
+  - A plugin can offer to save its own settings back, through the Rigline companion: one click on
+    whatever the plugin draws writes its own section and leaves the rest of the file alone,
+    comments included. Only its own section, and only a real click — nothing a plugin does by
+    itself can write the file.
 
 ### Changed
 

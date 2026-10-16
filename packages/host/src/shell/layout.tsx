@@ -3,6 +3,7 @@
  * make, Save, and Reload. Every move keeps the menu open, and the panel behind it is the preview.
  */
 import {
+  COMPANION,
   encodeSavePayload,
   type Layout,
   layoutCommands,
@@ -30,9 +31,6 @@ import { Fragment, type ReactNode, useEffect, useState } from "react";
 import type { LayoutEditor, SaveState } from "../kernel/layout.ts";
 import type { ElementReading } from "../kernel/shell.ts";
 import type { PanelPlace } from "./types.ts";
-
-/** The companion's id, which a Save link names as its authority. */
-const COMPANION = "rigline.rigline";
 
 export const SAVE_NOTES: Record<Exclude<SaveState, "idle">, string> = {
   saving: "Saving through the Rigline companion…",

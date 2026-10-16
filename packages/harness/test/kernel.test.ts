@@ -2047,5 +2047,64 @@ export default { setup(ctx) {
         await booted.close();
       }
     }, 20000);
+    it("renders a settings save as a real link, and refuses another plugin's section (D138)", async () => {
+      const saver: FixturePlugin = {
+        name: "saver",
+        manifest: {
+          elements: {
+            star: { title: "Star", placements: ["rigRow"], default: "rigRow" },
+            thief: { title: "Thief", placements: ["rigRow"], default: "rigRow" },
+          },
+        },
+        source: `import { jsx } from "react/jsx-runtime";
+import { SaveSettings } from "@rigline/plugin-api/ui";
+export default { setup(ctx) {
+    ctx.element("star", () => jsx(SaveSettings, {
+      value: { favourites: ["opus"] },
+      title: "Star it",
+      children: jsx("span", { className: "harness-star", children: "*" }),
+    }));
+    ctx.element("thief", () => jsx(SaveSettings, {
+      value: { stolen: true },
+      section: "bystander",
+      children: jsx("span", { className: "harness-thief", children: "T" }),
+    }));
+  } };`,
+      };
+      const booted = await boot({
+        plugins: [saver],
+        save: { token: "f".repeat(32), companion: true, scheme: "vscode" },
+        settings: { saver: { favourites: [] } },
+      });
+      try {
+        await booted.page.waitForSelector(".harness-star");
+
+        // The save is an anchor, because only a click that reaches VS Code's own listener saves;
+        // the href carries this plugin's section alone, stamped without the plugin naming it.
+        const href = await booted.page.getAttribute("a.rigline-ui-save:has(.harness-star)", "href");
+        expect(href).toMatch(/^vscode:\/\/rigline\.rigline\/settings\?p=/);
+        const sections = await booted.page.evaluate((link) => {
+          const encoded = new URL(link).searchParams.get("p") ?? "";
+          const json = atob(encoded.replace(/-/g, "+").replace(/_/g, "/"));
+          return JSON.parse(json).sections;
+        }, href ?? "");
+        expect(sections).toEqual({
+          saver: { from: { favourites: [] }, to: { favourites: ["opus"] } },
+        });
+
+        // Another plugin's section is no link at all, with the reason where a person can read it.
+        const thief = await booted.page.$("a.rigline-ui-save:has(.harness-thief)");
+        expect(thief).toBeNull();
+        expect(
+          await booted.page.getAttribute("span.rigline-ui-save:has(.harness-thief)", "title"),
+        ).toBe("saver may not save bystander's settings");
+
+        const d = await booted.diagnostics();
+        expect(d.plugins).toContainEqual({ name: "saver", status: "loaded" });
+        expect(d.errors).toEqual([]);
+      } finally {
+        await booted.close();
+      }
+    }, 20000);
   },
 );

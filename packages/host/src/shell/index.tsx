@@ -8,7 +8,15 @@
  * pill: the pill is a child of the composer footer, which re-measures on any mutation inside it (D54).
  */
 import { Pill, useStore } from "@rigline/plugin-api/ui";
-import { FaultContext, MENU_CSS, MenuPanel, PILL_CSS } from "@rigline/plugin-api/ui/internal";
+import {
+  FaultContext,
+  MENU_CSS,
+  MenuPanel,
+  NO_SAVER,
+  PILL_CSS,
+  SAVE_CSS,
+  SettingsContext,
+} from "@rigline/plugin-api/ui/internal";
 import { Component, type ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
@@ -132,13 +140,15 @@ class ElementBoundary extends Component<
    */
   override render(): ReactNode {
     if (this.state.failed) return null;
-    const { owner, id, title, component, onError } = this.props.element;
+    const { owner, id, title, component, onError, saver } = this.props.element;
     const Contributed = component as () => ReactNode;
     return (
       <form className="rigline-element" data-rigline-element={`${owner}/${id}`}>
-        <FaultContext.Provider value={onError}>
-          <Contributed />
-        </FaultContext.Provider>
+        <SettingsContext.Provider value={saver}>
+          <FaultContext.Provider value={onError}>
+            <Contributed />
+          </FaultContext.Provider>
+        </SettingsContext.Provider>
         {this.props.editing && (
           <span className="rigline-ui-pill rigline-ui-pill-muted rigline-standin">{title}</span>
         )}
@@ -234,7 +244,7 @@ function Shell(
 export function startShell(options: ShellOptions): () => void {
   const style = document.createElement("style");
   style.setAttribute("data-rigline-style", "rigline");
-  style.textContent = CSS + MENU_CSS + PILL_CSS + EDIT_CSS + OWN_CSS;
+  style.textContent = CSS + MENU_CSS + PILL_CSS + SAVE_CSS + EDIT_CSS + OWN_CSS;
   document.head.appendChild(style);
   const root = createRoot(options.layer, {
     // A contribution's boundary reports through its plugin's error path, which logs it attributed.
@@ -246,6 +256,7 @@ export function startShell(options: ShellOptions): () => void {
     owner: "rigline",
     component,
     onError: options.onError,
+    saver: NO_SAVER,
   });
   root.render(
     <Shell

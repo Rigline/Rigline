@@ -33,6 +33,7 @@ import { createCostService } from "./kernel/cost.ts";
 import { createLayoutEditor, type SavedState } from "./kernel/layout.ts";
 import { createLimitsService } from "./kernel/limits.ts";
 import { guardLinks } from "./kernel/links.ts";
+import { settingsSaver } from "./kernel/save.ts";
 import { createMountService } from "./kernel/mounts.ts";
 import { createRecorder } from "./kernel/record.ts";
 import { createSessionService } from "./kernel/session.ts";
@@ -453,10 +454,19 @@ async function main(): Promise<void> {
       meter,
     ),
     checks,
-    shell: createShellService(tables, surface, editor, mounts, checks, diagnostics, (reason) => {
-      diagnostics.errors.push(`shell: ${reason}`);
-      console.error(`[rigline] shell: ${reason}`);
-    }),
+    shell: createShellService(
+      tables,
+      surface,
+      editor,
+      mounts,
+      checks,
+      diagnostics,
+      (plugin) => settingsSaver(save, settings, plugin),
+      (reason) => {
+        diagnostics.errors.push(`shell: ${reason}`);
+        console.error(`[rigline] shell: ${reason}`);
+      },
+    ),
     plugins: entries,
     settings,
   };

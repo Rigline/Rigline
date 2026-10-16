@@ -14,6 +14,15 @@ export interface SaveRecord {
   readonly scheme: string;
 }
 
+/**
+ * The companion's extension id, which a Save link names as its authority.
+ *
+ * Here rather than in the host because both halves of the host need it and they bundle separately:
+ * the kernel forms a settings link and the shell forms the layout's, and a value imported across
+ * that line would be bundled twice.
+ */
+export const COMPANION = "rigline.rigline";
+
 export const SAVE_PAYLOAD_VERSION = 1;
 
 export interface SavePayload {
