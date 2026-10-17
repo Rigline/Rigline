@@ -48,6 +48,24 @@ This is not tier-specific. In tier 1 it is the assertion above the one you meant
 it is the line you look for in the output channel before concluding that the silence after it was
 the designed silence.
 
+## A write is checked on the panel's own controls, never on what was sent
+
+A capability that changes something in Claude Code is verified by what Claude Code's own controls
+show afterwards. That a request went out proves only that it went out: the harness's host is a
+reply table that never acts on a write, so "the right `set_model` was sent" passed while the real
+panel went on showing the old model (D120 as amended). The harness renders the real panel, so the
+assertion that would have caught it was always available — after the click, read the panel's own
+picker.
+
+Two habits come with it. **A fake reply carries what the real host sends, read in its bundle**, not
+what the code under test expects: a reply shaped by the same belief as the code agrees with it by
+construction, which is how `set_model_response.applied` was a string in both for a whole release
+cycle. And **a test written for a bug that got through is run once against the old code**, to see it
+fail; one that cannot is not the test that was missing.
+
+Even so, what Claude Code does with a write is a live-panel question. A capability that writes is
+not built until somebody has used it there.
+
 ## A step nobody has run is a defect, not a gap
 
 A claim nothing has exercised — a pipeline step, a live acceptance read — is carried as *unrun* until
@@ -151,6 +169,13 @@ Four pieces:
   `HARNESS_VERSION` are the same extension. Nothing it sends makes the app post
   `update_session_state`, so `ctx.onSessionId` reports `null` throughout, and behaviour that needs a
   session id — session-id's click-to-copy — is not covered at this tier.
+- **`appModels`** boots the fake host offering a model list and launching on a model and an
+  effort, so the panel seeds its own session as it does live; a test of what is live boots with it
+  rather than pushing `update_state`, which never moves a running session's picker. The shapes the
+  panel needs are the real host's: `claudeSettings` with `effective` and `sources` beside
+  `applied`, and `applied.model` a concrete id. Without either, boot fails as a timeout waiting for
+  the model pill, and the reason is a page error in `consoleErrors`. A pushed `update_state` keeps
+  `authStatus`, or the panel drops to its sign-in screen.
 - **`preparePayload`** writes exactly what a real injector would leave on disk: `pre.js` and
   `post.js` copied from `@rigline/core`'s `dist/bundled`, `generated.js` harvested fresh from the
   corpus version, a `registry.js` baking whichever fixture plugins the test wants, and each plugin's
@@ -195,8 +220,8 @@ a stale `host/dist` copied faithfully into a newer `bundled` passes the first li
 refusal names the build command. The rule used to live in `CLAUDE.md` and rely on everybody
 remembering it.
 
-**The harness footer fits at any width.** The fake host configures no models, so the model pill is
-nearly empty and the fit ladder never leaves stage 0. A test about fit stages widens the pill with a
+**The harness footer fits at any width.** Without `appModels` the fake host configures no models, so
+the model pill is nearly empty and the fit ladder never leaves stage 0. A test about fit stages widens the pill with a
 stylesheet — `.inputFooter_gGYT1w .modelPill_gGYT1w{min-width:240px}`, which the ladder measures as
 a long model name — and then narrows the viewport. A stylesheet is not a mutation inside the footer,
 so it does not reset the ladder itself.
@@ -416,6 +441,7 @@ then the same number in the workspace root and the scaffolder's template (D59).
 | does the compiler catch a wrong pair | the compile test |
 | does this node land in the right place, survive a re-render, keep its order | the harness |
 | what happens to a plugin the day an identifier goes | the harness, with `remove` |
+| does a write move the panel's own controls | the harness, read off those controls; then live |
 | is it in the tarball, and does it work from there | tier 4, the packed install |
 | does it work in the actual extension | *Diagnostics* in the live panel, and only there |
 

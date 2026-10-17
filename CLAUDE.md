@@ -300,7 +300,9 @@ reading it on npm, not for us — say what changed for them, not which function 
 
 **Panel text states; the docs explain (D130).** A first-party pill, tooltip or menu item says what
 is there, for a person who reads it daily. Keep a short hint at how to use it, and a distinction
-that changes how a value reads. A minor caveat goes in the plugin's README.
+that changes how a value reads. A minor caveat goes in the plugin's README. Width under the
+composer is the scarcest thing in the panel (Leo, 2026-10-17): an element never repeats what Claude
+Code's own controls already show, and a word a highlight or a position already says is cut.
 
 **Until 1.0.0 ships, compatibility with an earlier alpha is not a reason against a design.**
 stability.md binds from 1.0.0. Choose the right shape, and where a person's files need it, migrate
