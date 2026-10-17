@@ -29,7 +29,7 @@ const MODES: readonly { readonly value: RequireChoice; readonly label: string; h
     label: "When it isn't my default",
     hint: "Compared with the default below",
   },
-  { value: "always", label: "Every session" },
+  { value: "always", label: "Every new session" },
 ];
 
 export const riglineTab: RiglineTab = (models) =>

@@ -139,7 +139,7 @@ describe.skipIf(skip !== null)(`the settings screen${skip ? ` (${skip})` : ""}`,
       );
       expect(await page.locator(SAVE).count()).toBe(0);
 
-      await page.getByRole("radio", { name: "Every session" }).check();
+      await page.getByRole("radio", { name: "Every new session" }).check();
       const chooser = page.getByRole("combobox", { name: "Default model" });
       expect(
         await chooser.locator("option").evaluateAll((all) => all.map((o) => o.textContent)),
@@ -207,7 +207,7 @@ describe.skipIf(skip !== null)(`the settings screen${skip ? ` (${skip})` : ""}`,
       await page.getByRole("switch", { name: "Show seconds" }).click();
 
       await page.getByRole("tab", { name: "Rigline" }).click();
-      await page.getByRole("radio", { name: "Every session" }).check();
+      await page.getByRole("radio", { name: "Every new session" }).check();
       await page.getByRole("tab", { name: "Clock" }).click();
       expect(
         await page.getByRole("switch", { name: "Show seconds" }).getAttribute("aria-checked"),
