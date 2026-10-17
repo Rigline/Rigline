@@ -170,6 +170,13 @@ listening, does not — and it fails only when the machine is loaded enough to w
 is the whole suite and never the test alone. `bufferSealed` is set in the `finally` of the
 plugin-loading loop, so it means *every plugin has had its chance*, refusals included.
 
+**A pushed reply reaches Rigline's taps and not the app.** The app settles a `response` by its own
+`requestId`, so one a test invents is dropped with a warning after the taps have seen it: a service
+learns from it and the panel's own controls do not. To move the panel itself — its model picker,
+its pill — push the inbound request the extension host would, which for the model list is
+`update_state` carrying `config` beside `state`. Keep `authStatus` in that `state`: the app
+replaces its whole state with each one pushed and reads `authStatus` off it, null when absent.
+
 **`remove` stands up an extension update in front of the real bundle.** It deletes named anchors,
 modules or message types from the tables the loader reads, leaving the bundle itself untouched —
 which is precisely the state a plugin meets on the morning after an update it has not caught up
