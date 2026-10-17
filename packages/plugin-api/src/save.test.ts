@@ -106,12 +106,6 @@ describe("a settings Save link's payload", () => {
     expect(decodeSettingsPayload(encodeSettingsPayload(plugins))).toEqual({ payload: plugins });
   });
 
-  it("refuses an older version with what to do about it", () => {
-    expect(decodeSettingsPayload(encodeJson({ ...settings, v: 1 }))).toMatchObject({
-      problem: expect.stringContaining("reload the panel"),
-    });
-  });
-
   it("refuses a block, a key or a mode of Rigline's that this engine does not know", () => {
     const to = (blocks: unknown) =>
       decodeSettingsPayload(encodeJson({ ...settings, rigline: { from: blocks, to: blocks } }));

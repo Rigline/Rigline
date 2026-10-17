@@ -44,7 +44,7 @@ export function encodeSavePayload(payload: SavePayload): string {
   return toBase64Url(JSON.stringify(payload));
 }
 
-export const SETTINGS_PAYLOAD_VERSION = 2;
+export const SETTINGS_PAYLOAD_VERSION = 1;
 
 /** One plugin's section: what the panel's copy started from, and what to write (D138). */
 export interface SettingsSave {
@@ -105,9 +105,8 @@ export function decodeSettingsPayload(
   }
   if (!isRecord(value)) return { problem: "the payload is not an object" };
   if (value.v !== SETTINGS_PAYLOAD_VERSION) {
-    const older = typeof value.v === "number" && value.v < SETTINGS_PAYLOAD_VERSION;
     return {
-      problem: `the payload is version ${String(value.v)}, and this engine reads ${SETTINGS_PAYLOAD_VERSION}${older ? "; reload the panel to pick up this Rigline" : ""}`,
+      problem: `the payload is version ${String(value.v)}, and this engine reads ${SETTINGS_PAYLOAD_VERSION}`,
     };
   }
   if (typeof value.token !== "string" || !plainText(value.token)) {

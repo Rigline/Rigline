@@ -154,6 +154,54 @@ describe.skipIf(skipReason !== null)(
       }
     }, 30000);
 
+    it("says so before anything is sent, and keeps what is live without sending when nothing is typed", async () => {
+      const booted = await boot({ model: ALWAYS });
+      try {
+        await live(booted, "opus", "high");
+        // Shown as soon as the session needs a choice, so Enter is never a guess.
+        await booted.page.waitForSelector(`${STRIP}:not([hidden])`);
+        expect(await booted.page.textContent(`${STRIP} span`)).toBe(
+          "No model chosen for this session.",
+        );
+        expect(await booted.page.textContent(SEND)).toBe("Use Opus 5.5 · high");
+        await type(booted, "typed");
+        expect(await booted.page.textContent(SEND)).toBe("Send with Opus 5.5 · high");
+        await booted.page.keyboard.press("ControlOrMeta+a");
+        await booted.page.keyboard.press("Backspace");
+        expect(await booted.page.textContent(SEND)).toBe("Use Opus 5.5 · high");
+
+        await booted.page.click(SEND);
+        await booted.page.waitForSelector(STRIP, { state: "hidden" });
+        expect(await gateLine(booted)).toBe("pass: always: 0 held, 0 sent anyway");
+        await type(booted, "chosen");
+        await booted.page.keyboard.press("Enter");
+        await vi.waitFor(async () => {
+          expect(await sent(booted, "chosen")).toBe(1);
+        });
+      } finally {
+        await booted.close();
+      }
+    }, 30000);
+
+    it("never asks in a resumed session, which carries the choice it started with", async () => {
+      const booted = await boot({ model: ALWAYS });
+      try {
+        // As the panel launches a restored conversation, or relaunches one after the CLI exits.
+        await push(booted, { type: "launch_claude", channelId: "harness-resumed", resume: "s-1" });
+        await live(booted, "opus", "high");
+        await booted.page.waitForTimeout(200);
+        expect(await booted.page.isHidden(STRIP)).toBe(true);
+        await type(booted, "resumed");
+        await booted.page.keyboard.press("Enter");
+        await vi.waitFor(async () => {
+          expect(await sent(booted, "resumed")).toBe(1);
+        });
+        expect(await gateLine(booted)).toBe("pass: always: 0 held, 0 sent anyway");
+      } finally {
+        await booted.close();
+      }
+    }, 30000);
+
     it("holds nothing and draws nothing when it is off", async () => {
       const booted = await boot();
       try {
@@ -210,7 +258,6 @@ describe.skipIf(skipReason !== null)(
         await booted.page.waitForSelector(`${EDITOR}[aria-controls]`);
         await booted.page.keyboard.press("Enter");
         await booted.page.waitForTimeout(200);
-        expect(await booted.page.isHidden(STRIP)).toBe(true);
         expect(await gateLine(booted)).toBe("pass: always: 0 held, 0 sent anyway");
       } finally {
         await booted.close();
@@ -283,10 +330,12 @@ describe.skipIf(skipReason !== null)(
         await type(booted, "line one");
         await booted.page.keyboard.press("Enter");
         await booted.page.waitForTimeout(200);
-        expect(await booted.page.isHidden(STRIP)).toBe(true);
+        expect(await gateLine(booted)).toBe("pass: always: 0 held, 0 sent anyway");
 
         await booted.page.keyboard.press("Control+Enter");
-        await booted.page.waitForSelector(`${STRIP}:not([hidden])`);
+        await vi.waitFor(async () => {
+          expect(await gateLine(booted)).toBe("pass: always: 1 held, 0 sent anyway");
+        });
         expect(await sent(booted, "line one")).toBe(0);
       } finally {
         await booted.close();

@@ -13,7 +13,8 @@
  *
  * Whether this session has chosen a model is kept here too, so the gate is one more reader of the
  * state rather than a second owner of it: a choice applied here, Claude Code's own picker seen on the
- * bus, or the gate's override, each until the panel launches its next channel.
+ * bus, or the gate's override, each until the panel launches its next channel. A channel resuming a
+ * session has chosen already: it carries the choice the session started with.
  */
 import {
   type AppliedChoice,
@@ -119,9 +120,9 @@ export function createModelsService(
     // The channel a request goes on, which is the one the panel's own controls use, and the
     // session a choice is for.
     followChannel(bus, {
-      start: (next) => {
+      start: (next, resumed) => {
         channel = next;
-        chosen = false;
+        chosen = resumed;
         publish();
       },
       record: () => {},

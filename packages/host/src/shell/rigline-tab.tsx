@@ -62,7 +62,7 @@ export const riglineTab: RiglineTab = (models) =>
           label="Default model"
           hint={
             model.requireChoice === "unlessDefault" && model.default === null
-              ? "With none, every session asks."
+              ? "With none, every new session asks."
               : "Matched on model and effort. Plugins offer it as yours."
           }
         >
@@ -72,11 +72,15 @@ export const riglineTab: RiglineTab = (models) =>
             onChange={(choice) => update({ default: choice })}
             none="No default"
           />
-          {live !== null && state.current !== null && !sameValue(live, model.default) && (
-            <Button onClick={() => update({ default: live })}>
-              Use {comboLabel(state.current, state.effort)}
-            </Button>
-          )}
+          {/* Below the chooser and always there, so neither moves when a model is picked. */}
+          <Button
+            disabled={live === null || sameValue(live, model.default)}
+            onClick={() => update({ default: live })}
+          >
+            {state.current === null
+              ? "Use current model"
+              : `Use current model (${comboLabel(state.current, state.effort)})`}
+          </Button>
         </SettingRow>
       </>
     );

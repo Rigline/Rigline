@@ -17,8 +17,8 @@ hole, or raises the Node or VS Code it needs, its entry says so.
   one for each plugin that adds one, and one Save that writes them all to `config.yaml` through the
   companion. Rigline's tab sets whether the panel asks for a model before you send, and your default
   model, chosen from the models your install offers.
-  - Unsaved changes survive switching tabs and closing the screen, and the menu says while any are
-    held. Revert drops them.
+  - Save closes the screen. Unsaved changes survive switching tabs and closing it, and the menu
+    says while any are held. Revert drops them.
   - A change saved here reaches the panel that saved it without a reload; another panel picks it up
     when you come back to it.
 - For plugin authors: `uses.settingsTab` and `ctx.settingsTab(title, Component)` add your tab, drawn
@@ -28,11 +28,11 @@ hole, or raises the Node or VS Code it needs, its entry says so.
   opens the screen at your tab, or at Rigline's.
 - A setting to make the panel ask for a model before you send, so a model or effort changed in one
   session cannot quietly carry into the next. `model.requireChoice` in `config.yaml`: `always`
-  asks in every session, `unlessDefault` only when what is live is not your `model.default`, and
-  `off`, the default, never asks.
+  asks in every new session, `unlessDefault` only when what is live is not your `model.default`,
+  and `off`, the default, never asks. A session you resume never asks.
   - Only sending waits; typing never does, and nothing you typed is lost.
-  - Choosing in Claude Code's own picker counts, and so does a plugin's shortcut. A line above the
-    composer names what is live, with its version, and offers to send with it anyway.
+  - A line above the composer says so before you send, naming what is live with its version, and
+    offers to use it. Choosing in Claude Code's own picker counts, and so does a plugin's shortcut.
   - It is yours to switch on, in your own settings, and no plugin can switch it on.
   - `ctx.onModelState` now says what your default resolves to, and whether this session still
     needs a choice.

@@ -106,21 +106,26 @@ function isSendKey(e: KeyboardEvent, ctrlEnterToSend: boolean): boolean {
   );
 }
 
-/** What the strip says and what its button reads, from the model state. */
-function wording(state: ModelState, mode: RequireChoice): { text: string; button: string } {
+/**
+ * What the strip says and what its button reads, from the model state. With nothing typed the
+ * button keeps what is live and sends nothing, so it says so.
+ */
+function wording(
+  state: ModelState,
+  mode: RequireChoice,
+  empty: boolean,
+): { text: string; button: string } {
   const { current } = state;
   if (current === null) return { text: "The models are still loading.", button: "Send anyway" };
-  const live = comboLabel(current, state.effort);
-  if (mode !== "unlessDefault") {
-    return { text: "No model chosen for this session.", button: `Send with ${live}` };
-  }
+  const button = `${empty ? "Use" : "Send with"} ${comboLabel(current, state.effort)}`;
+  if (mode !== "unlessDefault") return { text: "No model chosen for this session.", button };
   const usual = state.default;
   return {
     text:
       usual === null
         ? "No default model is set."
         : `Not your default, ${comboLabel(usual.model, usual.choice.effort ?? null)}.`,
-    button: `Send with ${live}`,
+    button,
   };
 }
 
@@ -140,6 +145,13 @@ export function installGate(options: GateOptions): GateService {
   };
   bus.on("init_response", readSendKey);
   bus.on("update_state", readSendKey);
+  // A session has launched, so the strip may show before anything is held. From boot, as above.
+  let started = false;
+  let refresh: (() => void) | null = null;
+  bus.on("launch_claude", () => {
+    started = true;
+    refresh?.();
+  });
 
   let mode: RequireChoice = "off";
   let idle: string | null = null;
@@ -189,17 +201,29 @@ export function installGate(options: GateOptions): GateService {
     // The strip sits inside the composer's form, where a button of no type would submit it.
     send.type = "button";
     send.className = "rigline-gate-send";
-    send.title = "Sends this prompt with what is live, which counts as this session's choice";
 
     const box = (): Element | null => document.querySelector(selector);
     const form = (): HTMLFormElement | null => box()?.closest("form") ?? null;
+    const empty = (): boolean => {
+      const editor = box()?.querySelector("[contenteditable]");
+      return editor != null && (editor.textContent ?? "").trim() === "";
+    };
 
+    /**
+     * Shown once a new session has launched and what is live is known, so a restored conversation
+     * never flashes it on the way to resuming; a held send shows it whatever is known.
+     */
     function render(): void {
-      const { text: said, button } = wording(state, mode);
+      const nothing = empty();
+      const { text: said, button } = wording(state, mode, nothing);
       text.textContent = said;
       send.textContent = button;
-      strip.hidden = !(shown && state.choiceRequired);
+      send.title = nothing
+        ? "Keeps what is live as this session's choice"
+        : "Sends this prompt with what is live, which counts as this session's choice";
+      strip.hidden = !(state.choiceRequired && (shown || (started && state.current !== null)));
     }
+    refresh = render;
 
     /** Hold `e` back, but only once the strip and its override are on screen. */
     function hold(e: Event): void {
@@ -232,8 +256,10 @@ export function installGate(options: GateOptions): GateService {
     );
 
     send.addEventListener("click", () => {
-      stats.overridden += 1;
+      const typed = !empty();
       models.confirm();
+      if (!typed) return;
+      stats.overridden += 1;
       // The send button's own path, so the app composes the message as it does for any send.
       form()?.requestSubmit();
     });
@@ -251,12 +277,19 @@ export function installGate(options: GateOptions): GateService {
       if (!state.choiceRequired || e.target === null || e.target !== form()) return;
       hold(e);
     };
+    // The button's verb follows whether anything is typed.
+    const onInput = (e: Event): void => {
+      if (e.target instanceof Node && box()?.contains(e.target)) render();
+    };
     window.addEventListener("keydown", onKeyDown, true);
     window.addEventListener("submit", onSubmit, true);
+    window.addEventListener("input", onInput, true);
 
     return () => {
+      refresh = null;
       window.removeEventListener("keydown", onKeyDown, true);
       window.removeEventListener("submit", onSubmit, true);
+      window.removeEventListener("input", onInput, true);
       unsubscribe();
       unwatch();
       strip.remove();

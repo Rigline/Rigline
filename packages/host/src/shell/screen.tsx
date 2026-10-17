@@ -1,8 +1,9 @@
 /**
  * Rigline's settings screen: a tab for Rigline and one for each plugin that adds one, over the
  * drafts the settings editor holds, with one Save that writes every tab that differs from what is
- * saved. Drawn over the whole panel, which is often sidebar-wide, so the rail beside the tab becomes
- * a list leading into it where there is no room for both.
+ * saved. A framed panel over the app, as Claude Code's own diff view is, so the panel is taken over
+ * for a moment rather than left. It is often sidebar-wide, so the rail beside the tab becomes a list
+ * leading into it where there is no room for both.
  */
 import { sameValue } from "@rigline/plugin-api/internal";
 import { useStore } from "@rigline/plugin-api/ui";
@@ -32,10 +33,26 @@ export const SCREEN_CSS = `
   inset: 0;
   z-index: 2147483647;
   display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: var(--app-primary-background, var(--vscode-sideBar-background, #1e1e1e));
+}
+.rigline-settings-frame {
+  display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  width: calc(100vw - 40px);
+  max-width: 960px;
+  height: calc(100vh - 40px);
+  max-height: 900px;
+  overflow: hidden;
   container: rigline-settings / inline-size;
-  background: var(--app-root-background, var(--app-primary-background, var(--vscode-sideBar-background, #1e1e1e)));
+  border: 1px solid var(--app-input-border, var(--vscode-widget-border, #7f7f7f66));
+  border-radius: 4px;
+  outline: none;
+  background: var(--app-primary-background, var(--vscode-sideBar-background, #1e1e1e));
+  box-shadow: 0 4px 12px #0000000d;
   color: var(--app-primary-foreground, var(--vscode-foreground, #cccccc));
   font-family: var(--vscode-font-family, inherit);
   font-size: var(--vscode-font-size, 13px);
@@ -51,6 +68,7 @@ export const SCREEN_CSS = `
 }
 .rigline-settings-head {
   border-bottom: 1px solid var(--app-input-border, var(--vscode-widget-border, #7f7f7f66));
+  background: var(--app-secondary-background, var(--vscode-editor-background, transparent));
 }
 .rigline-settings-foot {
   border-top: 1px solid var(--app-input-border, var(--vscode-widget-border, #7f7f7f66));
@@ -164,11 +182,11 @@ export const SCREEN_CSS = `
     width: auto;
     border-right: none;
   }
-  .rigline-settings[data-entered] .rigline-settings-rail,
-  .rigline-settings:not([data-entered]) .rigline-settings-panel {
+  .rigline-settings-frame[data-entered] .rigline-settings-rail,
+  .rigline-settings-frame:not([data-entered]) .rigline-settings-panel {
     display: none;
   }
-  .rigline-settings[data-entered] .rigline-settings-back {
+  .rigline-settings-frame[data-entered] .rigline-settings-back {
     display: inline-flex;
   }
 }
@@ -256,11 +274,15 @@ function Save(props: { readonly settings: SettingsEditor }): ReactNode {
   const sent = new Map([...drafts].map(([owner, draft]) => [owner, draft.to]));
   return (
     // Neither prevented nor stopped: VS Code acts only on a click that reaches its listener (D93).
+    // The screen closes once the click has got there; the drafts stay until the save is confirmed.
     <a
       href={link.href}
       className="rigline-settings-button rigline-settings-primary"
       title="to config.yaml, through the Rigline companion"
-      onClick={() => void settings.confirm(sent)}
+      onClick={() => {
+        void settings.confirm(sent);
+        setTimeout(() => settings.open.set(null));
+      }}
     >
       Save
     </a>
@@ -346,106 +368,114 @@ export function SettingsScreen(props: {
   const unsaveable = current === undefined ? null : settings.unsaveable(current.owner);
 
   return (
+    // A press in the margin closes it, as one outside the diff view does.
     <div
-      ref={screen}
       className="rigline-settings"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={`${id}title`}
-      data-entered={entered ? "" : undefined}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
-      <div className="rigline-settings-head">
-        <button
-          type="button"
-          className="rigline-settings-button rigline-settings-icon rigline-settings-back"
-          onClick={() => setEntered(false)}
-        >
-          ‹ All settings
-        </button>
-        <h2 className="rigline-settings-title" id={`${id}title`}>
-          Rigline settings
-        </h2>
-        <button
-          type="button"
-          className="rigline-settings-button rigline-settings-icon"
-          aria-label="Close"
-          title="Close; unsaved changes are kept"
-          onClick={onClose}
-        >
-          ✕
-        </button>
-      </div>
-      <div className="rigline-settings-body">
-        <div
-          className="rigline-settings-rail"
-          role="tablist"
-          aria-orientation="vertical"
-          onKeyDown={onRailKey}
-        >
-          {tabs.map((tab) => {
-            const selected = tab === current;
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                role="tab"
-                id={`${id}tab${tab.key}`}
-                className="rigline-settings-tab"
-                data-rigline-tab={tab.owner}
-                aria-selected={selected}
-                aria-controls={`${id}panel`}
-                tabIndex={selected ? 0 : -1}
-                onClick={() => choose(tab.owner)}
-              >
-                <span className="rigline-settings-tab-title">{tab.title}</span>
-                {drafts.has(tab.owner) && (
-                  <span
-                    className="rigline-settings-dirty"
-                    role="img"
-                    aria-label="unsaved changes"
-                    title="unsaved changes"
-                  >
-                    ●
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-        {current !== undefined && draft !== null && (
-          <div
-            className="rigline-settings-panel"
-            role="tabpanel"
-            id={`${id}panel`}
-            aria-labelledby={`${id}tab${current.key}`}
-            data-rigline-panel={current.owner}
-          >
-            {unsaveable !== null && <p className="rigline-settings-note">{unsaveable}</p>}
-            {moved && (
-              <p className="rigline-settings-note">
-                Saved elsewhere since you began; Save writes over it, Revert picks it up.
-              </p>
-            )}
-            <TabBoundary key={current.key} tab={current} draft={draft} />
-          </div>
-        )}
-      </div>
-      <div className="rigline-settings-foot">
-        {saving !== "idle" && <span className="rigline-settings-note">{SAVE_NOTES[saving]}</span>}
-        {link !== null && "refused" in link && saving === "idle" && (
-          <span className="rigline-settings-note">{link.refused}</span>
-        )}
-        <span className="rigline-settings-gap" />
-        {dirty && (
+      <div
+        ref={screen}
+        className="rigline-settings-frame"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={`${id}title`}
+        data-entered={entered ? "" : undefined}
+      >
+        <div className="rigline-settings-head">
           <button
             type="button"
-            className="rigline-settings-button"
-            onClick={() => void settings.revert()}
+            className="rigline-settings-button rigline-settings-icon rigline-settings-back"
+            onClick={() => setEntered(false)}
           >
-            Revert changes
+            ‹ All settings
           </button>
-        )}
-        <Save settings={settings} />
+          <h2 className="rigline-settings-title" id={`${id}title`}>
+            Rigline settings
+          </h2>
+          <button
+            type="button"
+            className="rigline-settings-button rigline-settings-icon"
+            aria-label="Close"
+            title="Close; unsaved changes are kept"
+            onClick={onClose}
+          >
+            ✕
+          </button>
+        </div>
+        <div className="rigline-settings-body">
+          <div
+            className="rigline-settings-rail"
+            role="tablist"
+            aria-orientation="vertical"
+            onKeyDown={onRailKey}
+          >
+            {tabs.map((tab) => {
+              const selected = tab === current;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  role="tab"
+                  id={`${id}tab${tab.key}`}
+                  className="rigline-settings-tab"
+                  data-rigline-tab={tab.owner}
+                  aria-selected={selected}
+                  aria-controls={`${id}panel`}
+                  tabIndex={selected ? 0 : -1}
+                  onClick={() => choose(tab.owner)}
+                >
+                  <span className="rigline-settings-tab-title">{tab.title}</span>
+                  {drafts.has(tab.owner) && (
+                    <span
+                      className="rigline-settings-dirty"
+                      role="img"
+                      aria-label="unsaved changes"
+                      title="unsaved changes"
+                    >
+                      ●
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          {current !== undefined && draft !== null && (
+            <div
+              className="rigline-settings-panel"
+              role="tabpanel"
+              id={`${id}panel`}
+              aria-labelledby={`${id}tab${current.key}`}
+              data-rigline-panel={current.owner}
+            >
+              {unsaveable !== null && <p className="rigline-settings-note">{unsaveable}</p>}
+              {moved && (
+                <p className="rigline-settings-note">
+                  Saved elsewhere since you began; Save writes over it, Revert picks it up.
+                </p>
+              )}
+              <TabBoundary key={current.key} tab={current} draft={draft} />
+            </div>
+          )}
+        </div>
+        <div className="rigline-settings-foot">
+          {saving !== "idle" && <span className="rigline-settings-note">{SAVE_NOTES[saving]}</span>}
+          {link !== null && "refused" in link && saving === "idle" && (
+            <span className="rigline-settings-note">{link.refused}</span>
+          )}
+          <span className="rigline-settings-gap" />
+          {dirty && (
+            <button
+              type="button"
+              className="rigline-settings-button"
+              onClick={() => void settings.revert()}
+            >
+              Revert changes
+            </button>
+          )}
+          <Save settings={settings} />
+        </div>
       </div>
     </div>
   );

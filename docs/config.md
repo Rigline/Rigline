@@ -76,16 +76,17 @@ are on the Rigline tab of the settings screen.
       default: { model: opus, effort: high }
       requireChoice: always
 
-`requireChoice` says when a prompt waits for a model to be chosen in its session:
+`requireChoice` says when a prompt waits for a model to be chosen in a new session:
 
 - `off`, the default: nothing waits.
 - `unlessDefault`: only while what is live is not your `default`.
-- `always`: every session asks.
+- `always`: every new session asks.
 
-While it waits, Enter and the send button do nothing but show a line above the composer naming what
-is live, with its version, and a button to send with it anyway. Your typing is never blocked and
-nothing you typed is lost. Choosing in Claude Code's own model or effort picker counts, as does a
-plugin's shortcut such as a favourite; so does sending anyway. A new session asks again.
+A session you resume carries the choice it started with, so it never asks. While a new one waits, a
+line above the composer says so, naming what is live with its version, so you know before you press
+Enter whether it will send. Its button keeps what is live, and sends what you have typed if you have
+typed anything. Your typing is never blocked and nothing you typed is lost. Choosing in Claude
+Code's own model or effort picker counts, as does a plugin's shortcut such as a favourite.
 
 `default` is the model you usually want, and the effort with it if you name one. `unlessDefault`
 compares against it, and plugins can offer it as a one-click choice, so it is worth setting whatever

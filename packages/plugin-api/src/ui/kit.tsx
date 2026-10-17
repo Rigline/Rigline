@@ -6,7 +6,9 @@
 import { createContext, type MouseEvent, type ReactNode, useContext, useId, useMemo } from "react";
 import {
   currentModel,
+  DEFAULT_EFFORT_LEVELS,
   type DefaultChoice,
+  type ModelEntry,
   type ModelState,
   modelLabel,
   supportsEffort,
@@ -31,8 +33,8 @@ export const KIT_CSS = `
 }
 .rigline-kit-control {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 6px;
   min-width: 0;
   margin-top: 4px;
@@ -74,6 +76,10 @@ export const KIT_CSS = `
   align-items: flex-start;
   gap: 6px;
   cursor: pointer;
+}
+.rigline-kit-option:has(input:disabled) {
+  opacity: 0.5;
+  cursor: default;
 }
 .rigline-kit-option input {
   margin: 2px 0 0;
@@ -449,6 +455,16 @@ export interface ModelChooserProps {
  * the alias and shows the version it resolves to now, so a choice follows its model's releases and
  * the change shows. A model that takes no effort is a choice of one.
  */
+/**
+ * The efforts to show: the chosen model's, or before one that takes an effort is chosen, every level
+ * any offered model takes, in the order the list first names them.
+ */
+function effortLevels(state: ModelState, target: ModelEntry | null): readonly string[] {
+  if (target?.supportsEffort === true) return target.supportedEffortLevels;
+  const levels = state.models.flatMap((m) => (m.supportsEffort ? m.supportedEffortLevels : []));
+  return levels.length === 0 ? DEFAULT_EFFORT_LEVELS : [...new Set(levels)];
+}
+
 export function ModelChooser(props: ModelChooserProps): ReactNode {
   const { state, value, onChange, none } = props;
   const labelling = useLabelling();
@@ -490,18 +506,29 @@ export function ModelChooser(props: ModelChooserProps): ReactNode {
           </option>
         ))}
       </select>
-      {value !== null && target?.supportsEffort === true && (
+      {/* Always drawn, so nothing moves when a model is picked; usable once it takes an effort. */}
+      <span
+        title={
+          target === null
+            ? "Choose a model first"
+            : target.supportsEffort
+              ? undefined
+              : `${modelLabel(target)} takes no effort level`
+        }
+      >
         <Choice
           inline
           label="Effort"
-          options={target.supportedEffortLevels.map((level) => ({ value: level, label: level }))}
-          value={value.effort ?? null}
+          disabled={target?.supportsEffort !== true}
+          options={effortLevels(state, target).map((level) => ({ value: level, label: level }))}
+          value={target?.supportsEffort === true ? (value?.effort ?? null) : null}
           onChange={(effort) => {
+            if (value === null) return;
             const { thinkingLevel: _, ...rest } = value;
             onChange({ ...rest, effort });
           }}
         />
-      )}
+      </span>
       {state.models.length === 0 && (
         <span className="rigline-kit-hint">The list arrives once Claude Code starts here.</span>
       )}

@@ -3852,6 +3852,13 @@ the engine checks only its shape: which models exist is the panel's to know. A p
 whether this session still needs a choice, through `ModelState` rather than hooks of its own, since
 a store made in `setup` is the one way of reading that is right for every source.
 
+**Amended 2026-10-17 (Leo):** only a new session asks. A resumed one carries the choice it started
+with, and the panel says which it is: `launch_claude` names the session in `resume` for a restored
+conversation and for a relaunch after the CLI exits, and names none for a new one. And the strip
+shows as soon as a new session needs a choice and what is live is known, not after a held send,
+since not knowing whether Enter will send is the problem the gate exists for; with nothing typed,
+its button keeps what is live and sends nothing.
+
 **D140. A settings screen of tabs, drafts the host holds, and one Save (2026-10-17, Leo).** The
 screen is the way a person changes a setting; `config.yaml` and the CLI are a developer's, so a
 setting reachable only there is one nobody changes. It has a tab for Rigline and one for each plugin
@@ -3877,13 +3884,16 @@ the file moved under it (D92's rule, per tab).
 tab's owner, so `maySaveSection` passes unchanged and needs no first-party exemption. Rigline's own
 settings travel in the payload's own `rigline` member, validated by the engine with `readConfig`'s
 rules for each block; a reserved section name was rejected for putting top-level configuration and
-plugin sections back into one map. That moved the payload to version 2, and the engine refuses 1
-with a reason that says to reload: no first-party control ever sent one. `MAX_SETTINGS_PAYLOAD` is
-spent across every draft, and a Save that will not fit says so rather than splitting.
+plugin sections back into one map. The payload stays at version 1, since no settings save had been
+released to send one without the member. `MAX_SETTINGS_PAYLOAD` is spent across every draft, and a
+Save that will not fit says so rather than splitting.
 
 The save state is the layout editor's, one module for both, ending in `unconfirmed` where no
 companion answered. Every read of `registry.js` feeds what the tabs take as saved and
 `ctx.onSettings` (D138, as amended), and a changed `model` reaches the models service and the gate, whose
 interception goes in or comes out with the mode so D139's *nothing at all when off* holds live.
 `SaveSettings` stays for a control in the panel, where the click that does the thing is the one
-that saves it, and confirms through the same read.
+that saves it, and confirms through the same read. The screen is a framed panel over the app, as
+Claude Code's diff view is, so the panel is taken over for a moment rather than left, and Save
+closes it; the drafts stay until the save is confirmed, so one that never lands still reads
+"unsaved changes" (Leo).

@@ -14,7 +14,7 @@ import { harnessSkipReason, register, HARNESS_VERSION as VERSION } from "../src/
 
 const COMPANION: SaveRecord = { token: "c".repeat(32), companion: true, scheme: "vscode" };
 const OFF: ModelSettings = { requireChoice: "off", default: null };
-const SCREEN = '[role="dialog"].rigline-settings';
+const SCREEN = '[role="dialog"].rigline-settings-frame';
 const SAVE = `${SCREEN} a[href^="vscode://rigline.rigline/settings?p="]`;
 
 const MODELS = [
@@ -144,15 +144,22 @@ describe.skipIf(skip !== null)(`the settings screen${skip ? ` (${skip})` : ""}`,
       expect(
         await chooser.locator("option").evaluateAll((all) => all.map((o) => o.textContent)),
       ).toEqual(["No default", "Opus 5.5", "Haiku 5.5"]);
-      await chooser.selectOption("opus");
-      // Only the efforts this model takes, and none chosen for it yet.
+      // The effort choice is there before a model is, disabled, and the shortcut sits below both.
       const effort = page.getByRole("radiogroup", { name: "Effort" });
       expect(await effort.getByRole("radio").count()).toBe(2);
+      expect(await effort.getByRole("radio").first().isDisabled()).toBe(true);
+      const use = page.getByRole("button", { name: "Use current model (Haiku 5.5)" });
+      const before = await use.boundingBox();
+      expect(before?.y ?? 0).toBeGreaterThan((await chooser.boundingBox())?.y ?? Infinity);
+
+      await chooser.selectOption("opus");
+      expect(await effort.getByRole("radio").first().isDisabled()).toBe(false);
+      expect(await use.boundingBox()).toEqual(before);
       await effort.getByText("high").click();
       await page.getByRole("img", { name: "unsaved changes" }).waitFor();
 
       expect(await payloadOf(page)).toEqual({
-        v: 2,
+        v: 1,
         token: COMPANION.token,
         sections: {},
         rigline: {
@@ -163,23 +170,18 @@ describe.skipIf(skip !== null)(`the settings screen${skip ? ` (${skip})` : ""}`,
         },
       });
 
+      // Save closes the screen; the confirmation goes on behind it.
       await clickSave(page);
-      await page.getByText("Saving through the Rigline companion").waitFor();
+      await page.locator(SCREEN).waitFor({ state: "detached" });
       const always: ModelSettings = {
         requireChoice: "always",
         default: { model: "opus", effort: "high" },
       };
       saveToRegistry(booted.payloadDir, {}, always);
-      await page.locator(SCREEN).getByText("Saved.").waitFor({ timeout: 5000 });
-      expect(await page.locator(SAVE).count()).toBe(0);
 
-      // Off at boot, so nothing was installed; the confirmed save put the gate in.
-      await page.keyboard.press("Escape");
-      await page.locator(SCREEN).waitFor({ state: "detached" });
-      await page.click('div[contenteditable][role="textbox"]');
-      await page.keyboard.type("held");
-      await page.keyboard.press("Enter");
-      await page.locator("[data-rigline-gate]:not([hidden])").waitFor();
+      // Off at boot, so nothing was installed; the confirmed save put the gate in, and this new
+      // session needs a choice, so it says so before anything is sent.
+      await page.locator("[data-rigline-gate]:not([hidden])").waitFor({ timeout: 5000 });
       expect(await page.locator("[data-rigline-gate]").textContent()).toContain(
         "No model chosen for this session.",
       );
@@ -220,8 +222,9 @@ describe.skipIf(skip !== null)(`the settings screen${skip ? ` (${skip})` : ""}`,
       });
       expect(payload.rigline?.to).toEqual({ model: { requireChoice: "always", default: null } });
 
-      // Closing keeps the drafts, and the menu says so.
-      await page.keyboard.press("Escape");
+      // A press in the margin closes it, as one outside the diff view does; the drafts stay, and
+      // the menu says so.
+      await page.mouse.click(4, 4);
       await page.locator(SCREEN).waitFor({ state: "detached" });
       await page.click(".rigline-pill");
       await page.getByRole("menuitem", { name: /^Settings….*unsaved changes/ }).click();
@@ -231,19 +234,25 @@ describe.skipIf(skip !== null)(`the settings screen${skip ? ` (${skip})` : ""}`,
         await page.evaluate(() => (window as unknown as { __heard: unknown[] }).__heard),
       ).toEqual([{ seconds: false, kept: "by hand" }]);
       await clickSave(page);
+      await page.locator(SCREEN).waitFor({ state: "detached" });
       saveToRegistry(
         booted.payloadDir,
         { clock: { seconds: true, kept: "by hand" } },
         { requireChoice: "always", default: null },
       );
-      await page.locator(SCREEN).getByText("Saved.").waitFor({ timeout: 5000 });
-      expect(
-        await page.evaluate(() => (window as unknown as { __heard: unknown[] }).__heard),
-      ).toEqual([
-        { seconds: false, kept: "by hand" },
-        { seconds: true, kept: "by hand" },
-      ]);
-      expect(await page.getByRole("img", { name: "unsaved changes" }).count()).toBe(0);
+      await expect
+        .poll(() => page.evaluate(() => (window as unknown as { __heard: unknown[] }).__heard), {
+          timeout: 5000,
+        })
+        .toEqual([
+          { seconds: false, kept: "by hand" },
+          { seconds: true, kept: "by hand" },
+        ]);
+      // Confirmed, so the drafts went with it.
+      await page.click(".rigline-pill");
+      expect(await page.getByRole("menuitem", { name: /^Settings…/ }).textContent()).toBe(
+        "Settings…",
+      );
     } finally {
       await booted.close();
     }
@@ -280,6 +289,8 @@ describe.skipIf(skip !== null)(`the settings screen${skip ? ` (${skip})` : ""}`,
       expect(await rail.isVisible()).toBe(false);
       await page.getByRole("button", { name: "‹ All settings" }).click();
       expect(await rail.isVisible()).toBe(true);
+      await page.keyboard.press("Escape");
+      await page.locator(SCREEN).waitFor({ state: "detached" });
     } finally {
       await booted.close();
     }

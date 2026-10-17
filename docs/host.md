@@ -90,7 +90,8 @@ Dynamically imported after boot. In order:
 4. Install the model gate where `registry.js`'s `model` asks for one (D139): capture listeners for
    the composer's send keystroke and its form's submit, and the strip above the composer that names
    what is live and sends anyway. It is drawn before anything is held, so a held send always has its
-   way past on screen. Before any plugin loads, so the models service's taps are in before the
+   way past on screen, and shown as soon as a new session needs a choice; a launch that resumes a
+   session counts as chosen. Before any plugin loads, so the models service's taps are in before the
    buffer seals. Off, nothing is installed. A read of `registry.js` that finds the mode changed puts
    the interception in or takes it out; the send key's setting is read from boot whatever the mode,
    since a gate switched on after the seal could not learn it.
@@ -237,7 +238,8 @@ marker between rows.
 
 ### The settings screen
 
-The shell draws it over the whole panel: a rail of tabs, Rigline's first and then each plugin's in
+The shell draws it as a framed panel over the app, as Claude Code's diff view is, which Escape or a
+press in the margin closes, and Save closes too. It holds a rail of tabs, Rigline's first and then each plugin's in
 registry order, and the tab beside it, or a list leading into it where a container query finds no
 room for both. Rigline's own tab is bound once `shell.js` has loaded, from the component it exports
 as `riglineTab`, through the shell service's `tab` as a plugin's `ctx.settingsTab` is, so there is
