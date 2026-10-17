@@ -43,6 +43,11 @@ export interface IdentifierTables {
     /** What the transcript capability needs and this version lacks, which refuses only it (D102). */
     readonly missing: readonly ReactGap[];
   };
+  /** The panel's own session object, which the model capabilities read and drive (D120). */
+  readonly panelSession: {
+    /** What the model capabilities need and this version lacks, which refuses only them. */
+    readonly missing: readonly ReactGap[];
+  };
 }
 
 /** One thing react-dom no longer has, and what that breaks. */

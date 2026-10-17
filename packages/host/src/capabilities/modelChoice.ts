@@ -19,15 +19,10 @@ export const modelChoiceModule: CapabilityModule<"modelChoice"> = {
   contract: CONTRACTS.find(
     (c) => c.key === "modelChoice",
   ) as CapabilityModule<"modelChoice">["contract"],
-  grant({ plugin, kernel, own }) {
+  grant({ plugin, kernel }) {
     if (!declaredSwitch(plugin, "modelChoice")) {
       return { applyChoice: undeclared("applyChoice", "modelChoice") };
     }
-    // Granting the write starts the read, because a choice is validated against the live list and
-    // the services tap on first use: a plugin that only writes would otherwise validate against an
-    // empty list and refuse every model, since the replay buffer is sealed by the time a first
-    // `applyChoice` could tap. The handler does nothing; subscribing is the point.
-    own(kernel.models.subscribe(() => {}));
     return {
       applyChoice(choice: unknown, event: unknown) {
         // `isTrusted` cannot be forged: Blink defines it on the event instance as a

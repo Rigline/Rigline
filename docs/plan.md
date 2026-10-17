@@ -68,7 +68,7 @@ pnpm workspace, TypeScript throughout, every package a real package with its own
 | `plugins/time-marks` | first-party plugin | Clock times and pause dividers on transcript rows. |
 | `plugins/context-meter` | first-party plugin | How full the context is, as a bar under the composer and a percentage in its footer. |
 | `plugins/usage-meter` | first-party plugin | What the session has cost and how much of the plan's limits is used, as pills under the composer. |
-| `plugins/model-favourites` | first-party plugin | The person's usual model and effort combinations as chips under the composer, what is live as a footer pill, and the list in its settings tab. |
+| `plugins/model-favourites` | first-party plugin | The person's usual model and effort combinations as one segmented pill under the composer, their default beside it, and the list in its settings tab. |
 | `plugins/probe` | first-party plugin | The live integration harness: a check per capability, and the diagnostics in Rigline's menu. |
 | `docs/` | | Plan, decisions, topic docs, authoring guide, archive. |
 
@@ -88,10 +88,11 @@ that adding one is a module or a table row.
 
 **Identifier layers** (core). A layer is a module implementing one interface: `harvest(bundles)`,
 a `floor` that guards the harvest's own regex rather than judging the extension, `diff(a, b)`, and
-a declaration check. The five: CSS-module classes (a module-scoped map, with per-class application
+a declaration check. They are: CSS-module classes (a module-scoped map, with per-class application
 counts); the protocol in four directions, each from its own dispatch-site anchor; outbound payload
 fields, intersected across send sites and marked partial where a spread hides keys; host replies,
-derived from the request side; and React internals, asserted rather than collected. Codegen, the
+derived from the request side; React internals, asserted rather than collected; and the panel's own
+session object, asserted the same way. Codegen, the
 stability diff and the install gate iterate the registry; nothing else knows the list.
 
 **Capabilities** (contract in plugin-api, grant in host, check in core). A capability module
@@ -704,3 +705,11 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   otherwise have drawn its own: `Pill`'s `current` and `warning`, `Hint` and `Actions`. It reaches
   no further than any plugin: `findModel`, `isLive` and `choiceOf` became public so the chips and
   the gate compare a choice with what is live the same way.
+- 2026-10-17: model-favourites was wrong on its first live use, and so was what it rested on.
+  `uses.models` read the live model and effort off `update_state`, which carries the user setting
+  and the host's stale cache of `settings.json`, not the session; `applyChoice` sent requests around
+  the panel, whose picker then went on showing the old choice. Both now go through the panel's own
+  session, the composer footer's `session` prop, a new harvest layer asserting its members (D120
+  amended again). The harness missed it because its fake host never acts on a write and no test
+  looked at Claude Code's own picker after a click; one now does, and fails against the old
+  mechanism. The plugin is one segmented pill and a default pill, at Leo's redesign.

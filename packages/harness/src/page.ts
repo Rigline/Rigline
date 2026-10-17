@@ -22,6 +22,19 @@ export interface FixturePageOptions {
   /** The CLI's `timeFormat`, as `init`'s state carries it: "auto", "12-hour", "24-hour",
    * "24-hour-utc", or a strftime pattern. Absent leaves `claudeSettings` out altogether. */
   readonly appTimeFormat?: string;
+  /** The models Claude Code offers and what the panel launches on. Absent, it offers none. */
+  readonly appModels?: AppModels;
+}
+
+/**
+ * What the fake host says about models, where the real one says it: the list in its config reply,
+ * and the model setting and the CLI's applied effort in `init`'s state, which the panel seeds its
+ * session from when it launches.
+ */
+export interface AppModels {
+  readonly list: readonly unknown[];
+  readonly setting: string;
+  readonly effort: string | null;
 }
 
 /**
@@ -51,10 +64,10 @@ export const REPLY_TABLE: Readonly<Record<string, Readonly<Record<string, unknow
   webview_focused: { type: "webview_focused_response" },
   get_mcp_servers: { type: "get_mcp_servers_response", mcpServers: [] },
   rename_tab: { type: "rename_tab_response" },
-  // What the host sends for a model choice (D120). `applied` is the concrete id the alias
-  // resolved to, as the real reply carries it; the real one omits it when the write returned
-  // nothing, which the derivation reads as not knowing.
-  set_model: { type: "set_model_response", applied: "claude-opus-5" },
+  // The real reply's `applied` is the CLI's applied-settings object, absent where the write
+  // returned none; absent here, so the panel re-reads it, and finds none either.
+  set_model: { type: "set_model_response" },
+  get_applied_settings: { type: "get_applied_settings_response" },
   apply_settings: { type: "apply_settings_response" },
   set_thinking_level: { type: "set_thinking_level_response" },
   // What the host asks for the context meter (D121): 15% of the way to auto-compact.
@@ -76,21 +89,46 @@ export const REPLY_TABLE: Readonly<Record<string, Readonly<Record<string, unknow
  * and where the webview feeds its `config` from. `</` is split because the browser ends a
  * `<script>` at the first one, whatever the JavaScript around it means.
  */
-function replyTableLiteral(appTimestamps: boolean, appTimeFormat: string | undefined): string {
+function replyTableLiteral(options: FixturePageOptions): string {
+  const { appTimeFormat, appModels } = options;
   const init = REPLY_TABLE.init as { readonly state: Record<string, unknown> };
   const state: Record<string, unknown> = {
     ...init.state,
-    showMessageTimestamps: appTimestamps,
+    showMessageTimestamps: options.appTimestamps ?? true,
   };
-  if (appTimeFormat !== undefined) {
-    state.claudeSettings = { effective: { timeFormat: appTimeFormat } };
+  // The CLI's own answer, whose `effective` the panel reads without checking it is there.
+  const claudeSettings: Record<string, unknown> = {};
+  if (appTimeFormat !== undefined) claudeSettings.effective = { timeFormat: appTimeFormat };
+  let table: Record<string, unknown> = REPLY_TABLE;
+  if (appModels !== undefined) {
+    state.modelSetting = appModels.setting;
+    // The host's cache of settings.json, which the CLI's own save of an effort leaves behind.
+    state.settings = { effortLevel: appModels.effort };
+    claudeSettings.effective ??= {};
+    claudeSettings.sources = [];
+    // The CLI's applied model is a concrete id, which the panel compares with its picker's.
+    const entry = appModels.list.find(
+      (m) => (m as { readonly value?: unknown } | null)?.value === appModels.setting,
+    ) as { readonly resolvedModel?: unknown } | undefined;
+    const model =
+      typeof entry?.resolvedModel === "string" ? entry.resolvedModel : appModels.setting;
+    claudeSettings.applied = { model, effort: appModels.effort };
+    table = {
+      ...table,
+      get_claude_state: {
+        type: "get_claude_state_response",
+        cached: false,
+        config: { models: appModels.list },
+      },
+    };
   }
-  const table = { ...REPLY_TABLE, init: { ...REPLY_TABLE.init, state } };
+  if (Object.keys(claudeSettings).length > 0) state.claudeSettings = claudeSettings;
+  table = { ...table, init: { ...REPLY_TABLE.init, state } };
   return JSON.stringify(table).split("</").join("<\\/");
 }
 
-const fakeHost = (appTimestamps: boolean, appTimeFormat: string | undefined): string => `
-  const replyTable = ${replyTableLiteral(appTimestamps, appTimeFormat)};
+const fakeHost = (options: FixturePageOptions): string => `
+  const replyTable = ${replyTableLiteral(options)};
 
   function sendFromExtension(message) {
     window.postMessage({ type: "from-extension", message }, "*");
@@ -210,7 +248,7 @@ export function fixturePage(options: FixturePageOptions): string {
     window.IS_SIDEBAR = ${isSidebar};
     window.IS_FULL_EDITOR = ${isFullEditor};
     window.IS_SESSION_LIST_ONLY = ${isSessionListOnly};
-${fakeHost(options.appTimestamps ?? true, options.appTimeFormat)}
+${fakeHost(options)}
   </script>
 
   <script nonce="${nonce}" src="index.js" type="module"></script>

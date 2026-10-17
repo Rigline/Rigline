@@ -74,6 +74,18 @@ interface ModelsWindow {
   };
 }
 
+/** What the fake host offers, for the cases that read or change the model. */
+const KERNEL_MODELS = [
+  {
+    value: "opus",
+    resolvedModel: "claude-opus-5-5",
+    displayName: "Opus",
+    supportsEffort: true,
+    supportedEffortLevels: ["medium", "high"],
+  },
+  { value: "haiku", resolvedModel: "claude-haiku-5-5", displayName: "Haiku" },
+];
+
 interface SettingsWindow {
   readonly __settings?: {
     readonly own: Record<string, unknown>;
@@ -2075,7 +2087,7 @@ export default { setup(ctx) {
         await booted.close();
       }
     }, 20000);
-    it("derives the model list across both messages, live config winning (D120)", async () => {
+    it("reads the model state off the panel's own session, as its picker draws it (D120)", async () => {
       const watcher: FixturePlugin = {
         name: "watcher",
         manifest: { uses: { models: true } },
@@ -2093,7 +2105,10 @@ export default { setup(ctx) {
     });
   } };`,
       };
-      const booted = await boot({ plugins: [watcher] });
+      const booted = await boot({
+        plugins: [watcher],
+        appModels: { list: KERNEL_MODELS, setting: "opus", effort: "high" },
+      });
       const read = () => booted.page.evaluate(() => (window as unknown as ModelsWindow).__models);
       const push = (message: unknown) =>
         booted.page.evaluate((m) => {
@@ -2101,106 +2116,56 @@ export default { setup(ctx) {
           if (!harness) throw new Error("harness missing");
           harness.push(m);
         }, message);
+      const pill = () =>
+        booted.page.evaluate(
+          () => document.querySelector('.modelPill_gGYT1w[role="combobox"]')?.textContent ?? "",
+        );
       try {
-        // The fake host answers `get_claude_state` with a live `config: {}`, so the service has a
-        // live config and an empty list before anything here pushes.
+        // What the panel launched on, read off its session once the footer is there.
         await vi.waitFor(async () => {
-          expect((await read())?.calls).toBeGreaterThan(0);
+          expect((await read())?.current).toBe("opus");
         });
-        expect((await read())?.models).toEqual([]);
+        expect((await read())?.effort).toBe("high");
+        expect((await read())?.models).toHaveLength(2);
+        expect(await pill()).toMatch(/^Opus 5\.5/);
 
-        // A stored reply does not win over a live config, which is the panel's own precedence:
-        // `drawn = live ?? stored`. Shadowed here rather than ignored, and a one-slot service
-        // would show these models.
-        await push({
-          type: "response",
-          requestId: "state-stored",
-          response: {
-            type: "get_claude_state_response",
-            cached: true,
-            stored: true,
-            config: {
-              models: [
-                {
-                  value: "opus",
-                  resolvedModel: "claude-opus-5",
-                  displayName: "Opus",
-                  supportsEffort: true,
-                  supportedEffortLevels: ["medium", "high"],
-                },
-                { value: "haiku", resolvedModel: "claude-haiku-5-5", displayName: "Haiku" },
-              ],
-              unavailable_models: ["sonnet"],
-            },
-          },
-        });
-        await booted.page.waitForTimeout(100);
-        expect((await read())?.models).toEqual([]);
-
-        // A live reply does.
-        await push({
-          type: "response",
-          requestId: "state-live",
-          response: {
-            type: "get_claude_state_response",
-            cached: false,
-            config: {
-              models: [
-                {
-                  value: "opus",
-                  resolvedModel: "claude-opus-5",
-                  displayName: "Opus",
-                  supportsEffort: true,
-                  supportedEffortLevels: ["medium", "high"],
-                },
-                { value: "haiku", resolvedModel: "claude-haiku-5-5", displayName: "Haiku" },
-              ],
-              unavailable_models: ["sonnet"],
-            },
-          },
-        });
-        await vi.waitFor(async () => {
-          expect((await read())?.models).toHaveLength(2);
-        });
-        expect((await read())?.unavailable).toEqual(["sonnet"]);
-        // The list is known and nothing is live yet, since no state has named a model.
-        expect((await read())?.current).toBeNull();
-
-        // `update_state` carrying state but no config keeps the list and names what is live.
+        // The host's state naming another model is the user setting, which seeds a session only
+        // when it launches: the panel's picker stays where it is, and so does what is live.
         await push({
           type: "request",
           channelId: "",
-          requestId: "state-named",
+          requestId: "state-elsewhere",
           request: {
             type: "update_state",
-            state: { modelSetting: "opus[1m]", settings: { effortLevel: "high" } },
+            state: {
+              authStatus: {},
+              experimentGates: {},
+              openNewInTab: true,
+              modelSetting: "haiku",
+              settings: { effortLevel: "medium" },
+            },
           },
         });
-        await vi.waitFor(async () => {
-          expect((await read())?.setting).toBe("opus[1m]");
-        });
-        // The million-token marker is stripped to find the entry, and the effort is one it takes.
+        await booted.page.waitForTimeout(200);
         expect((await read())?.current).toBe("opus");
         expect((await read())?.effort).toBe("high");
-        expect((await read())?.models).toHaveLength(2);
+        expect(await pill()).toMatch(/^Opus 5\.5/);
 
-        // And one carrying a config replaces the list wholesale.
+        // A config replacing the list is followed, and a model it no longer offers is not live.
         await push({
           type: "request",
           channelId: "",
           requestId: "state-replaced",
           request: {
             type: "update_state",
-            state: {},
+            state: { authStatus: {}, experimentGates: {}, openNewInTab: true },
             config: { models: [{ value: "haiku", resolvedModel: "claude-haiku-5-5" }] },
           },
         });
         await vi.waitFor(async () => {
           expect((await read())?.models).toHaveLength(1);
         });
-        // The setting survives the replacement; the model it named does not, which is the state
-        // the weak mode exists to draw.
-        expect((await read())?.setting).toBe("opus[1m]");
+        expect((await read())?.setting).toBe("opus");
         expect((await read())?.current).toBeNull();
 
         const d = await booted.diagnostics();
@@ -2248,7 +2213,10 @@ export default { setup(ctx) {
     }));
   } };`,
       };
-      const booted = await boot({ plugins: [chooser] });
+      const booted = await boot({
+        plugins: [chooser],
+        appModels: { list: KERNEL_MODELS, setting: "haiku", effort: null },
+      });
       const read = () => booted.page.evaluate(() => (window as unknown as ChoiceWindow).__choice);
       try {
         await booted.page.waitForSelector("button.harness-choice");
@@ -2256,33 +2224,6 @@ export default { setup(ctx) {
         // `navigator.userActivation` is useless as a gesture check: it already reads active in
         // `setup`, before anything has been clicked.
         expect((await read())?.activeAtSetup).toBe(true);
-
-        // The model list, so the choice has something to validate against.
-        await booted.page.evaluate(
-          (m) => {
-            const harness = (window as unknown as ChoiceWindow).__harness;
-            if (!harness) throw new Error("harness missing");
-            harness.push(m);
-          },
-          {
-            type: "response",
-            requestId: "state-live",
-            response: {
-              type: "get_claude_state_response",
-              cached: false,
-              config: {
-                models: [
-                  {
-                    value: "opus",
-                    resolvedModel: "claude-opus-5",
-                    supportsEffort: true,
-                    supportedEffortLevels: ["medium", "high"],
-                  },
-                ],
-              },
-            },
-          },
-        );
 
         // A real click from the browser, which is the only kind that counts.
         await booted.page.click("button.harness-choice");
@@ -2301,10 +2242,16 @@ export default { setup(ctx) {
           refused: expect.stringContaining("needs the event from something a person did"),
         });
 
-        // The real one applies, and resolves with what the reply said rather than with void.
+        // The real one applies through the panel's own setters, and resolves with what its
+        // controls hold rather than with void; Claude Code's own pill says the same.
         expect(JSON.parse(state?.clicked ?? "{}")).toEqual({
-          applied: { model: "claude-opus-5", effort: "high", thinkingLevel: null, ultracode: null },
+          applied: { model: "opus", effort: "high", thinkingLevel: null, ultracode: null },
         });
+        expect(
+          await booted.page.evaluate(
+            () => document.querySelector('.modelPill_gGYT1w[role="combobox"]')?.textContent,
+          ),
+        ).toMatch(/^Opus 5\.5.*High/);
 
         const d = await booted.diagnostics();
         expect(d.plugins).toContainEqual({ name: "chooser", status: "loaded" });

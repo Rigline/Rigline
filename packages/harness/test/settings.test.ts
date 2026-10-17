@@ -99,40 +99,15 @@ const skip = await harnessSkipReason(VERSION);
 
 describe.skipIf(skip !== null)(`the settings screen${skip ? ` (${skip})` : ""}`, () => {
   const boot = register(VERSION);
-  type Booted = Awaited<ReturnType<typeof boot>>;
-
-  /** The model list and what is live, as the extension host pushes them. */
-  async function live(booted: Booted, setting: string, effort: string): Promise<void> {
-    await booted.page.evaluate(
-      (m) => {
-        const harness = (window as unknown as { __harness?: { push(m: unknown): void } }).__harness;
-        if (!harness) throw new Error("harness missing");
-        harness.push(m);
-      },
-      {
-        type: "request",
-        channelId: "",
-        requestId: "settings-state",
-        request: {
-          type: "update_state",
-          config: { models: MODELS },
-          state: {
-            authStatus: {},
-            experimentGates: {},
-            openNewInTab: true,
-            modelSetting: setting,
-            settings: { effortLevel: effort },
-          },
-        },
-      },
-    );
-  }
 
   it("saves the gate's mode and a default from Rigline's tab, and the gate is live once it lands", async () => {
-    const booted = await boot({ save: COMPANION, model: OFF });
+    const booted = await boot({
+      save: COMPANION,
+      model: OFF,
+      appModels: { list: MODELS, setting: "haiku", effort: "medium" },
+    });
     const { page } = booted;
     try {
-      await live(booted, "haiku", "medium");
       await openFromMenu(page);
       expect(await page.getByRole("tab", { name: "Rigline" }).getAttribute("aria-selected")).toBe(
         "true",

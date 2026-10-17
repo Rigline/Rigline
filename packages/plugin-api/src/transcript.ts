@@ -106,8 +106,8 @@ export function rowIdentity(fiber: FiberLike | null | undefined): RowIdentity | 
   if (alternate === null) return own;
   const other = propsIdentity(alternate);
   if (own?.id === other?.id && own?.role === other?.role) return own;
-  const ownIsCurrent = rootIsCurrent(fiber);
-  if (ownIsCurrent !== rootIsCurrent(alternate)) return ownIsCurrent ? own : other;
+  const ownIsCurrent = onScreen(fiber);
+  if (ownIsCurrent !== onScreen(alternate)) return ownIsCurrent ? own : other;
   // Unsettled, so the roots cannot say which tree is on screen. One answer and one silence is
   // still one answer; two different answers is the ambiguity there is nothing left to resolve (D134).
   if (own === null) return other;
@@ -115,7 +115,8 @@ export function rowIdentity(fiber: FiberLike | null | undefined): RowIdentity | 
   return null;
 }
 
-function rootIsCurrent(fiber: FiberLike | null | undefined): boolean {
+/** Whether `fiber` is in the tree on screen: its root is the one its `FiberRoot` calls current (D103). */
+export function onScreen(fiber: FiberLike | null | undefined): boolean {
   let node = fiber ?? null;
   for (let step = 0; node?.return && step < ROOT_SEARCH_DEPTH; step++) node = node.return;
   return node !== null && asRecord(node.stateNode)?.current === node;

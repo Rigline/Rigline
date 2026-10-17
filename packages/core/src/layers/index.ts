@@ -13,9 +13,17 @@ import { fieldsLayer, type OutboundPayloads } from "./fields.ts";
 import { type Protocol, protocolLayer } from "./protocol.ts";
 import { type ReactAnchors, reactLayer } from "./react.ts";
 import { type Responses, repliesLayer } from "./replies.ts";
+import { type PanelSession, panelSessionLayer } from "./session.ts";
 import type { Bundles, Layer } from "./types.ts";
 
-export const LAYERS = [classesLayer, protocolLayer, fieldsLayer, repliesLayer, reactLayer] as const;
+export const LAYERS = [
+  classesLayer,
+  protocolLayer,
+  fieldsLayer,
+  repliesLayer,
+  reactLayer,
+  panelSessionLayer,
+] as const;
 
 /** Every layer's harvest of one extension version, typed per layer. */
 export interface Harvest {
@@ -25,6 +33,7 @@ export interface Harvest {
   readonly fields: OutboundPayloads;
   readonly replies: Responses;
   readonly react: ReactAnchors;
+  readonly panelSession: PanelSession;
   /** The stylesheet, kept for the unreachable-class report; never harvested from. */
   readonly css: string;
 }
@@ -38,6 +47,7 @@ export function harvestAll(bundles: Bundles): Harvest {
     fields: fieldsLayer.harvest(bundles),
     replies: repliesLayer.harvest(bundles),
     react: reactLayer.harvest(bundles),
+    panelSession: panelSessionLayer.harvest(bundles),
     css: bundles.css,
   };
 }
@@ -50,6 +60,7 @@ export function scanOf(harvest: Harvest): Scan {
     fields: harvest.fields,
     replies: harvest.replies,
     react: harvest.react,
+    panelSession: harvest.panelSession,
   };
   const views: Record<string, ReadonlySet<string>> = {};
   // A layer's views take its own harvest type, so the tuple above is not a `Layer<unknown>[]`;
@@ -86,3 +97,5 @@ export type { Responses } from "./replies.ts";
 export { harvestResponses, replyCandidates } from "./replies.ts";
 export type { Bundles, Layer } from "./types.ts";
 export { HarvestError } from "./types.ts";
+export type { PanelSession } from "./session.ts";
+export { harvestPanelSession } from "./session.ts";

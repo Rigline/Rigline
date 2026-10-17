@@ -85,6 +85,7 @@ export function generate(harvest: Harvest, anchorTable?: AnchorTable): Generated
       version: harvest.react.version,
       missing: harvest.react.missing,
     },
+    panelSession: { missing: harvest.panelSession.missing },
   };
 
   const classes = Object.values(tables.moduleClasses).reduce(
@@ -97,7 +98,8 @@ export function generate(harvest: Harvest, anchorTable?: AnchorTable): Generated
     `${harvest.protocol.outboundRequests.length}+${harvest.protocol.outboundNotifications.length} outbound / ` +
     `${harvest.protocol.inboundPushes.length}+${harvest.protocol.inboundRequests.length} inbound messages, ` +
     `${tables.inboundResponses.length} replies, ${fieldCount} payload fields, ` +
-    `${anchorSummary(anchors)}${reactSummary(tables.react.missing)}`;
+    `${anchorSummary(anchors)}${reactSummary(tables.react.missing)}` +
+    sessionSummary(tables.panelSession.missing);
 
   const scan = scanOf(harvest);
   return {
@@ -147,6 +149,13 @@ function reactSummary(missing: IdentifierTables["react"]["missing"]): string {
   return missing.length === 0
     ? ""
     : `, react-dom lacks ${missing.map((gap) => gap.needs).join(", ")}`;
+}
+
+/** Only when something is missing, as for react-dom. */
+function sessionSummary(missing: IdentifierTables["panelSession"]["missing"]): string {
+  return missing.length === 0
+    ? ""
+    : `, the panel's session lacks ${missing.map((gap) => gap.needs).join(", ")}`;
 }
 
 function sortedClassMap(map: ClassMap): IdentifierTables["moduleClasses"] {

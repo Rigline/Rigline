@@ -446,13 +446,7 @@ export function usageLimitsVerdict(
   return { verdict: "pass", detail: known.join(", ") };
 }
 
-/**
- * The model list has arrived, once some plugin here follows it.
- *
- * The detail says how many replies and updates it took, because a list standing on a cached reply
- * alone is the state a one-slot service would have shown as empty, and it reads the same as a
- * working one.
- */
+/** The panel's session has been found and offers models, once some plugin here follows them. */
 export function modelStateVerdict(
   used: boolean,
   state: {
@@ -460,14 +454,14 @@ export function modelStateVerdict(
     readonly current: { readonly value: string } | null;
     readonly setting: string | null;
   },
-  stats: { readonly replies: number; readonly stored: number; readonly updates: number },
+  stats: { readonly sessions: number },
 ): CheckVerdict {
   if (!used) return { verdict: "n/a", detail: "no plugin here follows the model list" };
+  if (stats.sessions === 0) {
+    return { verdict: "n/a", detail: "the panel's session has not been found here yet" };
+  }
   if (state.models.length === 0) {
-    return {
-      verdict: "n/a",
-      detail: `no models from ${stats.replies} replies and ${stats.updates} updates`,
-    };
+    return { verdict: "n/a", detail: "the panel's session offers no models yet" };
   }
   const live =
     state.current !== null

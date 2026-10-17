@@ -38,6 +38,7 @@ const tables: IdentifierTables = {
     worktreePill: 'anchor "worktreePill" (OOQiHg.worktreePill) is not in this extension',
   },
   react: { hook: "__REACT_DEVTOOLS_GLOBAL_HOOK__", version: "18.3.1", missing: [] },
+  panelSession: { missing: [] },
 };
 
 const uses = (partial: Partial<Uses>): Uses => ({ ...EMPTY_USES, ...partial });
@@ -139,6 +140,27 @@ describe("capabilityViolation", () => {
     expect(capabilityViolation(everythingElse, tables)).toBeNull();
     expect(capabilityViolation(everythingElse, noProps)).toBeNull();
     expect(optionalGaps(optionally({ transcript: true }), noProps)).toHaveLength(1);
+  });
+
+  it("refuses the model capabilities, and only them, when the panel's session lacks what they drive", () => {
+    const withModels: IdentifierTables = {
+      ...tables,
+      messageTypes: [...tables.messageTypes, "launch_claude", "set_model", "apply_settings"],
+    };
+    const noSetter: IdentifierTables = {
+      ...withModels,
+      panelSession: {
+        missing: [{ needs: '"async setEffortLevel("', breaks: "no effort could be applied" }],
+      },
+    };
+    expect(capabilityViolation(uses({ models: true, modelChoice: true }), withModels)).toBeNull();
+    expect(capabilityViolation(uses({ modelChoice: true }), noSetter)).toBe(
+      `"modelChoice" needs the panel session's "async setEffortLevel(", which is gone: no effort could be applied`,
+    );
+    expect(capabilityViolation(uses({ models: true }), noSetter)).toMatch(
+      /^"models" needs the panel/,
+    );
+    expect(capabilityViolation(uses({ transcript: true }), noSetter)).toBeNull();
   });
 });
 

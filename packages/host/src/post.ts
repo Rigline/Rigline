@@ -485,9 +485,18 @@ async function main(): Promise<void> {
   });
   const checks = createCheckService();
   const surface = detectSurface();
-  const models = createModelsService(bus, modelSettings);
-  // Rigline's settings tab reads the list, so it is tapped before the seal, for the reason granting
-  // `uses.modelChoice` starts the read: tapped later, it is empty until the next `update_state`.
+  const spacer = tables.anchorSelectors?.footerSpacer ?? null;
+  const models = createModelsService({
+    bus,
+    react,
+    spacer: () => (spacer === null ? null : document.querySelector(spacer)),
+    settings: modelSettings,
+    fail: (reason) => {
+      diagnostics.errors.push(`models: ${reason}`);
+      console.error(`[rigline] models: ${reason}`);
+    },
+  });
+  // Subscribed before the seal, since the gate's chosen-ness is read off the panel's own requests.
   const modelState = store<ModelState>(NO_MODEL_STATE);
   models.subscribe((state) => modelState.set(state));
   // Before any plugin loads, so its taps are in before the replay buffer seals.

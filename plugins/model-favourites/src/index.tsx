@@ -1,8 +1,8 @@
 /**
- * The person's usual model and effort combinations, one click each, and what is live with its
- * version. The list of models and what is live are the host's (D120), a choice is applied by the host
- * on a person's click, and the default is Rigline's (D139); this keeps the person's list and draws
- * it.
+ * The person's usual model and effort combinations as one pill split into segments, a click each,
+ * and their default beside it. The list of models and what is live are the panel's own (D120), a
+ * choice is applied through the panel's own controls on a person's click, and the default is
+ * Rigline's (D139); this keeps the person's list and draws it.
  */
 import {
   choiceOf,
@@ -27,6 +27,7 @@ import {
   MenuItem,
   ModelChooser,
   Pill,
+  PillGroup,
   SettingRow,
   useFlash,
   useSettingsDraft,
@@ -39,6 +40,8 @@ type Section = Readonly<Record<string, unknown>>;
 /** The key in this plugin's settings that holds the list. */
 const KEY = "favourites";
 
+const WAITING = "Waiting for Claude Code's model list";
+
 /** The list as written, whatever it holds, so an edit loses nothing a person wrote by hand. */
 export function entriesOf(section: Section): readonly unknown[] {
   const list = section[KEY];
@@ -50,16 +53,42 @@ export function favouritesOf(section: Section): readonly DefaultChoice[] {
   return entriesOf(section).flatMap((entry) => choiceOf(entry) ?? []);
 }
 
+/** The model a choice names: its entry's alias where the list has it, else the alias it stores. */
+function modelOf(choice: DefaultChoice, models: readonly ModelEntry[]): string {
+  return findModel(models, choice.model)?.value ?? choice.model;
+}
+
+/** What a favourite carries besides its model: its effort, thinking level and ultracode. */
+function settingsOf(choice: DefaultChoice): string[] {
+  return [
+    ...(choice.effort === undefined ? [] : [choice.effort]),
+    ...(choice.thinkingLevel === undefined ? [] : [`thinking ${choice.thinkingLevel}`]),
+    ...(choice.ultracode === true ? ["ultracode"] : []),
+  ];
+}
+
 /** What a favourite reads as: the version its model resolves to now, else the alias it stores. */
 export function favouriteLabel(choice: DefaultChoice, models: readonly ModelEntry[]): string {
   const model = findModel(models, choice.model);
-  const effort = choice.effort ?? null;
-  return [
-    model === null ? choice.model : comboLabel(model, null),
-    ...(effort === null ? [] : [effort]),
-    ...(choice.thinkingLevel === undefined ? [] : [`thinking ${choice.thinkingLevel}`]),
-    ...(choice.ultracode === true ? ["ultracode"] : []),
-  ].join(" · ");
+  return [model === null ? choice.model : comboLabel(model, null), ...settingsOf(choice)].join(
+    " · ",
+  );
+}
+
+/**
+ * Each segment's label. A run of favourites on one model names it once, so `Opus 5.5 · xhigh`
+ * is followed by `low`: the row is short of width, and the run already says whose effort it is.
+ */
+export function segmentLabels(
+  favourites: readonly DefaultChoice[],
+  models: readonly ModelEntry[],
+): string[] {
+  return favourites.map((choice, i) => {
+    const previous = favourites[i - 1];
+    const rest = settingsOf(choice);
+    const sameRun = previous !== undefined && modelOf(previous, models) === modelOf(choice, models);
+    return sameRun && rest.length > 0 ? rest.join(" · ") : favouriteLabel(choice, models);
+  });
 }
 
 /** Why `choice` cannot be applied with this list, or null. Before the list arrives, nothing is known. */
@@ -79,40 +108,17 @@ export function sameChoice(
   b: DefaultChoice,
   models: readonly ModelEntry[],
 ): boolean {
-  const model = (choice: DefaultChoice) => findModel(models, choice.model)?.value ?? choice.model;
-  return model(a) === model(b) && a.effort === b.effort && a.thinkingLevel === b.thinkingLevel;
+  return (
+    modelOf(a, models) === modelOf(b, models) &&
+    a.effort === b.effort &&
+    a.thinkingLevel === b.thinkingLevel
+  );
 }
 
-/** What is live as a choice, to add or to compare, or null before it is known. */
+/** What is live as a choice, to add, or null before it is known. */
 export function liveChoice(state: ModelState): DefaultChoice | null {
   if (state.current === null) return null;
   return { model: state.current.value, ...(state.effort === null ? {} : { effort: state.effort }) };
-}
-
-/**
- * Whether what is live is known: the list has arrived, and so has the setting or an entry for no
- * setting at all. Until then a missing entry is the cold start, not a model gone.
- */
-export function liveKnown(state: ModelState): boolean {
-  return state.models.length > 0 && (state.current !== null || state.setting !== null);
-}
-
-/** What is live, by its version, or the setting as it is where this install does not offer it. */
-export function liveLabel(state: ModelState): string {
-  return state.current === null
-    ? (state.setting ?? "default")
-    : comboLabel(state.current, state.effort);
-}
-
-/**
- * Whether what is live is one of the favourites or the default. A warning needs something to be off,
- * so with neither set nothing is.
- */
-export function offList(state: ModelState, favourites: readonly DefaultChoice[]): boolean {
-  if (!liveKnown(state)) return false;
-  if (favourites.length === 0 && state.default === null) return false;
-  const known = state.default === null ? favourites : [...favourites, state.default.choice];
-  return !known.some((choice) => isLive(state, choice));
 }
 
 /** Why a favourite cannot be added: no model yet, no effort for one that takes one, or a repeat. */
@@ -153,38 +159,38 @@ function apply(
   );
 }
 
-function Chip(props: {
+/** A pill whose click applies `choice`, flashing a refusal and keeping its reason as the tooltip. */
+function Choosing(props: {
   readonly stores: Stores;
   readonly choice: DefaultChoice;
   readonly state: ModelState;
+  readonly label: string;
+  /** The tooltip while nothing has been refused. */
+  readonly title: string;
 }): ReactNode {
-  const { stores, choice, state } = props;
+  const { stores, choice, state, label, title } = props;
   const [flash, show] = useFlash();
   const [reason, setReason] = useState<string | null>(null);
-  const label = favouriteLabel(choice, state.models);
-  const usual = state.default !== null && sameChoice(choice, state.default.choice, state.models);
-  const text = usual ? `${label} (default)` : label;
   if (state.models.length === 0) {
     return (
-      <Pill muted title="Waiting for Claude Code's model list">
-        {text}
+      <Pill muted title={WAITING}>
+        {label}
       </Pill>
     );
   }
   const problem = unavailable(choice, state.models);
   if (problem !== null) {
     return (
-      <Pill muted title={`${label}: ${problem}`}>
-        {text}
+      <Pill muted title={`${favouriteLabel(choice, state.models)}: ${problem}`}>
+        {label}
       </Pill>
     );
   }
-  const live = isLive(state, choice);
   return (
     <Pill
-      current={live}
+      current={isLive(state, choice)}
       flash={flash}
-      title={reason ?? (live ? `${label}: live now` : `Switch to ${label}`)}
+      title={reason ?? title}
       onClick={(event) => {
         setReason(null);
         apply(stores.ctx, choice, event, (why) => {
@@ -193,12 +199,12 @@ function Chip(props: {
         });
       }}
     >
-      {text}
+      {label}
     </Pill>
   );
 }
 
-function Chips(props: { readonly stores: Stores }): ReactNode {
+function Favourites(props: { readonly stores: Stores }): ReactNode {
   const { stores } = props;
   const state = useStore(stores.models);
   const favourites = favouritesOf(useStore(stores.settings));
@@ -213,79 +219,61 @@ function Chips(props: { readonly stores: Stores }): ReactNode {
       </Pill>
     );
   }
-  const onAFavourite = favourites.some((choice) => isLive(state, choice));
-  const usual = state.default !== null && isLive(state, state.default.choice);
+  const labels = segmentLabels(favourites, state.models);
   return (
-    <>
-      {liveKnown(state) && !onAFavourite && (
-        <Pill warning={!usual} title={`Live now: ${liveTooltip(state, usual)}`}>
-          {usual ? `${liveLabel(state)} (default)` : liveLabel(state)}
-        </Pill>
-      )}
-      {favourites.map((choice, i) => (
-        <Chip key={i} stores={stores} choice={choice} state={state} />
-      ))}
-    </>
+    <PillGroup label="Model favourites">
+      {favourites.map((choice, i) => {
+        const full = favouriteLabel(choice, state.models);
+        return (
+          <Choosing
+            key={i}
+            stores={stores}
+            choice={choice}
+            state={state}
+            label={labels[i] ?? full}
+            title={isLive(state, choice) ? `${full}: live now` : `Switch to ${full}`}
+          />
+        );
+      })}
+    </PillGroup>
   );
 }
 
-/** What the live pill leading the chips says about what is live. */
-function liveTooltip(state: ModelState, usual: boolean): string {
-  if (state.current === null) return `${liveLabel(state)}, which this install does not offer`;
-  return usual ? "your default" : "none of your favourites";
-}
-
-/** The tooltip's lines: what is live, what is wrong with it, and what a click does. */
-export function statusTooltip(state: ModelState, favourites: readonly DefaultChoice[]): string {
-  if (!liveKnown(state)) return "Waiting for Claude Code's model list";
-  const lines = [`Live: ${liveLabel(state)}`];
-  if (state.current === null) lines.push("This install does not offer that model");
-  else if (offList(state, favourites)) lines.push("Not one of your favourites");
-  if (state.choiceRequired) lines.push("Not chosen for this session yet");
-  lines.push(
-    state.default === null
-      ? "No default model: click to choose one in Rigline's settings"
-      : `Click for your default: ${favouriteLabel(state.default.choice, state.models)}`,
-  );
-  return lines.join("\n");
-}
-
-function Status(props: { readonly stores: Stores }): ReactNode {
+function Default(props: { readonly stores: Stores }): ReactNode {
   const { stores } = props;
   const state = useStore(stores.models);
-  const favourites = favouritesOf(useStore(stores.settings));
-  const [flash, show] = useFlash();
-  const [reason, setReason] = useState<string | null>(null);
-  const waiting = !liveKnown(state);
-  const warning = !waiting && (state.current === null || offList(state, favourites));
+  if (state.models.length === 0) {
+    return (
+      <Pill muted title={WAITING}>
+        –
+      </Pill>
+    );
+  }
+  if (state.default === null) {
+    return (
+      <Pill
+        muted
+        title="No default model: click to choose one in Rigline's settings"
+        onClick={() => stores.ctx.openSettings("rigline")}
+      >
+        No default
+      </Pill>
+    );
+  }
+  const { choice } = state.default;
+  const label = favouriteLabel(choice, state.models);
   return (
-    <Pill
-      muted={waiting || (!warning && state.choiceRequired)}
-      warning={warning}
-      flash={flash}
-      title={reason ?? statusTooltip(state, favourites)}
-      onClick={
-        waiting
-          ? undefined
-          : (event) => {
-              setReason(null);
-              if (state.default === null) {
-                stores.ctx.openSettings("rigline");
-                return;
-              }
-              apply(stores.ctx, state.default.choice, event, (why) => {
-                setReason(why);
-                show("refused");
-              });
-            }
-      }
-    >
-      {waiting ? "–" : liveLabel(state)}
-    </Pill>
+    <Choosing
+      stores={stores}
+      choice={choice}
+      state={state}
+      label={label}
+      title={isLive(state, choice) ? "Your default, live now" : "Switch to your default"}
+    />
   );
 }
 
-/** One row of the list: what it reads as, and what qualifies it. */
+/** One row of the list: what it reads as, and what is wrong with it. */
 function Row(props: { readonly entry: unknown; readonly state: ModelState }): ReactNode {
   const { entry, state } = props;
   const choice = choiceOf(entry);
@@ -293,11 +281,9 @@ function Row(props: { readonly entry: unknown; readonly state: ModelState }): Re
     return <Hint>Not a favourite Rigline can read: {JSON.stringify(entry)}</Hint>;
   }
   const problem = unavailable(choice, state.models);
-  const usual = state.default !== null && sameChoice(choice, state.default.choice, state.models);
   return (
     <>
       {favouriteLabel(choice, state.models)}
-      {usual && " (default)"}
       {problem !== null && <Hint> — {problem}</Hint>}
     </>
   );
@@ -314,13 +300,13 @@ function Tab(props: { readonly stores: Stores }): ReactNode {
   const add = (choice: DefaultChoice): void => save([...entries, choice]);
   const live = liveChoice(state);
   const pendingProblem = addProblem(pending, favourites, state.models);
-  const liveProblem =
-    live === null
-      ? "Waiting for Claude Code's model list"
-      : addProblem(live, favourites, state.models);
+  const liveProblem = live === null ? WAITING : addProblem(live, favourites, state.models);
   return (
     <>
-      <SettingRow label="Favourites" hint="Each is a chip under the composer; a click applies it.">
+      <SettingRow
+        label="Favourites"
+        hint="One pill under the composer, a segment each; a click applies it."
+      >
         <ListEditor
           items={entries}
           onChange={save}
@@ -352,13 +338,13 @@ function Tab(props: { readonly stores: Stores }): ReactNode {
           >
             {state.current === null
               ? "Add current model"
-              : `Add current model (${liveLabel(state)})`}
+              : `Add current model (${comboLabel(state.current, state.effort)})`}
           </Button>
         </Actions>
       </SettingRow>
       <SettingRow
         label="Default"
-        hint="Rigline's own setting: the status pill applies it, and the gate can compare against it."
+        hint="Rigline's own setting: its pill applies it, and the gate can compare against it."
       >
         <span>
           {state.default === null ? "None set" : favouriteLabel(state.default.choice, state.models)}
@@ -378,8 +364,8 @@ export default definePlugin({
       models: storeFrom(ctx.onModelState, NO_MODEL_STATE),
       settings: storeFrom(ctx.onSettings, ctx.settings),
     };
-    ctx.element("chips", () => <Chips stores={stores} />);
-    ctx.element("status", () => <Status stores={stores} />);
+    ctx.element("favourites", () => <Favourites stores={stores} />);
+    ctx.element("default", () => <Default stores={stores} />);
     ctx.menu(() => <MenuItem label="Model favourites…" onSelect={() => ctx.openSettings()} />);
     ctx.settingsTab("Model favourites", () => <Tab stores={stores} />);
   },

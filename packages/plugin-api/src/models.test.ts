@@ -1,19 +1,14 @@
 /**
- * The model derivation: the two configs the panel keeps, the lookup chain, and what counts as a live
- * effort. Every shape asserted here was read in the 2.1.300 webview bundle.
+ * The model derivation: reading the session's config, the lookup chain, and what counts as a live
+ * effort. Every shape asserted here was read in the webview bundle.
  */
 import { describe, expect, it } from "vitest";
 import {
-  appliedModelOf,
   choiceOf,
   choiceProblem,
   choosesModel,
   comboLabel,
-  configsAfterReply,
-  configsAfterState,
   DEFAULT_EFFORT_LEVELS,
-  drawnConfig,
-  effortOf,
   findModel,
   isLive,
   type ModelEntry,
@@ -21,12 +16,9 @@ import {
   type ModelSettings,
   modelStateOf,
   modelsOf,
-  NO_CONFIGS,
   NO_MODEL_SETTINGS,
   readModelSettings,
   sameModelState,
-  setModelField,
-  settingOf,
   supportsEffort,
   unavailableOf,
 } from "./models.ts";
@@ -41,57 +33,6 @@ const opus = {
 const haiku = { value: "haiku", resolvedModel: "claude-haiku-5-5", displayName: "Haiku" };
 
 const config = { models: [opus, haiku], unavailable_models: ["sonnet"] };
-
-describe("the two configs the panel keeps", () => {
-  it("puts a stored reply in the stored slot and a live one in the live slot", () => {
-    const stored = configsAfterReply(NO_CONFIGS, { config, stored: true });
-    expect(stored).toEqual({ live: undefined, stored: config });
-
-    const live = configsAfterReply(NO_CONFIGS, { config, stored: false });
-    expect(live).toEqual({ live: config, stored: undefined });
-  });
-
-  it("draws the live config, and the stored one only as a fallback", () => {
-    const other = { models: [haiku] };
-    expect(drawnConfig({ live: undefined, stored: config })).toBe(config);
-    expect(drawnConfig({ live: other, stored: config })).toBe(other);
-    expect(drawnConfig(NO_CONFIGS)).toBeUndefined();
-  });
-
-  it("is a cold start that works: a cached reply alone still offers the models", () => {
-    // The first reply is usually the cached one, so a service that only accepted live-destined
-    // replies would show an empty list until the first update_state.
-    const configs = configsAfterReply(NO_CONFIGS, { config, cached: true, stored: true });
-    expect(modelsOf(drawnConfig(configs))).toHaveLength(2);
-  });
-
-  it("replaces the live config wholesale on an update, and clears the stored one", () => {
-    const configs = configsAfterReply(NO_CONFIGS, { config, stored: true });
-    const next = { models: [haiku] };
-
-    expect(configsAfterState(configs, { config: next, state: {} })).toEqual({
-      live: next,
-      stored: undefined,
-    });
-  });
-
-  it("keeps the live config when an update carries none, and still clears the stored one", () => {
-    const configs = { live: config, stored: { models: [haiku] } };
-    expect(configsAfterState(configs, { state: {} })).toEqual({ live: config, stored: undefined });
-  });
-
-  it("empties a non-empty account when an update carries no config", () => {
-    const withAccount = { models: [opus], account: { email: "someone@example.com" } };
-    const after = configsAfterState({ live: withAccount, stored: undefined }, { state: {} });
-    expect(after.live).toEqual({ models: [opus], account: {} });
-  });
-
-  it("leaves an already-empty account's config untouched, rather than copying it", () => {
-    const withEmpty = { models: [opus], account: {} };
-    const after = configsAfterState({ live: withEmpty, stored: undefined }, { state: {} });
-    expect(after.live).toBe(withEmpty);
-  });
-});
 
 describe("reading a config", () => {
   it("takes the panel's own effort default for a model that lists none", () => {
@@ -140,17 +81,9 @@ describe("the lookup chain", () => {
 });
 
 describe("the live state", () => {
-  it("reads the setting and the effort off an update_state request", () => {
-    const request = { state: { modelSetting: "opus", settings: { effortLevel: "high" } } };
-    expect(settingOf(request)).toBe("opus");
-    expect(effortOf(request)).toBe("high");
-    expect(settingOf({ state: {} })).toBeNull();
-    expect(effortOf({ state: { settings: {} } })).toBeNull();
-  });
-
-  it("drops an effort the live model does not take, whatever the file says", () => {
-    const configs = { live: config, stored: undefined };
-    // `haiku` does not support effort, so a stored effortLevel is not live for it.
+  it("drops an effort the live model does not take", () => {
+    const configs = config;
+    // `haiku` does not support effort, so an effort the session holds is not live for it.
     expect(modelStateOf(configs, "haiku", "high").effort).toBeNull();
     // `opus` does, but only at the levels it lists.
     expect(modelStateOf(configs, "opus", "high").effort).toBe("high");
@@ -165,14 +98,14 @@ describe("the live state", () => {
   });
 
   it("carries the setting even where nothing in the list matches it", () => {
-    const state = modelStateOf({ live: config, stored: undefined }, "gone", null);
+    const state = modelStateOf(config, "gone", null);
     expect(state.setting).toBe("gone");
     expect(state.current).toBeNull();
   });
 });
 
 describe("sameModelState", () => {
-  const configs = { live: config, stored: undefined };
+  const configs = config;
 
   it("is true for two readings of the same thing", () => {
     expect(
@@ -184,35 +117,21 @@ describe("sameModelState", () => {
     const base = modelStateOf(configs, "opus", "high");
     expect(sameModelState(base, modelStateOf(configs, "haiku", "high"))).toBe(false);
     expect(sameModelState(base, modelStateOf(configs, "opus", "medium"))).toBe(false);
+    expect(sameModelState(base, modelStateOf({ models: [opus] }, "opus", "high"))).toBe(false);
     expect(
-      sameModelState(
-        base,
-        modelStateOf({ live: { models: [opus] }, stored: undefined }, "opus", "high"),
-      ),
-    ).toBe(false);
-    expect(
-      sameModelState(
-        base,
-        modelStateOf(
-          { live: { ...config, unavailable_models: [] }, stored: undefined },
-          "opus",
-          "high",
-        ),
-      ),
+      sameModelState(base, modelStateOf({ ...config, unavailable_models: [] }, "opus", "high")),
     ).toBe(false);
   });
 
   it("notices a model whose resolved id moved under the same alias", () => {
     const moved = { ...config, models: [{ ...opus, resolvedModel: "claude-opus-5-5" }, haiku] };
     const base = modelStateOf(configs, "opus", "high");
-    expect(
-      sameModelState(base, modelStateOf({ live: moved, stored: undefined }, "opus", "high")),
-    ).toBe(false);
+    expect(sameModelState(base, modelStateOf(moved, "opus", "high"))).toBe(false);
   });
 });
 
 describe("choiceProblem", () => {
-  const state = modelStateOf({ live: config, stored: undefined }, "opus", "high");
+  const state = modelStateOf(config, "opus", "high");
 
   it("accepts a model the install offers, with an effort it takes", () => {
     expect(choiceProblem(state, { model: "opus", effort: "medium" })).toBeNull();
@@ -236,12 +155,12 @@ describe("choiceProblem", () => {
 
   it("judges an effort alone against the live model", () => {
     expect(choiceProblem(state, { effort: "medium" })).toBeNull();
-    const onHaiku = modelStateOf({ live: config, stored: undefined }, "haiku", null);
+    const onHaiku = modelStateOf(config, "haiku", null);
     expect(choiceProblem(onHaiku, { effort: "medium" })).toMatch(/does not take an effort/);
   });
 
   it("refuses an effort with no model live to apply it to", () => {
-    const nothing = modelStateOf({ live: config, stored: undefined }, "gone", null);
+    const nothing = modelStateOf(config, "gone", null);
     expect(choiceProblem(nothing, { effort: "high" })).toMatch(/no model is live/);
   });
 
@@ -265,23 +184,6 @@ describe("choiceProblem", () => {
 
   it("accepts ultracode on its own, which is a flag and not a model property", () => {
     expect(choiceProblem(state, { ultracode: true })).toBeNull();
-  });
-});
-
-describe("what set_model needs and answers", () => {
-  it("wraps the model as the object the extension requires", () => {
-    // `setModel` throws `set_model: malformed request` unless `model.value` is a string.
-    expect(setModelField("opus")).toEqual({ value: "opus" });
-    expect(setModelField("default")).toEqual({ value: "default" });
-  });
-
-  it("reads `applied` off the reply, and treats its absence as not knowing", () => {
-    expect(appliedModelOf({ type: "set_model_response", applied: "claude-opus-5" })).toBe(
-      "claude-opus-5",
-    );
-    // The reply omits `applied` when the write returned nothing, which is a real answer.
-    expect(appliedModelOf({ type: "set_model_response" })).toBeNull();
-    expect(appliedModelOf(null)).toBeNull();
   });
 });
 
@@ -335,7 +237,7 @@ describe("reading the model block", () => {
 });
 
 describe("whether a send waits for a choice", () => {
-  const configs = { live: config, stored: undefined };
+  const configs = config;
   const always: ModelSettings = { requireChoice: "always", default: null };
   const usual: ModelSettings = {
     requireChoice: "unlessDefault",
@@ -361,7 +263,7 @@ describe("whether a send waits for a choice", () => {
   });
 
   it("waits in mode 2 while nothing is known, rather than letting through what it was asked to stop", () => {
-    expect(modelStateOf(NO_CONFIGS, "opus", "high", usual).choiceRequired).toBe(true);
+    expect(modelStateOf(undefined, "opus", "high", usual).choiceRequired).toBe(true);
     expect(modelStateOf(configs, null, null, usual).choiceRequired).toBe(true);
   });
 
@@ -397,7 +299,7 @@ describe("whether a send waits for a choice", () => {
 });
 
 describe("whether a choice is what is live", () => {
-  const configs = { live: config, stored: undefined };
+  const configs = config;
 
   it("compares the model and, where the choice names one, the effort", () => {
     const state = modelStateOf(configs, "opus", "high");
@@ -413,7 +315,7 @@ describe("whether a choice is what is live", () => {
   });
 
   it("is false while nothing is known, and for a model the install does not offer", () => {
-    expect(isLive(modelStateOf(NO_CONFIGS, "opus", "high"), { model: "opus" })).toBe(false);
+    expect(isLive(modelStateOf(undefined, "opus", "high"), { model: "opus" })).toBe(false);
     expect(isLive(modelStateOf(configs, "opus", "high"), { model: "gone" })).toBe(false);
   });
 });

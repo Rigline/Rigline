@@ -184,18 +184,18 @@ registering from a promise or a timer, after `setup` returned.
 
 ## Asking: the host's own requests
 
-The host may send a request the app itself sends, from a list in host code (D120): one that reads,
-or one that writes where a person caused it (D120 as amended). `bus.ask(channelId, type, fields?)`
-posts `{ type: "request", channelId, requestId, request: { type, ...fields } }` with a fresh id, outside the rewrite chain and untapped, and in a microtask, so an ask a tap makes
+The host may send a request the app itself sends, read-only and from a list in host code (D120).
+`bus.ask(channelId, type, fields?)` posts `{ type: "request", channelId, requestId, request: { type,
+...fields } }` with a fresh id, outside the rewrite chain and untapped, and in a microtask, so an ask a tap makes
 goes out after the message it tapped: asked synchronously, one about a `launch_claude` reached the
 extension before the launch and was answered "Channel not found". The inbound listener settles the ask by
 `requestId` before anything is recorded, so the reply reaches no tap and no replay; the app still
 receives it, warns that no handler matched, and drops it. Eight may await a reply at once, each for
 a minute, after which it resolves to null. `diagnostics.asked` and the `ask` meter count them.
 
-On the list: `get_context_usage`, a read the context service below asks; and `set_model`,
-`apply_settings` and `set_thinking_level`, the writes the models service sends for `applyChoice`,
-each composed in host code from a closed set of fields.
+The one request on the list is `get_context_usage`, asked by the context service below. A write a
+person causes goes through the panel's own controls instead, never an ask (D120 as amended): see
+*Models*.
 
 ## Services derived from the bus
 
@@ -261,32 +261,39 @@ because the panel clears its own then. The pure half is `plugin-api/src/limits.t
 
 **Models** (`ctx.onModelState`, `ctx.applyChoice`). Which models the install offers, which model and
 effort are live, the person's default, and whether this session still needs a choice (D120 as
-amended, D139). Every shape here was read in the webview and extension-host bundles; none is
-documented.
+amended, D139). Not derived from the bus, except whether a session has chosen: the panel's own
+session holds all of it, and a choice goes through that session's own setters. Every shape here was
+read in the webview and extension-host bundles; none is documented.
 
-- **The panel keeps two configs, and draws `live ?? stored`.** The reply to `get_claude_state`
-  carries `stored: true` on its cached path and omits `stored` on its fresh one, and the two land in
-  different slots. `update_state` replaces the live one wholesale where it carries a config, keeps
-  it otherwise (emptying a non-empty `account`), and clears the stored one either way. One slot is a
-  cold-start bug: the first reply is usually the cached one, so the list would read empty until the
-  first `update_state`.
-- **The reply carries its own `type`**, `get_claude_state_response`, which is what lets the bus
-  record it under that type at all (*What crosses it*).
-- **What is live is on `update_state`'s `request.state`**: `modelSetting`, resolved against the list
-  by the panel's own chain — the alias, the alias without the `[1m]` marker, then a concrete
-  `resolvedModel` — and `settings.effortLevel`, live only where that model takes it.
-- **`set_model` takes `{ model: { value } }`** with `value` a string, `"default"` meaning none, and
-  answers `set_model_response`, whose `applied` is absent where the write returned nothing. So
-  `applyChoice` resolves with the applied model or null, never a guess.
+- **The composer footer is handed the session as its `session` prop**, two fibers above the
+  `footerSpacer` element's in 2.1.301. Its signals `modelSelection`, `effortLevel` and
+  `claudeConfig` (with `drawnClaudeConfig`, the live config falling back to the stored one, from
+  2.1.300) are what Claude Code's picker draws, and `subscribe` follows them. Its `setModel`,
+  `setEffortLevel`, `setThinkingLevel` and `setUltracode` are what the picker calls: each sets its
+  signal first, then sends `set_model` or `apply_settings` on the session's channel, and rolls back
+  and says why in a notification if Claude Code refuses. The panel-session harvest layer asserts
+  them all (D11).
+- **What `update_state` carries is not what is live.** `state.modelSetting` is the user setting,
+  which seeds a session's `modelSelection` only when it launches. `state.settings` is the host's
+  cache of `settings.json`, which the host writes for a model but not for an effort: it saves an
+  effort through the CLI, so `settings.effortLevel` goes stale on the first change.
+  `state.claudeSettings.applied` is the CLI's own answer, `{ model, effort, ... }`, and the panel's
+  effort seeds from it.
+- **A request sent around the panel leaves its picker behind.** The panel re-reads the CLI's
+  applied settings only after a slash command's turn, a reconnect or a refusal fallback, so a
+  `set_model` it did not send is applied by the CLI and never shown. That is why a choice goes
+  through the setters.
+- **`set_model` takes `{ model: { value } }`**, the picker passing the config's own entry, and
+  `"default"` meaning none. It answers `set_model_response`, whose `applied` is the CLI's
+  applied-settings object, absent where the write returned none.
 - **`apply_settings` reaches six keys of Claude Code's own `WEBVIEW_WRITABLE_SETTINGS`**, each with
   its own value check, and throws by name on any other: `effortLevel`, `switchModelsOnFlag`,
   `remoteControlAtStartup` and `fastMode` at user settings, `outputStyle` at local settings, and
-  `ultracode` at flags, which `flagsOnly: true` selects. The service composes two of them, effort
-  and ultracode, as two requests where a choice names both, since they sit on different layers.
+  `ultracode` at flags, which `flagsOnly: true` selects.
 
-Granting `modelChoice` subscribes to the service, because a choice is validated against the list and
-the replay buffer is sealed long before a first `applyChoice` could tap. The pure half is
-`plugin-api/src/models.ts`.
+Whether this session has chosen is read off the bus: the panel's own `set_model`, or
+`apply_settings` carrying `effortLevel`, which a choice applied here now sends too, and reset by
+each `launch_claude` that does not resume. The pure half is `plugin-api/src/models.ts`.
 
 ## Rates
 

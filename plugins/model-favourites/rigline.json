@@ -2,7 +2,7 @@
   "$schema": "node_modules/@rigline/plugin-api/schema/manifest.json",
   "api": 1,
   "name": "model-favourites",
-  "description": "Your usual model and effort combinations, one click each, and what is live with its version, in a warning colour when it is none of them.",
+  "description": "Your usual model and effort combinations as one pill, a click each, and your default beside it, each highlighted while it is the one live.",
   "entry": "dist/index.js",
   "surfaces": ["editor", "sidebar"],
   "uses": {
@@ -12,15 +12,21 @@
     "settingsTab": true
   },
   "elements": {
-    "chips": {
+    "favourites": {
       "title": "Model favourites",
       "placements": ["rigRow"],
       "default": "rigRow"
     },
-    "status": {
-      "title": "Live model",
-      "placements": [{ "anchor": "footerSpacer", "at": "before" }, "rigRow"],
-      "default": { "anchor": "footerSpacer", "at": "before" }
+    "default": {
+      "title": "Default model",
+      "placements": [
+        "rigRow",
+        {
+          "anchor": "footerSpacer",
+          "at": "before"
+        }
+      ],
+      "default": "rigRow"
     }
   }
 }

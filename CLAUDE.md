@@ -39,7 +39,7 @@ decisions.md, and each doc cites the decisions it rests on.
 - [docs/architecture.md](docs/architecture.md): the map. What runs in Node and what in the webview,
   the one channel between them, the packages, the three registries, the install, update and boot
   pipelines, failure isolation, where state lives, which reload a change needs. Start here.
-- [docs/identifiers.md](docs/identifiers.md): the layer contract, the five layers and what each
+- [docs/identifiers.md](docs/identifiers.md): the layer contract, each layer and what it
   anchors on, floors and views, the stability diff, codegen's two outputs, adding a layer.
 - [docs/bus.md](docs/bus.md): the protocol's three shapes, the single egress, what a tap is handed,
   the replay buffer, the rewrite chain and its refusals, `resend`, the session and tool services.

@@ -24,7 +24,6 @@ export const GATE_TYPES = [
   "launch_claude",
   "update_state",
   "init_response",
-  "get_claude_state_response",
   "set_model",
   "apply_settings",
 ] as const;

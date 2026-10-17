@@ -20,6 +20,7 @@ import { type Browser, type ConsoleMessage, chromium, type Page } from "playwrig
 import { afterAll, beforeAll } from "vitest";
 import { missing, versionDir } from "../../core/test/corpus.ts";
 import { type FixturePlugin, preparePayload, type RemovedIdentifiers } from "./payload.ts";
+import type { AppModels } from "./page.ts";
 import { type Harness, startHarness } from "./server.ts";
 
 export type { FixturePlugin, RemovedIdentifiers } from "./payload.ts";
@@ -137,6 +138,11 @@ export interface BootOptions {
    * (D135). Absent leaves `claudeSettings` out of the state altogether, which is the ordinary case.
    */
   readonly appTimeFormat?: string;
+  /**
+   * The models Claude Code offers and the model and effort the panel launches on, so it seeds its
+   * session as it does live. Absent, it offers none.
+   */
+  readonly appModels?: AppModels;
 }
 
 interface HarnessWindow {
@@ -210,6 +216,7 @@ export function register(version: string): (options?: BootOptions) => Promise<Bo
       surface: options.surface ?? "editor",
       appTimestamps: options.appTimestamps,
       appTimeFormat: options.appTimeFormat,
+      appModels: options.appModels,
     });
     const page = await browser.newPage();
     // Inside every test's own timeout, so a wait that hangs fails naming what it waited for.

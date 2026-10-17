@@ -3,7 +3,7 @@
 Everything a plugin depends on in the extension is a name somebody else chose and rebuilds weekly.
 The identifier layers are how Rigline reads those names out of whichever bundle is installed, so
 that an extension update is a diff to read rather than a breakage to chase. This is the layer
-contract, the five layers, and what to do when you add a sixth. The reasoning is D5 to D11 and D40
+contract, the layers, and what to do when you add one. The reasoning is D5 to D11 and D40
 in [decisions.md](decisions.md); the code is `packages/core/src/layers/`.
 
 ## What may be harvested at all
@@ -50,7 +50,7 @@ check the floor still sits under every corpus version and well under the count y
 because "a module was retired" and "a local name was renamed" are different news, and a reply-only
 regression diluted into a message-type percentage reads as nothing having happened.
 
-## The five layers
+## The layers
 
 ### `classes` — the CSS-module class map, with application counts
 
@@ -160,6 +160,22 @@ pair of spellings together against the built `pre.js`.
 Its view, `renderer`, holds react-dom's version and nothing else. The asserted names would be the
 same in every scan made by the same Rigline, so a diff of them could only report Rigline's own
 edits, as if they were the extension's (D103).
+
+### `panelSession` — the panel's own session, asserted
+
+The model capabilities read and drive the session object the composer footer is handed as its
+`session` prop: its `modelSelection`, `effortLevel` and `claudeConfig` signals, the signal
+library's `subscribe`, and the `setModel`, `setEffortLevel` and `setThinkingLevel` its own picker
+calls (D120 as amended). Unmangled names, so P1 lets the host anchor on them only because this layer
+asserts each against the bundle, as the React layer does react-dom's. The `session` prop is matched
+beside `availablePermissionModes`, a prop only the footer takes, so another component's `session`
+cannot stand in for it.
+
+It never throws, and what is missing goes into the tables as `panelSession.missing`, which the
+`models` and `modelChoice` contracts turn into refusals and nothing else does. `drawnClaudeConfig`
+and `setUltracode` are read where present and not asserted: the first falls back to
+`claudeConfig`, and a choice naming ultracode is refused where the second is absent. It has no
+views, since the names are constant.
 
 ## The anchor table, on top
 

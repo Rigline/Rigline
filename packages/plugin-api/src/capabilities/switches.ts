@@ -109,32 +109,31 @@ export const limitsContract = switchContract({
 });
 
 /**
- * Which models this install offers and which is live, derived by the host (D120 as amended).
- *
- * Both message types, because the list arrives on one and is replaced on the other: a service
- * tapping only the reply would hold a list that was right at boot and stopped (P2, P5).
+ * Which models this install offers and which is live, read off the panel's own session (D120 as
+ * amended). The messages are the ones whether a session has chosen is read from: a launch, and the
+ * panel's own requests for a model or an effort (D139).
  */
 export const modelsContract = switchContract({
   key: "models",
   grants: ["onModelState"],
-  messages: ["get_claude_state_response", "update_state"],
+  messages: ["launch_claude", "set_model", "apply_settings"],
   anchors: [],
+  panelSession: true,
   summary: "reads which models this install offers, and which model and effort are live",
 });
 
 /**
- * Changing the model and the effort that goes with it, through the channel the panel's own pickers
- * use (D120 as amended).
+ * Changing the model and the effort that goes with it, through the panel's own controls (D120 as
+ * amended).
  *
  * The summary is the audit surface: the line somebody reads in `rigline list` to know this plugin
- * can change their model, so it says so plainly rather than describing the mechanism. Both request
- * types are named here and not by the plugin, so a version renaming either refuses the plugin
- * rather than letting it misfire (P2).
+ * can change their model, so it says so plainly rather than describing the mechanism.
  */
 export const modelChoiceContract = switchContract({
   key: "modelChoice",
   grants: ["applyChoice"],
-  messages: ["set_model", "apply_settings"],
+  messages: [],
   anchors: [],
+  panelSession: true,
   summary: "can change which model and effort Claude Code uses, when you click something",
 });

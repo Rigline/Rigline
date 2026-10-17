@@ -1,7 +1,7 @@
 /**
- * model-favourites against the real bundle: its built output and manifest, the chips and the status
- * pill over the model state the extension pushes, a click reaching the fake host as the panel's own
- * requests, and its tab in the settings screen editing the list through the one Save.
+ * model-favourites against the real bundle: its built output and manifest, the segmented pill and
+ * the default over the panel's own session, a click moving Claude Code's own picker with it, and
+ * its tab in the settings screen editing the list through the one Save.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import type { ModelSettings, SaveRecord, SettingsPayload } from "@rigline/plugin-api/internal";
 import type { Page } from "playwright";
 import { describe, expect, it } from "vitest";
+import type { AppModels } from "../src/page.ts";
 import type { FixturePlugin } from "../src/payload.ts";
 import { harnessSkipReason, register, HARNESS_VERSION as VERSION } from "../src/suite.ts";
 
@@ -18,24 +19,39 @@ const NAME = "model-favourites";
 const COMPANION: SaveRecord = { token: "c".repeat(32), companion: true, scheme: "vscode" };
 const SCREEN = '[role="dialog"].rigline-settings-frame';
 const SAVE = `${SCREEN} a[href^="vscode://rigline.rigline/settings?p="]`;
-const USUAL: ModelSettings = { requireChoice: "off", default: { model: "opus", effort: "high" } };
+const USUAL: ModelSettings = { requireChoice: "off", default: { model: "opus", effort: "xhigh" } };
+const PICKER = '.modelPill_gGYT1w[role="combobox"]';
 
 const pills = (element: string) => `[data-rigline-element="${NAME}/${element}"] .rigline-ui-pill`;
 
+const EFFORTS = ["low", "medium", "high", "xhigh"];
 const MODELS = [
   {
     value: "opus",
     resolvedModel: "claude-opus-5-5",
     displayName: "Opus",
     supportsEffort: true,
-    supportedEffortLevels: ["medium", "high"],
+    supportedEffortLevels: EFFORTS,
   },
-  { value: "haiku", resolvedModel: "claude-haiku-5-5", displayName: "Haiku" },
+  {
+    value: "sonnet",
+    resolvedModel: "claude-sonnet-5-5",
+    displayName: "Sonnet",
+    supportsEffort: true,
+    supportedEffortLevels: EFFORTS,
+  },
+];
+
+/** Leo's session on 2026-10-17, on which the first build went wrong. */
+const ON_OPUS: AppModels = { list: MODELS, setting: "opus", effort: "xhigh" };
+const FAVOURITES = [
+  { model: "opus", effort: "xhigh" },
+  { model: "opus", effort: "low" },
+  { model: "sonnet", effort: "medium" },
 ];
 
 interface HarnessWindow {
   readonly __harness?: {
-    readonly push: (message: unknown) => void;
     readonly sent: readonly { readonly type?: string; readonly request?: unknown }[];
   };
 }
@@ -60,33 +76,6 @@ function loadPlugin(): { plugin: FixturePlugin | null; reason: string | null } {
   }
 }
 
-/** The model list and what is live, on `update_state` as the extension host pushes them. */
-async function live(page: Page, setting: string, effort: string | null): Promise<void> {
-  await page.evaluate(
-    (m) => {
-      const harness = (window as unknown as HarnessWindow).__harness;
-      if (!harness) throw new Error("harness missing");
-      harness.push(m);
-    },
-    {
-      type: "request",
-      channelId: "",
-      requestId: "favourites-state",
-      request: {
-        type: "update_state",
-        config: { models: MODELS },
-        state: {
-          authStatus: {},
-          experimentGates: {},
-          openNewInTab: true,
-          modelSetting: setting,
-          settings: effort === null ? {} : { effortLevel: effort },
-        },
-      },
-    },
-  );
-}
-
 /** Every request of `type` the panel has sent the fake host, as the request it carried. */
 function asked(page: Page, type: string): Promise<unknown[]> {
   return page.evaluate(
@@ -106,6 +95,22 @@ function texts(page: Page, element: string): Promise<string[]> {
     (selector) => [...document.querySelectorAll<HTMLElement>(selector)].map((p) => p.innerText),
     pills(element),
   );
+}
+
+/** Which of an element's pills is drawn as the one live. */
+function current(page: Page, element: string): Promise<boolean[]> {
+  return page.evaluate(
+    (selector) =>
+      [...document.querySelectorAll(selector)].map(
+        (p) => p.getAttribute("aria-current") === "true",
+      ),
+    pills(element),
+  );
+}
+
+/** What Claude Code's own model pill says. */
+function picker(page: Page): Promise<string> {
+  return page.evaluate((selector) => document.querySelector(selector)?.textContent ?? "", PICKER);
 }
 
 /** Stands in for the engine: what a re-inject would leave in `registry.js`. */
@@ -139,66 +144,51 @@ describe.skipIf(skip !== null)(
   () => {
     const boot = register(VERSION);
 
-    it("draws the chips and the live model, and a click applies through the panel's own requests", async () => {
+    it("moves Claude Code's own picker with each click, and draws what it shows", async () => {
       const booted = await boot({
         plugins: [plugin as FixturePlugin],
         model: USUAL,
-        settings: {
-          [NAME]: { favourites: [{ model: "opus", effort: "high" }, { model: "haiku" }] },
-        },
+        appModels: ON_OPUS,
+        settings: { [NAME]: { favourites: FAVOURITES } },
       });
       const { page } = booted;
       try {
-        await live(page, "opus", "high");
+        // One pill, its run of Opus naming the model once, the live segment drawn as such.
         await expect
-          .poll(() => texts(page, "chips"))
-          .toEqual(["Opus 5.5 · high (default)", "Haiku 5.5"]);
-        const chips = page.locator(pills("chips"));
-        expect(await chips.nth(0).getAttribute("aria-current")).toBe("true");
-        expect(await chips.nth(1).getAttribute("aria-current")).toBeNull();
-        expect(await texts(page, "status")).toEqual(["Opus 5.5 · high"]);
-        // The chips in the row, the pill in the footer beside the spacer.
-        const zones = await page.evaluate(
-          (selectors) =>
-            selectors.map(
-              (s) =>
-                document
-                  .querySelector(s)
-                  ?.closest("[data-rigline-zone]")
-                  ?.getAttribute("data-rigline-zone") ?? null,
-            ),
-          [pills("chips"), pills("status")],
-        );
-        expect(zones).toEqual(["rigRow", null]);
+          .poll(() => texts(page, "favourites"))
+          .toEqual(["Opus 5.5 · xhigh", "low", "Sonnet 5.5 · medium"]);
+        expect(await current(page, "favourites")).toEqual([true, false, false]);
+        expect(
+          await page.locator(`[data-rigline-element="${NAME}/favourites"] [role="group"]`).count(),
+        ).toBe(1);
+        expect(await texts(page, "default")).toEqual(["Opus 5.5 · xhigh"]);
+        expect(await current(page, "default")).toEqual([true]);
+        expect(await picker(page)).toMatch(/^Opus 5\.5/);
 
-        // A real click on a chip is a choice: the model the panel's picker would send, and no
-        // effort for a model that takes none.
-        await chips.nth(1).click();
-        await expect
-          .poll(() => asked(page, "set_model"))
-          .toEqual([{ type: "set_model", model: { value: "haiku" } }]);
-        expect(await asked(page, "apply_settings")).toEqual([]);
-        await live(page, "haiku", null);
-        await expect.poll(() => chips.nth(1).getAttribute("aria-current")).toBe("true");
+        // An effort on the same model: what did nothing before.
+        await page.locator(pills("favourites")).nth(1).click();
+        await expect.poll(() => current(page, "favourites")).toEqual([false, true, false]);
+        expect(await picker(page)).toMatch(/^Opus 5\.5.*Low/i);
+        expect(await current(page, "default")).toEqual([false]);
 
-        // Off the list: what is live leads the row in the warning colour, and so does the pill.
-        await live(page, "opus", "medium");
-        await expect
-          .poll(() => texts(page, "chips"))
-          .toEqual(["Opus 5.5 · medium", "Opus 5.5 · high (default)", "Haiku 5.5"]);
-        expect(await page.locator(`${pills("chips")}.rigline-ui-pill-warning`).count()).toBe(1);
-        expect(await page.locator(`${pills("status")}.rigline-ui-pill-warning`).count()).toBe(1);
-
-        // The pill's click is the default, model and effort both.
-        await page.locator(pills("status")).click();
-        await expect.poll(async () => (await asked(page, "set_model")).length).toBe(2);
-        expect((await asked(page, "set_model"))[1]).toEqual({
-          type: "set_model",
-          model: { value: "opus" },
+        // Another model and its effort: Claude Code's picker follows, and so does the segment.
+        await page.locator(pills("favourites")).nth(2).click();
+        await expect.poll(() => picker(page)).toMatch(/^Sonnet 5\.5.*Medium/i);
+        expect(await current(page, "favourites")).toEqual([false, false, true]);
+        // The panel's own requests, on its own channel, as its picker would send them.
+        expect((await asked(page, "set_model")).at(-1)).toMatchObject({
+          model: { value: "sonnet" },
         });
-        await expect
-          .poll(() => asked(page, "apply_settings"))
-          .toEqual([{ type: "apply_settings", settings: { effortLevel: "high" } }]);
+        expect((await asked(page, "apply_settings")).at(-1)).toEqual({
+          type: "apply_settings",
+          settings: { effortLevel: "medium" },
+        });
+
+        // The default pill applies the default, and says so by being live.
+        await page.locator(pills("default")).click();
+        await expect.poll(() => current(page, "default")).toEqual([true]);
+        expect(await picker(page)).toMatch(/^Opus 5\.5/);
+        expect(await current(page, "favourites")).toEqual([true, false, false]);
 
         const d = await booted.diagnostics();
         expect(d.plugins).toContainEqual({ name: NAME, status: "loaded" });
@@ -209,20 +199,24 @@ describe.skipIf(skip !== null)(
       }
     }, 30000);
 
-    it("edits the list in its tab, through the one Save, and the chips follow once it lands", async () => {
+    it("edits the list in its tab, through the one Save, and the pill follows once it lands", async () => {
       const section = {
-        favourites: [{ model: "opus", effort: "high" }, { model: "haiku" }, "sonnet"],
+        favourites: [
+          { model: "opus", effort: "high" },
+          { model: "sonnet", effort: "low" },
+          "haiku",
+        ],
         kept: "by hand",
       };
       const booted = await boot({
         plugins: [plugin as FixturePlugin],
         save: COMPANION,
         model: USUAL,
+        appModels: { list: MODELS, setting: "opus", effort: "high" },
         settings: { [NAME]: section },
       });
       const { page } = booted;
       try {
-        await live(page, "opus", "high");
         await page.waitForSelector(".rigline-pill");
         await page.click(".rigline-pill");
         await page.getByRole("menuitem", { name: "Model favourites…" }).click();
@@ -234,13 +228,13 @@ describe.skipIf(skip !== null)(
         const screen = page.locator(SCREEN);
         const rows = screen.getByRole("list", { name: "Favourites" }).getByRole("listitem");
         expect(await rows.allInnerTexts()).toEqual([
-          expect.stringMatching(/^Opus 5\.5 · high \(default\)/),
-          expect.stringMatching(/^Haiku 5\.5/),
-          expect.stringMatching(/^Not a favourite Rigline can read: "sonnet"/),
+          expect.stringMatching(/^Opus 5\.5 · high/),
+          expect.stringMatching(/^Sonnet 5\.5 · low/),
+          expect.stringMatching(/^Not a favourite Rigline can read: "haiku"/),
         ]);
-        const current = screen.getByRole("button", { name: "Add current model (Opus 5.5 · high)" });
-        expect(await current.isDisabled()).toBe(true);
-        expect(await current.getAttribute("title")).toBe("Already a favourite");
+        const live = screen.getByRole("button", { name: "Add current model (Opus 5.5 · high)" });
+        expect(await live.isDisabled()).toBe(true);
+        expect(await live.getAttribute("title")).toBe("Already a favourite");
 
         await rows.nth(2).getByRole("button", { name: "Remove favourite" }).click();
         await screen.getByRole("combobox", { name: "Add a favourite" }).selectOption("opus");
@@ -248,15 +242,15 @@ describe.skipIf(skip !== null)(
         expect(await add.getAttribute("title")).toBe(
           "Choose an effort too, so the favourite sets both",
         );
-        await screen.getByRole("radiogroup", { name: "Effort" }).getByText("medium").click();
+        await screen.getByRole("radiogroup", { name: "Effort" }).getByText("xhigh").click();
         await add.click();
         await rows.nth(2).getByRole("button", { name: "Move favourite up" }).click();
 
         const to = {
           favourites: [
             { model: "opus", effort: "high" },
-            { model: "opus", effort: "medium" },
-            { model: "haiku" },
+            { model: "opus", effort: "xhigh" },
+            { model: "sonnet", effort: "low" },
           ],
           kept: "by hand",
         };
@@ -268,8 +262,8 @@ describe.skipIf(skip !== null)(
         await page.locator(SCREEN).waitFor({ state: "detached" });
         saveToRegistry(booted.payloadDir, { [NAME]: to }, USUAL);
         await expect
-          .poll(() => texts(page, "chips"), { timeout: 5000 })
-          .toEqual(["Opus 5.5 · high (default)", "Opus 5.5 · medium", "Haiku 5.5"]);
+          .poll(() => texts(page, "favourites"), { timeout: 5000 })
+          .toEqual(["Opus 5.5 · high", "xhigh", "Sonnet 5.5 · low"]);
 
         const d = await booted.diagnostics();
         expect(d.errors).toEqual([]);
@@ -280,15 +274,17 @@ describe.skipIf(skip !== null)(
     }, 30000);
 
     it("sends a person with nothing set up to where it is set", async () => {
-      const booted = await boot({ plugins: [plugin as FixturePlugin], save: COMPANION });
+      const booted = await boot({
+        plugins: [plugin as FixturePlugin],
+        save: COMPANION,
+        appModels: ON_OPUS,
+      });
       const { page } = booted;
       try {
-        await live(page, "opus", "high");
-        await expect.poll(() => texts(page, "chips")).toEqual(["No favourites"]);
-        // Nothing set up is nothing to be off.
-        expect(await page.locator(".rigline-ui-pill-warning").count()).toBe(0);
+        await expect.poll(() => texts(page, "favourites")).toEqual(["No favourites"]);
+        expect(await texts(page, "default")).toEqual(["No default"]);
 
-        await page.locator(pills("status")).click();
+        await page.locator(pills("default")).click();
         await page.locator(SCREEN).waitFor();
         expect(await page.getByRole("tab", { name: "Rigline" }).getAttribute("aria-selected")).toBe(
           "true",
@@ -296,7 +292,7 @@ describe.skipIf(skip !== null)(
         await page.keyboard.press("Escape");
         await page.locator(SCREEN).waitFor({ state: "detached" });
 
-        await page.locator(pills("chips")).click();
+        await page.locator(pills("favourites")).click();
         await page.locator(SCREEN).waitFor();
         expect(
           await page.getByRole("tab", { name: "Model favourites" }).getAttribute("aria-selected"),

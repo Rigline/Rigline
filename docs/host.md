@@ -85,7 +85,8 @@ Dynamically imported after boot. In order:
    every plugin naming an identifier that has not gone.
 3. Import `./registry.js`. Publish the recorded patch outcomes to diagnostics, and build the layout
    editor from its `layout` and `save` and the settings editor from its `settings` and `model`
-   (below). Subscribe to the models service for Rigline's settings tab, so its taps are in before
+   (below). Subscribe to the models service, which finds the panel's own session above the footer
+   spacer on each commit (D120 as amended), so its taps on the panel's model requests are in before
    the buffer seals.
 4. Install the model gate where `registry.js`'s `model` asks for one (D139): capture listeners for
    the composer's send keystroke and its form's submit, and the strip above the composer that names

@@ -561,6 +561,7 @@ describe("handWrittenClasses", () => {
     anchorSelectors: {},
     unresolvedAnchors: {},
     react: { hook: "__REACT_DEVTOOLS_GLOBAL_HOOK__", version: null, missing: [] },
+    panelSession: { missing: [] },
   };
 
   it("finds a class of this version's table, once, wherever it is written", () => {

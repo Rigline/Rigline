@@ -1,12 +1,10 @@
 /**
- * Which models this install offers, and which one is live, read off the two messages that carry the
- * panel's own model state (D120 as amended).
+ * Which models this install offers, and which one is live, as the panel's own session holds them
+ * (D120 as amended).
  *
- * Pure: the panel's merge of a config reply and an `update_state`, and the lookup that turns a
- * stored model setting into an entry of the list. The host's models service holds the state.
- *
- * Every shape here was read in the webview bundle of 2.1.300, which is what `generated.ts` is
- * harvested from. There is no documentation for any of it.
+ * Pure: reading the session's config, and the lookup that turns a model selection into an entry of
+ * the list. The host's models service finds the session and holds the state. Every shape here was
+ * read in the webview bundle; there is no documentation for any of it.
  */
 
 /** One model the install offers, as the panel's own picker reads it. */
@@ -160,27 +158,11 @@ function defaultOf(
   };
 }
 
-/**
- * The two configs the panel keeps, and which one it draws.
- *
- * A config reply carries `stored`, and a stored one lands in a different slot from a live one;
- * `update_state` replaces the live one and clears the stored one, so the fallback is discarded the
- * moment a live config arrives. Holding one slot is not a simplification but a cold-start bug: the
- * first reply is usually the cached one.
- */
-export interface Configs {
-  readonly live: ClaudeConfig | undefined;
-  readonly stored: ClaudeConfig | undefined;
-}
-
-/** The part of the panel's `claudeConfig` this reads. Everything else in it is left alone. */
+/** The part of the session's config this reads. Everything else in it is left alone. */
 export interface ClaudeConfig {
   readonly models?: unknown;
   readonly unavailable_models?: unknown;
-  readonly account?: unknown;
 }
-
-export const NO_CONFIGS: Configs = Object.freeze({ live: undefined, stored: undefined });
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -190,49 +172,6 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 
 function text(value: unknown): string | null {
   return typeof value === "string" && value !== "" ? value : null;
-}
-
-/** A config, or undefined where the payload does not carry one. Fields are read lazily, not here. */
-function configOf(value: unknown): ClaudeConfig | undefined {
-  const record = asRecord(value);
-  return record ?? undefined;
-}
-
-/**
- * `configs` after a reply to `get_claude_state`: the config goes to the stored slot when the reply
- * says `stored`, and to the live slot otherwise.
- */
-export function configsAfterReply(configs: Configs, payload: unknown): Configs {
-  const record = asRecord(payload);
-  if (record === null) return configs;
-  const config = configOf(record.config);
-  if (config === undefined) return configs;
-  return record.stored === true ? { ...configs, stored: config } : { ...configs, live: config };
-}
-
-/**
- * `configs` after an `update_state`: the live slot is replaced by the panel's own rule, and the
- * stored slot is cleared whether or not a config came with it.
- *
- * The panel's rule, which this reproduces: a config that is defined replaces wholesale, and one
- * that is not leaves the current config in place, emptying a non-empty `account`.
- */
-export function configsAfterState(configs: Configs, request: unknown): Configs {
-  const record = asRecord(request);
-  if (record === null) return configs;
-  const incoming = configOf(record.config);
-  if (incoming !== undefined) return { live: incoming, stored: undefined };
-  const current = configs.live;
-  if (current === undefined) return { live: undefined, stored: undefined };
-  const account = asRecord(current.account);
-  const live =
-    account === null || Object.keys(account).length === 0 ? current : { ...current, account: {} };
-  return { live, stored: undefined };
-}
-
-/** The config the panel would draw: the live one, else the stored fallback. */
-export function drawnConfig(configs: Configs): ClaudeConfig | undefined {
-  return configs.live ?? configs.stored;
 }
 
 function entryOf(value: unknown): ModelEntry | null {
@@ -283,23 +222,6 @@ export function findModel(models: readonly ModelEntry[], alias: string | null): 
     models.find((model) => model.resolvedModel !== null && model.resolvedModel === named) ??
     null
   );
-}
-
-/** The model setting an `update_state` request carries, or null where it names none. */
-export function settingOf(request: unknown): string | null {
-  const state = asRecord(asRecord(request)?.state);
-  return text(state?.modelSetting);
-}
-
-/**
- * The effort an `update_state` request carries, or null.
- *
- * `state.settings.effortLevel` is what the panel seeds its own effort from. Read from the state
- * rather than from the config, because effort is a setting and not a property of the install.
- */
-export function effortOf(request: unknown): string | null {
-  const state = asRecord(asRecord(request)?.state);
-  return text(asRecord(state?.settings)?.effortLevel);
 }
 
 /** Whether an effort is one the model accepts, which is the only table worth consulting. */
@@ -370,19 +292,17 @@ export function choosesModel(choice: ModelChoice): boolean {
   );
 }
 
-/** What `configs`, the panel's own settings and Rigline's model settings read as. */
+/** What the session's config, model selection and effort, and Rigline's model settings, read as. */
 export function modelStateOf(
-  configs: Configs,
+  config: ClaudeConfig | undefined,
   setting: string | null,
   effort: string | null,
   settings: ModelSettings = NO_MODEL_SETTINGS,
   chosen = false,
 ): ModelState {
-  const config = drawnConfig(configs);
   const models = modelsOf(config);
   const current = findModel(models, setting);
-  // An effort the live model does not take is not live, whatever the file says: the panel's own
-  // controls only show one for a model that supports it.
+  // The panel's own controls show an effort only for a model that takes it.
   const live = effort !== null && supportsEffort(current, effort) ? effort : null;
   const usual = resolvedDefault(models, settings.default);
   return {
@@ -453,10 +373,9 @@ function sameEntry(a: ModelEntry, b: ModelEntry | undefined): boolean {
  * What a favourite is: a model, and the effort or thinking level that goes with it (D120 as
  * amended).
  *
- * **The field set is closed here and nowhere else.** `apply_settings` reaches six keys of Claude
- * Code's own `WEBVIEW_WRITABLE_SETTINGS`, so a bag a plugin could add a key to would be a pipe into
- * all six; enumerating them is what makes the combination the vetted unit rather than the transport.
- * Every field is optional, and one omitted is left alone.
+ * **The field set is closed here and nowhere else**: each field is one of the panel's own controls,
+ * so a bag a plugin could add a key to would reach whatever else the panel can set. Every field is
+ * optional, and one omitted is left alone.
  */
 export interface ModelChoice {
   /** A model's `value` from the live list. `"default"` is one of them where the install offers it. */
@@ -468,12 +387,8 @@ export interface ModelChoice {
   readonly ultracode?: boolean;
 }
 
-/** What a choice turned out to be, as far as the panel could tell. */
+/** What the panel's own controls hold once a choice is applied. Null for what it did not name. */
 export interface AppliedChoice {
-  /**
-   * What `set_model_response` said was applied, or null where it said nothing — the reply omits
-   * `applied` when the write returned nothing, so not knowing is a real answer and not a failure.
-   */
   readonly model: string | null;
   readonly effort: string | null;
   readonly thinkingLevel: string | null;
@@ -512,16 +427,4 @@ export function choiceProblem(state: ModelState, choice: ModelChoice): string | 
     return `${target.value} takes an effort level rather than a thinking level`;
   }
   return null;
-}
-
-/** The `model` field `set_model` requires: an object whose `value` is a string. */
-export function setModelField(model: string): { readonly value: string } {
-  return { value: model };
-}
-
-/** The `applied` a `set_model_response` carries, or null where it carried none. */
-export function appliedModelOf(reply: unknown): string | null {
-  const record = reply as { readonly applied?: unknown } | null;
-  const applied = typeof record === "object" && record !== null ? record.applied : undefined;
-  return typeof applied === "string" && applied !== "" ? applied : null;
 }

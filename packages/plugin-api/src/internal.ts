@@ -76,7 +76,6 @@ export type {
   AppliedChoice,
   ChoiceResult,
   ClaudeConfig,
-  Configs,
   DefaultChoice,
   ModelChoice,
   ModelEntry,
@@ -86,32 +85,24 @@ export type {
   ResolvedDefault,
 } from "./models.ts";
 export {
-  appliedModelOf,
   choiceOf,
   choiceProblem,
   choiceRequired,
   choosesModel,
   comboLabel,
-  configsAfterReply,
-  configsAfterState,
   DEFAULT_EFFORT_LEVELS,
-  drawnConfig,
-  effortOf,
   findModel,
   isDefaultLive,
   isLive,
   modelLabel,
   modelStateOf,
   modelsOf,
-  NO_CONFIGS,
   NO_MODEL_SETTINGS,
   NO_MODEL_STATE,
   readModelSettings,
   REQUIRE_CHOICE,
   resolvedDefault,
   sameModelState,
-  setModelField,
-  settingOf,
   supportsEffort,
   unavailableOf,
 } from "./models.ts";
@@ -157,7 +148,7 @@ export type { StylesheetNames } from "./stylesheet.ts";
 export { stylesheetNames } from "./stylesheet.ts";
 export type { IdentifierTables, ReactGap } from "./tables.ts";
 export type { FiberLike } from "./transcript.ts";
-export { entriesDiffer, messageTimes, rowIdentity } from "./transcript.ts";
+export { entriesDiffer, messageTimes, onScreen, rowIdentity } from "./transcript.ts";
 export type { ContextAnswer, ContextReading, MessageTokens, ModelWindow } from "./usage.ts";
 export {
   contextAnswer,

@@ -26,6 +26,7 @@ const tables: IdentifierTables = {
     modelPill: 'anchor "modelPill" (gGYT1w.modelPill) is not in this extension',
   },
   react: { hook: "__REACT_DEVTOOLS_GLOBAL_HOOK__", version: "18.3.1", missing: [] },
+  panelSession: { missing: [] },
 };
 
 const spacer = { anchor: "footerSpacer", at: "before" } as const;

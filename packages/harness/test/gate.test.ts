@@ -5,6 +5,7 @@
  */
 import type { ModelSettings } from "@rigline/plugin-api/internal";
 import { describe, expect, it, vi } from "vitest";
+import type { AppModels } from "../src/page.ts";
 import { harnessSkipReason, register, HARNESS_VERSION as VERSION } from "../src/suite.ts";
 
 const skipReason = await harnessSkipReason(VERSION);
@@ -30,6 +31,10 @@ const MODELS = [
   { value: "haiku", resolvedModel: "claude-haiku-5-5", displayName: "Haiku" },
 ];
 
+/** What the panel launches on, so it seeds its session as it does live. */
+const ON_OPUS: AppModels = { list: MODELS, setting: "opus", effort: "high" };
+const ON_HAIKU: AppModels = { list: MODELS, setting: "haiku", effort: null };
+
 interface GateWindow {
   readonly __harness?: {
     readonly push: (message: unknown) => void;
@@ -51,16 +56,8 @@ describe.skipIf(skipReason !== null)(
       }, message);
     }
 
-    /**
-     * The model list and what is live, on `update_state` as the extension host pushes them, so the
-     * panel's own picker draws them too. Auth is kept so the panel stays signed in.
-     */
-    async function live(
-      booted: Booted,
-      setting: string,
-      effort: string | null,
-      extra: Record<string, unknown> = {},
-    ): Promise<void> {
+    /** The state the extension host pushes, carrying `extra`. Auth is kept so the panel stays signed in. */
+    async function pushState(booted: Booted, extra: Record<string, unknown>): Promise<void> {
       await push(booted, {
         type: "request",
         channelId: "",
@@ -68,14 +65,7 @@ describe.skipIf(skipReason !== null)(
         request: {
           type: "update_state",
           config: { models: MODELS },
-          state: {
-            authStatus: {},
-            experimentGates: {},
-            openNewInTab: true,
-            modelSetting: setting,
-            settings: effort === null ? {} : { effortLevel: effort },
-            ...extra,
-          },
+          state: { authStatus: {}, experimentGates: {}, openNewInTab: true, ...extra },
         },
       });
     }
@@ -120,9 +110,8 @@ describe.skipIf(skipReason !== null)(
     }
 
     it("holds a send until something chooses, keeping the text, and lets the override send it", async () => {
-      const booted = await boot({ model: ALWAYS });
+      const booted = await boot({ model: ALWAYS, appModels: ON_OPUS });
       try {
-        await live(booted, "opus", "high");
         await type(booted, "hello gate");
         await booted.page.keyboard.press("Enter");
 
@@ -155,9 +144,8 @@ describe.skipIf(skipReason !== null)(
     }, 30000);
 
     it("says so before anything is sent, and keeps what is live without sending when nothing is typed", async () => {
-      const booted = await boot({ model: ALWAYS });
+      const booted = await boot({ model: ALWAYS, appModels: ON_OPUS });
       try {
-        await live(booted, "opus", "high");
         // Shown as soon as the session needs a choice, so Enter is never a guess.
         await booted.page.waitForSelector(`${STRIP}:not([hidden])`);
         expect(await booted.page.textContent(`${STRIP} span`)).toBe(
@@ -184,11 +172,10 @@ describe.skipIf(skipReason !== null)(
     }, 30000);
 
     it("never asks in a resumed session, which carries the choice it started with", async () => {
-      const booted = await boot({ model: ALWAYS });
+      const booted = await boot({ model: ALWAYS, appModels: ON_OPUS });
       try {
         // As the panel launches a restored conversation, or relaunches one after the CLI exits.
         await push(booted, { type: "launch_claude", channelId: "harness-resumed", resume: "s-1" });
-        await live(booted, "opus", "high");
         await booted.page.waitForTimeout(200);
         expect(await booted.page.isHidden(STRIP)).toBe(true);
         await type(booted, "resumed");
@@ -203,9 +190,8 @@ describe.skipIf(skipReason !== null)(
     }, 30000);
 
     it("holds nothing and draws nothing when it is off", async () => {
-      const booted = await boot();
+      const booted = await boot({ appModels: ON_OPUS });
       try {
-        await live(booted, "opus", "high");
         await type(booted, "ungated");
         await booted.page.keyboard.press("Enter");
         await vi.waitFor(async () => {
@@ -219,9 +205,8 @@ describe.skipIf(skipReason !== null)(
     }, 30000);
 
     it("counts Claude Code's own picker as a choice, and leaves its Enter alone", async () => {
-      const booted = await boot({ model: ALWAYS });
+      const booted = await boot({ model: ALWAYS, appModels: ON_OPUS });
       try {
-        await live(booted, "opus", "high");
         // Opened from the command menu, which leaves the editor focused with the picker open: the
         // one way an Enter in the editor belongs to the picker, and so the one the gate must see.
         await type(booted, "/model");
@@ -251,9 +236,8 @@ describe.skipIf(skipReason !== null)(
     }, 30000);
 
     it("leaves the command menu's Enter to the menu", async () => {
-      const booted = await boot({ model: ALWAYS });
+      const booted = await boot({ model: ALWAYS, appModels: ON_OPUS });
       try {
-        await live(booted, "opus", "high");
         await type(booted, "/");
         await booted.page.waitForSelector(`${EDITOR}[aria-controls]`);
         await booted.page.keyboard.press("Enter");
@@ -265,9 +249,8 @@ describe.skipIf(skipReason !== null)(
     }, 30000);
 
     it("holds the send button as it holds Enter", async () => {
-      const booted = await boot({ model: ALWAYS });
+      const booted = await boot({ model: ALWAYS, appModels: ON_OPUS });
       try {
-        await live(booted, "opus", "high");
         await type(booted, "by button");
         await booted.page.click('button[type="submit"][aria-label="Send message"]');
         await booted.page.waitForSelector(`${STRIP}:not([hidden])`);
@@ -279,9 +262,8 @@ describe.skipIf(skipReason !== null)(
     }, 30000);
 
     it("asks in mode 2 only while the default is not what is live", async () => {
-      const booted = await boot({ model: UNLESS_DEFAULT });
+      const booted = await boot({ model: UNLESS_DEFAULT, appModels: ON_OPUS });
       try {
-        await live(booted, "opus", "high");
         await type(booted, "on the default");
         await booted.page.keyboard.press("Enter");
         await vi.waitFor(async () => {
@@ -292,9 +274,8 @@ describe.skipIf(skipReason !== null)(
         await booted.close();
       }
 
-      const drifted = await boot({ model: UNLESS_DEFAULT });
+      const drifted = await boot({ model: UNLESS_DEFAULT, appModels: ON_HAIKU });
       try {
-        await live(drifted, "haiku", null);
         await type(drifted, "off the default");
         await drifted.page.keyboard.press("Enter");
         await drifted.page.waitForSelector(`${STRIP}:not([hidden])`);
@@ -324,9 +305,9 @@ describe.skipIf(skipReason !== null)(
     }, 30000);
 
     it("follows Ctrl+Enter to send: a plain Enter is a newline it never takes", async () => {
-      const booted = await boot({ model: ALWAYS });
+      const booted = await boot({ model: ALWAYS, appModels: ON_OPUS });
       try {
-        await live(booted, "opus", "high", { useCtrlEnterToSend: true });
+        await pushState(booted, { useCtrlEnterToSend: true });
         await type(booted, "line one");
         await booted.page.keyboard.press("Enter");
         await booted.page.waitForTimeout(200);
@@ -343,9 +324,12 @@ describe.skipIf(skipReason !== null)(
     }, 30000);
 
     it("holds nothing where the composer is not there to hold, and says so", async () => {
-      const booted = await boot({ model: ALWAYS, remove: { anchors: ["composerBox"] } });
+      const booted = await boot({
+        model: ALWAYS,
+        remove: { anchors: ["composerBox"] },
+        appModels: ON_OPUS,
+      });
       try {
-        await live(booted, "opus", "high");
         await type(booted, "unheld");
         await booted.page.keyboard.press("Enter");
         await vi.waitFor(async () => {

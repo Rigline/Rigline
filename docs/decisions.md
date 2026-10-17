@@ -3184,6 +3184,20 @@ the write. A later session must not re-derive an actor from this rule.
 
 Still never `io_message`, which is a prompt, and so a turn in the person's transcript.
 
+**Amended again (2026-10-17, Leo): the model write is the panel's own control, and so is the read.**
+The first build composed `set_model` and `apply_settings` itself and read the live model and effort
+off `update_state`. On its first live use both were wrong. The panel's picker is per-session state
+its own controls set before they send, so a request sent around them left the picker showing the old
+choice while the CLI ran the new one. And `update_state` carries the user setting, which seeds a
+session only at launch, beside the host's cache of `settings.json`, which stops tracking effort once
+the CLI saves it. So the verb now calls the panel's own setters on the session object the composer
+footer is handed, and "live" is that session's signals: what Claude Code's picker draws. The panel
+composes and sends exactly what its picker would, and the picker moves with the choice. The verb's
+closed fields, the validation against the panel's list and the `isTrusted` check all stand; what
+moved is the step after them. The session's members are unmangled names a harvest layer asserts
+(P1, D11), and a version lacking one refuses the two model capabilities by name. Composing these
+requests again is the mistake this records.
+
 **D121. How full the context is, as a host service, and the host's first ask (2026-10-06, Leo).**
 The panel's own indicator shows only past half full, and only once a turn has finished in that
 panel, since its window size arrives with a `result`. A plugin showing it at all times needs both

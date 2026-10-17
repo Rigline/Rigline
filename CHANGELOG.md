@@ -13,13 +13,12 @@ hole, or raises the Node or VS Code it needs, its entry says so.
 
 ### Added
 
-- A bundled plugin, `model-favourites`: your usual model and effort combinations as chips under the
-  composer, one click each, and a pill showing what is live with its version.
-  - Each favourite reads as the version its model resolves to now, so `opus` shows `Opus 5.5`.
-  - When what is live is none of your favourites and not your default, both say so in the warning
-    colour.
-  - The pill's click switches to your default, and the list is kept in its own tab of the settings
-    screen.
+- A bundled plugin, `model-favourites`: your usual model and effort combinations as one pill under
+  the composer, a segment each and one click each, and your default beside it.
+  - Each reads as the version its model resolves to now, so `opus` shows `Opus 5.5`, and a run on
+    one model names it once: `Opus 5.5 · xhigh │ low │ Sonnet 5.5 · medium`.
+  - Whichever is live is highlighted, and Claude Code's own model picker moves with each click.
+  - The list is kept in its own tab of the settings screen.
 - A settings screen in the panel, opened from **Settings…** in the RIG menu: a tab for Rigline and
   one for each plugin that adds one, and one Save that writes them all to `config.yaml` through the
   companion. Rigline's tab sets whether the panel asks for a model before you send, and your default
@@ -34,7 +33,7 @@ hole, or raises the Node or VS Code it needs, its entry says so.
   `useSettingsDraft()` hands you. `ctx.onSettings` hands you your settings again whenever they
   change, and `ctx.openSettings()` opens the screen at your tab, or at Rigline's.
 - For plugin authors: `Pill` takes `current`, for the one in effect among a row of alternatives,
-  and `warning`.
+  and `PillGroup` draws several pills as the segments of one.
 - A setting to make the panel ask for a model before you send, so a model or effort changed in one
   session cannot quietly carry into the next. `model.requireChoice` in `config.yaml`: `always`
   asks in every new session, `unlessDefault` only when what is live is not your `model.default`,
@@ -46,16 +45,17 @@ hole, or raises the Node or VS Code it needs, its entry says so.
   - `ctx.onModelState` now says what your default resolves to, and whether this session still
     needs a choice.
 - `uses.modelChoice`, so a plugin can offer a one-click shortcut for a model and the effort that
-  goes with it — the same two choices the panel's own pickers offer, applied the same way.
+  goes with it — the same two choices the panel's own pickers offer, applied through those pickers'
+  own controls, so the picker shows the change.
   - Only on a real click or keypress. An event a plugin makes itself does not count, so nothing
     changes your model on a timer or in the background.
-  - A plugin names a model and an effort; Rigline builds the message. A combination your install
-    is not offering is refused rather than sent.
+  - A plugin names a model and an effort; the panel's own controls send it. A combination your
+    install is not offering is refused rather than tried.
   - `rigline list` says plainly that a plugin declaring this can change which model Claude Code
     uses.
 - `uses.models`, so a plugin can read which models your install offers and which model and effort
-  are live. The list is your own install's, so enterprise and non-Anthropic models arrive with it
-  and nothing has to be typed in by hand.
+  are live in this panel, as Claude Code's own picker shows them. The list is your own install's,
+  so enterprise and non-Anthropic models arrive with it and nothing has to be typed in by hand.
   - Read-only. Changing a model is a separate capability, and this one grants nothing towards it.
   - A model your settings name that the install no longer offers reads as nothing being live,
     rather than as an error, so a plugin can say so.

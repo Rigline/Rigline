@@ -40,7 +40,7 @@ export {
   Submenu,
   type SubmenuProps,
 } from "./menu.tsx";
-export { Pill, type PillProps } from "./pill.tsx";
+export { Pill, PillGroup, type PillGroupProps, type PillProps } from "./pill.tsx";
 export { SaveSettings, type SaveSettingsProps } from "./settings.tsx";
 
 /** A store's current value, re-rendering whenever it changes. */

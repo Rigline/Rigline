@@ -30,6 +30,7 @@ const harvest = (overrides: Partial<Harvest> = {}): Harvest => ({
   },
   replies: { responses: ["rename_tab_response", "asset_uris_response"], unanswered: [] },
   react: { hook: "__REACT_DEVTOOLS_GLOBAL_HOOK__", version: "18.3.1", missing: [] },
+  panelSession: { missing: [] },
   css: ".tab_OOQiHg{}.tab_yumWmQ{}.taskRow_oblbPg{}.modelPill_gGYT1w{}",
   ...overrides,
 });

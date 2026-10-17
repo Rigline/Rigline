@@ -105,8 +105,9 @@ export function booleanShape(value: unknown): string | null {
 }
 
 /**
- * A contract for a switch that expands to fixed message types and anchors the host taps for it, and
- * with `react`, to what react-dom must still have.
+ * A contract for a switch that expands to fixed message types and anchors the host taps for it,
+ * with `react`, to what react-dom must still have, and with `panelSession`, to what the panel's
+ * session object must.
  */
 export function switchContract<
   K extends
@@ -117,6 +118,7 @@ export function switchContract<
   readonly messages: readonly string[];
   readonly anchors: readonly string[];
   readonly react?: boolean;
+  readonly panelSession?: boolean;
   readonly summary: string;
 }): CapabilityContract<K> {
   const grant = spec.grants[0] ?? spec.key;
@@ -145,6 +147,11 @@ export function switchContract<
       if (spec.react) {
         for (const { needs, breaks } of tables.react.missing) {
           gaps.push(`"${spec.key}" needs react-dom's ${needs}, which is gone: ${breaks}`);
+        }
+      }
+      if (spec.panelSession) {
+        for (const { needs, breaks } of tables.panelSession.missing) {
+          gaps.push(`"${spec.key}" needs the panel session's ${needs}, which is gone: ${breaks}`);
         }
       }
       return gaps;

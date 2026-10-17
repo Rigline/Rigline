@@ -1,19 +1,16 @@
 /**
- * The favourites' reading and words. The model state is the host's (D120) and is tested there;
+ * The favourites' reading and words. The model state is the panel's own and is tested in the host;
  * `packages/harness/test/model-favourites.test.ts` draws all of it against the real bundle.
  */
-import { type ModelEntry, type ModelState, NO_MODEL_STATE } from "@rigline/plugin-api";
+import type { ModelEntry } from "@rigline/plugin-api";
 import { describe, expect, it } from "vitest";
 import {
   addProblem,
   entriesOf,
   favouriteLabel,
   favouritesOf,
-  liveKnown,
-  liveLabel,
-  offList,
   sameChoice,
-  statusTooltip,
+  segmentLabels,
   unavailable,
 } from "./index.tsx";
 
@@ -22,7 +19,13 @@ const opus: ModelEntry = {
   resolvedModel: "claude-opus-5-5",
   displayName: "Opus",
   supportsEffort: true,
-  supportedEffortLevels: ["medium", "high"],
+  supportedEffortLevels: ["low", "medium", "high", "xhigh"],
+};
+const sonnet: ModelEntry = {
+  ...opus,
+  value: "sonnet",
+  resolvedModel: "claude-sonnet-5-5",
+  displayName: "Sonnet",
 };
 const haiku: ModelEntry = {
   value: "haiku",
@@ -31,16 +34,7 @@ const haiku: ModelEntry = {
   supportsEffort: false,
   supportedEffortLevels: ["low", "medium", "high"],
 };
-const MODELS = [opus, haiku];
-
-const state = (over: Partial<ModelState> = {}): ModelState => ({
-  ...NO_MODEL_STATE,
-  models: MODELS,
-  current: opus,
-  setting: "opus",
-  effort: "high",
-  ...over,
-});
+const MODELS = [opus, sonnet, haiku];
 
 describe("reading the list", () => {
   it("keeps every entry as written, and reads the ones that are choices", () => {
@@ -73,12 +67,52 @@ describe("what a favourite reads as", () => {
 
   it("says why one cannot be applied, and nothing before the list arrives", () => {
     expect(unavailable({ model: "gone" }, MODELS)).toBe("not offered by this install");
+    expect(unavailable({ model: "haiku", effort: "high" }, MODELS)).toBe("takes no effort");
     expect(unavailable({ model: "opus", effort: "max" }, MODELS)).toBe(
       "no effort max for this model",
     );
-    expect(unavailable({ model: "haiku", effort: "high" }, MODELS)).toBe("takes no effort");
     expect(unavailable({ model: "opus", effort: "high" }, MODELS)).toBeNull();
     expect(unavailable({ model: "gone" }, [])).toBeNull();
+  });
+});
+
+describe("the segments", () => {
+  it("names a model once for a run of favourites on it", () => {
+    const favourites = [
+      { model: "opus", effort: "xhigh" },
+      { model: "opus", effort: "low" },
+      { model: "sonnet", effort: "medium" },
+    ];
+    expect(segmentLabels(favourites, MODELS)).toEqual([
+      "Opus 5.5 · xhigh",
+      "low",
+      "Sonnet 5.5 · medium",
+    ]);
+  });
+
+  it("names it again once the run is broken, and for a repeat with nothing else to say", () => {
+    const favourites = [
+      { model: "opus", effort: "xhigh" },
+      { model: "sonnet", effort: "medium" },
+      { model: "opus", effort: "low" },
+      { model: "haiku" },
+      { model: "haiku" },
+    ];
+    expect(segmentLabels(favourites, MODELS)).toEqual([
+      "Opus 5.5 · xhigh",
+      "Sonnet 5.5 · medium",
+      "Opus 5.5 · low",
+      "Haiku 5.5",
+      "Haiku 5.5",
+    ]);
+  });
+
+  it("takes a concrete id and its alias for one model", () => {
+    const favourites = [
+      { model: "opus", effort: "xhigh" },
+      { model: "claude-opus-5-5", effort: "low" },
+    ];
+    expect(segmentLabels(favourites, MODELS)).toEqual(["Opus 5.5 · xhigh", "low"]);
   });
 });
 
@@ -86,31 +120,6 @@ describe("comparing choices", () => {
   it("resolves both, so a concrete id is the alias it resolves from", () => {
     expect(sameChoice({ model: "claude-opus-5-5" }, { model: "opus" }, MODELS)).toBe(true);
     expect(sameChoice({ model: "opus", effort: "high" }, { model: "opus" }, MODELS)).toBe(false);
-  });
-});
-
-describe("what is live", () => {
-  it("is not known before the list, nor before the setting where nothing answers to no setting", () => {
-    expect(liveKnown(state({ models: [] }))).toBe(false);
-    expect(liveKnown(state({ current: null, setting: null }))).toBe(false);
-    expect(liveKnown(state({ current: null, setting: "gone" }))).toBe(true);
-  });
-
-  it("reads as its version, or as the setting where the install does not offer it", () => {
-    expect(liveLabel(state())).toBe("Opus 5.5 · high");
-    expect(liveLabel(state({ current: null, setting: "gone" }))).toBe("gone");
-  });
-
-  it("is off the list when it is neither a favourite nor the default", () => {
-    const favourites = [{ model: "opus", effort: "medium" }];
-    expect(offList(state(), favourites)).toBe(true);
-    expect(offList(state(), [{ model: "opus", effort: "high" }])).toBe(false);
-    const usual = { choice: { model: "opus", effort: "high" }, model: opus };
-    expect(offList(state({ default: usual }), favourites)).toBe(false);
-  });
-
-  it("is never off a list nobody has set up", () => {
-    expect(offList(state(), [])).toBe(false);
   });
 });
 
@@ -129,23 +138,5 @@ describe("adding a favourite", () => {
       "Already a favourite",
     );
     expect(addProblem({ model: "opus", effort: "medium" }, favourites, MODELS)).toBeNull();
-  });
-});
-
-describe("the status pill's tooltip", () => {
-  it("says what is live, what is wrong with it, and what a click does", () => {
-    expect(statusTooltip(state({ models: [] }), [])).toBe("Waiting for Claude Code's model list");
-    expect(statusTooltip(state({ choiceRequired: true }), [{ model: "haiku" }])).toBe(
-      [
-        "Live: Opus 5.5 · high",
-        "Not one of your favourites",
-        "Not chosen for this session yet",
-        "No default model: click to choose one in Rigline's settings",
-      ].join("\n"),
-    );
-    const usual = { choice: { model: "opus", effort: "high" }, model: opus };
-    expect(statusTooltip(state({ default: usual }), [])).toBe(
-      "Live: Opus 5.5 · high\nClick for your default: Opus 5.5 · high",
-    );
   });
 });

@@ -249,8 +249,9 @@ Each element renders in a form of its own. The composer box and its footer are i
 composer's form, where a button with no type would send the prompt; yours cannot. `Pill` from
 `@rigline/plugin-api/ui` is the small label the composer's rows are made of, and a button when
 given `onClick`, which receives the click event. It takes a `ref` and ARIA attributes too, for a
-pill that opens something of yours. `muted` dims one holding its place, `warning` puts it in the
-theme's warning colour, and `current` highlights the one in effect among a row of alternatives.
+pill that opens something of yours. `muted` dims one holding its place, and `current` highlights
+the one in effect among a row of alternatives. `PillGroup` draws the pills inside it as the segments
+of one pill, for one choice among several.
 
 A pill that copies something wants three pieces from the kit. `copyText` copies in the panel, where
 the browser's async clipboard needs a permission the webview may not hold, and says whether it did.

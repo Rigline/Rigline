@@ -8,7 +8,7 @@ import { readFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { extname, join, normalize, sep } from "node:path";
 import type { Surface } from "@rigline/plugin-api/internal";
-import { fixturePage } from "./page.ts";
+import { type AppModels, fixturePage } from "./page.ts";
 
 /** The exact two lines docs/host.md records the injector adding around the bundle's bytes. */
 const PRE_LINE = 'import"./rigline/pre.js";/*RIGLINE-PRE*/\n';
@@ -42,6 +42,8 @@ export interface HarnessOptions {
   readonly appTimestamps?: boolean;
   /** The CLI's `timeFormat` in `init`'s state; absent leaves `claudeSettings` out. */
   readonly appTimeFormat?: string;
+  /** The models the fake host offers and launches on. */
+  readonly appModels?: AppModels;
 }
 
 export interface Harness {
@@ -68,6 +70,7 @@ async function handle(
       nonce: NONCE,
       appTimestamps: options.appTimestamps,
       appTimeFormat: options.appTimeFormat,
+      appModels: options.appModels,
     });
     send(res, 200, page, "text/html");
     return;
