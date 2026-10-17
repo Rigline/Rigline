@@ -60,6 +60,13 @@ request payload, and `onMessage("list_sessions_response", …)` sees just those 
 reply loses the `requestId` that says which request it answered; the envelope is still recorded
 under `"response"` for anything that needs to join the pair itself.
 
+**The inner payload is recorded under its type only when it carries one.** A reply whose payload
+has no `type` string is recorded under `"response"` and nowhere else, so a tap on its
+`<request>_response` name never fires. The harvest derives reply names by convention, so that
+name can be in `generated.ts` and pass a manifest's check all the same. Before building on a
+reply, read the extension host's side and confirm the payload names itself. Claude Code's
+`get_claude_state` reply does, which is what makes `uses.models` possible.
+
 **A handler is handed a frozen deep clone, never the object on its way past, and that is enforced
 rather than documented.** Handing over the live object would make every read tap an undeclared write
 capability: a handler could rewrite an outbound payload, rewrite the `requestId` an envelope
