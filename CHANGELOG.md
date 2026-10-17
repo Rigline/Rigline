@@ -13,6 +13,13 @@ hole, or raises the Node or VS Code it needs, its entry says so.
 
 ### Added
 
+- A bundled plugin, `model-favourites`: your usual model and effort combinations as chips under the
+  composer, one click each, and a pill showing what is live with its version.
+  - Each favourite reads as the version its model resolves to now, so `opus` shows `Opus 5.5`.
+  - When what is live is none of your favourites and not your default, both say so in the warning
+    colour.
+  - The pill's click switches to your default, and the list is kept in its own tab of the settings
+    screen.
 - A settings screen in the panel, opened from **Settings…** in the RIG menu: a tab for Rigline and
   one for each plugin that adds one, and one Save that writes them all to `config.yaml` through the
   companion. Rigline's tab sets whether the panel asks for a model before you send, and your default
@@ -23,9 +30,11 @@ hole, or raises the Node or VS Code it needs, its entry says so.
     when you come back to it.
 - For plugin authors: `uses.settingsTab` and `ctx.settingsTab(title, Component)` add your tab, drawn
   from a kit in `@rigline/plugin-api/ui` — `SettingRow`, `Toggle`, `Choice`, `TextField`,
-  `ListEditor`, `ModelChooser` and `Button` — over the draft `useSettingsDraft()` hands you.
-  `ctx.onSettings` hands you your settings again whenever they change, and `ctx.openSettings()`
-  opens the screen at your tab, or at Rigline's.
+  `ListEditor`, `ModelChooser`, `Button`, `Actions` and `Hint` — over the draft
+  `useSettingsDraft()` hands you. `ctx.onSettings` hands you your settings again whenever they
+  change, and `ctx.openSettings()` opens the screen at your tab, or at Rigline's.
+- For plugin authors: `Pill` takes `current`, for the one in effect among a row of alternatives,
+  and `warning`.
 - A setting to make the panel ask for a model before you send, so a model or effort changed in one
   session cannot quietly carry into the next. `model.requireChoice` in `config.yaml`: `always`
   asks in every new session, `unlessDefault` only when what is live is not your `model.default`,
@@ -50,6 +59,9 @@ hole, or raises the Node or VS Code it needs, its entry says so.
   - Read-only. Changing a model is a separate capability, and this one grants nothing towards it.
   - A model your settings name that the install no longer offers reads as nothing being live,
     rather than as an error, so a plugin can say so.
+  - `findModel`, `isLive` and `choiceOf` from `@rigline/plugin-api` resolve a model as the panel
+    does, say whether a choice is what is live as Rigline's own gate decides it, and read a stored
+    choice in the shape of Rigline's default.
 - Per-plugin settings in `~/.rigline/config.yaml`, under a `settings:` block keyed by plugin name,
   so a plugin can be configured by hand in the same file as the rest of your Rigline.
   - A plugin reads its own with `ctx.settings`, and only its own.

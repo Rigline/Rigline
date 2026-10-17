@@ -42,6 +42,14 @@ button.rigline-ui-pill:hover {
 .rigline-ui-pill-muted {
   color: color-mix(in srgb, var(--app-pill-foreground, currentColor) 50%, transparent);
 }
+.rigline-ui-pill-current,
+button.rigline-ui-pill-current:hover {
+  background: var(--vscode-button-background, #0e639c);
+  color: var(--vscode-button-foreground, #ffffff);
+}
+.rigline-ui-pill-warning {
+  color: var(--vscode-editorWarning-foreground, #cca700);
+}
 `;
 
 /** Also takes ARIA attributes, which reach the element. */
@@ -51,6 +59,10 @@ export interface PillProps extends AriaAttributes {
   readonly title?: string;
   /** Fainter, for a pill holding its place until it has something to say. */
   readonly muted?: boolean;
+  /** Highlighted as the one in effect among a row of alternatives, and `aria-current` with it. */
+  readonly current?: boolean;
+  /** In the theme's warning colour, for a state the person should notice. */
+  readonly warning?: boolean;
   /**
    * Shown over the children while set, as `useFlash` gives it. The pill is as wide as the wider of
    * the two, so a flash no wider than the children moves nothing.
@@ -63,14 +75,19 @@ export interface PillProps extends AriaAttributes {
 }
 
 export function Pill(props: PillProps): ReactNode {
-  const { children, title, muted, flash, onClick, ref, ...rest } = props;
+  const { children, title, muted, current, warning, flash, onClick, ref, ...rest } = props;
   // ARIA alone, whatever the caller passes, so the element's surface is the type's (D109).
-  const aria = Object.fromEntries(Object.entries(rest).filter(([key]) => key.startsWith("aria-")));
+  const aria = {
+    ...Object.fromEntries(Object.entries(rest).filter(([key]) => key.startsWith("aria-"))),
+    ...(current === true ? { "aria-current": true } : {}),
+  };
   const fault = useContext(FaultContext);
   const shown = flash ?? null;
   const className = [
     "rigline-ui-pill",
     muted === true ? "rigline-ui-pill-muted" : "",
+    current === true ? "rigline-ui-pill-current" : "",
+    warning === true ? "rigline-ui-pill-warning" : "",
     shown === null ? "" : "rigline-ui-pill-flashing",
   ]
     .filter(Boolean)

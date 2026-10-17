@@ -249,7 +249,8 @@ Each element renders in a form of its own. The composer box and its footer are i
 composer's form, where a button with no type would send the prompt; yours cannot. `Pill` from
 `@rigline/plugin-api/ui` is the small label the composer's rows are made of, and a button when
 given `onClick`, which receives the click event. It takes a `ref` and ARIA attributes too, for a
-pill that opens something of yours.
+pill that opens something of yours. `muted` dims one holding its place, `warning` puts it in the
+theme's warning colour, and `current` highlights the one in effect among a row of alternatives.
 
 A pill that copies something wants three pieces from the kit. `copyText` copies in the panel, where
 the browser's async clipboard needs a permission the webview may not hold, and says whether it did.
@@ -307,10 +308,16 @@ with, so every tab reads alike:
   names.
 - `Toggle`, `Choice` (one of a few, `inline` for short labels side by side) and `TextField`.
 - `ListEditor` — rows you draw with `render`, which a person reorders and removes. Add to it with
-  the kit's other controls and a `Button`, drawn after it.
+  the kit's other controls and a `Button`, drawn after it; `Actions` sets several buttons side by
+  side, and `Hint` is the kit's secondary text, for what qualifies a row.
 - `ModelChooser` — a model, then one of the efforts that model takes, from the `ModelState`
   `ctx.onModelState` hands you, so it needs `uses.models`. It stores the alias and shows the
-  version it resolves to now.
+  version it resolves to now. To keep choices of your own, store them in the shape of Rigline's
+  default and read them back with `choiceOf`; `findModel` resolves one's alias as the panel does,
+  `isLive` says whether it is what is live, and `comboLabel` names it with its version.
+
+`plugins/model-favourites` is a whole tab built this way: a list, a chooser to add to it, and a row
+pointing at Rigline's tab.
 
 `useSettingsDraft()` gives your tab `[draft, setDraft]`. The draft is your whole section as the
 person is editing it, frozen, starting from what is saved; `setDraft` replaces the whole of it.

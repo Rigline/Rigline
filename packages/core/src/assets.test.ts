@@ -50,6 +50,7 @@ describe("the discovery roots core owns", () => {
     }
     for (const name of [
       "context-meter",
+      "model-favourites",
       "probe",
       "session-id",
       "time-marks",

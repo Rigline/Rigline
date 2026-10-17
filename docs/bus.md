@@ -184,20 +184,22 @@ registering from a promise or a timer, after `setup` returned.
 
 ## Asking: the host's own requests
 
-The host may send a request the app itself sends, read-only and from a list in host code (D120).
-`bus.ask(channelId, type)` posts `{ type: "request", channelId, requestId, request: { type } }`
-with a fresh id, outside the rewrite chain and untapped, and in a microtask, so an ask a tap makes
+The host may send a request the app itself sends, from a list in host code (D120): one that reads,
+or one that writes where a person caused it (D120 as amended). `bus.ask(channelId, type, fields?)`
+posts `{ type: "request", channelId, requestId, request: { type, ...fields } }` with a fresh id, outside the rewrite chain and untapped, and in a microtask, so an ask a tap makes
 goes out after the message it tapped: asked synchronously, one about a `launch_claude` reached the
 extension before the launch and was answered "Channel not found". The inbound listener settles the ask by
 `requestId` before anything is recorded, so the reply reaches no tap and no replay; the app still
 receives it, warns that no handler matched, and drops it. Eight may await a reply at once, each for
 a minute, after which it resolves to null. `diagnostics.asked` and the `ask` meter count them.
 
-The one request on the list is `get_context_usage`, asked by the context service below.
+On the list: `get_context_usage`, a read the context service below asks; and `set_model`,
+`apply_settings` and `set_thinking_level`, the writes the models service sends for `applyChoice`,
+each composed in host code from a closed set of fields.
 
 ## Services derived from the bus
 
-Three capabilities are not taps a plugin could write itself, because the derivation behind them is
+The capabilities below are not taps a plugin could write itself, because the derivation behind them is
 read off minified code and inverts silently (P5). The host owns them, one tap serves every plugin,
 and the tap is subscribed on first use rather than at boot — the pre hook clones a message only when
 a tap exists, so an unconditional tap would charge every panel for a stream no plugin read.
@@ -256,6 +258,35 @@ pushes to every panel. It is merged as the panel merges it: a window sent as `nu
 left out is kept, and one without `resetsAt` never replaces one with. A window past its reset reads
 as used 0, on a timer of the service's own. A change of signed-in identity clears the windows,
 because the panel clears its own then. The pure half is `plugin-api/src/limits.ts`.
+
+**Models** (`ctx.onModelState`, `ctx.applyChoice`). Which models the install offers, which model and
+effort are live, the person's default, and whether this session still needs a choice (D120 as
+amended, D139). Every shape here was read in the webview and extension-host bundles; none is
+documented.
+
+- **The panel keeps two configs, and draws `live ?? stored`.** The reply to `get_claude_state`
+  carries `stored: true` on its cached path and omits `stored` on its fresh one, and the two land in
+  different slots. `update_state` replaces the live one wholesale where it carries a config, keeps
+  it otherwise (emptying a non-empty `account`), and clears the stored one either way. One slot is a
+  cold-start bug: the first reply is usually the cached one, so the list would read empty until the
+  first `update_state`.
+- **The reply carries its own `type`**, `get_claude_state_response`, which is what lets the bus
+  record it under that type at all (*What crosses it*).
+- **What is live is on `update_state`'s `request.state`**: `modelSetting`, resolved against the list
+  by the panel's own chain — the alias, the alias without the `[1m]` marker, then a concrete
+  `resolvedModel` — and `settings.effortLevel`, live only where that model takes it.
+- **`set_model` takes `{ model: { value } }`** with `value` a string, `"default"` meaning none, and
+  answers `set_model_response`, whose `applied` is absent where the write returned nothing. So
+  `applyChoice` resolves with the applied model or null, never a guess.
+- **`apply_settings` reaches six keys of Claude Code's own `WEBVIEW_WRITABLE_SETTINGS`**, each with
+  its own value check, and throws by name on any other: `effortLevel`, `switchModelsOnFlag`,
+  `remoteControlAtStartup` and `fastMode` at user settings, `outputStyle` at local settings, and
+  `ultracode` at flags, which `flagsOnly: true` selects. The service composes two of them, effort
+  and ultracode, as two requests where a choice names both, since they sit on different layers.
+
+Granting `modelChoice` subscribes to the service, because a choice is validated against the list and
+the replay buffer is sealed long before a first `applyChoice` could tap. The pure half is
+`plugin-api/src/models.ts`.
 
 ## Rates
 

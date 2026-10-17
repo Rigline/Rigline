@@ -5,9 +5,9 @@
  */
 import { createContext, type MouseEvent, type ReactNode, useContext, useId, useMemo } from "react";
 import {
-  currentModel,
   DEFAULT_EFFORT_LEVELS,
   type DefaultChoice,
+  findModel,
   type ModelEntry,
   type ModelState,
   modelLabel,
@@ -196,7 +196,8 @@ export const KIT_CSS = `
 .rigline-kit-icon:hover:not(:disabled) {
   background: color-mix(in srgb, currentColor 14%, transparent);
 }
-.rigline-kit-model {
+.rigline-kit-model,
+.rigline-kit-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -354,6 +355,15 @@ export function TextField(props: TextFieldProps): ReactNode {
   );
 }
 
+export interface HintProps {
+  readonly children?: ReactNode;
+}
+
+/** Secondary text, as a row's hint reads, for what qualifies the thing beside it. */
+export function Hint(props: HintProps): ReactNode {
+  return <span className="rigline-kit-hint">{props.children}</span>;
+}
+
 export interface ButtonProps {
   readonly children: ReactNode;
   readonly onClick: (event: MouseEvent<HTMLButtonElement>) => void;
@@ -375,6 +385,15 @@ export function Button(props: ButtonProps): ReactNode {
       {children}
     </button>
   );
+}
+
+export interface ActionsProps {
+  readonly children?: ReactNode;
+}
+
+/** Buttons side by side, wrapping where the tab is narrow. */
+export function Actions(props: ActionsProps): ReactNode {
+  return <div className="rigline-kit-actions">{props.children}</div>;
 }
 
 export interface ListEditorProps<T> {
@@ -468,7 +487,7 @@ function effortLevels(state: ModelState, target: ModelEntry | null): readonly st
 export function ModelChooser(props: ModelChooserProps): ReactNode {
   const { state, value, onChange, none } = props;
   const labelling = useLabelling();
-  const target = value === null ? null : currentModel(state.models, value.model);
+  const target = value === null ? null : findModel(state.models, value.model);
 
   function pick(alias: string): void {
     if (alias === "") {

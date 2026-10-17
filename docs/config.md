@@ -39,13 +39,13 @@ takes.
 
     settings:
       model-favourites:
-        # Starred in the panel, or written here; either way it is this list.
+        # Edited on its tab in the settings screen, or written here; either way it is this list.
         favourites:
-          - opus
-          - haiku
+          - { model: opus, effort: high }
+          - { model: haiku }
 
 A plugin with settings worth changing has a tab in the settings screen, and some can also save
-from a click on whatever they draw — the star in the example above. Either way that writes only
+from a click on whatever they draw, such as a star on a row. Either way that writes only
 that plugin's block and leaves the rest of the file as you wrote it, comments included, the same as
 a `rigline layout` edit does. It goes through the companion extension, so without one installed the
 panel says so instead of offering it. A plugin can only ever write its own block, never another

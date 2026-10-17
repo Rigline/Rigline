@@ -9,6 +9,7 @@ layout:
     - usage-meter/cost
     - usage-meter/five-hour
     - usage-meter/seven-day
+    - model-favourites/chips
   rigRow right:
     - rigline/edit
     - rigline/reload
@@ -20,3 +21,4 @@ layout:
     - worktree/full-name
   before footerSpacer:
     - context-meter/percent
+    - model-favourites/status

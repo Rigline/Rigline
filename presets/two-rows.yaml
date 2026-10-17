@@ -15,8 +15,10 @@ layout:
   before footerSpacer:
     - session-id/short-id
     - worktree/short-name
+    - model-favourites/status
   off:
     - context-meter/percent
+    - model-favourites/chips
     - session-id/full-id
     - session-id/address
     - worktree/full-name

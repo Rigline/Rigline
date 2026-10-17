@@ -8,8 +8,10 @@ layout:
     - session-id/short-id
     - worktree/short-name
     - context-meter/percent
+    - model-favourites/status
   off:
     - context-meter/bar
+    - model-favourites/chips
     - usage-meter/cost
     - usage-meter/five-hour
     - usage-meter/seven-day

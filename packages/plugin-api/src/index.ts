@@ -49,8 +49,11 @@ export type {
   ResolvedDefault,
 } from "./models.ts";
 export {
+  choiceOf,
   comboLabel,
   DEFAULT_EFFORT_LEVELS,
+  findModel,
+  isLive,
   modelLabel,
   NO_MODEL_STATE,
   supportsEffort,

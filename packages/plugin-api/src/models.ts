@@ -267,22 +267,20 @@ export function unavailableOf(config: ClaudeConfig | undefined): readonly string
 const MILLION = /\[1m\]$/i;
 
 /**
- * The entry a model setting names, by the panel's own chain: the alias as stored, then the alias
- * with the million-token marker stripped, then an entry whose concrete id it is.
+ * The entry a model setting or a stored choice names, by the panel's own chain: the alias as
+ * stored, then the alias with the million-token marker stripped, then an entry whose concrete id it
+ * is. No alias at all is `"default"`, as the panel reads an unset setting.
  *
  * Null where nothing matches, which is a real state rather than a failure — a setting naming a model
  * this install no longer offers reads as no current model, and that is what the warning state is for.
  */
-export function currentModel(
-  models: readonly ModelEntry[],
-  setting: string | null,
-): ModelEntry | null {
-  const alias = setting === null || setting === "" ? "default" : setting;
-  const stripped = alias.replace(MILLION, "");
+export function findModel(models: readonly ModelEntry[], alias: string | null): ModelEntry | null {
+  const named = alias === null || alias === "" ? "default" : alias;
+  const stripped = named.replace(MILLION, "");
   return (
-    models.find((model) => model.value === alias) ??
+    models.find((model) => model.value === named) ??
     models.find((model) => model.value === stripped) ??
-    models.find((model) => model.resolvedModel !== null && model.resolvedModel === alias) ??
+    models.find((model) => model.resolvedModel !== null && model.resolvedModel === named) ??
     null
   );
 }
@@ -315,7 +313,7 @@ export function resolvedDefault(
   choice: DefaultChoice | null,
 ): ResolvedDefault | null {
   if (choice === null) return null;
-  const model = currentModel(models, choice.model);
+  const model = findModel(models, choice.model);
   return model === null ? null : { choice, model };
 }
 
@@ -330,6 +328,23 @@ export function isDefaultLive(
 ): boolean {
   if (usual === null || current === null || current.value !== usual.model.value) return false;
   return usual.choice.effort === undefined || usual.choice.effort === effort;
+}
+
+/**
+ * Whether `choice` is what is live in `state`, compared as the gate compares the default: the same
+ * entry, and the same effort where the choice names one.
+ */
+export function isLive(state: ModelState, choice: DefaultChoice): boolean {
+  return isDefaultLive(state.current, state.effort, resolvedDefault(state.models, choice));
+}
+
+/**
+ * A stored choice, read as Rigline reads its own default, or null where `value` is not one. A key it
+ * does not know is passed over, so a choice a later version wrote still reads.
+ */
+export function choiceOf(value: unknown): DefaultChoice | null {
+  const read = defaultOf(value);
+  return "problem" in read ? null : read.choice;
 }
 
 /**
@@ -365,7 +380,7 @@ export function modelStateOf(
 ): ModelState {
   const config = drawnConfig(configs);
   const models = modelsOf(config);
-  const current = currentModel(models, setting);
+  const current = findModel(models, setting);
   // An effort the live model does not take is not live, whatever the file says: the panel's own
   // controls only show one for a model that supports it.
   const live = effort !== null && supportsEffort(current, effort) ? effort : null;
@@ -482,8 +497,7 @@ export function choiceProblem(state: ModelState, choice: ModelChoice): string | 
     return "a choice carries an effort or a thinking level, never both";
   }
   // The model the rest of the choice is judged against: the one being set, else the live one.
-  const target =
-    choice.model === undefined ? state.current : currentModel(state.models, choice.model);
+  const target = choice.model === undefined ? state.current : findModel(state.models, choice.model);
   if (choice.model !== undefined && target === null) {
     return `this install does not offer the model "${choice.model}"`;
   }

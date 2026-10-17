@@ -233,7 +233,7 @@ reload away rather than one reload and a command a person has to know about (D55
 update` is split: the wrapper moves the engine, then the engine moves the plugins and re-injects
 behind both (D55, D69, D106).
 
-The six first-party plugins are bundled inside `@rigline/core` and discovered in place, so this
+The first-party plugins are bundled inside `@rigline/core` and discovered in place, so this
 checkout's `plugins/` shadows them and `disable` is the only way to decline one (D71, D72). In a
 published install they are the only root that has them; here they are found twice, quietly.
 

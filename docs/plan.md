@@ -56,7 +56,7 @@ pnpm workspace, TypeScript throughout, every package a real package with its own
 
 | path | package | what it is |
 | --- | --- | --- |
-| `packages/core` | `@rigline/core` | Node library: locate installed extensions, harvest identifier layers, generate types and runtime tables, inject and restore, discover plugins and bake the registry, run the install flow, watch for updates, hold the curated anchor table. Ships `dist/bundled` — the payload and the six first-party plugins (D71) — so it is what a published install injects from. The CLI and the companion both run it as a child process (D69, D80). |
+| `packages/core` | `@rigline/core` | Node library: locate installed extensions, harvest identifier layers, generate types and runtime tables, inject and restore, discover plugins and bake the registry, run the install flow, watch for updates, hold the curated anchor table. Ships `dist/bundled` — the payload and the first-party plugins (D71) — so it is what a published install injects from. The CLI and the companion both run it as a child process (D69, D80). |
 | `packages/cli` | `rigline` | The retrieval layer (D69, D106): installs `@rigline/core` under `<RIGLINE_HOME>/engine`, spawns its `rigline-engine` bin, and forwards every verb; `update` moves the engine first. Answers `--version` itself, and says when a newer wrapper is out. Depends on no Rigline package, and belongs in no project's dependencies. |
 | `packages/host` | `@rigline/host` (private) | The injected runtime: `pre.js` (bus tap, buffer, rewrite chain, React devtools hook, meters) and `post.js` (kernel plus capability modules), and `runtime/`, the React plugins import (D87). |
 | `packages/plugin-api` | `@rigline/plugin-api` | What a plugin is written against: `PluginContext`, the manifest type and JSON schema, `definePlugin`, the anchor names, and the pure helpers shared by host and core (capability contracts, session rule, stream shape, transcript derivations). |
@@ -68,6 +68,7 @@ pnpm workspace, TypeScript throughout, every package a real package with its own
 | `plugins/time-marks` | first-party plugin | Clock times and pause dividers on transcript rows. |
 | `plugins/context-meter` | first-party plugin | How full the context is, as a bar under the composer and a percentage in its footer. |
 | `plugins/usage-meter` | first-party plugin | What the session has cost and how much of the plan's limits is used, as pills under the composer. |
+| `plugins/model-favourites` | first-party plugin | The person's usual model and effort combinations as chips under the composer, what is live as a footer pill, and the list in its settings tab. |
 | `plugins/probe` | first-party plugin | The live integration harness: a check per capability, and the diagnostics in Rigline's menu. |
 | `docs/` | | Plan, decisions, topic docs, authoring guide, archive. |
 
@@ -697,3 +698,9 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   app's `05:29` on any webview not resolving to en-US — which is also why the harness case for it
   failed only in the first ten hours of UTC, and passed in the unit tier on an en-AU machine. The
   app pins the locale; read it in `aA0` in the 2.1.300 webview bundle.
+- 2026-10-17: `model-favourites`, a bundled plugin and the settings screen's first plugin tab. Chips
+  apply a favourite on a click through `uses.modelChoice`; a footer pill shows what is live and
+  applies Rigline's default. Its tab is drawn from the kit, which grew where the plugin would
+  otherwise have drawn its own: `Pill`'s `current` and `warning`, `Hint` and `Actions`. It reaches
+  no further than any plugin: `findModel`, `isLive` and `choiceOf` became public so the chips and
+  the gate compare a choice with what is live the same way.

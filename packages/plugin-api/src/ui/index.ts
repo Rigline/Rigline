@@ -11,11 +11,15 @@ import type { Store } from "../store.ts";
 export { copyText, useFlash } from "./copy.ts";
 export { useSettingsDraft } from "./draft.ts";
 export {
+  Actions,
+  type ActionsProps,
   Button,
   type ButtonProps,
   Choice,
   type ChoiceOption,
   type ChoiceProps,
+  Hint,
+  type HintProps,
   ListEditor,
   type ListEditorProps,
   ModelChooser,

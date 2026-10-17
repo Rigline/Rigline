@@ -5,15 +5,17 @@
 import { describe, expect, it } from "vitest";
 import {
   appliedModelOf,
+  choiceOf,
   choiceProblem,
   choosesModel,
   comboLabel,
   configsAfterReply,
   configsAfterState,
-  currentModel,
   DEFAULT_EFFORT_LEVELS,
   drawnConfig,
   effortOf,
+  findModel,
+  isLive,
   type ModelEntry,
   modelLabel,
   type ModelSettings,
@@ -113,27 +115,27 @@ describe("the lookup chain", () => {
   const models = modelsOf(config);
 
   it("matches the alias as stored", () => {
-    expect(currentModel(models, "opus")?.value).toBe("opus");
+    expect(findModel(models, "opus")?.value).toBe("opus");
   });
 
   it("matches the alias with the million-token marker stripped", () => {
-    expect(currentModel(models, "opus[1m]")?.value).toBe("opus");
-    expect(currentModel(models, "OPUS[1M]")).toBeNull();
+    expect(findModel(models, "opus[1m]")?.value).toBe("opus");
+    expect(findModel(models, "OPUS[1M]")).toBeNull();
   });
 
   it("matches a concrete id against resolvedModel, so a pinned setting still resolves", () => {
-    expect(currentModel(models, "claude-opus-5")?.value).toBe("opus");
+    expect(findModel(models, "claude-opus-5")?.value).toBe("opus");
   });
 
   it("treats no setting as the default, which is an alias like any other", () => {
     const withDefault = modelsOf({ models: [{ value: "default" }, opus] });
-    expect(currentModel(withDefault, null)?.value).toBe("default");
-    expect(currentModel(withDefault, "")?.value).toBe("default");
-    expect(currentModel(models, null)).toBeNull();
+    expect(findModel(withDefault, null)?.value).toBe("default");
+    expect(findModel(withDefault, "")?.value).toBe("default");
+    expect(findModel(models, null)).toBeNull();
   });
 
   it("is null for a setting this install no longer offers, which the warning state is for", () => {
-    expect(currentModel(models, "gone")).toBeNull();
+    expect(findModel(models, "gone")).toBeNull();
   });
 });
 
@@ -391,6 +393,59 @@ describe("whether a send waits for a choice", () => {
     expect(choosesModel({ effort: "high" })).toBe(true);
     expect(choosesModel({ thinkingLevel: "deep" })).toBe(true);
     expect(choosesModel({ ultracode: true })).toBe(false);
+  });
+});
+
+describe("whether a choice is what is live", () => {
+  const configs = { live: config, stored: undefined };
+
+  it("compares the model and, where the choice names one, the effort", () => {
+    const state = modelStateOf(configs, "opus", "high");
+    expect(isLive(state, { model: "opus", effort: "high" })).toBe(true);
+    expect(isLive(state, { model: "opus", effort: "medium" })).toBe(false);
+    expect(isLive(state, { model: "opus" })).toBe(true);
+    expect(isLive(state, { model: "haiku" })).toBe(false);
+  });
+
+  it("resolves the choice by the panel's chain, so a concrete id or the 1M marker is the same model", () => {
+    const state = modelStateOf(configs, "opus[1m]", "high");
+    expect(isLive(state, { model: "claude-opus-5", effort: "high" })).toBe(true);
+  });
+
+  it("is false while nothing is known, and for a model the install does not offer", () => {
+    expect(isLive(modelStateOf(NO_CONFIGS, "opus", "high"), { model: "opus" })).toBe(false);
+    expect(isLive(modelStateOf(configs, "opus", "high"), { model: "gone" })).toBe(false);
+  });
+});
+
+describe("reading a stored choice", () => {
+  it("reads the default's shape", () => {
+    expect(choiceOf({ model: "opus", effort: "high" })).toEqual({ model: "opus", effort: "high" });
+    expect(choiceOf({ model: "haiku", thinkingLevel: "deep", ultracode: true })).toEqual({
+      model: "haiku",
+      thinkingLevel: "deep",
+      ultracode: true,
+    });
+  });
+
+  it("passes over a key it does not know, so a later version's choice still reads", () => {
+    expect(choiceOf({ model: "opus", label: "mine" })).toEqual({ model: "opus" });
+  });
+
+  it("is null for anything that is not a choice", () => {
+    for (const value of [
+      null,
+      undefined,
+      "opus",
+      [],
+      {},
+      { model: "" },
+      { model: "opus", effort: 3 },
+      { model: "opus", effort: "high", thinkingLevel: "deep" },
+      { model: "opus", ultracode: "yes" },
+    ]) {
+      expect(choiceOf(value), JSON.stringify(value)).toBeNull();
+    }
   });
 });
 

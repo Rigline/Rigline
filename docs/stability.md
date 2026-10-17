@@ -92,6 +92,9 @@ Rigline out until you put it back.
   ([plugin-policy.md](plugin-policy.md)). Settings for a plugin that is switched off or removed
   stay in the file. What a plugin's own keys mean, and whether they survive its updates, is its
   author's promise rather than ours.
+- **The bundled plugins' own settings**, since for those we are the author:
+  `model-favourites`' `favourites`, a list of choices each in the shape of the `model` block's
+  `default`.
 - **`~/.rigline/anchors.json`**, in the format [anchors.md](anchors.md) describes.
 - **`~/.rigline/sources.json`**, where `rigline add` records each plugin's source. It is Rigline's
   record rather than a setting, but a later 1.x reads what an earlier one wrote.
