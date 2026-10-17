@@ -6,7 +6,12 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { ModelSettings, SaveRecord, SettingsPayload } from "@rigline/plugin-api/internal";
+import type {
+  Layout,
+  ModelSettings,
+  SaveRecord,
+  SettingsPayload,
+} from "@rigline/plugin-api/internal";
 import type { Page } from "playwright";
 import { describe, expect, it } from "vitest";
 import type { AppModels } from "../src/page.ts";
@@ -21,6 +26,8 @@ const SCREEN = '[role="dialog"].rigline-settings-frame';
 const SAVE = `${SCREEN} a[href^="vscode://rigline.rigline/settings?p="]`;
 const USUAL: ModelSettings = { requireChoice: "off", default: { model: "opus", effort: "xhigh" } };
 const PICKER = '.modelPill_gGYT1w[role="combobox"]';
+/** The default pill starts off, so a case that clicks it places it, after the favourites. */
+const WITH_DEFAULT: Layout = { rigRow: [`${NAME}/favourites`, `${NAME}/default`] };
 
 const pills = (element: string) => `[data-rigline-element="${NAME}/${element}"] .rigline-ui-pill`;
 
@@ -149,6 +156,7 @@ describe.skipIf(skip !== null)(
         plugins: [plugin as FixturePlugin],
         model: USUAL,
         appModels: ON_OPUS,
+        layout: WITH_DEFAULT,
         settings: { [NAME]: { favourites: FAVOURITES } },
       });
       const { page } = booted;
@@ -227,6 +235,22 @@ describe.skipIf(skip !== null)(
       });
       const { page } = booted;
       try {
+        // Placed as the manifest says: the favourites in the row, the default pill nowhere.
+        await expect
+          .poll(() => texts(page, "favourites"))
+          .toEqual(["Opus 5.5", "high", "Sonnet 5.5", "low"]);
+        expect(
+          await page.evaluate(
+            (selector) =>
+              document
+                .querySelector(selector)
+                ?.closest("[data-rigline-zone]")
+                ?.getAttribute("data-rigline-zone"),
+            pills("favourites"),
+          ),
+        ).toBe("rigRow");
+        expect(await page.locator(`[data-rigline-element="${NAME}/default"]`).count()).toBe(0);
+
         await page.waitForSelector(".rigline-pill");
         await page.click(".rigline-pill");
         await page.getByRole("menuitem", { name: "Model favourites…" }).click();
@@ -288,6 +312,7 @@ describe.skipIf(skip !== null)(
         plugins: [plugin as FixturePlugin],
         save: COMPANION,
         appModels: ON_OPUS,
+        layout: WITH_DEFAULT,
       });
       const { page } = booted;
       try {

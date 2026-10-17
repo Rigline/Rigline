@@ -2,7 +2,7 @@
   "$schema": "node_modules/@rigline/plugin-api/schema/manifest.json",
   "api": 1,
   "name": "model-favourites",
-  "description": "Your usual model and effort combinations as one pill, a click each, and your default beside it, each highlighted while it is the one live.",
+  "description": "Your usual model and effort combinations as one pill, a click each, highlighted while live, and a pill for your default that starts off.",
   "entry": "dist/index.js",
   "surfaces": ["editor", "sidebar"],
   "uses": {
@@ -26,7 +26,7 @@
           "at": "before"
         }
       ],
-      "default": "rigRow"
+      "default": null
     }
   }
 }

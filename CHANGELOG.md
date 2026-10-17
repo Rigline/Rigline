@@ -14,7 +14,7 @@ hole, or raises the Node or VS Code it needs, its entry says so.
 ### Added
 
 - A bundled plugin, `model-favourites`: your usual model and effort combinations as one pill under
-  the composer, one click each, and your default beside it.
+  the composer, one click each, and a pill for your default, which starts off.
   - Favourites on one model share its segment, named by the version it resolves to now:
     `Opus 5.5 │ xhigh │ low │ Sonnet 5.5 │ medium`. A click on the model picks the effort beside it.
   - The live model and the live favourite are highlighted, and Claude Code's own model picker moves

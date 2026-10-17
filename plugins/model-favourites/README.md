@@ -1,6 +1,6 @@
 # model-favourites
 
-Your usual model and effort combinations, one click each, and your default beside them.
+Your usual model and effort combinations, one click each, and a pill for your default.
 
 ## What it shows
 
@@ -14,9 +14,9 @@ Your usual model and effort combinations, one click each, and your default besid
   - A favourite your install does not offer, or with an effort its model does not take, is dimmed,
     and its tooltip says which.
   - With none set, a dimmed *No favourites* opens the settings tab.
-- **Your default**, a pill beside it: the model and effort it sets, highlighted while it is live. A
-  click switches to it. With no default set it reads *No default*, and opens Rigline's settings
-  tab, where the default is chosen.
+- **Your default**, a pill that starts off: the model and effort it sets, highlighted while it is
+  live. A click switches to it. With no default set it reads *No default*, and opens Rigline's
+  settings tab, where the default is chosen.
 - **Model favourites…** in Rigline's menu, which opens the settings tab.
 
 A click does what Claude Code's own model picker does, through the picker itself, so the picker
@@ -24,8 +24,8 @@ shows the change and Claude Code saves the model and effort to your settings as 
 use it. If Claude Code refuses, the segment flashes *refused*, its tooltip gives the reason, and
 Claude Code says why in its own notification.
 
-Both pills are elements, so they can be moved or switched off from Rigline's menu or with `rigline
-layout`. The default also fits in the composer footer.
+Both pills are elements, so they can be switched on or off and moved from Rigline's menu or with
+`rigline layout`. The default goes in the row or in the composer footer.
 
 ## The settings tab
 
