@@ -13,6 +13,16 @@ hole, or raises the Node or VS Code it needs, its entry says so.
 
 ### Added
 
+- A setting to make the panel ask for a model before you send, so a model or effort changed in one
+  session cannot quietly carry into the next. `model.requireChoice` in `config.yaml`: `always`
+  asks in every session, `unlessDefault` only when what is live is not your `model.default`, and
+  `off`, the default, never asks.
+  - Only sending waits; typing never does, and nothing you typed is lost.
+  - Choosing in Claude Code's own picker counts, and so does a plugin's shortcut. A line above the
+    composer names what is live, with its version, and offers to send with it anyway.
+  - It is yours to switch on, in your own settings, and no plugin can switch it on.
+  - `ctx.onModelState` now says what your default resolves to, and whether this session still
+    needs a choice.
 - `uses.modelChoice`, so a plugin can offer a one-click shortcut for a model and the effort that
   goes with it — the same two choices the panel's own pickers offer, applied the same way.
   - Only on a real click or keypress. An event a plugin makes itself does not count, so nothing

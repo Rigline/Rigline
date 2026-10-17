@@ -15,6 +15,8 @@ import {
   type IdentifierTables,
   type Layout,
   layoutProblems,
+  type ModelSettings,
+  NO_MODEL_SETTINGS,
   parsePlace,
   type SaveRecord,
   undeclaredUse,
@@ -304,6 +306,7 @@ function normalizeEntry(entry: string): string {
  * The layout goes in whole, entries that do not resolve included, because it is also what the panel
  * would save back (D92). `save` is null where there is nothing to save through (D93). The presets
  * carry the ones a person could apply here, each with the reason where it cannot be read (D133).
+ * `model` is Rigline's own: the gate's mode and the person's default.
  */
 export function bakeRegistry(
   enabled: readonly DiscoveredPlugin[],
@@ -312,6 +315,7 @@ export function bakeRegistry(
   save: SaveRecord | null = null,
   presets: BakedPresets = { presets: [], omitted: 0 },
   settings: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {},
+  model: ModelSettings = NO_MODEL_SETTINGS,
 ): string {
   const entries = enabled.map((p) =>
     JSON.stringify({
@@ -335,6 +339,7 @@ export const save = ${JSON.stringify(save)};
 export const presets = ${JSON.stringify(presets.presets)};
 export const presetsOmitted = ${JSON.stringify(presets.omitted)};
 export const settings = ${JSON.stringify(settings)};
+export const model = ${JSON.stringify(model)};
 `;
 }
 

@@ -3763,6 +3763,11 @@ A terminal-only setting would instead put friction on the main path of a feature
 is removing it, and buy little: the money at stake is real, but a default nobody can see is the
 hazard, not a default written from the wrong window.
 
+**Amended 2026-10-17:** the worked case above, a launch default kept as `model-favourites`' setting
+and applied by the plugin, describes nothing now built or planned: the gate (D139) asks the person
+to choose rather than choosing for them. The rule stands, and now puts the default with Rigline,
+since Rigline's gate is what understands it. The favourites list stays the plugin's.
+
 **D138. Per-plugin settings are YAML sections, and a plugin saves its own (2026-10-15, Leo).** D91
 left `config.yaml` holding "the layout and per-plugin settings as they arrive"; these are them. A
 `settings` mapping keyed by plugin name, named in `SETTINGS` so the unknown-key report stops flagging
@@ -3806,3 +3811,38 @@ still be baked into `registry.js` and read from there exactly as now. What would
 the loop is the companion watching `config.yaml` and re-baking, which is the same poll it already
 runs for the extension directories and needs no change of store. Reopen this only for the settings
 UI, which is the one thing a file watcher cannot supply.
+
+**D139. Rigline may hold a send until a model is chosen, at the person's request (2026-10-17,
+Leo).** Claude Code's model and effort are user settings, not per-session state: its picker writes
+`~/.claude/settings.json`, so a change made for one session is every later session's, and nothing
+makes anybody look. The gate makes them look. `config.yaml`'s `model.requireChoice` switches it on —
+`always` asks in every session, `unlessDefault` only while what is live is not `model.default` — and
+then a prompt waits until something has chosen in its session: a plugin's `applyChoice` succeeding,
+Claude Code's own `set_model` or effort write seen leaving the panel, or the person sending anyway.
+The panel's next channel is the next session.
+
+**P4 does not forbid it, because P4 is about the bus.** "The app's message reaches the extension
+host whatever a plugin does" stops anything holding or dropping traffic on the channel. The gate
+touches no message: it stops the keystroke and the submit before the app has chosen to send, so
+nothing is dropped, and it is Rigline's rather than a plugin's. Reading P4 as "Rigline never vetoes
+a submit" was an over-reading.
+
+What makes it safe is the conditions it runs under:
+
+- **Opt-in, and nothing at all when off.** No listener is installed.
+- **Never a plugin capability.** A plugin offers a way to choose; only Rigline holds a send.
+- **Failing open by construction.** The override is on screen before anything is held, so a held
+  send always has its way past beside it, and no timeout is needed. Without the composer anchor
+  nothing is held, and Diagnostics fails the line. An Enter that a composer popup takes — the
+  command menu, Claude Code's own model picker, the file list — is left to it, read from the
+  editor's `aria-controls` and any `aria-haspopup` control whose popup is open. A popup showing
+  neither has its Enter held, which is loud and recoverable, where erring the other way would let a
+  send through unseen (P8).
+- **Only the send.** Typing is never blocked, and the text is never lost because the app never saw
+  the keystroke. Rigline does not send on its own: the override sends through the composer form's
+  own submit on the person's click, so the app composes the message as for any send.
+
+The default is Rigline's, beside the mode, because the gate is what reads it (D137, as amended), and
+the engine checks only its shape: which models exist is the panel's to know. A plugin learns it, and
+whether this session still needs a choice, through `ModelState` rather than hooks of its own, since
+a store made in `setup` is the one way of reading that is right for every source.

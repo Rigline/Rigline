@@ -67,6 +67,11 @@ it can declare a patch to `extension.js`: the same plugin's flips one flag in ho
 sessions for the panel, so sessions in a git worktree are listed too — a listing the extension
 already makes, from the session files on the user's disk, and already uses elsewhere.
 
+Rigline itself can hold back a send, where the person switches that on: the panel then sends no
+prompt until a model has been chosen for that session, and offers to send with whatever is live. It
+stops the keystroke before the panel acts on it, so it sends nothing and changes no message, typing
+is never blocked, and no plugin can do it.
+
 Rigline can also speak to Claude Code on a plugin's behalf, over the channel the panel already uses
 to speak to it. The rule is the same for reading and for changing something: **Rigline goes no
 further than the panel itself does.** It asks for what the panel asks for, it changes only what the

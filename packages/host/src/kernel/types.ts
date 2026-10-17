@@ -21,6 +21,7 @@ import type { Bus, Diagnostics, ReactBridge } from "./bridge.ts";
 import type { Check, CheckService } from "./checks.ts";
 import type { ContextService } from "./context.ts";
 import type { CostService } from "./cost.ts";
+import type { GateService } from "./gate.ts";
 import type { LimitsService } from "./limits.ts";
 import type { ModelsService } from "./models.ts";
 import type { MountService } from "./mounts.ts";
@@ -55,6 +56,7 @@ export interface Kernel {
   readonly cost: CostService;
   readonly limits: LimitsService;
   readonly models: ModelsService;
+  readonly gate: GateService;
   readonly transcript: TranscriptService;
   readonly checks: CheckService;
   readonly shell: ShellService;

@@ -37,6 +37,16 @@ export interface ModelState {
   readonly setting: string | null;
   /** The live effort, or null where none is set or the live model takes none. */
   readonly effort: string | null;
+  /**
+   * Rigline's default from `config.yaml`, with the entry it resolves to, or null where none is set
+   * or it names a model this install no longer offers.
+   */
+  readonly default: ResolvedDefault | null;
+  /**
+   * Whether a prompt in this session waits for a model to be chosen before it can be sent. Always
+   * false with the gate off, and false once anything has chosen in this session.
+   */
+  readonly choiceRequired: boolean;
 }
 
 export const NO_MODEL_STATE: ModelState = Object.freeze({
@@ -45,7 +55,110 @@ export const NO_MODEL_STATE: ModelState = Object.freeze({
   current: null,
   setting: null,
   effort: null,
+  default: null,
+  choiceRequired: false,
 });
+
+/** When the gate asks for a choice before a send: `config.yaml`'s `model.requireChoice`. */
+export type RequireChoice = "off" | "unlessDefault" | "always";
+
+export const REQUIRE_CHOICE: readonly RequireChoice[] = ["off", "unlessDefault", "always"];
+
+/** The combination a person usually wants: a choice, and one that names a model. */
+export type DefaultChoice = ModelChoice & { readonly model: string };
+
+/** Rigline's own model settings: `config.yaml`'s `model` block. */
+export interface ModelSettings {
+  readonly requireChoice: RequireChoice;
+  readonly default: DefaultChoice | null;
+}
+
+export const NO_MODEL_SETTINGS: ModelSettings = Object.freeze({
+  requireChoice: "off",
+  default: null,
+});
+
+/** The default with the entry its model resolves to now, so its version can be shown. */
+export interface ResolvedDefault {
+  readonly choice: DefaultChoice;
+  readonly model: ModelEntry;
+}
+
+const MODEL_KEYS = ["requireChoice", "default"];
+const CHOICE_KEYS = ["model", "effort", "thinkingLevel", "ultracode"];
+
+/**
+ * The `model` block as written, or why it cannot be read.
+ *
+ * What this version does not understand is kept apart from what is wrong. A key or a mode a later
+ * Rigline wrote reads as absent and is listed in `unknown`, dotted, for the report (D110); a value
+ * of the wrong shape is a person's mistake. An unknown mode reads as `off`, so a gate that cannot
+ * say what it is doing does nothing.
+ */
+export function readModelSettings(
+  value: unknown,
+):
+  | { readonly settings: ModelSettings; readonly unknown: readonly string[] }
+  | { readonly problem: string } {
+  if (value === undefined || value === null) return { settings: NO_MODEL_SETTINGS, unknown: [] };
+  const block = asRecord(value);
+  if (block === null) return { problem: '"model" must be a mapping of settings' };
+  const unknown = Object.keys(block)
+    .filter((key) => !MODEL_KEYS.includes(key))
+    .map((key) => `model.${key}`);
+  let requireChoice: RequireChoice = "off";
+  const mode = block.requireChoice;
+  if (mode !== undefined && mode !== null) {
+    if (typeof mode !== "string") {
+      return { problem: `"model.requireChoice" must be one of ${REQUIRE_CHOICE.join(", ")}` };
+    }
+    if ((REQUIRE_CHOICE as readonly string[]).includes(mode)) requireChoice = mode as RequireChoice;
+    else unknown.push(`model.requireChoice: ${mode}`);
+  }
+  const read = defaultOf(block.default);
+  if ("problem" in read) return read;
+  return {
+    settings: { requireChoice, default: read.choice },
+    unknown: [...unknown, ...read.unknown],
+  };
+}
+
+function defaultOf(
+  value: unknown,
+): { readonly choice: DefaultChoice | null; readonly unknown: string[] } | { problem: string } {
+  if (value === undefined || value === null) return { choice: null, unknown: [] };
+  const record = asRecord(value);
+  const model = text(record?.model);
+  if (record === null || model === null) {
+    return { problem: '"model.default" must name a model, as in { model: opus, effort: high }' };
+  }
+  const effort = record.effort ?? undefined;
+  const thinkingLevel = record.thinkingLevel ?? undefined;
+  const ultracode = record.ultracode ?? undefined;
+  if (effort !== undefined && text(effort) === null) {
+    return { problem: '"model.default.effort" must be an effort level, such as high' };
+  }
+  if (thinkingLevel !== undefined && text(thinkingLevel) === null) {
+    return { problem: '"model.default.thinkingLevel" must be a thinking level' };
+  }
+  if (effort !== undefined && thinkingLevel !== undefined) {
+    return { problem: '"model.default" takes an effort or a thinking level, never both' };
+  }
+  if (ultracode !== undefined && typeof ultracode !== "boolean") {
+    return { problem: '"model.default.ultracode" must be true or false' };
+  }
+  return {
+    choice: {
+      model,
+      ...(effort === undefined ? {} : { effort: effort as string }),
+      ...(thinkingLevel === undefined ? {} : { thinkingLevel: thinkingLevel as string }),
+      ...(ultracode === undefined ? {} : { ultracode }),
+    },
+    unknown: Object.keys(record)
+      .filter((key) => !CHOICE_KEYS.includes(key))
+      .map((key) => `model.default.${key}`),
+  };
+}
 
 /**
  * The two configs the panel keeps, and which one it draws.
@@ -196,24 +309,101 @@ export function supportsEffort(model: ModelEntry | null, effort: string): boolea
   return model !== null && model.supportsEffort && model.supportedEffortLevels.includes(effort);
 }
 
-/** What `configs` and the panel's own settings read as. */
+/** The default with the entry it names in `models`, or null where it names none of them. */
+export function resolvedDefault(
+  models: readonly ModelEntry[],
+  choice: DefaultChoice | null,
+): ResolvedDefault | null {
+  if (choice === null) return null;
+  const model = currentModel(models, choice.model);
+  return model === null ? null : { choice, model };
+}
+
+/**
+ * Whether what is live is the default: the same entry, and the same effort where the default names
+ * one. Model and effort only, since they are what persists between sessions and so what drifts.
+ */
+export function isDefaultLive(
+  current: ModelEntry | null,
+  effort: string | null,
+  usual: ResolvedDefault | null,
+): boolean {
+  if (usual === null || current === null || current.value !== usual.model.value) return false;
+  return usual.choice.effort === undefined || usual.choice.effort === effort;
+}
+
+/**
+ * Whether a send waits for a choice. Mode 2 asks whenever the default is not known to be live, so a
+ * list that has not arrived yet asks rather than letting through what the person asked to stop.
+ */
+export function choiceRequired(
+  settings: ModelSettings,
+  chosen: boolean,
+  current: ModelEntry | null,
+  effort: string | null,
+  usual: ResolvedDefault | null,
+): boolean {
+  if (settings.requireChoice === "off" || chosen) return false;
+  if (settings.requireChoice === "always") return true;
+  return !isDefaultLive(current, effort, usual);
+}
+
+/** Whether applying `choice` chose a model for the session, which an ultracode switch alone does not. */
+export function choosesModel(choice: ModelChoice): boolean {
+  return (
+    choice.model !== undefined || choice.effort !== undefined || choice.thinkingLevel !== undefined
+  );
+}
+
+/** What `configs`, the panel's own settings and Rigline's model settings read as. */
 export function modelStateOf(
   configs: Configs,
   setting: string | null,
   effort: string | null,
+  settings: ModelSettings = NO_MODEL_SETTINGS,
+  chosen = false,
 ): ModelState {
   const config = drawnConfig(configs);
   const models = modelsOf(config);
   const current = currentModel(models, setting);
+  // An effort the live model does not take is not live, whatever the file says: the panel's own
+  // controls only show one for a model that supports it.
+  const live = effort !== null && supportsEffort(current, effort) ? effort : null;
+  const usual = resolvedDefault(models, settings.default);
   return {
     models,
     unavailable: unavailableOf(config),
     current,
     setting,
-    // An effort the live model does not take is not live, whatever the file says: the panel's own
-    // controls only show one for a model that supports it.
-    effort: effort !== null && supportsEffort(current, effort) ? effort : null,
+    effort: live,
+    default: usual,
+    choiceRequired: choiceRequired(settings, chosen, current, live, usual),
   };
+}
+
+/** A concrete Anthropic model id: a family and a version, then perhaps a date and the 1M marker. */
+const MODEL_ID = /^claude-([a-z]{1,16})-(\d{1,2})(?:-(\d{1,2}))?(?:-\d{8})?(?:\[1m\])?$/i;
+
+/**
+ * What a person reads for a model: its family and the version its alias resolves to now.
+ *
+ * The CLI names an alias by its family alone, "Opus", and keeps the version in the concrete id, so
+ * the version is read from there. An id of any other shape is shown whole rather than guessed (P5).
+ */
+export function modelLabel(model: ModelEntry): string {
+  const name = model.displayName ?? model.value;
+  const id = model.resolvedModel;
+  if (id === null || id === name) return name;
+  const parts = MODEL_ID.exec(id);
+  if (parts === null) return `${name} (${id})`;
+  const [, family = "", major = "", minor] = parts;
+  const title = `${family.charAt(0).toUpperCase()}${family.slice(1).toLowerCase()}`;
+  return `${title} ${minor === undefined ? major : `${major}.${minor}`}`;
+}
+
+/** A model and its effort as one label: `Opus 5.5 · high`. */
+export function comboLabel(model: ModelEntry, effort: string | null): string {
+  return effort === null ? modelLabel(model) : `${modelLabel(model)} · ${effort}`;
 }
 
 /** Whether two states say the same, so a service publishes only on a change. */
@@ -221,6 +411,9 @@ export function sameModelState(a: ModelState, b: ModelState): boolean {
   return (
     a.setting === b.setting &&
     a.effort === b.effort &&
+    a.choiceRequired === b.choiceRequired &&
+    a.default?.choice === b.default?.choice &&
+    a.default?.model.value === b.default?.model.value &&
     a.current?.value === b.current?.value &&
     a.models.length === b.models.length &&
     a.unavailable.length === b.unavailable.length &&

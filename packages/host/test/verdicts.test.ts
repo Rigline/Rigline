@@ -14,6 +14,7 @@ import {
   busTrafficVerdict,
   contextUsageVerdict,
   elementsVerdict,
+  gateVerdict,
   hostErrorsVerdict,
   mountReplacementVerdict,
   mountsInPlaceVerdict,
@@ -48,6 +49,40 @@ describe("preHookOrderVerdict", () => {
 
   it("fails when the root is still empty at post", () => {
     expect(preHookOrderVerdict(0, 0).verdict).toBe("fail");
+  });
+});
+
+describe("gateVerdict", () => {
+  const running = {
+    mode: "always",
+    idle: null,
+    missing: [],
+    stats: { held: 2, overridden: 1 },
+  };
+
+  it("is n/a when nobody asked for it", () => {
+    expect(gateVerdict({ ...running, mode: "off" })).toEqual({ verdict: "n/a", detail: "off" });
+  });
+
+  it("passes with its counts while it runs as asked", () => {
+    expect(gateVerdict(running)).toEqual({
+      verdict: "pass",
+      detail: "always: 2 held, 1 sent anyway",
+    });
+  });
+
+  it("fails where it was asked for and holds nothing, saying why", () => {
+    expect(gateVerdict({ ...running, idle: "the composer is gone" })).toEqual({
+      verdict: "fail",
+      detail: "the composer is gone",
+    });
+  });
+
+  it("fails naming a message type this extension no longer has", () => {
+    expect(gateVerdict({ ...running, missing: ["set_model"] })).toEqual({
+      verdict: "fail",
+      detail: "always, without set_model in this extension: 2 held, 1 sent anyway",
+    });
   });
 });
 

@@ -73,8 +73,33 @@ describe("readConfig", () => {
       disabled: [],
       layout: {},
       settings: {},
+      model: { requireChoice: "off", default: null },
       unknownKeys: [],
     });
+  });
+
+  it("reads Rigline's model block, and names what this version does not know (D110)", () => {
+    const path = join(tempDir(), "config.yaml");
+    writeFileSync(
+      path,
+      ["model:", "  default: { model: opus, effort: high }", "  requireChoice: always", ""].join(
+        "\n",
+      ),
+    );
+    expect(readConfig(path).model).toEqual({
+      requireChoice: "always",
+      default: { model: "opus", effort: "high" },
+    });
+    writeFileSync(path, "model:\n  requireChoice: smart\n  later: 1\n");
+    const later = readConfig(path);
+    expect(later.model).toEqual({ requireChoice: "off", default: null });
+    expect(later.unknownKeys).toEqual(["model.later", "model.requireChoice: smart"]);
+  });
+
+  it("refuses a model block of the wrong shape, naming the file", () => {
+    const path = join(tempDir(), "config.yaml");
+    writeFileSync(path, "model:\n  default: opus\n");
+    expect(() => readConfig(path)).toThrow(`${path}: "model.default" must name a model`);
   });
 
   it("carries a settings section whole, including keys it does not understand (D138)", () => {

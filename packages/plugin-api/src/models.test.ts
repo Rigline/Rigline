@@ -6,6 +6,8 @@ import { describe, expect, it } from "vitest";
 import {
   appliedModelOf,
   choiceProblem,
+  choosesModel,
+  comboLabel,
   configsAfterReply,
   configsAfterState,
   currentModel,
@@ -13,9 +15,13 @@ import {
   drawnConfig,
   effortOf,
   type ModelEntry,
+  modelLabel,
+  type ModelSettings,
   modelStateOf,
   modelsOf,
   NO_CONFIGS,
+  NO_MODEL_SETTINGS,
+  readModelSettings,
   sameModelState,
   setModelField,
   settingOf,
@@ -274,5 +280,150 @@ describe("what set_model needs and answers", () => {
     // The reply omits `applied` when the write returned nothing, which is a real answer.
     expect(appliedModelOf({ type: "set_model_response" })).toBeNull();
     expect(appliedModelOf(null)).toBeNull();
+  });
+});
+
+describe("reading the model block", () => {
+  it("is off with no default when absent", () => {
+    expect(readModelSettings(undefined)).toEqual({ settings: NO_MODEL_SETTINGS, unknown: [] });
+    expect(readModelSettings(null)).toEqual({ settings: NO_MODEL_SETTINGS, unknown: [] });
+  });
+
+  it("reads a mode and a default", () => {
+    expect(
+      readModelSettings({
+        requireChoice: "unlessDefault",
+        default: { model: "opus", effort: "high" },
+      }),
+    ).toEqual({
+      settings: { requireChoice: "unlessDefault", default: { model: "opus", effort: "high" } },
+      unknown: [],
+    });
+  });
+
+  it("reads a mode it does not know as off, and names it, since a later Rigline may have written it", () => {
+    expect(readModelSettings({ requireChoice: "smart", later: 1 })).toEqual({
+      settings: NO_MODEL_SETTINGS,
+      unknown: ["model.later", "model.requireChoice: smart"],
+    });
+  });
+
+  it("keeps a key under the default it does not know, and names it", () => {
+    expect(readModelSettings({ default: { model: "opus", speed: "fast" } })).toEqual({
+      settings: { requireChoice: "off", default: { model: "opus" } },
+      unknown: ["model.default.speed"],
+    });
+  });
+
+  it("refuses a block of the wrong shape, which is a person's mistake", () => {
+    expect(readModelSettings("always")).toEqual({
+      problem: '"model" must be a mapping of settings',
+    });
+    expect(readModelSettings({ requireChoice: true })).toHaveProperty("problem");
+    expect(readModelSettings({ default: "opus" })).toHaveProperty("problem");
+    expect(readModelSettings({ default: { effort: "high" } })).toHaveProperty("problem");
+    expect(readModelSettings({ default: { model: "opus", effort: 3 } })).toHaveProperty("problem");
+    expect(
+      readModelSettings({ default: { model: "haiku", effort: "high", thinkingLevel: "deep" } }),
+    ).toEqual({ problem: '"model.default" takes an effort or a thinking level, never both' });
+    expect(readModelSettings({ default: { model: "opus", ultracode: "yes" } })).toHaveProperty(
+      "problem",
+    );
+  });
+});
+
+describe("whether a send waits for a choice", () => {
+  const configs = { live: config, stored: undefined };
+  const always: ModelSettings = { requireChoice: "always", default: null };
+  const usual: ModelSettings = {
+    requireChoice: "unlessDefault",
+    default: { model: "opus", effort: "high" },
+  };
+
+  it("never waits with the gate off", () => {
+    expect(modelStateOf(configs, "haiku", null).choiceRequired).toBe(false);
+  });
+
+  it("waits in every session until something chooses, in mode 3", () => {
+    expect(modelStateOf(configs, "opus", "high", always).choiceRequired).toBe(true);
+    expect(modelStateOf(configs, "opus", "high", always, true).choiceRequired).toBe(false);
+  });
+
+  it("waits in mode 2 only while the default is not what is live", () => {
+    expect(modelStateOf(configs, "opus", "high", usual).choiceRequired).toBe(false);
+    expect(modelStateOf(configs, "opus", "medium", usual).choiceRequired).toBe(true);
+    expect(modelStateOf(configs, "haiku", null, usual).choiceRequired).toBe(true);
+    // The million-token marker resolves to the same entry, so it is the same model.
+    expect(modelStateOf(configs, "opus[1m]", "high", usual).choiceRequired).toBe(false);
+    expect(modelStateOf(configs, "haiku", null, usual, true).choiceRequired).toBe(false);
+  });
+
+  it("waits in mode 2 while nothing is known, rather than letting through what it was asked to stop", () => {
+    expect(modelStateOf(NO_CONFIGS, "opus", "high", usual).choiceRequired).toBe(true);
+    expect(modelStateOf(configs, null, null, usual).choiceRequired).toBe(true);
+  });
+
+  it("matches the default on its model alone when it names no effort", () => {
+    const anyEffort: ModelSettings = { requireChoice: "unlessDefault", default: { model: "opus" } };
+    expect(modelStateOf(configs, "opus", "medium", anyEffort).choiceRequired).toBe(false);
+  });
+
+  it("resolves the default against the list, and reads null where the install no longer offers it", () => {
+    expect(modelStateOf(configs, "opus", "high", usual).default).toEqual({
+      choice: { model: "opus", effort: "high" },
+      model: { ...opus },
+    });
+    const gone: ModelSettings = { requireChoice: "always", default: { model: "sonnet" } };
+    expect(modelStateOf(configs, "opus", "high", gone).default).toBeNull();
+  });
+
+  it("is a change sameModelState sees", () => {
+    expect(
+      sameModelState(
+        modelStateOf(configs, "opus", "high", always),
+        modelStateOf(configs, "opus", "high", always, true),
+      ),
+    ).toBe(false);
+  });
+
+  it("counts a choice of model or effort, and not an ultracode switch on its own", () => {
+    expect(choosesModel({ model: "opus" })).toBe(true);
+    expect(choosesModel({ effort: "high" })).toBe(true);
+    expect(choosesModel({ thinkingLevel: "deep" })).toBe(true);
+    expect(choosesModel({ ultracode: true })).toBe(false);
+  });
+});
+
+describe("what a person reads for a model", () => {
+  const entry = (
+    resolvedModel: string | null,
+    displayName: string | null = "Opus",
+  ): ModelEntry => ({
+    value: "opus",
+    resolvedModel,
+    displayName,
+    supportsEffort: true,
+    supportedEffortLevels: DEFAULT_EFFORT_LEVELS,
+  });
+
+  it("reads the version off the concrete id, since the alias is named by its family alone", () => {
+    expect(modelLabel(entry("claude-opus-5-5"))).toBe("Opus 5.5");
+    expect(modelLabel(entry("claude-opus-5"))).toBe("Opus 5");
+    expect(modelLabel(entry("claude-opus-4-1-20250805"))).toBe("Opus 4.1");
+    expect(modelLabel(entry("claude-sonnet-4-20250514", "Default (recommended)"))).toBe("Sonnet 4");
+    expect(modelLabel(entry("claude-opus-5-5[1m]"))).toBe("Opus 5.5");
+  });
+
+  it("shows an id of any other shape whole rather than guessing at it", () => {
+    expect(modelLabel(entry("us.anthropic.claude-opus-5-5-v1:0"))).toBe(
+      "Opus (us.anthropic.claude-opus-5-5-v1:0)",
+    );
+    expect(modelLabel(entry(null))).toBe("Opus");
+    expect(modelLabel(entry(null, null))).toBe("opus");
+  });
+
+  it("puts the effort beside it", () => {
+    expect(comboLabel(entry("claude-opus-5-5"), "high")).toBe("Opus 5.5 · high");
+    expect(comboLabel(entry("claude-opus-5-5"), null)).toBe("Opus 5.5");
   });
 });

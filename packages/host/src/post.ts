@@ -17,9 +17,12 @@ import {
   elementGaps,
   type IdentifierTables,
   type Layout,
+  type ModelSettings,
+  NO_MODEL_SETTINGS,
   type OptionalContext,
   optionalGaps,
   type PluginContext,
+  readModelSettings,
   type RiglinePlugin,
   type SaveRecord,
   type Teardown,
@@ -30,6 +33,7 @@ import { type Bridge, bridge as findBridge, type PluginStatus } from "./kernel/b
 import { createCheckService, HOST, kernelChecks } from "./kernel/checks.ts";
 import { createContextService } from "./kernel/context.ts";
 import { createCostService } from "./kernel/cost.ts";
+import { installGate } from "./kernel/gate.ts";
 import { createLayoutEditor, type SavedState } from "./kernel/layout.ts";
 import { createLimitsService } from "./kernel/limits.ts";
 import { createModelsService } from "./kernel/models.ts";
@@ -164,6 +168,14 @@ interface RegistryModule {
   readonly presetsOmitted?: number;
   /** Per-plugin settings, by plugin name (D138). Absent in a payload older than them. */
   readonly settings?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+  /** Rigline's own model settings (D139). Absent in a payload older than them. */
+  readonly model?: unknown;
+}
+
+/** The baked model settings, read as the engine read them, and the gate off where they cannot be. */
+function modelSettingsOf(value: unknown): ModelSettings {
+  const read = readModelSettings(value);
+  return "problem" in read ? NO_MODEL_SETTINGS : read.settings;
 }
 
 /**
@@ -404,6 +416,7 @@ async function main(): Promise<void> {
   let presets: readonly BakedPreset[] = [];
   let omitted = 0;
   let settings: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {};
+  let modelSettings: ModelSettings = NO_MODEL_SETTINGS;
   try {
     const registry = (await import(
       new URL("./registry.js", import.meta.url).href
@@ -414,6 +427,7 @@ async function main(): Promise<void> {
     presets = registry.presets ?? [];
     omitted = registry.presetsOmitted ?? 0;
     settings = registry.settings ?? {};
+    modelSettings = modelSettingsOf(registry.model);
     diagnostics.hostPatches = [...(registry.patches ?? [])];
     // Carried onto diagnostics rather than left in the module, so a plugin reads it the way it
     // reads every other host-provided value and never imports the host to get it (D18, D63, D75).
@@ -433,6 +447,20 @@ async function main(): Promise<void> {
   });
   const checks = createCheckService();
   const surface = detectSurface();
+  const models = createModelsService(bus, modelSettings);
+  // Before any plugin loads, so its taps are in before the replay buffer seals.
+  const gate = installGate({
+    settings: modelSettings,
+    models,
+    bus,
+    mounts,
+    composerBox: tables.anchorSelectors?.composerBox ?? null,
+    messageTypes: tables.messageTypes,
+    fail: (reason) => {
+      diagnostics.errors.push(`gate: ${reason}`);
+      console.error(`[rigline] gate: ${reason}`);
+    },
+  });
   const kernel: Kernel = {
     tables,
     surface,
@@ -445,7 +473,8 @@ async function main(): Promise<void> {
     context: createContextService(bus, tables.messageTypes),
     cost: createCostService(bus),
     limits: createLimitsService(bus),
-    models: createModelsService(bus),
+    models,
+    gate,
     transcript: createTranscriptService(
       bus,
       react,

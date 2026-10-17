@@ -19,6 +19,7 @@ import {
   type Elements,
   EMPTY_USES,
   type Layout,
+  type ModelSettings,
   type SaveRecord,
   SURFACES,
   type Surface,
@@ -68,6 +69,8 @@ export interface PreparePayloadOptions {
   readonly presetsOmitted?: number;
   /** Per-plugin settings by plugin name, as `install` would bake them (D138). */
   readonly settings?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+  /** Rigline's own model settings, as `install` would bake them (D139). */
+  readonly model?: ModelSettings;
   /** Selectors written over the resolved ones, as a refinement in `anchors.json` would be. */
   readonly selectors?: Readonly<Record<string, string>>;
 }
@@ -114,6 +117,7 @@ export const save = ${JSON.stringify(options.save ?? null)};
 export const presets = ${JSON.stringify(options.presets ?? [])};
 export const presetsOmitted = ${JSON.stringify(options.presetsOmitted ?? 0)};
 export const settings = ${JSON.stringify(options.settings ?? {})};
+export const model = ${JSON.stringify(options.model ?? null)};
 `;
   writeFileSync(join(dir, "registry.js"), registrySource, "utf8");
 

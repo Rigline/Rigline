@@ -85,9 +85,14 @@ Dynamically imported after boot. In order:
    every plugin naming an identifier that has not gone.
 3. Import `./registry.js`. Publish the recorded patch outcomes to diagnostics, and build the layout
    editor from its `layout` and `save` (below).
-4. If the app has made its one call to `acquireVsCodeApi`, replace the global with one that throws,
+4. Install the model gate where `registry.js`'s `model` asks for one (D139): capture listeners for
+   the composer's send keystroke and its form's submit, and the strip above the composer that names
+   what is live and sends anyway. It is drawn before anything is held, so a held send always has its
+   way past on screen. Before any plugin loads, so the models service's taps are in before the
+   buffer seals. Off, nothing is installed.
+5. If the app has made its one call to `acquireVsCodeApi`, replace the global with one that throws,
    as VS Code's own does on a second call (D79). Never before, or a plugin could get there first.
-5. For each registry entry, in registry order:
+6. For each registry entry, in registry order:
    a. If the injector recorded a required patch as not applied, refuse with that reason.
    b. Check the manifest's `uses` against the tables through the capability contracts (below).
       A violation refuses the plugin by name with the specific identifier and never imports it.
@@ -102,8 +107,8 @@ Dynamically imported after boot. In order:
       lacks is the same violation (D109).
    f. Call `setup(ctx)` in its own try/catch; keep its teardown. A promise instead disables the
       plugin (D109).
-6. Seal the replay buffer, in a `finally`.
-7. Start the shell (D88): place the RIG pill beside the footer spacer, or in a corner where there is
+7. Seal the replay buffer, in a `finally`.
+8. Start the shell (D88): place the RIG pill beside the footer spacer, or in a corner where there is
    none; start the once-a-second check run that sets its failing count; and import
    `runtime/shell.js`, the React root that draws the pill, the menu and every element. Failing to
    load it is an error in `diagnostics.errors` and costs the menu and the elements, never a plugin.
@@ -423,7 +428,13 @@ export const patches = [{ plugin, why, required, applied, reason? }];
 export const layout = { "<place>": ["<plugin>/<element>", ...] };
 export const presets = [{ name, origin, description, problem, layout }];
 export const presetsOmitted = 0;
+export const settings = { "<plugin>": { ... } };
+export const model = { requireChoice: "off" | "unlessDefault" | "always", default: null | { model, effort? } };
 ```
+
+`model` is Rigline's own, `config.yaml`'s `model` block as `readConfig` read it: the gate's mode and
+the person's default (D139). The kernel reads it with the same `readModelSettings`, and a value it
+cannot read leaves the gate off.
 
 `presets` is every preset `listPresets` found, shipped and a person's own, each name once and each
 carrying why it could not be read where it could not (D133). `presetsOmitted` counts those a bound

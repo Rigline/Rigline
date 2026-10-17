@@ -601,7 +601,15 @@ export function install(ext: string, options: InstallOptions): InstallReport {
             tokenProblem = line;
           });
     const baked = Buffer.from(
-      bakeRegistry(enabled, outcomes, config.layout, save, options.presets, settings.settings),
+      bakeRegistry(
+        enabled,
+        outcomes,
+        config.layout,
+        save,
+        options.presets,
+        settings.settings,
+        config.model,
+      ),
     );
     if (writeIfChanged(join(state.payloadDir, "registry.js"), baked)) wrotePayload = true;
 

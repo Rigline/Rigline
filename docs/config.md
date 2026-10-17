@@ -63,6 +63,32 @@ panel has a much smaller limit than that, because a save travels as a link, so a
 bulk data under its own key can read it and cannot save it back from the panel. It says so rather
 than failing after you have done the work.
 
+## Choosing a model before you send
+
+Claude Code's model and effort are settings, not part of a session: change them once and every
+session after uses the change, until somebody notices. `model` can make the panel ask instead.
+
+    model:
+      default: { model: opus, effort: high }
+      requireChoice: always
+
+`requireChoice` says when a prompt waits for a model to be chosen in its session:
+
+- `off`, the default: nothing waits.
+- `unlessDefault`: only while what is live is not your `default`.
+- `always`: every session asks.
+
+While it waits, Enter and the send button do nothing but show a line above the composer naming what
+is live, with its version, and a button to send with it anyway. Your typing is never blocked and
+nothing you typed is lost. Choosing in Claude Code's own model or effort picker counts, as does a
+plugin's shortcut such as a favourite; so does sending anyway. A new session asks again.
+
+`default` is the model you usually want, and the effort with it if you name one. `unlessDefault`
+compares against it, and plugins can offer it as a one-click choice, so it is worth setting whatever
+you choose for `requireChoice`. It names a model as Claude Code does — `opus` follows the latest Opus,
+where a pinned version stays put — and it takes `effort` for a model with effort levels or
+`thinkingLevel` for one without, never both.
+
 ## Where things go in the panel
 
 Some plugins put things in the panel: a pill in the composer's footer, a line in the row under the
@@ -170,12 +196,12 @@ the next time it looks. Disable it there instead, which VS Code keeps, or list t
 
 A file that is not valid YAML stops every command that reads it, naming the file and the line, and
 changes nothing. So does a `disabled` that is not a list of names, a `layout` that is not places
-with lists under them, or a `companion` block whose `everyProfile` is not true or false or whose
-`skipProfiles` is not a list. A key with nothing after it, like `disabled:`, is an empty list, not a
-mistake.
+with lists under them, a `companion` block whose `everyProfile` is not true or false or whose
+`skipProfiles` is not a list, or a `model` block whose `default` names no model. A key with nothing
+after it, like `disabled:`, is an empty list, not a mistake.
 
 A key Rigline does not know does nothing, and `rigline install` and `rigline check` name it under
-what needs you. It is a typo, like `disable:`, or a setting from a later Rigline than the one you
+what needs you. So does a `requireChoice` it does not know, which reads as `off`. It is a typo, like `disable:`, or a setting from a later Rigline than the one you
 are running, which `rigline update` fixes. A later Rigline only adds settings as new keys, never by
 changing what an existing one takes, so an older one reads the rest of the file as you meant it.
 

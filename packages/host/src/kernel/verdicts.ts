@@ -498,6 +498,31 @@ export function modelChoiceVerdict(
   };
 }
 
+/** What the gate check needs: the mode, why it holds nothing if it does not, and what it lacks. */
+export interface GateLike {
+  readonly mode: string;
+  readonly idle: string | null;
+  readonly missing: readonly string[];
+  readonly stats: { readonly held: number; readonly overridden: number };
+}
+
+/**
+ * The gate runs in the mode `config.yaml` asks for (D139). `fail` where a person asked for it and an
+ * extension change has left it holding nothing, or deaf to something it reads.
+ */
+export function gateVerdict(gate: GateLike): CheckVerdict {
+  if (gate.mode === "off") return { verdict: "n/a", detail: "off" };
+  if (gate.idle !== null) return { verdict: "fail", detail: gate.idle };
+  const counts = `${String(gate.stats.held)} held, ${String(gate.stats.overridden)} sent anyway`;
+  if (gate.missing.length > 0) {
+    return {
+      verdict: "fail",
+      detail: `${gate.mode}, without ${gate.missing.join(", ")} in this extension: ${counts}`,
+    };
+  }
+  return { verdict: "pass", detail: `${gate.mode}: ${counts}` };
+}
+
 /** A session id has arrived, once some plugin on this surface is following one. */
 export function sessionIdVerdict(used: boolean, id: string | null): CheckVerdict {
   if (!used) return { verdict: "n/a", detail: "no plugin here follows the session" };

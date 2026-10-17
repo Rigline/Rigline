@@ -15,7 +15,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { BakedPreset, Layout, SaveRecord } from "@rigline/plugin-api/internal";
+import type { BakedPreset, Layout, ModelSettings, SaveRecord } from "@rigline/plugin-api/internal";
 import { type Browser, type ConsoleMessage, chromium, type Page } from "playwright";
 import { afterAll, beforeAll } from "vitest";
 import { missing, versionDir } from "../../core/test/corpus.ts";
@@ -121,6 +121,8 @@ export interface BootOptions {
   readonly presetsOmitted?: number;
   /** Per-plugin settings by plugin name, as `install` would bake them (D138). */
   readonly settings?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+  /** Rigline's own model settings, as `install` would bake them (D139). */
+  readonly model?: ModelSettings;
   /** Selectors written over the resolved ones, as a refinement in `anchors.json` would be. */
   readonly selectors?: Readonly<Record<string, string>>;
   /** Where the page's clock starts, installed before it loads, for a test that moves time. */
@@ -199,6 +201,7 @@ export function register(version: string): (options?: BootOptions) => Promise<Bo
       presets: options.presets,
       presetsOmitted: options.presetsOmitted,
       settings: options.settings,
+      model: options.model,
       selectors: options.selectors,
     });
     const harness: Harness = await startHarness({

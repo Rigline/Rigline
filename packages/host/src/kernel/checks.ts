@@ -30,6 +30,7 @@ import {
   busTrafficVerdict,
   type ElementLike,
   elementsVerdict,
+  gateVerdict,
   hostErrorsVerdict,
   pluginStatusVerdict,
   preHookOrderVerdict,
@@ -203,6 +204,7 @@ export function kernelChecks(kernel: Kernel): readonly Check[] {
     { name: "no host errors", run: () => hostErrorsVerdict(d.errors) },
     { name: "React renderer injected", run: () => reactVerdict(d.react) },
     { name: "elements are placed", run: () => elementsVerdict(d.bufferSealed, elements(kernel)) },
+    { name: "model gate", run: () => gateVerdict(kernel.gate) },
   ];
 }
 

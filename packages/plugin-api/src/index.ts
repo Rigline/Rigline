@@ -38,8 +38,22 @@ export type {
   RiglineIdentifiers,
 } from "./identifiers.ts";
 export type { LimitWindow, UsageLimits } from "./limits.ts";
-export type { AppliedChoice, ChoiceResult, ModelChoice, ModelEntry, ModelState } from "./models.ts";
-export { DEFAULT_EFFORT_LEVELS, supportsEffort } from "./models.ts";
+export type {
+  AppliedChoice,
+  ChoiceResult,
+  DefaultChoice,
+  ModelChoice,
+  ModelEntry,
+  ModelState,
+  ResolvedDefault,
+} from "./models.ts";
+export {
+  comboLabel,
+  DEFAULT_EFFORT_LEVELS,
+  modelLabel,
+  NO_MODEL_STATE,
+  supportsEffort,
+} from "./models.ts";
 export type { DeclaredUses, HostPatch, Manifest } from "./manifest.ts";
 export type { Store } from "./store.ts";
 export { store, storeFrom } from "./store.ts";

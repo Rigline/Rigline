@@ -6,7 +6,13 @@
  * keeps everything a person wrote there, comments included. The second only the engine writes (D74).
  */
 import { existsSync, readFileSync, rmSync } from "node:fs";
-import { type Layout, parsePlace } from "@rigline/plugin-api/internal";
+import {
+  type Layout,
+  type ModelSettings,
+  NO_MODEL_SETTINGS,
+  parsePlace,
+  readModelSettings,
+} from "@rigline/plugin-api/internal";
 import { Document, isMap, isScalar, isSeq, parseDocument } from "yaml";
 import { writeFileAtomic } from "../atomic.ts";
 import { UserError } from "../errors.ts";
@@ -54,12 +60,17 @@ export interface PluginsConfig {
    * and reads no further: it cannot know a plugin's schema, so what is inside is carried whole.
    */
   readonly settings: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
-  /** Keys this engine does not read, dotted: a typo, or a setting from a later Rigline (D110). */
+  /** Rigline's own model settings: the gate's mode and the person's default. */
+  readonly model: ModelSettings;
+  /**
+   * Keys this engine does not read, dotted, and values it does not know as `key: value`: a typo, or
+   * a setting from a later Rigline (D110).
+   */
   readonly unknownKeys: readonly string[];
 }
 
 /** The settings this engine reads, at the top level and in the `companion` block. */
-const SETTINGS = ["disabled", "layout", "companion", "settings"];
+const SETTINGS = ["disabled", "layout", "companion", "settings", "model"];
 const COMPANION_SETTINGS = ["everyProfile", "skipProfiles"];
 
 /** `config.yaml`'s `companion` block: which VS Code profiles get the companion (D100). */
@@ -90,7 +101,16 @@ const TO_STRING = { flowCollectionPadding: false } as const;
 
 /** Absent means nothing is disabled; malformed is a person's mistake, loud. */
 export function readConfig(path: string): PluginsConfig {
-  if (!existsSync(path)) return { path, disabled: [], layout: {}, settings: {}, unknownKeys: [] };
+  if (!existsSync(path)) {
+    return {
+      path,
+      disabled: [],
+      layout: {},
+      settings: {},
+      model: NO_MODEL_SETTINGS,
+      unknownKeys: [],
+    };
+  }
   return configOf(path, parseConfig(path, readFileSync(path, "utf8")));
 }
 
@@ -209,17 +229,21 @@ function configOf(path: string, doc: Document): PluginsConfig {
   }
   companionOf(path, value.companion);
   const companion = (value.companion ?? {}) as Record<string, unknown>;
+  const model = readModelSettings(value.model);
+  if ("problem" in model) throw new UserError(`${path}: ${model.problem}`);
   const unknownKeys = [
     ...Object.keys(value).filter((key) => !SETTINGS.includes(key)),
     ...Object.keys(companion)
       .filter((key) => !COMPANION_SETTINGS.includes(key))
       .map((key) => `companion.${key}`),
+    ...model.unknown,
   ];
   return {
     path,
     disabled,
     layout: parseLayoutValue(path, value.layout),
     settings: settingsOf(path, value.settings),
+    model: model.settings,
     unknownKeys,
   };
 }

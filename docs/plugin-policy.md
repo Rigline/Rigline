@@ -67,6 +67,9 @@ worst case is bounded and local, not that there is no bad case.
 - **Write to the bus through `ctx`.** What your manifest declares is what `ctx` lets you do, and it
   is what somebody deciding whether to install your plugin reads. Sending through the app's own code
   what `ctx` would not send is doing something your manifest does not say.
+- **Do not hold back a send.** `ctx` has no way to, and the page would let you. Only Rigline's own
+  gate holds one, until a model is chosen, and only where the person switched it on in their own
+  settings. A plugin offers a way to choose; it never decides whether a prompt goes.
 - **Cope with a settings value you did not write.** `~/.rigline/config.yaml` is a file people edit
   by hand, and Rigline passes an unknown key through rather than dropping it, because it does not
   know your schema. So your section can hold a key you have never heard of, be missing one you

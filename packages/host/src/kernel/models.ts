@@ -10,18 +10,25 @@
  * `stored` lands in a different slot from a live one, what the picker draws is the live one falling
  * back to the stored one, and an `update_state` clears the stored slot. One slot would show an empty
  * model list at every cold start, since the first reply is usually the cached one.
+ *
+ * Whether this session has chosen a model is kept here too, so the gate is one more reader of the
+ * state rather than a second owner of it: a choice applied here, Claude Code's own picker seen on the
+ * bus, or the gate's override, each until the panel launches its next channel.
  */
 import {
   type AppliedChoice,
   appliedModelOf,
   type ChoiceResult,
   choiceProblem,
+  choosesModel,
   type Configs,
   configsAfterReply,
   configsAfterState,
+  type ModelSettings,
   type ModelState,
   modelStateOf,
   NO_CONFIGS,
+  NO_MODEL_SETTINGS,
   NO_MODEL_STATE,
   effortOf,
   sameModelState,
@@ -65,11 +72,16 @@ export interface ModelsService {
    * reachable from here.
    */
   apply(choice: ModelChoice): Promise<ChoiceResult>;
+  /** The gate's override: the person sent with what is live, which is this session's choice. */
+  confirm(): void;
   readonly current: ModelState;
   readonly stats: ModelsStats;
 }
 
-export function createModelsService(bus: Bus): ModelsService {
+export function createModelsService(
+  bus: Bus,
+  settings: ModelSettings = NO_MODEL_SETTINGS,
+): ModelsService {
   const handlers = new Set<(state: ModelState) => void>();
   let tapped = false;
   let replies = 0;
@@ -78,28 +90,46 @@ export function createModelsService(bus: Bus): ModelsService {
   let configs: Configs = NO_CONFIGS;
   let setting: string | null = null;
   let effort: string | null = null;
+  let chosen = false;
   let state = NO_MODEL_STATE;
   let applied = 0;
   let refused = 0;
   let channel: string | null = null;
 
   function publish(): void {
-    const next = modelStateOf(configs, setting, effort);
+    const next = modelStateOf(configs, setting, effort, settings, chosen);
     if (sameModelState(next, state)) return;
     state = next;
     // A copy: a handler may unsubscribe itself, which is what being disabled does.
     for (const handler of [...handlers]) handler(next);
   }
 
+  function choose(): void {
+    if (chosen) return;
+    chosen = true;
+    publish();
+  }
+
   function tap(): void {
     if (tapped) return;
     tapped = true;
-    // The channel a request goes on, which is the one the panel's own controls use.
+    // The channel a request goes on, which is the one the panel's own controls use, and the
+    // session a choice is for.
     followChannel(bus, {
       start: (next) => {
         channel = next;
+        chosen = false;
+        publish();
       },
       record: () => {},
+    });
+    // Claude Code's own picker, which sends nothing when re-pointed at what is already set, so
+    // confirming the current model there is not a choice. The host's own requests are untapped,
+    // so `apply` below is not counted twice.
+    bus.on(SET_MODEL, choose);
+    bus.on(APPLY_SETTINGS, (payload) => {
+      const sent = (payload as { readonly settings?: Record<string, unknown> } | null)?.settings;
+      if (typeof sent?.[EFFORT_KEY] === "string") choose();
     });
     bus.on(REPLY, (payload) => {
       replies++;
@@ -181,7 +211,14 @@ export function createModelsService(bus: Bus): ModelsService {
         result.ultracode = choice.ultracode;
       }
       applied++;
+      // Even a choice of what is already set, since applying always sends: it is a person
+      // choosing, which is what the gate waits for.
+      if (choosesModel(choice)) choose();
       return { applied: result satisfies AppliedChoice };
+    },
+    confirm() {
+      tap();
+      choose();
     },
     get current() {
       return state;
