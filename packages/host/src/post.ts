@@ -28,6 +28,7 @@ import {
   readModelSettings,
   type RiglinePlugin,
   type SaveRecord,
+  sameValue,
   store,
   type Teardown,
   withRigline,
@@ -502,8 +503,12 @@ async function main(): Promise<void> {
       console.error(`[rigline] gate: ${reason}`);
     },
   });
+  // Only when the model block moved, so a plugin's section saving republishes no ModelState.
+  let configured = modelSettings;
   settingsEditor.saved.subscribe(() => {
     const next = settingsEditor.saved.get().rigline.model;
+    if (sameValue(next, configured)) return;
+    configured = next;
     models.configure(next);
     gate.configure(next);
   });
