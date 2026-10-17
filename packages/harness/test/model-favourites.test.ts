@@ -153,11 +153,11 @@ describe.skipIf(skip !== null)(
       });
       const { page } = booted;
       try {
-        // One pill, its run of Opus naming the model once, the live segment drawn as such.
+        // One pill: each model named once, then its favourites, the model lit with its effort.
         await expect
           .poll(() => texts(page, "favourites"))
-          .toEqual(["Opus 5.5 · xhigh", "low", "Sonnet 5.5 · medium"]);
-        expect(await current(page, "favourites")).toEqual([true, false, false]);
+          .toEqual(["Opus 5.5", "xhigh", "low", "Sonnet 5.5", "medium"]);
+        expect(await current(page, "favourites")).toEqual([true, true, false, false, false]);
         expect(
           await page.locator(`[data-rigline-element="${NAME}/favourites"] [role="group"]`).count(),
         ).toBe(1);
@@ -165,16 +165,26 @@ describe.skipIf(skip !== null)(
         expect(await current(page, "default")).toEqual([true]);
         expect(await picker(page)).toMatch(/^Opus 5\.5/);
 
-        // An effort on the same model: what did nothing before.
-        await page.locator(pills("favourites")).nth(1).click();
-        await expect.poll(() => current(page, "favourites")).toEqual([false, true, false]);
+        // An effort on the same model: what did nothing before. The model stays lit.
+        const segment = (i: number) => page.locator(pills("favourites")).nth(i);
+        await segment(2).click();
+        await expect
+          .poll(() => current(page, "favourites"))
+          .toEqual([true, false, true, false, false]);
         expect(await picker(page)).toMatch(/^Opus 5\.5.*Low/i);
         expect(await current(page, "default")).toEqual([false]);
 
-        // Another model and its effort: Claude Code's picker follows, and so does the segment.
-        await page.locator(pills("favourites")).nth(2).click();
+        // The model's own segment applies the favourite beside it.
+        await segment(0).click();
+        await expect
+          .poll(() => current(page, "favourites"))
+          .toEqual([true, true, false, false, false]);
+        expect(await picker(page)).toMatch(/^Opus 5\.5.*Extra high/i);
+
+        // Another model: Claude Code's picker follows, and so do both its segments.
+        await segment(3).click();
         await expect.poll(() => picker(page)).toMatch(/^Sonnet 5\.5.*Medium/i);
-        expect(await current(page, "favourites")).toEqual([false, false, true]);
+        expect(await current(page, "favourites")).toEqual([false, false, false, true, true]);
         // The panel's own requests, on its own channel, as its picker would send them.
         expect((await asked(page, "set_model")).at(-1)).toMatchObject({
           model: { value: "sonnet" },
@@ -188,7 +198,7 @@ describe.skipIf(skip !== null)(
         await page.locator(pills("default")).click();
         await expect.poll(() => current(page, "default")).toEqual([true]);
         expect(await picker(page)).toMatch(/^Opus 5\.5/);
-        expect(await current(page, "favourites")).toEqual([true, false, false]);
+        expect(await current(page, "favourites")).toEqual([true, true, false, false, false]);
 
         const d = await booted.diagnostics();
         expect(d.plugins).toContainEqual({ name: NAME, status: "loaded" });
@@ -263,7 +273,7 @@ describe.skipIf(skip !== null)(
         saveToRegistry(booted.payloadDir, { [NAME]: to }, USUAL);
         await expect
           .poll(() => texts(page, "favourites"), { timeout: 5000 })
-          .toEqual(["Opus 5.5 · high", "xhigh", "Sonnet 5.5 · low"]);
+          .toEqual(["Opus 5.5", "high", "xhigh", "Sonnet 5.5", "low"]);
 
         const d = await booted.diagnostics();
         expect(d.errors).toEqual([]);

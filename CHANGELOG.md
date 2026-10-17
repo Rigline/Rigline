@@ -14,10 +14,11 @@ hole, or raises the Node or VS Code it needs, its entry says so.
 ### Added
 
 - A bundled plugin, `model-favourites`: your usual model and effort combinations as one pill under
-  the composer, a segment each and one click each, and your default beside it.
-  - Each reads as the version its model resolves to now, so `opus` shows `Opus 5.5`, and a run on
-    one model names it once: `Opus 5.5 · xhigh │ low │ Sonnet 5.5 · medium`.
-  - Whichever is live is highlighted, and Claude Code's own model picker moves with each click.
+  the composer, one click each, and your default beside it.
+  - Favourites on one model share its segment, named by the version it resolves to now:
+    `Opus 5.5 │ xhigh │ low │ Sonnet 5.5 │ medium`. A click on the model picks the effort beside it.
+  - The live model and the live favourite are highlighted, and Claude Code's own model picker moves
+    with each click.
   - The list is kept in its own tab of the settings screen.
 - A settings screen in the panel, opened from **Settings…** in the RIG menu: a tab for Rigline and
   one for each plugin that adds one, and one Save that writes them all to `config.yaml` through the

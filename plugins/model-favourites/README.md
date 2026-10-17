@@ -4,11 +4,13 @@ Your usual model and effort combinations, one click each, and your default besid
 
 ## What it shows
 
-- **Your favourites as one pill**, in the row under the composer's controls, split into a segment
-  each. A segment reads as the version its model resolves to now, such as `Opus 5.5 · xhigh`, and a
-  run of favourites on one model names it once: `Opus 5.5 · xhigh │ low │ Sonnet 5.5 · medium`. A
-  click switches to it, model and effort together.
-  - The one that is live is highlighted. None highlighted means what is live is none of them.
+- **Your favourites as one pill**, in the row under the composer's controls. Favourites next to each
+  other on one model share its segment, named by the version it resolves to now, and each has a
+  segment of its own after it: `Opus 5.5 │ xhigh │ low │ Sonnet 5.5 │ medium`. A click on a
+  favourite switches to it, model and effort together; a click on a model switches to the favourite
+  beside it.
+  - A model is highlighted while it is live, and a favourite while it is exactly what is live. A
+    model lit with none of its favourites means it is live at an effort that is not one of them.
   - A favourite your install does not offer, or with an effort its model does not take, is dimmed,
     and its tooltip says which.
   - With none set, a dimmed *No favourites* opens the settings tab.

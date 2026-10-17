@@ -33,7 +33,7 @@ import {
   useSettingsDraft,
   useStore,
 } from "@rigline/plugin-api/ui";
-import { type MouseEvent, type ReactNode, useState } from "react";
+import { Fragment, type MouseEvent, type ReactNode, useState } from "react";
 
 type Section = Readonly<Record<string, unknown>>;
 
@@ -75,20 +75,41 @@ export function favouriteLabel(choice: DefaultChoice, models: readonly ModelEntr
   );
 }
 
+/** Adjacent favourites on one model, drawn as the model's segment and then one segment each. */
+export interface Run {
+  /** The model's alias, resolved where the list has it. */
+  readonly model: string;
+  /** What the model's segment reads: its version, else the alias. */
+  readonly label: string;
+  /** The run's favourites, each with what its own segment reads; empty for nothing to add. */
+  readonly favourites: readonly { readonly choice: DefaultChoice; readonly label: string }[];
+}
+
 /**
- * Each segment's label. A run of favourites on one model names it once, so `Opus 5.5 · xhigh`
- * is followed by `low`: the row is short of width, and the run already says whose effort it is.
+ * The favourites as runs, so a model is named once however many efforts follow it. A favourite with
+ * nothing beside its model starts a run of its own, since the model's segment is what applies it.
  */
-export function segmentLabels(
+export function runsOf(
   favourites: readonly DefaultChoice[],
   models: readonly ModelEntry[],
-): string[] {
-  return favourites.map((choice, i) => {
-    const previous = favourites[i - 1];
-    const rest = settingsOf(choice);
-    const sameRun = previous !== undefined && modelOf(previous, models) === modelOf(choice, models);
-    return sameRun && rest.length > 0 ? rest.join(" · ") : favouriteLabel(choice, models);
-  });
+): readonly Run[] {
+  const runs: { model: string; label: string; favourites: Run["favourites"][number][] }[] = [];
+  for (const choice of favourites) {
+    const model = modelOf(choice, models);
+    const label = settingsOf(choice).join(" · ");
+    const last = runs.at(-1);
+    if (last !== undefined && last.model === model && label !== "") {
+      last.favourites.push({ choice, label });
+    } else {
+      const entry = findModel(models, choice.model);
+      runs.push({
+        model,
+        label: entry === null ? choice.model : comboLabel(entry, null),
+        favourites: [{ choice, label }],
+      });
+    }
+  }
+  return runs;
 }
 
 /** Why `choice` cannot be applied with this list, or null. Before the list arrives, nothing is known. */
@@ -165,10 +186,11 @@ function Choosing(props: {
   readonly choice: DefaultChoice;
   readonly state: ModelState;
   readonly label: string;
-  /** The tooltip while nothing has been refused. */
-  readonly title: string;
+  readonly current: boolean;
+  /** The tooltip while nothing has been refused, in place of what the choice reads as. */
+  readonly title?: string;
 }): ReactNode {
-  const { stores, choice, state, label, title } = props;
+  const { stores, choice, state, label, current } = props;
   const [flash, show] = useFlash();
   const [reason, setReason] = useState<string | null>(null);
   if (state.models.length === 0) {
@@ -186,9 +208,11 @@ function Choosing(props: {
       </Pill>
     );
   }
+  const full = favouriteLabel(choice, state.models);
+  const title = props.title ?? (isLive(state, choice) ? `${full}: live now` : `Switch to ${full}`);
   return (
     <Pill
-      current={isLive(state, choice)}
+      current={current}
       flash={flash}
       title={reason ?? title}
       onClick={(event) => {
@@ -219,22 +243,33 @@ function Favourites(props: { readonly stores: Stores }): ReactNode {
       </Pill>
     );
   }
-  const labels = segmentLabels(favourites, state.models);
   return (
     <PillGroup label="Model favourites">
-      {favourites.map((choice, i) => {
-        const full = favouriteLabel(choice, state.models);
-        return (
+      {runsOf(favourites, state.models).map((run, r) => (
+        <Fragment key={r}>
+          {/* The model's own segment, lit while the model is, and applying the effort beside it. */}
           <Choosing
-            key={i}
             stores={stores}
-            choice={choice}
+            choice={(run.favourites[0] as Run["favourites"][number]).choice}
             state={state}
-            label={labels[i] ?? full}
-            title={isLive(state, choice) ? `${full}: live now` : `Switch to ${full}`}
+            label={run.label}
+            current={state.current?.value === run.model}
           />
-        );
-      })}
+          {run.favourites.map(
+            ({ choice, label }, i) =>
+              label !== "" && (
+                <Choosing
+                  key={i}
+                  stores={stores}
+                  choice={choice}
+                  state={state}
+                  label={label}
+                  current={isLive(state, choice)}
+                />
+              ),
+          )}
+        </Fragment>
+      ))}
     </PillGroup>
   );
 }
@@ -268,6 +303,7 @@ function Default(props: { readonly stores: Stores }): ReactNode {
       choice={choice}
       state={state}
       label={label}
+      current={isLive(state, choice)}
       title={isLive(state, choice) ? "Your default, live now" : "Switch to your default"}
     />
   );

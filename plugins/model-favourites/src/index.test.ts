@@ -10,7 +10,7 @@ import {
   favouriteLabel,
   favouritesOf,
   sameChoice,
-  segmentLabels,
+  runsOf,
   unavailable,
 } from "./index.tsx";
 
@@ -76,43 +76,63 @@ describe("what a favourite reads as", () => {
   });
 });
 
-describe("the segments", () => {
-  it("names a model once for a run of favourites on it", () => {
-    const favourites = [
-      { model: "opus", effort: "xhigh" },
-      { model: "opus", effort: "low" },
-      { model: "sonnet", effort: "medium" },
-    ];
-    expect(segmentLabels(favourites, MODELS)).toEqual([
-      "Opus 5.5 · xhigh",
-      "low",
-      "Sonnet 5.5 · medium",
+describe("the runs", () => {
+  /** Each run as its model's segment and then its favourites' segments. */
+  const drawn = (favourites: Parameters<typeof runsOf>[0]) =>
+    runsOf(favourites, MODELS).map((run) => [
+      run.label,
+      ...run.favourites.map((f) => f.label).filter((label) => label !== ""),
+    ]);
+
+  it("names a model once, then each favourite on it", () => {
+    expect(
+      drawn([
+        { model: "opus", effort: "xhigh" },
+        { model: "opus", effort: "low" },
+        { model: "sonnet", effort: "medium" },
+      ]),
+    ).toEqual([
+      ["Opus 5.5", "xhigh", "low"],
+      ["Sonnet 5.5", "medium"],
     ]);
   });
 
-  it("names it again once the run is broken, and for a repeat with nothing else to say", () => {
-    const favourites = [
-      { model: "opus", effort: "xhigh" },
-      { model: "sonnet", effort: "medium" },
-      { model: "opus", effort: "low" },
-      { model: "haiku" },
-      { model: "haiku" },
-    ];
-    expect(segmentLabels(favourites, MODELS)).toEqual([
-      "Opus 5.5 · xhigh",
-      "Sonnet 5.5 · medium",
-      "Opus 5.5 · low",
-      "Haiku 5.5",
-      "Haiku 5.5",
+  it("names it again once the run is broken", () => {
+    expect(
+      drawn([
+        { model: "opus", effort: "xhigh" },
+        { model: "sonnet", effort: "medium" },
+        { model: "opus", effort: "low" },
+      ]),
+    ).toEqual([
+      ["Opus 5.5", "xhigh"],
+      ["Sonnet 5.5", "medium"],
+      ["Opus 5.5", "low"],
     ]);
   });
 
-  it("takes a concrete id and its alias for one model", () => {
-    const favourites = [
-      { model: "opus", effort: "xhigh" },
-      { model: "claude-opus-5-5", effort: "low" },
-    ];
-    expect(segmentLabels(favourites, MODELS)).toEqual(["Opus 5.5 · xhigh", "low"]);
+  it("starts a run for a favourite with nothing beside its model, which only the model reaches", () => {
+    expect(
+      drawn([{ model: "haiku", thinkingLevel: "deep" }, { model: "haiku" }, { model: "haiku" }]),
+    ).toEqual([["Haiku 5.5", "thinking deep"], ["Haiku 5.5"], ["Haiku 5.5"]]);
+  });
+
+  it("takes a concrete id and its alias for one model, and keys the run by the alias", () => {
+    const runs = runsOf(
+      [
+        { model: "opus", effort: "xhigh" },
+        { model: "claude-opus-5-5", effort: "low" },
+      ],
+      MODELS,
+    );
+    expect(runs.map((run) => run.model)).toEqual(["opus"]);
+    expect(runs[0]?.favourites.map((f) => f.label)).toEqual(["xhigh", "low"]);
+  });
+
+  it("names the alias where the list has not got it", () => {
+    expect(runsOf([{ model: "opus", effort: "low" }], []).map((run) => run.label)).toEqual([
+      "opus",
+    ]);
   });
 });
 
