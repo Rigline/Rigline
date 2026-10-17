@@ -2,11 +2,19 @@
  * What the kernel hands the shell. Types only: post.js loads `runtime/shell.js` and never bundles
  * it, so the shell shares React and `@rigline/plugin-api/ui` with the plugins it renders (D88).
  */
-import type { ElementComponent, MenuComponent, Store, Surface } from "@rigline/plugin-api/internal";
+import type {
+  ElementComponent,
+  MenuComponent,
+  ModelState,
+  SettingsTabComponent,
+  Store,
+  Surface,
+} from "@rigline/plugin-api/internal";
 import type { SettingsSaver } from "@rigline/plugin-api/ui/internal";
 import type { Diagnostics } from "../kernel/bridge.ts";
 import type { CheckGroup } from "../kernel/checks.ts";
 import type { LayoutEditor } from "../kernel/layout.ts";
+import type { SettingsEditor } from "../kernel/settings.ts";
 import type { ElementReading } from "../kernel/shell.ts";
 
 export interface Contribution {
@@ -17,6 +25,20 @@ export interface Contribution {
   /** The owning plugin's error path: a render throw disables that plugin. */
   readonly onError: (reason: string) => void;
   /** Its settings saver, stamped with `owner`, which a `SaveSettings` inside it reads (D138). */
+  readonly saver: SettingsSaver;
+}
+
+/** A tab in the settings screen: Rigline's, or a plugin's. */
+export interface SettingsTab {
+  /** Stable for the tab's life: React's key. */
+  readonly key: number;
+  /** Whose settings it edits, which stamps its draft. */
+  readonly owner: string;
+  readonly title: string;
+  readonly component: SettingsTabComponent;
+  /** The owning plugin's error path: a render throw disables that plugin. */
+  readonly onError: (reason: string) => void;
+  /** Its settings saver, for a `SaveSettings` inside it. */
   readonly saver: SettingsSaver;
 }
 
@@ -72,6 +94,10 @@ export interface ShellOptions {
   readonly surface: Surface;
   /** The layout editor the Layout submenu drives (D93). */
   readonly editor: LayoutEditor;
+  /** The settings screen's drafts, what is saved, and which tab is open. */
+  readonly settings: SettingsEditor;
+  /** Every settings tab: Rigline's first, then plugins' in registry order. */
+  readonly tabs: Store<readonly SettingsTab[]>;
   /** What became of each bound element, keyed `plugin/element`. */
   readonly readings: ReadonlyMap<string, ElementReading>;
   /** Every place a bound element offers that this panel has. */
@@ -86,3 +112,6 @@ export type StartShell = (options: ShellOptions) => () => void;
 
 /** Rigline's own elements' components, by id, for the kernel to bind (D97). */
 export type RiglineElements = (editor: LayoutEditor) => Readonly<Record<string, ElementComponent>>;
+
+/** Rigline's own settings tab, for the kernel to add through the same path as a plugin's. */
+export type RiglineTab = (models: Store<ModelState>) => SettingsTabComponent;

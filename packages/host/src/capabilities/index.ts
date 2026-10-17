@@ -15,6 +15,7 @@ import { messagesModule } from "./messages.ts";
 import { mountModule } from "./mount.ts";
 import { rewritesModule } from "./rewrites.ts";
 import { sessionModule } from "./session.ts";
+import { settingsTabModule } from "./settingsTab.ts";
 import { styleModule } from "./style.ts";
 import { toolsModule } from "./tools.ts";
 import { transcriptModule } from "./transcript.ts";
@@ -30,6 +31,7 @@ export const MODULES: readonly CapabilityModule[] = [
   sessionModule,
   transcriptModule,
   menuModule,
+  settingsTabModule,
   contextModule,
   costModule,
   limitsModule,

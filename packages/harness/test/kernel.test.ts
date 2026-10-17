@@ -876,13 +876,17 @@ export default { setup(ctx) {
         expect(await focused()).toBe("Alpha one");
         await page.keyboard.press("ArrowDown");
         expect(await focused()).toContain("Beta sub");
-        // Rigline's own entries, Diagnostics then Layout, after every plugin's.
+        // Rigline's own entries, Diagnostics, Layout and Settings, after every plugin's.
         await page.keyboard.press("ArrowDown");
         expect(await focused()).toContain("Diagnostics");
         await page.keyboard.press("ArrowDown");
         expect(await focused()).toContain("Layout");
         await page.keyboard.press("ArrowDown");
+        expect(await focused()).toContain("Settings");
+        await page.keyboard.press("ArrowDown");
         expect(await focused()).toBe("Alpha one");
+        await page.keyboard.press("ArrowUp");
+        expect(await focused()).toContain("Settings");
         await page.keyboard.press("ArrowUp");
         expect(await focused()).toContain("Layout");
         await page.keyboard.press("ArrowUp");

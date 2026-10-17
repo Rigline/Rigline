@@ -24,9 +24,12 @@ import {
   RIGLINE_ELEMENTS,
   rowNumbers,
   rowOf,
+  type ModelState,
   rowPlace,
+  type SettingsTabComponent,
   SIDES,
   type Side,
+  type Store,
   type Surface,
   store,
   type Teardown,
@@ -39,12 +42,15 @@ import type {
   PanelPlace,
   PlacedElement,
   RiglineElements,
+  RiglineTab,
+  SettingsTab,
   StartShell,
 } from "../shell/types.ts";
 import type { Diagnostics } from "./bridge.ts";
 import type { CheckGroup, CheckService } from "./checks.ts";
 import type { LayoutEditor } from "./layout.ts";
 import type { MountService } from "./mounts.ts";
+import type { SettingsEditor } from "./settings.ts";
 
 /** Whose mount the pill and the zones are, in `data-rigline-mount` and in the mount diagnostics. */
 const OWNER = RIGLINE;
@@ -90,6 +96,19 @@ export interface ShellService {
     component: ElementComponent,
     onError: (reason: string) => void,
   ): Teardown;
+  /**
+   * Add `owner`'s tab to the settings screen, in registry order after Rigline's. Throws when `owner`
+   * has one already. Its draft goes with it.
+   */
+  tab(
+    owner: string,
+    order: number,
+    title: string,
+    component: SettingsTabComponent,
+    onError: (reason: string) => void,
+  ): Teardown;
+  /** Whether `owner` has a tab in the settings screen. */
+  hasTab(owner: string): boolean;
   /** Every bound element, keyed `owner/id`. */
   readonly bound: ReadonlyMap<string, ElementReading>;
   /**
@@ -121,16 +140,23 @@ interface Binding {
   at: { readonly key: string; readonly unplace: Teardown } | null;
 }
 
-export function createShellService(
-  tables: IdentifierTables,
-  surface: Surface,
-  editor: LayoutEditor,
-  mounts: MountService,
-  checks: CheckService,
-  diagnostics: Diagnostics,
-  saver: (plugin: string) => SettingsSaver,
-  fail: (reason: string) => void,
-): ShellService {
+export interface ShellServiceOptions {
+  readonly tables: IdentifierTables;
+  readonly surface: Surface;
+  readonly editor: LayoutEditor;
+  readonly settings: SettingsEditor;
+  /** What Rigline's own settings tab reads, kept from boot. */
+  readonly models: Store<ModelState>;
+  readonly mounts: MountService;
+  readonly checks: CheckService;
+  readonly diagnostics: Diagnostics;
+  readonly saver: (plugin: string) => SettingsSaver;
+  readonly fail: (reason: string) => void;
+}
+
+export function createShellService(options: ShellServiceOptions): ShellService {
+  const { tables, surface, editor, settings, models, mounts, checks, diagnostics, saver, fail } =
+    options;
   const pill = document.createElement("span");
   pill.className = "rigline-slot";
   const state = { started: false, error: null as string | null, pill };
@@ -147,6 +173,8 @@ export function createShellService(
   let held: string[] = [];
   const failing = store(0);
   const ran = store<readonly CheckGroup[]>([]);
+  const tabEntries: (SettingsTab & { readonly order: number })[] = [];
+  const tabs = store<readonly SettingsTab[]>([]);
   let next = 0;
 
   function publish(): void {
@@ -453,7 +481,32 @@ export function createShellService(
     };
   }
 
+  function tab(
+    owner: string,
+    order: number,
+    title: string,
+    component: SettingsTabComponent,
+    onError: (reason: string) => void,
+  ): Teardown {
+    if (tabEntries.some((t) => t.owner === owner)) {
+      throw new Error("settingsTab() was called already: a plugin has one tab");
+    }
+    const entry = { key: next++, owner, order, title, component, onError, saver: saver(owner) };
+    tabEntries.push(entry);
+    tabs.set([...tabEntries].sort((a, b) => a.order - b.order));
+    return () => {
+      const i = tabEntries.indexOf(entry);
+      if (i === -1) return;
+      tabEntries.splice(i, 1);
+      tabs.set([...tabEntries].sort((a, b) => a.order - b.order));
+      // A plugin disabled mid-edit leaves no unsaved work the person cannot see.
+      settings.forget(owner);
+    };
+  }
+
   return {
+    tab,
+    hasTab: (owner) => tabEntries.some((t) => t.owner === owner),
     contribute(owner, order, component, onError) {
       const entry = { key: next++, owner, order, component, onError, saver: saver(owner) };
       entries.push(entry);
@@ -485,6 +538,7 @@ export function createShellService(
         const shell = (await import(new URL("./runtime/shell.js", import.meta.url).href)) as {
           startShell?: StartShell;
           riglineElements?: RiglineElements;
+          riglineTab?: RiglineTab;
         };
         if (typeof shell.startShell !== "function") {
           throw new Error("runtime/shell.js exports no startShell");
@@ -499,12 +553,17 @@ export function createShellService(
           diagnostics,
           surface,
           editor,
+          settings,
+          tabs,
           readings: bound,
           places,
           composer,
           onError: fail,
         });
         state.started = true;
+        // First in the rail, through the path a plugin's tab takes.
+        const ownTab = shell.riglineTab?.(models);
+        if (ownTab) tab(RIGLINE, -1, "Rigline", ownTab, fail);
         const own = shell.riglineElements?.(editor) ?? {};
         Object.entries(RIGLINE_ELEMENTS).forEach(([id, spec], index) => {
           const component = own[id];

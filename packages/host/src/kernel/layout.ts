@@ -24,16 +24,9 @@ import {
   withElementAt,
   withOrder,
 } from "@rigline/plugin-api/internal";
+import { createSaveTracker, type SavedState, type SaveState } from "./saving.ts";
 
-/** Where a save from this panel stands. */
-export type SaveState = "idle" | "saving" | "saved" | "unconfirmed";
-
-/** What a re-read of `registry.js` yields: the saved layout, and the presets baked with it. */
-export interface SavedState {
-  readonly layout: Layout;
-  readonly presets: readonly BakedPreset[];
-  readonly omitted: number;
-}
+export type { SavedState, SaveState } from "./saving.ts";
 
 export interface LayoutEditor {
   /** The saved layout the working copy started from. */
@@ -112,11 +105,6 @@ export interface LayoutEditorOptions {
   readonly now?: () => number;
 }
 
-/** A save is the engine starting, one edit and a re-inject: a few seconds, rarely more. */
-const CONFIRM_EVERY_MS = 500;
-const CONFIRM_FOR_MS = 20_000;
-/** How long "Saved." shows before it goes, taking edit mode with it (D125). */
-const SAVED_MS = 1500;
 /** Each read keeps a copy of `registry.js` for the panel's life, so `notice` reads sparingly (D126). */
 const NOTICE_GAP_MS = 30_000;
 
@@ -129,7 +117,8 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
   const working = store(baked);
   const view = store<readonly ViewPlace[]>(layoutView(baked, plugins));
   const newer = store(false);
-  const saving = store<SaveState>("idle");
+  const tracker = createSaveTracker(readSaved, wait);
+  const saving = tracker.state;
   const editing = store(false);
   const presets = store<readonly BakedPreset[]>(options.presets ?? []);
   const omitted = store(options.omitted ?? 0);
@@ -143,7 +132,7 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
   function edit(next: Layout, from: string | null = null): void {
     working.set(compactRows(next, plugins));
     appliedPreset.set(from);
-    if (saving.get() !== "saving") saving.set("idle");
+    tracker.edited();
   }
 
   async function check(): Promise<void> {
@@ -247,24 +236,16 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
       void check();
     },
     async confirm(copy) {
-      saving.set("saving");
-      for (let waited = 0; waited < CONFIRM_FOR_MS; waited += CONFIRM_EVERY_MS) {
-        await wait(CONFIRM_EVERY_MS);
-        const saved = await readSaved();
-        if (saved !== null && sameLayout(saved.layout, copy)) {
+      const held = await tracker.confirm(
+        (saved) => sameLayout(saved.layout, copy),
+        (saved) => {
           baseline.set(saved.layout);
           newer.set(false);
-          saving.set("saved");
-          await wait(SAVED_MS);
-          // A move or a Reload during the hold has ended it already.
-          if (saving.get() !== "saved") return;
-          saving.set("idle");
-          // A copy moved since the click is unsaved work, which leaving the mode would hide.
-          if (sameLayout(working.get(), copy)) editing.set(false);
-          return;
-        }
-      }
-      saving.set("unconfirmed");
+        },
+      );
+      // Leaving edit mode is the hold's end (D125); a copy moved since the click is unsaved work,
+      // which leaving the mode would hide.
+      if (held && sameLayout(working.get(), copy)) editing.set(false);
     },
   };
 }

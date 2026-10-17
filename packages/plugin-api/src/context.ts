@@ -32,6 +32,9 @@ export type MenuComponent = () => unknown;
 /** As `MenuComponent`, for an element. */
 export type ElementComponent = () => unknown;
 
+/** As `MenuComponent`, for a settings tab. */
+export type SettingsTabComponent = () => unknown;
+
 /** An outbound message type whose payload fields are known, and so may be rewritten. */
 export type RewritableType = keyof OutboundFields;
 
@@ -77,13 +80,27 @@ export interface PluginContext {
   readonly surface: Surface;
 
   /**
-   * This plugin's own settings from `config.yaml`, frozen, and `{}` when it has none (D138).
+   * This plugin's own settings from `config.yaml` as the panel loaded them, frozen, and `{}` when it
+   * has none (D138). What `setup` reads; `onSettings` follows them after that.
    *
-   * A snapshot rather than a subscription: the registry is written at `install`, so a value changes
-   * on re-inject and reload and at no other time. Tolerate what you did not write — a person edits
-   * this file by hand, and a key here may be one an older build of yours never knew.
+   * Tolerate what you did not write — a person edits this file by hand, and a key here may be one an
+   * older build of yours never knew.
    */
   readonly settings: Readonly<Record<string, unknown>>;
+
+  /**
+   * This plugin's own settings, frozen: called at once and again whenever the panel learns they
+   * changed — a save from this panel, or one made elsewhere that the panel has since read. Declares
+   * nothing.
+   */
+  onSettings: (handler: (settings: Readonly<Record<string, unknown>>) => void) => Teardown;
+
+  /**
+   * Open Rigline's settings screen at this plugin's own tab, or at Rigline's with `"rigline"`.
+   * Throws where this plugin has no tab and names none. Declares nothing: opening a screen is
+   * navigation and writes nothing.
+   */
+  openSettings(tab?: "rigline"): void;
 
   /**
    * The lookups that may come back null, for identifiers declared under `uses.optional`. Everything
@@ -292,6 +309,14 @@ export interface PluginContext {
    * anything outside the menu belongs in a store made in `setup`. Requires `uses.menu`.
    */
   menu(component: MenuComponent): Teardown;
+
+  /**
+   * Add this plugin's tab to Rigline's settings screen, under `title`. `component` draws it, from
+   * the kit in `@rigline/plugin-api/ui`, over the draft `useSettingsDraft()` hands it; the screen's
+   * Save writes that draft as this plugin's settings. Once per plugin: a second call throws. Requires
+   * `uses.settingsTab`.
+   */
+  settingsTab(title: string, component: SettingsTabComponent): Teardown;
 
   /**
    * Render `component` wherever the element `id` is placed, which is its manifest's `default` until

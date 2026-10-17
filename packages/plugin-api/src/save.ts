@@ -3,6 +3,7 @@
  * it, both through these functions, so the one format the save defines has one definition.
  */
 import { type Layout, MAX_LAYOUT_ENTRIES, plainText } from "./layout.ts";
+import { type ModelSettings, readModelSettings } from "./models.ts";
 
 /** What `install` bakes for the panel's Save. */
 export interface SaveRecord {
@@ -43,7 +44,7 @@ export function encodeSavePayload(payload: SavePayload): string {
   return toBase64Url(JSON.stringify(payload));
 }
 
-export const SETTINGS_PAYLOAD_VERSION = 1;
+export const SETTINGS_PAYLOAD_VERSION = 2;
 
 /** One plugin's section: what the panel's copy started from, and what to write (D138). */
 export interface SettingsSave {
@@ -51,11 +52,27 @@ export interface SettingsSave {
   readonly to: Readonly<Record<string, unknown>>;
 }
 
+/** Rigline's own settings as the settings screen edits them: `config.yaml`'s blocks it owns. */
+export interface RiglineSettings {
+  readonly model: ModelSettings;
+}
+
+/** The blocks of Rigline's own settings, by the key each has in `config.yaml`. */
+export const RIGLINE_BLOCKS: readonly (keyof RiglineSettings)[] = ["model"];
+
+/** Rigline's own blocks in a save, each side naming only the blocks being written. */
+export interface RiglineSave {
+  readonly from: Partial<RiglineSettings>;
+  readonly to: Partial<RiglineSettings>;
+}
+
 export interface SettingsPayload {
   readonly v: typeof SETTINGS_PAYLOAD_VERSION;
   readonly token: string;
   /** By plugin name, and only the sections being written — never every section the panel holds. */
   readonly sections: Readonly<Record<string, SettingsSave>>;
+  /** Rigline's own settings, beside the plugins' rather than among them. */
+  readonly rigline?: RiglineSave;
 }
 
 /**
@@ -88,8 +105,9 @@ export function decodeSettingsPayload(
   }
   if (!isRecord(value)) return { problem: "the payload is not an object" };
   if (value.v !== SETTINGS_PAYLOAD_VERSION) {
+    const older = typeof value.v === "number" && value.v < SETTINGS_PAYLOAD_VERSION;
     return {
-      problem: `the payload is version ${String(value.v)}, and this engine reads ${SETTINGS_PAYLOAD_VERSION}`,
+      problem: `the payload is version ${String(value.v)}, and this engine reads ${SETTINGS_PAYLOAD_VERSION}${older ? "; reload the panel to pick up this Rigline" : ""}`,
     };
   }
   if (typeof value.token !== "string" || !plainText(value.token)) {
@@ -104,14 +122,47 @@ export function decodeSettingsPayload(
     if (!isRecord(section.to)) return { problem: `"sections.${name}.to" is not an object` };
     entries.push([name, { from: section.from, to: section.to }]);
   }
+  const rigline = value.rigline === undefined ? undefined : readRiglineSave(value.rigline);
+  if (typeof rigline === "string") return { problem: rigline };
   // fromEntries, so a `__proto__` key stays an ordinary key, as the layout's reader does.
   return {
     payload: {
       v: SETTINGS_PAYLOAD_VERSION,
       token: value.token,
       sections: Object.fromEntries(entries),
+      ...(rigline === undefined ? {} : { rigline }),
     },
   };
+}
+
+/**
+ * Rigline's own blocks, each read by `readConfig`'s rules for it, or why not. Where the file
+ * carries forward what this version does not know (D110), a save refuses it: the panel builds this
+ * from a closed set of controls, so something unknown here was not put there by this Rigline.
+ */
+function readRiglineSave(value: unknown): RiglineSave | string {
+  if (!isRecord(value)) return '"rigline" is not an object';
+  const sides: Partial<RiglineSettings>[] = [];
+  for (const side of ["from", "to"] as const) {
+    const blocks = value[side];
+    if (!isRecord(blocks)) return `"rigline.${side}" is not an object`;
+    const read: { model?: ModelSettings } = {};
+    for (const [block, settings] of Object.entries(blocks)) {
+      if (block !== "model")
+        return `"rigline.${side}" has "${block}", which this engine does not know`;
+      const model = readModelSettings(settings);
+      if ("problem" in model) return `"rigline.${side}": ${model.problem}`;
+      if (model.unknown.length > 0) {
+        return `"rigline.${side}" has ${model.unknown.join(", ")}, which this engine does not know`;
+      }
+      read.model = model.settings;
+    }
+    sides.push(read);
+  }
+  const [from = {}, to = {}] = sides;
+  const named = (blocks: Partial<RiglineSettings>) => Object.keys(blocks).sort().join(",");
+  if (named(from) !== named(to)) return '"rigline.from" and "rigline.to" name different blocks';
+  return { from, to };
 }
 
 function toBase64Url(text: string): string {

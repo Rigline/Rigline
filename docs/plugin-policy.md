@@ -34,9 +34,10 @@ help: there is no clever way to reach something that is not there.
   count, and a timer or a message tap has none to offer. It also refuses a model this install is
   not offering, and an effort the chosen model does not take, so a combination Claude Code would
   not have shown cannot be sent.
-- **No settings but your own, and no save without a person.** `ctx.settings` hands you your own
-  section and nothing else, and a save goes as a link to the companion extension, which only a
-  click a person made reaches: one your code dispatches is cancelled before it navigates. So a
+- **No settings but your own, and no save without a person.** `ctx.settings` and `ctx.onSettings`
+  hand you your own section and nothing else, your settings tab's draft is stamped with your name by
+  the host, and a save goes as a link to the companion extension, which only a click a person made
+  reaches: one your code dispatches is cancelled before it navigates. So a
   plugin cannot read another plugin's settings, cannot write one, and cannot write its own
   unprompted. What this does *not* wall off is a plugin drawing a link that claims to do one thing
   and saves another — see the deception rule below, which is where that belongs.

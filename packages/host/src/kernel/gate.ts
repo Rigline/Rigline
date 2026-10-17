@@ -1,6 +1,6 @@
 /**
- * The model gate: switched on in `config.yaml`, a prompt waits for a model to be chosen in its
- * session before the composer sends it (D139). Only the send is held, never the typing, and the
+ * The model gate: switched on in `config.yaml` or Rigline's settings tab, a prompt waits for a model
+ * to be chosen in its session before the composer sends it (D139). Only the send is held, never the typing, and the
  * override is drawn before anything is held, so nobody is ever stuck.
  *
  * Capture-phase listeners on `window`, as `guardLinks` is, so the app's own handlers never see a
@@ -81,6 +81,8 @@ export interface GateService {
   /** The types in `GATE_TYPES` this extension does not have. */
   readonly missing: readonly string[];
   readonly stats: GateStats;
+  /** Rigline's model settings changed: the interception goes in or comes out with the mode. */
+  configure(settings: ModelSettings): void;
 }
 
 export interface GateOptions {
@@ -123,71 +125,14 @@ function wording(state: ModelState, mode: RequireChoice): { text: string; button
 }
 
 export function installGate(options: GateOptions): GateService {
-  const { settings, models, bus, mounts, composerBox, fail } = options;
-  const mode = settings.requireChoice;
+  const { models, bus, mounts, composerBox, fail } = options;
   const missing = GATE_TYPES.filter((type) => !options.messageTypes.includes(type));
   const stats = { held: 0, overridden: 0 };
-  const service = { mode, idle: null as string | null, missing, stats };
-  if (mode === "off") return service;
-  if (composerBox === null) {
-    service.idle = "the composer is not one element in this extension, so no send is held";
-    return service;
-  }
-  const selector = composerBox;
-
-  let state: ModelState = NO_MODEL_STATE;
   let ctrlEnterToSend = false;
-  /** A send has been held in this session, so the strip shows until a choice lifts it. */
-  let shown = false;
+  let stop: (() => void) | null = null;
 
-  const style = document.createElement("style");
-  style.setAttribute("data-rigline-style", "gate");
-  style.textContent = CSS;
-  document.head.appendChild(style);
-
-  const strip = document.createElement("div");
-  strip.className = "rigline-gate";
-  strip.setAttribute("data-rigline-gate", "");
-  strip.setAttribute("role", "status");
-  strip.hidden = true;
-  const text = strip.appendChild(document.createElement("span"));
-  const send = strip.appendChild(document.createElement("button"));
-  // The strip sits inside the composer's form, where a button of no type would submit it.
-  send.type = "button";
-  send.className = "rigline-gate-send";
-  send.title = "Sends this prompt with what is live, which counts as this session's choice";
-
-  const box = (): Element | null => document.querySelector(selector);
-  const form = (): HTMLFormElement | null => box()?.closest("form") ?? null;
-
-  function render(): void {
-    const { text: said, button } = wording(state, mode);
-    text.textContent = said;
-    send.textContent = button;
-    strip.hidden = !(shown && state.choiceRequired);
-  }
-
-  /** Hold `e` back, but only once the strip and its override are on screen. */
-  function hold(e: Event): void {
-    try {
-      shown = true;
-      render();
-    } catch (error) {
-      fail(`the model gate could not draw its strip: ${String(error)}`);
-      return;
-    }
-    if (strip.hidden || !strip.isConnected) return;
-    e.preventDefault();
-    e.stopImmediatePropagation();
-    stats.held += 1;
-  }
-
-  models.subscribe((next) => {
-    state = next;
-    if (!next.choiceRequired) shown = false;
-    render();
-  });
-
+  // Read from boot whatever the mode: switched on later, the gate would otherwise take a plain Enter
+  // for a send from somebody who sends with Ctrl+Enter, and the replay buffer has sealed by then.
   const readSendKey = (payload: unknown): void => {
     const value = (payload as { readonly state?: { readonly useCtrlEnterToSend?: unknown } } | null)
       ?.state?.useCtrlEnterToSend;
@@ -196,24 +141,104 @@ export function installGate(options: GateOptions): GateService {
   bus.on("init_response", readSendKey);
   bus.on("update_state", readSendKey);
 
-  mounts.watch(
-    { anchor: "composerBox", selector, unique: true },
-    RIGLINE,
-    (found) =>
-      mounts.attach(found, "before", 0, RIGLINE, () => strip, fail, "the model gate") ?? undefined,
-    fail,
-  );
+  let mode: RequireChoice = "off";
+  let idle: string | null = null;
+  const service: GateService = {
+    get mode() {
+      return mode;
+    },
+    get idle() {
+      return idle;
+    },
+    missing,
+    stats,
+    configure(settings) {
+      mode = settings.requireChoice;
+      idle = null;
+      if (mode === "off") {
+        stop?.();
+        stop = null;
+        return;
+      }
+      if (composerBox === null) {
+        idle = "the composer is not one element in this extension, so no send is held";
+        return;
+      }
+      stop ??= intercept(composerBox);
+    },
+  };
 
-  send.addEventListener("click", () => {
-    stats.overridden += 1;
-    models.confirm();
-    // The send button's own path, so the app composes the message as it does for any send.
-    form()?.requestSubmit();
-  });
+  /** The strip and the two listeners, and how to take them all away again. */
+  function intercept(selector: string): () => void {
+    let state: ModelState = NO_MODEL_STATE;
+    /** A send has been held in this session, so the strip shows until a choice lifts it. */
+    let shown = false;
 
-  window.addEventListener(
-    "keydown",
-    (e) => {
+    const style = document.createElement("style");
+    style.setAttribute("data-rigline-style", "gate");
+    style.textContent = CSS;
+    document.head.appendChild(style);
+
+    const strip = document.createElement("div");
+    strip.className = "rigline-gate";
+    strip.setAttribute("data-rigline-gate", "");
+    strip.setAttribute("role", "status");
+    strip.hidden = true;
+    const text = strip.appendChild(document.createElement("span"));
+    const send = strip.appendChild(document.createElement("button"));
+    // The strip sits inside the composer's form, where a button of no type would submit it.
+    send.type = "button";
+    send.className = "rigline-gate-send";
+    send.title = "Sends this prompt with what is live, which counts as this session's choice";
+
+    const box = (): Element | null => document.querySelector(selector);
+    const form = (): HTMLFormElement | null => box()?.closest("form") ?? null;
+
+    function render(): void {
+      const { text: said, button } = wording(state, mode);
+      text.textContent = said;
+      send.textContent = button;
+      strip.hidden = !(shown && state.choiceRequired);
+    }
+
+    /** Hold `e` back, but only once the strip and its override are on screen. */
+    function hold(e: Event): void {
+      try {
+        shown = true;
+        render();
+      } catch (error) {
+        fail(`the model gate could not draw its strip: ${String(error)}`);
+        return;
+      }
+      if (strip.hidden || !strip.isConnected) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      stats.held += 1;
+    }
+
+    const unsubscribe = models.subscribe((next) => {
+      state = next;
+      if (!next.choiceRequired) shown = false;
+      render();
+    });
+
+    const unwatch = mounts.watch(
+      { anchor: "composerBox", selector, unique: true },
+      RIGLINE,
+      (found) =>
+        mounts.attach(found, "before", 0, RIGLINE, () => strip, fail, "the model gate") ??
+        undefined,
+      fail,
+    );
+
+    send.addEventListener("click", () => {
+      stats.overridden += 1;
+      models.confirm();
+      // The send button's own path, so the app composes the message as it does for any send.
+      form()?.requestSubmit();
+    });
+
+    const onKeyDown = (e: KeyboardEvent): void => {
       if (!state.choiceRequired || !isSendKey(e, ctrlEnterToSend)) return;
       const target = e.target;
       const within = box();
@@ -221,18 +246,24 @@ export function installGate(options: GateOptions): GateService {
       if (within === null || !within.contains(target)) return;
       if (target.hasAttribute("aria-controls") || within.querySelector(OPEN_POPUP) !== null) return;
       hold(e);
-    },
-    true,
-  );
-
-  window.addEventListener(
-    "submit",
-    (e) => {
+    };
+    const onSubmit = (e: SubmitEvent): void => {
       if (!state.choiceRequired || e.target === null || e.target !== form()) return;
       hold(e);
-    },
-    true,
-  );
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    window.addEventListener("submit", onSubmit, true);
 
+    return () => {
+      window.removeEventListener("keydown", onKeyDown, true);
+      window.removeEventListener("submit", onSubmit, true);
+      unsubscribe();
+      unwatch();
+      strip.remove();
+      style.remove();
+    };
+  }
+
+  service.configure(options.settings);
   return service;
 }

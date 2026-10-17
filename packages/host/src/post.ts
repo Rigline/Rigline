@@ -18,13 +18,17 @@ import {
   type IdentifierTables,
   type Layout,
   type ModelSettings,
+  type ModelState,
   NO_MODEL_SETTINGS,
+  NO_MODEL_STATE,
   type OptionalContext,
   optionalGaps,
   type PluginContext,
+  RIGLINE,
   readModelSettings,
   type RiglinePlugin,
   type SaveRecord,
+  store,
   type Teardown,
   withRigline,
 } from "@rigline/plugin-api/internal";
@@ -34,11 +38,13 @@ import { createCheckService, HOST, kernelChecks } from "./kernel/checks.ts";
 import { createContextService } from "./kernel/context.ts";
 import { createCostService } from "./kernel/cost.ts";
 import { installGate } from "./kernel/gate.ts";
-import { createLayoutEditor, type SavedState } from "./kernel/layout.ts";
+import { createLayoutEditor } from "./kernel/layout.ts";
 import { createLimitsService } from "./kernel/limits.ts";
 import { createModelsService } from "./kernel/models.ts";
 import { guardLinks } from "./kernel/links.ts";
 import { settingsSaver } from "./kernel/save.ts";
+import type { SavedState } from "./kernel/saving.ts";
+import { createSettingsEditor, type SettingsEditor } from "./kernel/settings.ts";
 import { createMountService } from "./kernel/mounts.ts";
 import { createRecorder } from "./kernel/record.ts";
 import { createSessionService } from "./kernel/session.ts";
@@ -209,8 +215,9 @@ let reads = 0;
 /**
  * What `registry.js` holds now, since a fresh query is a fresh read (D93).
  *
- * The presets come back with the layout because this is the editor's only re-read, so Reload
- * refreshes the list a terminal's `layout export` just added (D133).
+ * The presets and the settings come back with the layout because this is the panel's only re-read,
+ * so Reload refreshes the list a terminal's `layout export` just added (D133), and any read is a
+ * source for what a plugin's `onSettings` hears.
  */
 async function readSavedState(): Promise<SavedState | null> {
   try {
@@ -221,6 +228,8 @@ async function readSavedState(): Promise<SavedState | null> {
       layout: registry.layout ?? {},
       presets: registry.presets ?? [],
       omitted: registry.presetsOmitted ?? 0,
+      settings: registry.settings ?? {},
+      rigline: { model: modelSettingsOf(registry.model) },
     };
   } catch {
     return null;
@@ -322,6 +331,22 @@ async function loadPlugin(plugin: PluginRecord, kernel: Kernel): Promise<PluginS
     // Undeclared, like `surface`: reading one's own configuration widens nothing, so there is no
     // identifier for a manifest to name and no gap a declaration could report (D138).
     settings: ownSettings(kernel.settings, plugin.name),
+    onSettings: (handler: (settings: Readonly<Record<string, unknown>>) => void) =>
+      grant.own(
+        kernel.settingsEditor.subscribe(plugin.name, grant.guard("onSettings() handler", handler)),
+      ),
+    // Undeclared: opening a screen is navigation, and writes nothing.
+    openSettings: (tab?: "rigline") => {
+      if (tab !== undefined && tab !== RIGLINE) {
+        throw new Error(`openSettings() opens this plugin's own tab, or Rigline's with "rigline"`);
+      }
+      if (tab === undefined && !kernel.shell.hasTab(plugin.name)) {
+        throw new Error(
+          `openSettings() opens this plugin's own tab, and it has none: call settingsTab() first, or pass "rigline"`,
+        );
+      }
+      kernel.settingsEditor.open.set(tab ?? plugin.name);
+    },
     optional: refusingUnknown(
       Object.freeze(disablingOnViolation(optional, disable)),
       "ctx.optional",
@@ -437,17 +462,33 @@ async function main(): Promise<void> {
   }
 
   const mounts = createMountService(message, react, diagnostics.mounts, meter);
+  // Every read of the file, whoever asked for it, is a source for what is saved.
+  const readSaved = async (): Promise<SavedState | null> => {
+    const read = await readSavedState();
+    if (read !== null) settingsEditor.observe(read);
+    return read;
+  };
+  const settingsEditor: SettingsEditor = createSettingsEditor({
+    save,
+    sections: settings,
+    rigline: { model: modelSettings },
+    readSaved,
+  });
   const editor = createLayoutEditor({
     baked: layout,
     plugins: withRigline(entries.map((p) => ({ name: p.name, elements: p.elements }))),
     save,
     presets,
     omitted,
-    readSaved: readSavedState,
+    readSaved,
   });
   const checks = createCheckService();
   const surface = detectSurface();
   const models = createModelsService(bus, modelSettings);
+  // Rigline's settings tab reads the list, so it is tapped before the seal, for the reason granting
+  // `uses.modelChoice` starts the read: tapped later, it is empty until the next `update_state`.
+  const modelState = store<ModelState>(NO_MODEL_STATE);
+  models.subscribe((state) => modelState.set(state));
   // Before any plugin loads, so its taps are in before the replay buffer seals.
   const gate = installGate({
     settings: modelSettings,
@@ -460,6 +501,11 @@ async function main(): Promise<void> {
       diagnostics.errors.push(`gate: ${reason}`);
       console.error(`[rigline] gate: ${reason}`);
     },
+  });
+  settingsEditor.saved.subscribe(() => {
+    const next = settingsEditor.saved.get().rigline.model;
+    models.configure(next);
+    gate.configure(next);
   });
   const kernel: Kernel = {
     tables,
@@ -485,21 +531,32 @@ async function main(): Promise<void> {
       meter,
     ),
     checks,
-    shell: createShellService(
+    shell: createShellService({
       tables,
       surface,
       editor,
+      settings: settingsEditor,
+      models: modelState,
       mounts,
       checks,
       diagnostics,
-      (plugin) => settingsSaver(save, settings, plugin),
-      (reason) => {
+      saver: (plugin) =>
+        settingsSaver(
+          save,
+          (section) => settingsEditor.savedOf(section),
+          plugin,
+          (section, value) => {
+            void settingsEditor.confirm(new Map([[section, value]]));
+          },
+        ),
+      fail: (reason) => {
         diagnostics.errors.push(`shell: ${reason}`);
         console.error(`[rigline] shell: ${reason}`);
       },
-    ),
+    }),
     plugins: entries,
     settings,
+    settingsEditor,
   };
 
   // Before the loop, so the host is the first contributor and a capability that has already failed

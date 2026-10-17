@@ -26,6 +26,7 @@ import type { LimitsService } from "./limits.ts";
 import type { ModelsService } from "./models.ts";
 import type { MountService } from "./mounts.ts";
 import type { SessionService } from "./session.ts";
+import type { SettingsEditor } from "./settings.ts";
 import type { ShellService } from "./shell.ts";
 import type { ToolService } from "./tools.ts";
 import type { TranscriptService } from "./transcript.ts";
@@ -71,6 +72,8 @@ export interface Kernel {
   readonly plugins: readonly PluginRecord[];
   /** Every plugin's settings as the injector baked them, by plugin name (D138). */
   readonly settings: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+  /** What is saved now, the screen's drafts, and which tab it shows. */
+  readonly settingsEditor: SettingsEditor;
 }
 
 /** What `grant` receives for one plugin. */

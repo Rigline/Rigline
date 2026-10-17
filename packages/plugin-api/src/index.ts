@@ -25,6 +25,7 @@ export type {
   RewritableType,
   RewritePatch,
   RiglinePlugin,
+  SettingsTabComponent,
   Teardown,
 } from "./context.ts";
 export { definePlugin } from "./context.ts";

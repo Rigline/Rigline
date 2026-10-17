@@ -130,6 +130,7 @@ the whole plugin. Resolve an optional name through `ctx.optional.anchor()`, whic
 | `session` | `ctx.onSessionId` |
 | `transcript` | `ctx.decorateTranscript` |
 | `menu` | `ctx.menu(Component)` — a React component in Rigline's menu, behind the RIG pill |
+| `settingsTab` | `ctx.settingsTab(title, Component)` — your tab in Rigline's settings screen |
 | `context` | `ctx.onContextUsage` — how full the context is, against where it compacts |
 | `cost` | `ctx.onSessionCost` — what the session has cost, by Claude Code's estimate, and whether it is billed per token |
 | `limits` | `ctx.onUsageLimits` — how much of the plan's five-hour and weekly limits is used, and when each resets |
@@ -142,9 +143,10 @@ and says so when the two disagree. A call you did not declare is in the plain re
 `rigline dev`'s, since it will disable the plugin; a declaration you never call is behind
 `--verbose`, since it costs nothing yet.
 
-Three members of `ctx` are on it without a declaration, because none widens what you can reach:
-`ctx.surface`, which is a string, `ctx.check`, below, and `ctx.settings`, which is your own
-configuration. `ctx.element` is declared by `elements` rather than by `uses`, also below.
+Some members of `ctx` are on it without a declaration, because none widens what you can reach:
+`ctx.surface`, which is a string, `ctx.check`, below, `ctx.settings` and `ctx.onSettings`, which are
+your own configuration, and `ctx.openSettings`, which opens a screen and writes nothing.
+`ctx.element` is declared by `elements` rather than by `uses`, also below.
 
 ### React, and state that outlives a component
 
@@ -277,12 +279,14 @@ re-measure each time, and one in `rigRow` whose height keeps changing re-renders
 `ctx.mount*` still places plain DOM, and is the tool for decorating every row of something, where
 there is no single place for an element to be.
 
-## Settings: `ctx.settings`, and saving them
+## Settings: reading them, a tab, and saving
 
 `ctx.settings` is your own block of the person's `~/.rigline/config.yaml`, under your plugin's
-name — a frozen snapshot of what it held when the panel loaded, and `{}` when there is none. No
-declaration: reading your own configuration reaches nothing you could not already reach. You never
-see another plugin's.
+name — frozen, as it was when the panel loaded, and `{}` when there is none. It is what `setup`
+reads. `ctx.onSettings(handler)` hands you the same block at once and again whenever the panel
+learns it changed: a save from this panel, or one made elsewhere that the panel has read since. No
+declaration for either: reading your own configuration reaches nothing you could not already
+reach. You never see another plugin's.
 
 **Tolerate what you find.** It is a file people edit by hand, so expect a key you have never heard
 of, a key you expect that is missing, and a value of the wrong shape. Rigline cannot check any of
@@ -290,27 +294,80 @@ it for you: it does not know your schema, and it deliberately passes an unknown 
 than dropping it, so a newer version of your plugin keeps its settings under an older Rigline.
 Read defensively and fall back to your own default.
 
-### Saving from the panel
+### A tab in the settings screen
 
-`SaveSettings` wraps whatever you draw in the link a save travels on. One real click both does the
-thing and saves the settings that doing it produced.
+Settings a person sits down to change belong in Rigline's settings screen: a tab for Rigline and
+one for each plugin that adds one, opened from the RIG menu. Declare `"settingsTab": true` under
+`uses` and add yours with `ctx.settingsTab(title, Component)`, once.
 
-It is for **a control in the panel** — a star on a model, a toggle on a pill — where the click that
-does the thing is the click that saves it. It is not for building a settings screen of your own:
-settings a person sits down to change belong in one consistent place rather than in a different
-shape per plugin, and that place is Rigline's to provide, not yours to invent.
+Your tab draws from the kit in `@rigline/plugin-api/ui`, which is what Rigline's own tab is drawn
+with, so every tab reads alike:
+
+- `SettingRow` — a `label`, an optional `hint`, and the control as its children, which the label
+  names.
+- `Toggle`, `Choice` (one of a few, `inline` for short labels side by side) and `TextField`.
+- `ListEditor` — rows you draw with `render`, which a person reorders and removes. Add to it with
+  the kit's other controls and a `Button`, drawn after it.
+- `ModelChooser` — a model, then one of the efforts that model takes, from the `ModelState`
+  `ctx.onModelState` hands you, so it needs `uses.models`. It stores the alias and shows the
+  version it resolves to now.
+
+`useSettingsDraft()` gives your tab `[draft, setDraft]`. The draft is your whole section as the
+person is editing it, frozen, starting from what is saved; `setDraft` replaces the whole of it.
+Rigline holds it, not your component, so it survives switching tabs and closing the screen. The
+screen's one Save writes every tab that differs from what is saved, yours stamped with your name,
+and Revert drops them all. You never save from a tab yourself.
 
 ```tsx
-import { definePlugin, store } from "@rigline/plugin-api";
+import { definePlugin } from "@rigline/plugin-api";
+import { SettingRow, Toggle, useSettingsDraft } from "@rigline/plugin-api/ui";
+
+export default definePlugin({
+  setup(ctx) {
+    ctx.settingsTab("Clock", () => {
+      const [draft, setDraft] = useSettingsDraft();
+      return (
+        <SettingRow label="Show seconds">
+          <Toggle
+            checked={draft.seconds === true}
+            onChange={(on) => setDraft({ ...draft, seconds: on })}
+          />
+        </SettingRow>
+      );
+    });
+  },
+});
+```
+
+Spread the draft when you set it, as above, so a key a person wrote by hand survives your save.
+
+`ctx.openSettings()` opens the screen at your tab — from your RIG entry, say, or a pill that wants a
+setting it has not got — and `ctx.openSettings("rigline")` at Rigline's, where the gate's mode and
+the person's default model live. With no tab of your own, the first throws.
+
+A tab whose saved section is larger than a Save link can carry says so as it opens. The limit on
+what `install` will load is far higher than the limit on what the panel can save back, so you can
+read more than you can write from here.
+
+### Saving from a control in the panel
+
+`SaveSettings` wraps whatever you draw in the link a save travels on. One real click both does the
+thing and saves the settings that doing it produced. It is for **a control in the panel** — a star
+on a model, a toggle on a pill — where the click that does the thing is the click that saves it.
+Everything else belongs in your tab.
+
+```tsx
+import { definePlugin, storeFrom } from "@rigline/plugin-api";
 import { Pill, SaveSettings, useStore } from "@rigline/plugin-api/ui";
 
 export default definePlugin({
   setup(ctx) {
-    const starred = store(ctx.settings.favourites ?? []);
+    const settings = storeFrom(ctx.onSettings, ctx.settings);
     ctx.element("star", () => {
-      const favourites = useStore(starred);
+      const current = useStore(settings);
+      const list = Array.isArray(current.favourites) ? current.favourites : [];
       return (
-        <SaveSettings value={{ favourites: [...favourites, "opus"] }} title="Star Opus">
+        <SaveSettings value={{ ...current, favourites: [...list, "opus"] }} title="Star Opus">
           <Pill>*</Pill>
         </SaveSettings>
       );
@@ -335,13 +392,11 @@ Three things about it are worth knowing before you design around it.
   anything but your own name.
 - **A save is not always possible, and the component says so.** Without the companion extension,
   without a token, or with a section larger than a link can carry, it renders your children with
-  no link and the reason as their tooltip. The last one matters if you keep bulk data in settings:
-  the limit on what `install` will load is far higher than the limit on what the panel can save
-  back, so you can read more than you can write from here.
+  no link and the reason as their tooltip.
 
 Nothing confirms instantly. The write goes through the companion and the engine, and Rigline shows
-its own notification; your snapshot does not change until the panel reloads. Draw from your own
-store, as above, rather than from `ctx.settings`, or the control will not move when it is clicked.
+its own notification; once the panel reads the file holding it, `ctx.onSettings` hands you the new
+section. Draw from a store fed by `onSettings`, as above, and the control moves when the save lands.
 
 ## Say when you are working: `ctx.check`
 

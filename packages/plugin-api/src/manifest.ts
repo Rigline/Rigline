@@ -110,6 +110,7 @@ export const EMPTY_DECLARATIONS: Declarations = Object.freeze({
   session: false,
   transcript: false,
   menu: false,
+  settingsTab: false,
   context: false,
   cost: false,
   limits: false,

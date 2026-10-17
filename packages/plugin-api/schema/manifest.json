@@ -136,6 +136,10 @@
           "type": "boolean",
           "description": "Adds to Rigline's menu."
         },
+        "settingsTab": {
+          "type": "boolean",
+          "description": "Adds a tab to Rigline's settings screen."
+        },
         "context": {
           "type": "boolean",
           "description": "follows how full the session's context is"
@@ -245,6 +249,10 @@
             "menu": {
               "type": "boolean",
               "description": "Adds to Rigline's menu."
+            },
+            "settingsTab": {
+              "type": "boolean",
+              "description": "Adds a tab to Rigline's settings screen."
             },
             "context": {
               "type": "boolean",

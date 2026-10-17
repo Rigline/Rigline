@@ -40,14 +40,15 @@ export interface SettingsSaver {
   readonly plugin: string;
   /** The link that writes `value`, or the reason this machine has none to offer. */
   readonly link: (value: Readonly<Record<string, unknown>>, section?: string) => SaveLink;
+  /** Hears the link followed, so the panel can learn that the save landed. */
+  readonly followed?: (value: Readonly<Record<string, unknown>>, section?: string) => void;
 }
 
 export const SettingsContext = createContext<SettingsSaver | null>(null);
 
 /**
  * The saver Rigline's own contributions get: its layout is not a plugin's section, so they save no
- * settings. The panel's own settings editor, when there is one, needs a real saver with the
- * first-party exemption `maySaveSection` is the place for — not this.
+ * settings. Rigline's own settings go through its settings tab's draft, not through this.
  */
 export const NO_SAVER: SettingsSaver = {
   plugin: "rigline",
@@ -96,6 +97,7 @@ export function SaveSettings(props: SaveSettingsProps): ReactNode {
       className="rigline-ui-save"
       title={title}
       onClick={() => {
+        saver?.followed?.(value, section);
         try {
           onSave?.();
         } catch (e) {

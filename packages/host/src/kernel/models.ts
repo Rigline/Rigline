@@ -74,14 +74,17 @@ export interface ModelsService {
   apply(choice: ModelChoice): Promise<ChoiceResult>;
   /** The gate's override: the person sent with what is live, which is this session's choice. */
   confirm(): void;
+  /** Rigline's model settings changed, read from a save or another window's. */
+  configure(settings: ModelSettings): void;
   readonly current: ModelState;
   readonly stats: ModelsStats;
 }
 
 export function createModelsService(
   bus: Bus,
-  settings: ModelSettings = NO_MODEL_SETTINGS,
+  initial: ModelSettings = NO_MODEL_SETTINGS,
 ): ModelsService {
+  let settings = initial;
   const handlers = new Set<(state: ModelState) => void>();
   let tapped = false;
   let replies = 0;
@@ -219,6 +222,10 @@ export function createModelsService(
     confirm() {
       tap();
       choose();
+    },
+    configure(next) {
+      settings = next;
+      publish();
     },
     get current() {
       return state;

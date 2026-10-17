@@ -3812,6 +3812,11 @@ the loop is the companion watching `config.yaml` and re-baking, which is the sam
 runs for the extension directories and needs no change of store. Reopen this only for the settings
 UI, which is the one thing a file watcher cannot supply.
 
+**Amended 2026-10-17 by D140:** `ctx.settings` stays, as what `setup` reads, and `ctx.onSettings`
+follows it. "A subscription would promise live updates that do not exist" held while nothing in the
+panel saved; once the panel saves and reads its own save back, as the layout editor does, the update
+exists, and every read of `registry.js` is an honest source for it.
+
 **D139. Rigline may hold a send until a model is chosen, at the person's request (2026-10-17,
 Leo).** Claude Code's model and effort are user settings, not per-session state: its picker writes
 `~/.claude/settings.json`, so a change made for one session is every later session's, and nothing
@@ -3846,3 +3851,39 @@ The default is Rigline's, beside the mode, because the gate is what reads it (D1
 the engine checks only its shape: which models exist is the panel's to know. A plugin learns it, and
 whether this session still needs a choice, through `ModelState` rather than hooks of its own, since
 a store made in `setup` is the one way of reading that is right for every source.
+
+**D140. A settings screen of tabs, drafts the host holds, and one Save (2026-10-17, Leo).** The
+screen is the way a person changes a setting; `config.yaml` and the CLI are a developer's, so a
+setting reachable only there is one nobody changes. It has a tab for Rigline and one for each plugin
+that adds one with `uses.settingsTab` and `ctx.settingsTab`, and the RIG menu always opens it.
+`ctx.openSettings` opens it at the plugin's tab or Rigline's, undeclared, since navigation writes
+nothing.
+
+**Rigline knows its own settings' shape and no plugin's.** A plugin draws its tab from the kit in
+`@rigline/plugin-api/ui` — a labelled row, a toggle, a choice, a text field, a list editor, the model
+chooser — and Rigline's own tab is drawn from the same kit through the same path. Consistency comes
+from the kit being good enough that nobody rolls their own. A plugin-declared schema was rejected: a
+manifest surface whose only job is telling Rigline a shape it has no business knowing. A plugin with
+settings and no tab gets none, since a raw-text fallback is the editor this exists to replace.
+
+**The plugin owns what is saved; the host owns the draft and when it goes.** Tabs render one at a
+time, so state in a tab's component would die at every switch. The host holds a draft per tab, what
+it started from and what it is now, only while it differs from what is saved, and a tab is a
+controlled view over it through `useSettingsDraft`. A clean tab shows the file as last read, so a
+save from elsewhere reaches it unreconciled; a dirty one keeps its start, which tells the engine
+the file moved under it (D92's rule, per tab).
+
+**One Save, because one click follows one link.** It merges every dirty draft, each stamped with its
+tab's owner, so `maySaveSection` passes unchanged and needs no first-party exemption. Rigline's own
+settings travel in the payload's own `rigline` member, validated by the engine with `readConfig`'s
+rules for each block; a reserved section name was rejected for putting top-level configuration and
+plugin sections back into one map. That moved the payload to version 2, and the engine refuses 1
+with a reason that says to reload: no first-party control ever sent one. `MAX_SETTINGS_PAYLOAD` is
+spent across every draft, and a Save that will not fit says so rather than splitting.
+
+The save state is the layout editor's, one module for both, ending in `unconfirmed` where no
+companion answered. Every read of `registry.js` feeds what the tabs take as saved and
+`ctx.onSettings` (D138, as amended), and a changed `model` reaches the models service and the gate, whose
+interception goes in or comes out with the mode so D139's *nothing at all when off* holds live.
+`SaveSettings` stays for a control in the panel, where the click that does the thing is the one
+that saves it, and confirms through the same read.

@@ -7,9 +7,10 @@
  * `@rigline/plugin-api/ui`. The menu renders in the root's own container on `body`, never inside the
  * pill: the pill is a child of the composer footer, which re-measures on any mutation inside it (D54).
  */
-import { Pill, useStore } from "@rigline/plugin-api/ui";
+import { MenuItem, Pill, useStore } from "@rigline/plugin-api/ui";
 import {
   FaultContext,
+  KIT_CSS,
   MENU_CSS,
   MenuPanel,
   NO_SAVER,
@@ -24,7 +25,9 @@ import { diagnosticsMenu } from "./diagnostics.tsx";
 import { EDIT_CSS, EditLayer } from "./edit.tsx";
 import { layoutMenu } from "./layout.tsx";
 import { OWN_CSS } from "./own.tsx";
+import { SCREEN_CSS, SettingsScreen } from "./screen.tsx";
 import type { Contribution, PlacedElement, ShellOptions } from "./types.ts";
+import type { SettingsEditor } from "../kernel/settings.ts";
 
 const CSS = `
 .rigline-pill {
@@ -179,13 +182,29 @@ function Elements(props: {
   );
 }
 
+/** The menu's way into the settings screen, which says while any tab holds unsaved changes. */
+function settingsMenu(settings: SettingsEditor): () => ReactNode {
+  return function SettingsMenu() {
+    const dirty = useStore(settings.drafts).size > 0;
+    return (
+      <MenuItem
+        label="Settings…"
+        description={dirty ? "unsaved changes" : undefined}
+        onSelect={() => settings.open.set("")}
+      />
+    );
+  };
+}
+
 function Shell(
   props: ShellOptions & {
     readonly diagnosticsEntry: Contribution;
     readonly layoutEntry: Contribution;
+    readonly settingsEntry: Contribution;
   },
 ): ReactNode {
   const { pill, contributions, elements, failing, editor, diagnosticsEntry, layoutEntry } = props;
+  const { settings, settingsEntry } = props;
   const [open, setOpen] = useState<"first" | "menu" | null>(null);
   const button = useRef<HTMLElement>(null);
   const close = useCallback((restoreFocus: boolean) => {
@@ -200,10 +219,18 @@ function Shell(
   const contributed = useStore(contributions);
   const laidOut = useStore(editor.view).length > 0;
   const editing = useStore(editor.editing);
+  const tabs = useStore(props.tabs);
+  const screen = useStore(settings.open) !== null && tabs.length > 0;
+  const closeScreen = useCallback(() => settings.open.set(null), [settings]);
   // Rigline's own entries after every plugin's, which the menu divides from them by owner.
   const items = useMemo(
-    () => [...contributed, diagnosticsEntry, ...(laidOut ? [layoutEntry] : [])],
-    [contributed, diagnosticsEntry, layoutEntry, laidOut],
+    () => [
+      ...contributed,
+      diagnosticsEntry,
+      ...(laidOut ? [layoutEntry] : []),
+      ...(tabs.length > 0 ? [settingsEntry] : []),
+    ],
+    [contributed, diagnosticsEntry, layoutEntry, laidOut, settingsEntry, tabs.length],
   );
   const placed = useStore(elements);
   const summary = count > 0 ? `${count} failing` : "all checks pass";
@@ -237,6 +264,7 @@ function Shell(
           onError={props.onError}
         />
       )}
+      {screen && <SettingsScreen settings={settings} tabs={tabs} onClose={closeScreen} />}
     </>
   );
 }
@@ -244,7 +272,8 @@ function Shell(
 export function startShell(options: ShellOptions): () => void {
   const style = document.createElement("style");
   style.setAttribute("data-rigline-style", "rigline");
-  style.textContent = CSS + MENU_CSS + PILL_CSS + SAVE_CSS + EDIT_CSS + OWN_CSS;
+  style.textContent =
+    CSS + MENU_CSS + PILL_CSS + SAVE_CSS + EDIT_CSS + OWN_CSS + KIT_CSS + SCREEN_CSS;
   document.head.appendChild(style);
   const root = createRoot(options.layer, {
     // A contribution's boundary reports through its plugin's error path, which logs it attributed.
@@ -266,6 +295,7 @@ export function startShell(options: ShellOptions): () => void {
         diagnosticsMenu(options.checks, options.diagnostics, options.surface),
       )}
       layoutEntry={own(-2, layoutMenu(options.editor, options.readings, options.places))}
+      settingsEntry={own(-3, settingsMenu(options.settings))}
     />,
   );
   return () => {
@@ -275,3 +305,4 @@ export function startShell(options: ShellOptions): () => void {
 }
 
 export { riglineElements } from "./own.tsx";
+export { riglineTab } from "./rigline-tab.tsx";

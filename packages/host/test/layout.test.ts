@@ -3,7 +3,12 @@
  * Reload, the menu opening and a save's confirmation share. The re-read and the wait are injected,
  * so the twenty seconds a confirmation may take cost nothing here.
  */
-import type { BakedPreset, Layout, LayoutPlugin } from "@rigline/plugin-api/internal";
+import {
+  type BakedPreset,
+  type Layout,
+  type LayoutPlugin,
+  NO_MODEL_SETTINGS,
+} from "@rigline/plugin-api/internal";
 import { describe, expect, it } from "vitest";
 import { createLayoutEditor } from "../src/kernel/layout.ts";
 
@@ -43,7 +48,15 @@ function editor(
     readSaved: async () => {
       reads++;
       const layout = saved();
-      return layout === null ? null : { layout, presets: savedPresets(), omitted: 0 };
+      return layout === null
+        ? null
+        : {
+            layout,
+            presets: savedPresets(),
+            omitted: 0,
+            settings: {},
+            rigline: { model: NO_MODEL_SETTINGS },
+          };
     },
     wait,
     now,

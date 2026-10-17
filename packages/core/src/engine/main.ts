@@ -725,10 +725,12 @@ function layoutCommand(args: string[]): number {
  * wording and change it there.
  */
 function settingsOutcome(configPath: string, saved: SettingsSaved): string {
+  const moved = [
+    ...saved.overChange,
+    ...saved.ownOverChange.map((block) => `Rigline's ${block} settings`),
+  ];
   const over =
-    saved.overChange.length === 0
-      ? ""
-      : `, over a change to ${saved.overChange.join(", ")} made since the panel loaded`;
+    moved.length === 0 ? "" : `, over a change to ${moved.join(", ")} made since the panel loaded`;
   // In the outcome rather than a line after it, because `reinject` prints below this and a rule
   // about what follows would fire on that. It is also the line the notification shows.
   const skipped =
@@ -771,7 +773,7 @@ function settingsCommand(args: string[]): number {
   );
   // A save that wrote nothing is a failed request, not a result, so it refuses in the shape
   // `saveFromPanel` does — before anything is printed, since the first line is read as the outcome.
-  if (saved.wrote.length === 0) {
+  if (saved.wrote.length === 0 && saved.own.length === 0) {
     throw new UserError(
       saved.unknown.length === 0
         ? "not saved: the Save link named no settings"

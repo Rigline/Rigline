@@ -14,7 +14,12 @@ import {
   type MockInstance,
   vi,
 } from "vitest";
-import { type SettingsSave, encodeSettingsPayload } from "@rigline/plugin-api/internal";
+import {
+  encodeSettingsPayload,
+  type RiglineSave,
+  SETTINGS_PAYLOAD_VERSION,
+  type SettingsSave,
+} from "@rigline/plugin-api/internal";
 import { writeFixtureExtension } from "../../test/fixtures.ts";
 import { readConfig } from "../plugins/config.ts";
 import { ensureToken } from "../plugins/save.ts";
@@ -286,10 +291,15 @@ describe("settings save (D138)", () => {
     writeFileSync(join(dir, "dist", "index.js"), "export default { setup() {} };" + "\n");
   }
 
-  function link(sections: Record<string, SettingsSave>): string {
+  function link(sections: Record<string, SettingsSave>, own?: RiglineSave): string {
     const made = ensureToken(join(rigline(), "token"));
     if ("problem" in made) throw new Error(made.problem);
-    return encodeSettingsPayload({ v: 1, token: made.token, sections });
+    return encodeSettingsPayload({
+      v: SETTINGS_PAYLOAD_VERSION,
+      token: made.token,
+      sections,
+      ...(own === undefined ? {} : { rigline: own }),
+    });
   }
 
   const lines = (): string[] => log.mock.calls.flat().map(String);
@@ -334,6 +344,25 @@ describe("settings save (D138)", () => {
       `saved the panel's settings to ${configPath()}; skipped "gone": no plugin of that name is installed`,
     );
     expect(readConfig(configPath()).settings).toEqual({ clock: { tick: 1 } });
+  }, 60_000);
+
+  it("saves Rigline's own settings alone, and names them where they moved since", async () => {
+    mkdirSync(rigline(), { recursive: true });
+    writeFileSync(configPath(), "model:\n  requireChoice: unlessDefault\n");
+
+    const payload = link(
+      {},
+      {
+        from: { model: { requireChoice: "off", default: null } },
+        to: { model: { requireChoice: "always", default: null } },
+      },
+    );
+    expect(await runEngine(["settings", "save", payload])).toBe(0);
+
+    expect(lines()[0]).toBe(
+      `saved the panel's settings to ${configPath()}, over a change to Rigline's model settings made since the panel loaded`,
+    );
+    expect(readConfig(configPath()).model.requireChoice).toBe("always");
   }, 60_000);
 
   it("refuses, rather than reporting a save, when no section names a plugin it has", async () => {

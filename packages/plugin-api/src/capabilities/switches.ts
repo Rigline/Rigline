@@ -30,6 +30,16 @@ export const menuContract: CapabilityContract<"menu"> = {
   summary: (declared) => (declared ? ["adds to Rigline's menu"] : []),
 };
 
+/** A tab in Rigline's settings screen, which the shell draws. Depends on nothing harvested. */
+export const settingsTabContract: CapabilityContract<"settingsTab"> = {
+  key: "settingsTab",
+  grants: ["settingsTab"],
+  schema: { type: "boolean", description: "Adds a tab to Rigline's settings screen." },
+  shape: booleanShape,
+  gaps: () => [],
+  summary: (declared) => (declared ? ["adds a tab to Rigline's settings screen"] : []),
+};
+
 /**
  * Tool calls lifted out of the conversation stream. A switch rather than a list of tool names:
  * tool names belong to the CLI and to whoever wrote the tool, so there is nothing to check them

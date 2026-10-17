@@ -1,11 +1,13 @@
 # Your settings
 
-Rigline keeps what you decide in one file, `~/.rigline/config.yaml`. You can edit it by hand, or
-let a command do it: `rigline disable`, `rigline enable` and `rigline layout` change it for you. A
-command edits the
-file in place, so your comments, blank lines and the order you wrote things in all survive. Nothing
-you change takes effect until the next `rigline install` (the commands run one for you), and then a
-reload of the panel.
+Rigline keeps what you decide in one file, `~/.rigline/config.yaml`. The usual way to change it is
+from the panel: **Settings…** in the RIG menu opens a screen with a tab for Rigline and one for each
+plugin that has settings, and its Save writes this file. You can also edit it by hand, or let a
+command do it: `rigline disable`, `rigline enable` and `rigline layout` change it for you. The panel
+and the commands edit the file in place, so your comments, blank lines and the order you wrote
+things in all survive. A change made by hand or by a command takes effect at the next `rigline
+install` (the commands run one for you), and then a reload of the panel; one saved from the panel
+reaches the panel that saved it without a reload.
 
     # Rigline's settings. Edit freely: rigline's commands keep your comments.
     # https://github.com/Rigline/Rigline/blob/main/docs/config.md
@@ -42,11 +44,12 @@ takes.
           - opus
           - haiku
 
-Some plugins can save their own settings from the panel, with a click on whatever they draw — the
-star in the example above. That writes only that plugin's block and leaves the rest of the file as
-you wrote it, comments included, the same as a `rigline layout` edit does. It goes through the
-companion extension, so without one installed the panel says so instead of offering it. A plugin
-can only ever write its own block, never another plugin's.
+A plugin with settings worth changing has a tab in the settings screen, and some can also save
+from a click on whatever they draw — the star in the example above. Either way that writes only
+that plugin's block and leaves the rest of the file as you wrote it, comments included, the same as
+a `rigline layout` edit does. It goes through the companion extension, so without one installed the
+panel says so instead of offering it. A plugin can only ever write its own block, never another
+plugin's.
 
 A key Rigline does not understand inside a plugin's block is **kept and passed on**, unlike one at
 the top level: Rigline never knows a plugin's own settings, so it cannot tell a typo from a key a
@@ -66,7 +69,8 @@ than failing after you have done the work.
 ## Choosing a model before you send
 
 Claude Code's model and effort are settings, not part of a session: change them once and every
-session after uses the change, until somebody notices. `model` can make the panel ask instead.
+session after uses the change, until somebody notices. `model` can make the panel ask instead. Both
+are on the Rigline tab of the settings screen.
 
     model:
       default: { model: opus, effort: high }

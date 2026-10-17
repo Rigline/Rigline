@@ -84,12 +84,16 @@ Dynamically imported after boot. In order:
 2. Import `./generated.js`. If that fails, load nothing and say why: empty tables would refuse
    every plugin naming an identifier that has not gone.
 3. Import `./registry.js`. Publish the recorded patch outcomes to diagnostics, and build the layout
-   editor from its `layout` and `save` (below).
+   editor from its `layout` and `save` and the settings editor from its `settings` and `model`
+   (below). Subscribe to the models service for Rigline's settings tab, so its taps are in before
+   the buffer seals.
 4. Install the model gate where `registry.js`'s `model` asks for one (D139): capture listeners for
    the composer's send keystroke and its form's submit, and the strip above the composer that names
    what is live and sends anyway. It is drawn before anything is held, so a held send always has its
    way past on screen. Before any plugin loads, so the models service's taps are in before the
-   buffer seals. Off, nothing is installed.
+   buffer seals. Off, nothing is installed. A read of `registry.js` that finds the mode changed puts
+   the interception in or takes it out; the send key's setting is read from boot whatever the mode,
+   since a gate switched on after the seal could not learn it.
 5. If the app has made its one call to `acquireVsCodeApi`, replace the global with one that throws,
    as VS Code's own does on a second call (D79). Never before, or a plugin could get there first.
 6. For each registry entry, in registry order:
@@ -137,7 +141,8 @@ only the top level shows, so the levels beneath keep their state. The panel list
 an Escape that closed the menu.
 
 After every plugin's entries come Rigline's own: *Diagnostics*, always, then Layout while any element
-is declared. *Diagnostics* shows the run the pill's count came from, grouped by contributor, and
+is declared, then *Settings…*, which opens the settings screen and says "unsaved changes" while any
+tab holds a draft. *Diagnostics* shows the run the pill's count came from, grouped by contributor, and
 Copy report puts [report.ts](../packages/host/src/shell/report.ts)'s text on the clipboard (D53,
 D119).
 
@@ -229,6 +234,32 @@ panel has, and calls the editor's `drop` once, on release; the bar is the target
 target is a band drawn beside its anchor rather than a placeholder in the footer (D54). A row's
 handle opens *Move row up* and *Move row down*, and its drag calls `moveRow` on release, with a
 marker between rows.
+
+### The settings screen
+
+The shell draws it over the whole panel: a rail of tabs, Rigline's first and then each plugin's in
+registry order, and the tab beside it, or a list leading into it where a container query finds no
+room for both. Rigline's own tab is bound once `shell.js` has loaded, from the component it exports
+as `riglineTab`, through the shell service's `tab` as a plugin's `ctx.settingsTab` is, so there is
+one mechanism. Each tab renders in a boundary that disables its plugin, inside three contexts: its
+fault path, its settings saver, and its draft, which `useSettingsDraft` reads.
+
+The kernel's `settings.ts` holds what `registry.js` last held of every plugin's section and of
+Rigline's own settings, and a draft per tab, `{ from, to }`, only while it differs from what is
+saved. A clean tab therefore shows the file as last read; a dirty one keeps its `from`, and says
+when the file has moved under it. Drafts outlive switching tabs and closing the screen, and a tab
+torn down takes its draft with it. Save merges every draft into one link: each plugin's under
+`sections`, stamped with its owner and checked with `maySaveSection`, and Rigline's under the
+payload's own `rigline` member, never as a section. `MAX_SETTINGS_PAYLOAD` is spent across all of
+them, and a Save that will not fit is disabled with the reason. Revert re-reads and drops every
+draft. There is no Copy commands: no command writes these, so without a companion Save gives the
+reason instead.
+
+Every read of `registry.js`, whoever asked for it — either editor's confirmation, Reload, the menu
+opening, look-on-focus — feeds the settings editor, which publishes only what changed: a plugin's
+section to its `ctx.onSettings`, and Rigline's model settings to the models service and the gate.
+A `SaveSettings` click confirms through the same poll. Both editors share `saving.ts`, the save
+state and the poll that ends in `unconfirmed`; the layout editor adds only the closing of edit mode.
 
 The kernel knows no capability by name. It owns the plugin lifecycle, the per-React-commit pass
 that re-places mounts and re-anchors watches (D52), the mount arbitration (host-placed nodes ordered

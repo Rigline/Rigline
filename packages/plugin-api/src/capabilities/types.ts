@@ -35,6 +35,8 @@ export interface Declarations {
   readonly transcript: boolean;
   /** Whether the plugin adds to Rigline's menu through `ctx.menu()`. */
   readonly menu: boolean;
+  /** Whether the plugin adds a tab to Rigline's settings screen through `ctx.settingsTab()`. */
+  readonly settingsTab: boolean;
   /** Whether the plugin follows how full the context is through `ctx.onContextUsage()`. */
   readonly context: boolean;
   /** Whether the plugin follows what the session has cost through `ctx.onSessionCost()`. */

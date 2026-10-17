@@ -1,7 +1,12 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { encodeSettingsPayload, type SettingsSave } from "@rigline/plugin-api/internal";
+import {
+  encodeSettingsPayload,
+  type RiglineSave,
+  SETTINGS_PAYLOAD_VERSION,
+  type SettingsSave,
+} from "@rigline/plugin-api/internal";
 import { afterEach, describe, expect, it } from "vitest";
 import { readConfig } from "./config.ts";
 import { ensureToken } from "./save.ts";
@@ -72,6 +77,15 @@ describe("writeSettings", () => {
     expect(readConfig(path).settings).toEqual({ a: { x: 9 }, b: { y: 2 } });
   });
 
+  it("leaves an unchanged list alone, comment and flow style included", () => {
+    const path = join(tempDir(), "config.yaml");
+    const text = "settings:\n  a:\n    list: [x, y] # mine\n    n: 1\n";
+    writeFileSync(path, text);
+
+    expect(writeSettings(path, { a: { list: ["x", "y"], n: 1 } })).toBe(false);
+    expect(readFileSync(path, "utf8")).toBe(text);
+  });
+
   it("refuses a section that is not a mapping rather than repairing it", () => {
     const path = join(tempDir(), "config.yaml");
     writeFileSync(path, "settings:\n  a: nonsense\n");
@@ -79,6 +93,56 @@ describe("writeSettings", () => {
     // Editing reads first, so the reader refuses it by name and the person who wrote it fixes it —
     // the same answer `disabled` and `companion` give to a shape somebody got wrong (D91).
     expect(() => writeSettings(path, { a: { x: 1 } })).toThrow(/"settings\.a" must be a mapping/);
+  });
+});
+
+describe("writeSettings, for Rigline's own model block", () => {
+  const OFF = { requireChoice: "off", default: null } as const;
+
+  it("writes a mode and a default, the default in flow style, and takes them out again", () => {
+    const path = join(tempDir(), "config.yaml");
+    writeFileSync(path, "# mine\ndisabled: []\n");
+
+    const always = { requireChoice: "always", default: { model: "opus", effort: "high" } } as const;
+    expect(writeSettings(path, {}, { model: always })).toBe(true);
+    expect(readConfig(path).model).toEqual(always);
+    expect(readFileSync(path, "utf8")).toMatch(/default: \{ ?model: opus, effort: high ?\}/);
+    expect(writeSettings(path, {}, { model: always })).toBe(false);
+
+    // Back to the defaults: each key goes, and the block with them.
+    expect(writeSettings(path, {}, { model: OFF })).toBe(true);
+    const text = readFileSync(path, "utf8");
+    expect(text).not.toContain("model");
+    expect(text).toContain("# mine");
+  });
+
+  it("keeps a comment on what it did not change, and a key a later Rigline wrote", () => {
+    const path = join(tempDir(), "config.yaml");
+    writeFileSync(
+      path,
+      [
+        "model:",
+        "  # asks every time",
+        "  requireChoice: always",
+        "  later: true",
+        "  default: { model: opus }",
+        "",
+      ].join("\n"),
+    );
+
+    writeSettings(path, {}, { model: { requireChoice: "always", default: { model: "haiku" } } });
+    const text = readFileSync(path, "utf8");
+    expect(text).toContain("# asks every time");
+    expect(text).toContain("later: true");
+    expect(readConfig(path).model.default).toEqual({ model: "haiku" });
+  });
+
+  it("makes a block of a `model:` that holds nothing", () => {
+    const path = join(tempDir(), "config.yaml");
+    writeFileSync(path, "model:\n");
+
+    writeSettings(path, {}, { model: { ...OFF, requireChoice: "unlessDefault" } });
+    expect(readConfig(path).model.requireChoice).toBe("unlessDefault");
   });
 });
 
@@ -92,7 +156,7 @@ describe("saveSettingsFromPanel", () => {
   }
 
   const link = (token: string, sections: Record<string, SettingsSave>) =>
-    encodeSettingsPayload({ v: 1, token, sections });
+    encodeSettingsPayload({ v: SETTINGS_PAYLOAD_VERSION, token, sections });
 
   it("writes the sections it is given and reports none over a change", () => {
     const { configPath, tokenPath, token } = home();
@@ -105,7 +169,14 @@ describe("saveSettingsFromPanel", () => {
         link(token, { a: { from: { x: 1 }, to: { x: 2 } } }),
         new Set(["a"]),
       ),
-    ).toEqual({ changed: true, wrote: ["a"], overChange: [], unknown: [] });
+    ).toEqual({
+      changed: true,
+      wrote: ["a"],
+      overChange: [],
+      unknown: [],
+      own: [],
+      ownOverChange: [],
+    });
     expect(readConfig(configPath).settings).toEqual({ a: { x: 2 } });
   });
 
@@ -120,7 +191,14 @@ describe("saveSettingsFromPanel", () => {
       new Set(["a", "b"]),
     );
     // `a` moved under the panel; `b` did not. The write still lands, as the layout's does (D92).
-    expect(saved).toEqual({ changed: true, wrote: ["a", "b"], overChange: ["a"], unknown: [] });
+    expect(saved).toEqual({
+      changed: true,
+      wrote: ["a", "b"],
+      overChange: ["a"],
+      unknown: [],
+      own: [],
+      ownOverChange: [],
+    });
     expect(readConfig(configPath).settings).toEqual({ a: { x: 2 }, b: { y: 2 } });
   });
 
@@ -135,7 +213,14 @@ describe("saveSettingsFromPanel", () => {
         link(token, { a: { from: {}, to: { x: 1 } } }),
         new Set(["a"]),
       ),
-    ).toEqual({ changed: true, wrote: ["a"], overChange: [], unknown: [] });
+    ).toEqual({
+      changed: true,
+      wrote: ["a"],
+      overChange: [],
+      unknown: [],
+      own: [],
+      ownOverChange: [],
+    });
   });
 
   it("skips a section naming a plugin this machine has not got, and writes the rest", () => {
@@ -148,7 +233,14 @@ describe("saveSettingsFromPanel", () => {
       link(token, { a: { from: { x: 1 }, to: { x: 2 } }, gone: { from: {}, to: { y: 1 } } }),
       new Set(["a"]),
     );
-    expect(saved).toEqual({ changed: true, wrote: ["a"], overChange: [], unknown: ["gone"] });
+    expect(saved).toEqual({
+      changed: true,
+      wrote: ["a"],
+      overChange: [],
+      unknown: ["gone"],
+      own: [],
+      ownOverChange: [],
+    });
     // No block invented for a plugin that was never here, and `a` still saved.
     expect(readConfig(configPath).settings).toEqual({ a: { x: 2 } });
   });
@@ -179,8 +271,40 @@ describe("saveSettingsFromPanel", () => {
       link(token, { gone: { from: {}, to: { y: 1 } } }),
       new Set(["a"]),
     );
-    expect(saved).toEqual({ changed: false, wrote: [], overChange: [], unknown: ["gone"] });
+    expect(saved).toEqual({
+      changed: false,
+      wrote: [],
+      overChange: [],
+      unknown: ["gone"],
+      own: [],
+      ownOverChange: [],
+    });
     expect(readConfig(configPath).settings).toEqual({ a: { x: 1 } });
+  });
+
+  it("writes Rigline's own blocks beside the sections, and names one moved since", () => {
+    const { configPath, tokenPath, token } = home();
+    writeFileSync(configPath, "model:\n  requireChoice: unlessDefault\n");
+
+    const rigline: RiglineSave = {
+      from: { model: { requireChoice: "off", default: null } },
+      to: { model: { requireChoice: "always", default: null } },
+    };
+    const saved = saveSettingsFromPanel(
+      configPath,
+      tokenPath,
+      encodeSettingsPayload({ v: SETTINGS_PAYLOAD_VERSION, token, sections: {}, rigline }),
+      new Set(),
+    );
+    expect(saved).toEqual({
+      changed: true,
+      wrote: [],
+      overChange: [],
+      unknown: [],
+      own: ["model"],
+      ownOverChange: ["model"],
+    });
+    expect(readConfig(configPath).model.requireChoice).toBe("always");
   });
 
   it("refuses another machine's token, and a payload that is not one", () => {
