@@ -16,7 +16,13 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { BakedPreset, Layout, ModelSettings, SaveRecord } from "@rigline/plugin-api/internal";
-import { type Browser, type ConsoleMessage, chromium, type Page } from "playwright";
+import {
+  type Browser,
+  type BrowserContext,
+  type ConsoleMessage,
+  chromium,
+  type Page,
+} from "playwright";
 import { afterAll, beforeAll } from "vitest";
 import { missing, versionDir } from "../../core/test/corpus.ts";
 import { type FixturePlugin, preparePayload, type RemovedIdentifiers } from "./payload.ts";
@@ -83,6 +89,13 @@ export interface HarnessDiagnostics {
     readonly failures: number;
     readonly bytes: number;
   };
+  readonly broadcast: {
+    readonly open: boolean;
+    readonly posted: number;
+    readonly heard: number;
+    readonly dropped: number;
+    readonly lastDrop: string | null;
+  };
 }
 
 /** One message as the fake host recorded it arriving: the envelope, with the inner request. */
@@ -91,12 +104,19 @@ export interface OutboundEnvelope {
   readonly request?: { readonly type: string; readonly title?: unknown };
 }
 
-export interface Booted {
+/** One panel the harness opened. */
+export interface Panel {
   readonly page: Page;
-  /** What the page loads Rigline from, so a test can rewrite a file under it mid-run. */
-  readonly payloadDir: string;
   /** Everything the page logged at error level, plus any uncaught page error. */
   readonly consoleErrors: readonly string[];
+  diagnostics(): Promise<HarnessDiagnostics>;
+  /** Every message the app sent the fake host, in order. */
+  sent(): Promise<readonly OutboundEnvelope[]>;
+}
+
+export interface Booted extends Panel {
+  /** What the page loads Rigline from, so a test can rewrite a file under it mid-run. */
+  readonly payloadDir: string;
   readonly bootMs: number;
   /**
    * How long after the app's own first render the kernel finished loading plugins. The window a
@@ -104,9 +124,11 @@ export interface Booted {
    * machine and widens under a full suite, which is why the race only ever showed up there.
    */
   readonly kernelMs: number;
-  diagnostics(): Promise<HarnessDiagnostics>;
-  /** Every message the app sent the fake host, in order. */
-  sent(): Promise<readonly OutboundEnvelope[]>;
+  /**
+   * A second panel on the same payload, origin and browser context, as a second editor tab is: what
+   * a `BroadcastChannel` needs to reach it (D141).
+   */
+  another(): Promise<Panel>;
   close(): Promise<void>;
 }
 
@@ -124,6 +146,8 @@ export interface BootOptions {
   readonly settings?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   /** Rigline's own model settings, as `install` would bake them (D139). */
   readonly model?: ModelSettings;
+  /** The channel the panels tell each other about a save on, as `install` would bake it (D141). */
+  readonly broadcast?: string;
   /** Selectors written over the resolved ones, as a refinement in `anchors.json` would be. */
   readonly selectors?: Readonly<Record<string, string>>;
   /** Where the page's clock starts, installed before it loads, for a test that moves time. */
@@ -184,6 +208,62 @@ export async function harnessSkipReason(version: string): Promise<string | null>
   return await chromiumLaunchFailure();
 }
 
+/** Opens the fixture page at `url` in `context` and waits until the kernel has loaded every plugin. */
+async function openPanel(
+  context: BrowserContext,
+  url: string,
+  options: BootOptions,
+): Promise<{ readonly panel: Panel; readonly bootMs: number; readonly kernelMs: number }> {
+  const page = await context.newPage();
+  // Inside every test's own timeout, so a wait that hangs fails naming what it waited for.
+  page.setDefaultTimeout(10000);
+  const consoleErrors: string[] = [];
+  page.on("console", (msg: ConsoleMessage) => {
+    if (msg.type() === "error") consoleErrors.push(msg.text());
+  });
+  page.on("pageerror", (err) => consoleErrors.push(`pageerror: ${err.message}`));
+
+  if (options.clock) await page.clock.install({ time: options.clock });
+  const started = performance.now();
+  await page.goto(url);
+  // The model pill is the app's own markup, so waiting for it is waiting for a real render
+  // rather than for anything Rigline placed. The session list has no composer, so it waits on
+  // its own root instead.
+  await page.waitForSelector(
+    options.surface === "sessionList" ? "#root > *" : ".modelPill_gGYT1w",
+    { timeout: 15000 },
+  );
+  const bootMs = performance.now() - started;
+  // And then for the kernel, which is a separate event: the pre hook is static but post.js loads
+  // dynamically, so the app's own markup can be on screen before a single plugin's setup() has
+  // run. A test that waits on a node its plugin placed gets this for free; one that reads what
+  // setup() installed on `window`, or pushes a message expecting a tap to be listening, does not
+  // — and it fails only when the machine is loaded enough to widen the window, which is the whole
+  // suite and never the test on its own. `bufferSealed` is the signal because post.js sets it in
+  // the `finally` of the plugin-loading loop, so it means "every plugin has had its chance",
+  // including the ones that were refused.
+  await page.waitForFunction(
+    () => (window as unknown as HarnessWindow).__rigline?.diagnostics?.bufferSealed === true,
+    undefined,
+    { timeout: 15000 },
+  );
+  const kernelMs = performance.now() - started - bootMs;
+
+  return {
+    panel: {
+      page,
+      consoleErrors,
+      diagnostics: () =>
+        page.evaluate(
+          () => (window as unknown as HarnessWindow).__rigline?.diagnostics as HarnessDiagnostics,
+        ),
+      sent: () => page.evaluate(() => (window as unknown as HarnessWindow).__harness?.sent ?? []),
+    },
+    bootMs,
+    kernelMs,
+  };
+}
+
 /** One browser for the file, and a `boot` that gives each test its own payload, server and page. */
 export function register(version: string): (options?: BootOptions) => Promise<Booted> {
   let browser: Browser;
@@ -208,6 +288,7 @@ export function register(version: string): (options?: BootOptions) => Promise<Bo
       presetsOmitted: options.presetsOmitted,
       settings: options.settings,
       model: options.model,
+      broadcast: options.broadcast,
       selectors: options.selectors,
     });
     const harness: Harness = await startHarness({
@@ -218,54 +299,17 @@ export function register(version: string): (options?: BootOptions) => Promise<Bo
       appTimeFormat: options.appTimeFormat,
       appModels: options.appModels,
     });
-    const page = await browser.newPage();
-    // Inside every test's own timeout, so a wait that hangs fails naming what it waited for.
-    page.setDefaultTimeout(10000);
-    const consoleErrors: string[] = [];
-    page.on("console", (msg: ConsoleMessage) => {
-      if (msg.type() === "error") consoleErrors.push(msg.text());
-    });
-    page.on("pageerror", (err) => consoleErrors.push(`pageerror: ${err.message}`));
-
-    if (options.clock) await page.clock.install({ time: options.clock });
-    const started = performance.now();
-    await page.goto(harness.url);
-    // The model pill is the app's own markup, so waiting for it is waiting for a real render
-    // rather than for anything Rigline placed. The session list has no composer, so it waits on
-    // its own root instead.
-    await page.waitForSelector(
-      options.surface === "sessionList" ? "#root > *" : ".modelPill_gGYT1w",
-      { timeout: 15000 },
-    );
-    const bootMs = performance.now() - started;
-    // And then for the kernel, which is a separate event: the pre hook is static but post.js loads
-    // dynamically, so the app's own markup can be on screen before a single plugin's setup() has
-    // run. A test that waits on a node its plugin placed gets this for free; one that reads what
-    // setup() installed on `window`, or pushes a message expecting a tap to be listening, does not
-    // — and it fails only when the machine is loaded enough to widen the window, which is the whole
-    // suite and never the test on its own. `bufferSealed` is the signal because post.js sets it in
-    // the `finally` of the plugin-loading loop, so it means "every plugin has had its chance",
-    // including the ones that were refused.
-    await page.waitForFunction(
-      () => (window as unknown as HarnessWindow).__rigline?.diagnostics?.bufferSealed === true,
-      undefined,
-      { timeout: 15000 },
-    );
-    const kernelMs = performance.now() - started - bootMs;
+    const context = await browser.newContext();
+    const { panel, bootMs, kernelMs } = await openPanel(context, harness.url, options);
 
     return {
-      page,
+      ...panel,
       payloadDir: dir,
-      consoleErrors,
       bootMs,
       kernelMs,
-      diagnostics: () =>
-        page.evaluate(
-          () => (window as unknown as HarnessWindow).__rigline?.diagnostics as HarnessDiagnostics,
-        ),
-      sent: () => page.evaluate(() => (window as unknown as HarnessWindow).__harness?.sent ?? []),
+      another: async () => (await openPanel(context, harness.url, options)).panel,
       async close() {
-        await page.close();
+        await context.close();
         await harness.close();
         rmSync(dir, { recursive: true, force: true });
       },

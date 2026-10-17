@@ -107,6 +107,13 @@ export interface ReportFacts {
     readonly to: number;
     readonly entries: readonly Record<string, unknown>[];
   } | null;
+  readonly broadcast: {
+    readonly open: boolean;
+    readonly posted: number;
+    readonly heard: number;
+    readonly dropped: number;
+    readonly lastDrop: string | null;
+  };
   readonly errors: readonly string[];
 }
 
@@ -135,6 +142,7 @@ export function reportFacts(d: Diagnostics, surface: Surface, at: number): Repor
     rewrites: d.rewrites,
     hostPatches: d.hostPatches,
     previous: d.previous,
+    broadcast: d.broadcast,
     errors: d.errors,
   };
 }
@@ -219,6 +227,12 @@ export function formatReport(facts: ReportFacts, groups: readonly CheckGroup[]):
   out.push(
     `  bus        ${facts.bus.outbound} out / ${facts.bus.inbound} in, ${facts.bus.clones} clones ` +
       `(${Math.round(facts.bus.cloneMs)}ms, max ${facts.bus.cloneMaxMs.toFixed(1)}ms${worst})`,
+  );
+  const { broadcast } = facts;
+  const dropped =
+    broadcast.dropped > 0 ? `, ${broadcast.dropped} dropped, last ${broadcast.lastDrop}` : "";
+  out.push(
+    `  broadcast  ${broadcast.open ? `${broadcast.posted} posted / ${broadcast.heard} heard${dropped}` : "not open"}`,
   );
 
   const busy = Object.entries(facts.meters)

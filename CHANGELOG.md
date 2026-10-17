@@ -26,8 +26,8 @@ hole, or raises the Node or VS Code it needs, its entry says so.
   model, chosen from the models your install offers.
   - Save closes the screen. Unsaved changes survive switching tabs and closing it, and the menu
     says while any are held. Revert drops them.
-  - A change saved here reaches the panel that saved it without a reload; another panel picks it up
-    when you come back to it.
+  - A change saved here reaches the panel that saved it without a reload, and your other Claude Code
+    tabs at once, in every window. The sidebar picks it up when you come back to it.
 - For plugin authors: `uses.settingsTab` and `ctx.settingsTab(title, Component)` add your tab, drawn
   from a kit in `@rigline/plugin-api/ui` — `SettingRow`, `Toggle`, `Choice`, `TextField`,
   `ListEditor`, `ModelChooser`, `Button`, `Actions` and `Hint` — over the draft
@@ -76,6 +76,10 @@ hole, or raises the Node or VS Code it needs, its entry says so.
 
 ### Changed
 
+- A layout saved in one Claude Code tab shows at once in your other tabs, in every window, and any
+  panel shows a newer saved layout when you come back to it rather than asking you to reload it. A
+  panel where you have moved things without saving keeps your moves, and its R turns yellow to say
+  a newer layout is saved behind them.
 - `@rigline/plugin-api`: `ctx`'s `on*` subscriptions and a `Store`'s members are declared as
   properties rather than methods, so handing one straight to `storeFrom` — as the scaffold and the
   bundled plugins do — no longer reads as an unbound method to a plugin's own linter. Calling them

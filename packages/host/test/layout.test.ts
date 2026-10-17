@@ -11,6 +11,7 @@ import {
 } from "@rigline/plugin-api/internal";
 import { describe, expect, it } from "vitest";
 import { createLayoutEditor } from "../src/kernel/layout.ts";
+import type { Changed } from "../src/kernel/saving.ts";
 
 const spacer = { anchor: "footerSpacer", at: "before" } as const;
 const plugins: LayoutPlugin[] = [
@@ -206,14 +207,42 @@ describe("rows", () => {
 });
 
 describe("the saved layout", () => {
-  it("says a newer one is saved when the file moved since the panel loaded", async () => {
+  it("is shown when the file moved and nothing here is unsaved (D141)", async () => {
     let saved: Layout = {};
     const { editor: e } = editor({}, () => saved);
     await e.check();
     expect(e.newer.get()).toBe(false);
     saved = { off: ["clock/face"] };
     await e.check();
+    expect(e.newer.get()).toBe(false);
+    expect(e.baseline.get()).toEqual(saved);
+    expect(e.working.get()).toEqual(saved);
+  });
+
+  it("is only said to be newer behind unsaved changes, which it leaves alone", async () => {
+    let saved: Layout = {};
+    const { editor: e } = editor({}, () => saved);
+    e.move("session-id/address", "rigRow");
+    const copy = e.working.get();
+    saved = { off: ["clock/face"] };
+    await e.check();
     expect(e.newer.get()).toBe(true);
+    expect(e.baseline.get()).toEqual({});
+    expect(e.working.get()).toEqual(copy);
+
+    // And no longer once the file is back where the copy started.
+    e.observe({});
+    expect(e.newer.get()).toBe(false);
+  });
+
+  it("from another panel is taken as a read is", () => {
+    const { editor: e } = editor({});
+    e.observe({ off: ["clock/face"] });
+    expect(e.working.get()).toEqual({ off: ["clock/face"] });
+    e.move("session-id/address", "rigRow");
+    e.observe({ off: ["session-id/short-id"] });
+    expect(e.newer.get()).toBe(true);
+    expect(e.baseline.get()).toEqual({ off: ["clock/face"] });
   });
 
   it("reloads it over unsaved changes", async () => {
@@ -242,6 +271,8 @@ describe("noticing a newer layout", () => {
       undefined,
       () => t,
     );
+    // Unsaved, so a newer layout is one to know about rather than one to show.
+    e.move("session-id/address", "rigRow");
     e.notice();
     e.notice();
     await settle();
@@ -333,6 +364,51 @@ describe("confirming a save", () => {
     expect(e.saving.get()).toBe("unconfirmed");
     expect(e.baseline.get()).toEqual({});
     expect(reads()).toBe(40);
+  });
+});
+
+describe("telling the other panels (D141)", () => {
+  function told(saved: () => Layout) {
+    const said: [string, Changed][] = [];
+    const e = createLayoutEditor({
+      baked: {},
+      plugins,
+      save: null,
+      readSaved: async () => ({
+        layout: saved(),
+        presets: [],
+        omitted: 0,
+        settings: {},
+        rigline: { model: NO_MODEL_SETTINGS },
+      }),
+      announce: {
+        saving: (changed) => said.push(["saving", changed]),
+        saved: (changed) => said.push(["saved", changed]),
+      },
+      wait: async () => {},
+    });
+    return { e, said };
+  }
+
+  it("says what a save writes as it starts, and what the file holds once it lands", async () => {
+    const copy: Layout = { off: ["clock/face"] };
+    const { e, said } = told(() => copy);
+    e.move("clock/face", "off");
+    await e.confirm(e.working.get());
+    expect(said).toEqual([
+      ["saving", { layout: copy }],
+      ["saved", { layout: copy }],
+    ]);
+  });
+
+  it("says what the file still holds when a save never lands", async () => {
+    const { e, said } = told(() => ({}));
+    e.move("clock/face", "off");
+    await e.confirm(e.working.get());
+    expect(said).toEqual([
+      ["saving", { layout: { off: ["clock/face"] } }],
+      ["saved", { layout: {} }],
+    ]);
   });
 });
 

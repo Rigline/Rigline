@@ -225,7 +225,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /** A layout, or why it is not one. `fromEntries`, so a `__proto__` key stays an ordinary key. */
-function readLayout(value: unknown, label: string): Layout | string {
+export function readLayout(value: unknown, label: string): Layout | string {
   if (!isRecord(value)) return `"${label}" is not a layout`;
   const entries = Object.entries(value);
   let count = 0;

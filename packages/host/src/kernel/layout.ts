@@ -1,7 +1,8 @@
 /**
  * The panel's layout editor (D93): the saved layout the panel shows, a working copy every move
  * changes, and one re-read of `registry.js` shared by Reload, the menu opening and a save's
- * confirmation. Nothing can push into a panel, so everything it learns about the file it pulls.
+ * confirmation. Node cannot push into a panel, so it learns of the file by reading it, or from
+ * another panel's save (D141).
  */
 import {
   type BakedPreset,
@@ -24,7 +25,7 @@ import {
   withElementAt,
   withOrder,
 } from "@rigline/plugin-api/internal";
-import { createSaveTracker, type SavedState, type SaveState } from "./saving.ts";
+import { type Announcer, createSaveTracker, type SavedState, type SaveState } from "./saving.ts";
 
 export type { SavedState, SaveState } from "./saving.ts";
 
@@ -34,7 +35,7 @@ export interface LayoutEditor {
   readonly working: Store<Layout>;
   /** Every declared element, grouped by where the working copy puts it. */
   readonly view: Store<readonly ViewPlace[]>;
-  /** Whether the saved layout, when last read, differed from the baseline. */
+  /** Whether a newer layout is saved behind unsaved changes, which it does not replace. */
   readonly newer: Store<boolean>;
   readonly saving: Store<SaveState>;
   /** Whether the panel is being edited in place (D95). */
@@ -73,8 +74,13 @@ export interface LayoutEditor {
   apply(name: string): void;
   /** Reads the saved layout afresh and shows it, dropping unsaved changes. */
   reload(): Promise<void>;
-  /** Reads the saved layout afresh and says whether it moved since this panel's baseline. */
+  /** Reads the saved layout afresh and `observe`s it. */
   check(): Promise<void>;
+  /**
+   * The saved layout, from a read or another panel: shown where nothing is unsaved, and otherwise
+   * `newer` says whether it differs from what the copy started from (D126, D141).
+   */
+  observe(saved: Layout): void;
   /** The person is back at the panel: a `check`, unless one ran lately or there is no need (D126). */
   notice(): void;
   /**
@@ -99,6 +105,8 @@ export interface LayoutEditorOptions {
    * presets, after an export in a terminal that the yellow R has just sent somebody to it.
    */
   readonly readSaved: () => Promise<SavedState | null>;
+  /** How a save from here reaches the other panels. */
+  readonly announce?: Announcer;
   /** Injected so a test need not wait out the confirmation. */
   readonly wait?: (ms: number) => Promise<void>;
   /** Milliseconds, injected so a test can step past `notice`'s gap. */
@@ -117,7 +125,7 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
   const working = store(baked);
   const view = store<readonly ViewPlace[]>(layoutView(baked, plugins));
   const newer = store(false);
-  const tracker = createSaveTracker(readSaved, wait);
+  const tracker = createSaveTracker(readSaved, wait, options.announce);
   const saving = tracker.state;
   const editing = store(false);
   const presets = store<readonly BakedPreset[]>(options.presets ?? []);
@@ -135,11 +143,24 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
     tracker.edited();
   }
 
+  function observe(saved: Layout): void {
+    if (sameLayout(working.get(), baseline.get())) {
+      if (!sameLayout(saved, baseline.get())) {
+        baseline.set(saved);
+        working.set(saved);
+        appliedPreset.set(null);
+      }
+      newer.set(false);
+      return;
+    }
+    newer.set(!sameLayout(saved, baseline.get()));
+  }
+
   async function check(): Promise<void> {
     // Mid-save the file can hold the copy ahead of the baseline, which is not newer.
     if (saving.get() === "saving") return;
     const saved = await readSaved();
-    newer.set(saved !== null && !sameLayout(saved.layout, baseline.get()));
+    if (saved !== null) observe(saved.layout);
   }
 
   return {
@@ -230,6 +251,7 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
       saving.set("idle");
     },
     check,
+    observe,
     notice() {
       if (newer.get() || now() - noticed < NOTICE_GAP_MS) return;
       noticed = now();
@@ -242,6 +264,7 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
           baseline.set(saved.layout);
           newer.set(false);
         },
+        { changed: { layout: copy }, held: (saved) => ({ layout: saved.layout }) },
       );
       // Leaving edit mode is the hold's end (D125); a copy moved since the click is unsaved work,
       // which leaving the mode would hide.

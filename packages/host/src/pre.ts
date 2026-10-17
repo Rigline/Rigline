@@ -269,6 +269,14 @@ interface RiglineBridge {
       to: number;
       entries: readonly Record<string, unknown>[];
     } | null;
+    /** What the panels told each other about saves. Published by post.ts, which owns it (D141). */
+    broadcast: {
+      open: boolean;
+      posted: number;
+      heard: number;
+      dropped: number;
+      lastDrop: string | null;
+    };
     readonly errors: string[];
   };
   /**
@@ -787,6 +795,7 @@ try {
       meters,
       storage: { available: false, writes: 0, failures: 0, bytes: 0, lastError: null },
       previous: null,
+      broadcast: { open: false, posted: 0, heard: 0, dropped: 0, lastDrop: null },
       errors: [],
     },
     checks: null,

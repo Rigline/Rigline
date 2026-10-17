@@ -60,7 +60,7 @@ import {
   layoutNotes,
 } from "../plugins/discover.ts";
 import type { BakedPresets } from "../plugins/preset.ts";
-import { saveRecord } from "../plugins/save.ts";
+import { broadcastName, saveRecord } from "../plugins/save.ts";
 import { applyPatches, type PatchOutcome, patchRefusal } from "./hostpatch.ts";
 import { importProblem, resolveRuntimeImports } from "./imports.ts";
 
@@ -609,6 +609,7 @@ export function install(ext: string, options: InstallOptions): InstallReport {
         options.presets,
         settings.settings,
         config.model,
+        save?.token ? broadcastName(save.token) : null,
       ),
     );
     if (writeIfChanged(join(state.payloadDir, "registry.js"), baked)) wrotePayload = true;

@@ -19,6 +19,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { harvestableHostReplies, harvestableWebview, writePayload } from "../../test/fixtures.ts";
 import { sleepSync } from "../extension/bundles.ts";
+import { broadcastName } from "../plugins/save.ts";
 import {
   hostVerdict,
   type InstallOptions,
@@ -339,9 +340,12 @@ describe("a second run writes nothing", () => {
     }
     const token = readFileSync(tokenPath, "utf8").trim();
     for (const ext of [first, second]) {
-      expect(readFileSync(join(payloadOutDir(ext), "registry.js"), "utf8")).toContain(
+      const registry = readFileSync(join(payloadOutDir(ext), "registry.js"), "utf8");
+      expect(registry).toContain(
         `export const save = {"token":"${token}","companion":false,"scheme":"vscode"};`,
       );
+      // The same channel in every version, so a panel on one hears a panel on another (D141).
+      expect(registry).toContain(`export const broadcast = "${broadcastName(token)}";`);
     }
   });
 
@@ -371,12 +375,12 @@ describe("a second run writes nothing", () => {
     );
   });
 
-  it("bakes no Save without a token path", () => {
+  it("bakes no Save and no channel without a token path", () => {
     const ext = fixture();
     install(ext, { payloadDir: payload(), plugins: withPlugins([]) });
-    expect(readFileSync(join(payloadOutDir(ext), "registry.js"), "utf8")).toContain(
-      "export const save = null;",
-    );
+    const registry = readFileSync(join(payloadOutDir(ext), "registry.js"), "utf8");
+    expect(registry).toContain("export const save = null;");
+    expect(registry).toContain("export const broadcast = null;");
   });
 });
 

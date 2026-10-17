@@ -3354,6 +3354,10 @@ the pointer never entering this one, at a cost that grows with the time a window
 timer as a backstop is the move if that case turns out to matter. A smaller module for the read only
 slows the leak, and costs the engine a second file to write.
 
+**Amended 2026-10-17 by D141:** that case is caught by the other panels being told, not by a timer,
+and a read that finds a newer layout shows it where nothing is unsaved. The R turns yellow for a
+newer layout behind unsaved changes.
+
 **D127. A row has a left side and a right side, each a place of its own (2026-10-07, Leo).** A row
 of short elements gave a person no way to put something at its right edge and leave the space
 between empty. The left side is the row's own spelling, `rigRow` or `rigRow 2`; the right side adds
@@ -3911,3 +3915,48 @@ that saves it, and confirms through the same read. The screen is a framed panel 
 Claude Code's diff view is, so the panel is taken over for a moment rather than left, and Save
 closes it; the drafts stay until the save is confirmed, so one that never lands still reads
 "unsaved changes" (Leo).
+
+**D141. A save tells the other panels, on a channel named from the token (2026-10-17).** A panel
+holds what `install` baked when it loaded, and learned of a save made elsewhere only when the person
+came back to it (D126), which misses two windows side by side with the pointer never entering one.
+VS Code persists a webview's origin per viewType and extension id, so every editor-tab panel shares
+one, across tabs and windows, and a `BroadcastChannel` reaches them all: measured live on 2.1.300 in
+VS Code 1.141.2 from three panels in two windows, recorded in the knowledge base's
+`vscode-extension-internals.md`. The sidebar is an origin of its own and hears none of it, and an
+edit made outside a panel posts nothing, so the channel shortens the wait and is never relied on.
+The look-on-focus read stays the backstop, and a message missed costs latency, not a different end.
+
+**The name is `rigline-` and the first 32 hex digits of `sha256(token + "/broadcast")`**, baked into
+`registry.js` as `broadcast`, and null without a token, when nothing saves from a panel to post
+about. A guardrail in D79's middle sense, not a wall: nobody stumbles onto it, and whoever digs it out
+of the registry knows they are unsupported. From the token because it has to survive installs —
+every extension-host start runs one, and a name made afresh would cut off every open panel on every
+reload anywhere — and the token already persists, is made race-safely and is per home. Derived, so
+the name hands nobody the token; not from the home path, since a name anybody can compute is a
+public one. It shows nothing a plugin cannot already read, since `registry.js` holds every section.
+
+**The envelope is `{ v, from, ns, type, body }`, and what it closes is who may claim a namespace**,
+not what may be said in one: `ns` is stamped by the host, as a settings section is, and `rigline` is
+the host's. Rigline's carries two types — `saving`, what a save writes, posted as it starts, and
+`saved`, what the file held of the same keys when it settled, posted whether it landed or not — from
+the save state both editors share. A body names only the keys the save wrote: the layout, a plugin's
+section, a block of Rigline's own. One built from a whole snapshot would push a stale copy of
+everything else into every other window. A receiver drops and counts a message whose version,
+sender, namespace or type it does not know, or whose body does not hold, and ignores a key it does
+not know, so a newer payload's message costs an older panel only the wait for its own read, until the
+reload the companion offers. No sequence numbers: two saves at once leave the last writer's value, as
+the file does. No plugin capability: the namespace is room for one, which is a decision of its own.
+
+**A `saving` value is optimistic and expires**, since posting on the save puts it ahead of the file.
+While it lives, a read finding the file still at what the panel had before it was told is the write
+not having landed, and reads as the value told; a read finding anything else wins at once, as a real
+write. `saved` ends it, which is the common case. A saver whose window closed mid-save sends none, so
+it also ends `CONFIRM_FOR_MS` after it began, judged when a read arrives rather than on a timer, which
+leaves no instant at which every panel goes back to the file together. The hold sits once, in the
+read every consumer goes through.
+
+**A receiver takes a body as a read of the keys it names, and every read of the layout now does what
+a read of the settings did (D140).** A panel with nothing unsaved shows a newer layout; one with
+unsaved moves keeps them and is told, by the yellow R and the menu. Flagging a clean panel instead
+left a second window on the old layout until somebody clicked Reload, which is the staleness this
+exists to end, and the read that backs the channel up has to reach the same end it does.

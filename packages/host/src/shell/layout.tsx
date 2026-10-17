@@ -78,7 +78,13 @@ export function layoutMenu(
     return (
       <Submenu
         label="Layout"
-        description={dirty ? "unsaved changes" : newer ? "a newer layout is saved" : undefined}
+        description={
+          dirty
+            ? newer
+              ? "unsaved changes, and a newer layout is saved"
+              : "unsaved changes"
+            : undefined
+        }
       >
         {placeable && (
           <MenuItem

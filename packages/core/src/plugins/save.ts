@@ -2,7 +2,7 @@
  * Saving a panel's layout (D93): one token per Rigline home, made once and never rewritten, and what
  * `rigline layout save` does with the payload of a panel's Save link, which the companion hands it.
  */
-import { randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, linkSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { decodeSavePayload, type SaveRecord, sameLayout } from "@rigline/plugin-api/internal";
@@ -90,6 +90,14 @@ export function saveRecord(
     companion: companionHandlesSave(dirname(ext)),
     scheme: URL_SCHEME,
   };
+}
+
+/**
+ * The channel the panels tell each other about a save on (D141): this home's, unguessable, and
+ * stable across installs, since it is the token's. Derived, so the name does not hand over the token.
+ */
+export function broadcastName(token: string): string {
+  return `rigline-${createHash("sha256").update(`${token}/broadcast`).digest("hex").slice(0, 32)}`;
 }
 
 export interface PanelSave {

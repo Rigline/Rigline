@@ -33,7 +33,9 @@ nothing can push into a panel; it can only read a file again, under a fresh quer
 
 One thing goes the other way: a link a person clicks, which VS Code routes to the companion's URI
 handler. That is the panel's Save, and it needs the companion; without one, the panel copies the
-`rigline layout` commands instead (D93).
+`rigline layout` commands instead (D93). And one thing goes between panels: a saving panel tells the
+other editor-tab panels what it saved, on a `BroadcastChannel` named in `registry.js`, a hint that
+shortens their wait for their own read and is never relied on in its place (D141).
 
 Two consequences run through everything. **The payload is version-independent** (P7): `pre.js` and
 `post.js` name no harvested identifier, so one build of them serves every installed version, and

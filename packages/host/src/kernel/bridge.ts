@@ -109,6 +109,14 @@ export interface Diagnostics {
     lastError: string | null;
   };
   previous: { from: number; to: number; entries: readonly Record<string, unknown>[] } | null;
+  /** What the panels told each other about saves (D141); the last drop's reason names no value. */
+  readonly broadcast: {
+    open: boolean;
+    posted: number;
+    heard: number;
+    dropped: number;
+    lastDrop: string | null;
+  };
   readonly errors: string[];
 }
 

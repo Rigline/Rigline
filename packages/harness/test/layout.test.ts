@@ -140,6 +140,14 @@ async function choose(page: Page, element: string, move: string): Promise<void> 
   await page.getByRole("menuitem", { name: move }).click();
 }
 
+/** Escape closes one level of the menu at a time. */
+async function closeMenu(page: Page): Promise<void> {
+  for (let level = 0; level < 3 && (await page.locator(".rigline-menu").count()) > 0; level++) {
+    await page.keyboard.press("Escape");
+  }
+  await page.locator(".rigline-menu").first().waitFor({ state: "detached" });
+}
+
 /** The layout a Save from the edit bar would write. */
 async function saving(page: Page): Promise<Layout> {
   const href =
@@ -265,18 +273,28 @@ describe.skipIf(skip !== null)(`the Layout submenu${skip ? ` (${skip})` : ""}`, 
     }
   }, 30000);
 
-  it("says a newer layout is saved, and reloads it without a webview reload", async () => {
+  it("shows a layout saved elsewhere when it looks, and behind unsaved changes says one is saved", async () => {
     const booted = await boot({ plugins: [deck] });
     const { page } = booted;
     try {
       await page.waitForSelector(".deck-one");
       saveToRegistry(booted.payloadDir, { off: ["deck/one"] });
-      await page.waitForSelector(".rigline-pill");
-      await page.click(".rigline-pill");
-      await page.getByRole("menuitem", { name: /a newer layout is saved/ }).waitFor();
-      await page.getByRole("menuitem", { name: /^Layout/ }).click();
-      await page.getByRole("menuitem", { name: /^Reload saved layout/ }).click();
+      await openLayout(page);
       await page.waitForSelector(".deck-one", { state: "detached" });
+
+      await choose(page, "Two", "Switch off");
+      await page.waitForSelector(".deck-two", { state: "detached" });
+      await closeMenu(page);
+      saveToRegistry(booted.payloadDir, { off: ["deck/one"], rigRow: ["deck/three"] });
+      await page.click(".rigline-pill");
+      await page
+        .getByRole("menuitem", { name: /^Layout.*unsaved changes, and a newer layout is saved/ })
+        .waitFor();
+      expect(await page.locator(".deck-three").count()).toBe(0);
+      await page.getByRole("menuitem", { name: /^Layout/ }).click();
+      await page.getByRole("menuitem", { name: /^Revert changes/ }).click();
+      await page.waitForSelector(".deck-two");
+      await page.waitForSelector(".deck-three");
     } finally {
       await booted.close();
     }
@@ -561,7 +579,7 @@ describe.skipIf(skip !== null)(`editing in place${skip ? ` (${skip})` : ""}`, ()
     }
   }, 30000);
 
-  it("reloads, resets and saves from the bar, saying Saved. only as it leaves", async () => {
+  it("shows a layout saved elsewhere on entering, then resets and saves from the bar, saying Saved. only as it leaves", async () => {
     const booted = await boot({ plugins: [deck], save: COMPANION, layout: RIGLINE_OFF });
     const { page } = booted;
     const bar = page.locator(".rigline-edit-bar");
@@ -569,10 +587,9 @@ describe.skipIf(skip !== null)(`editing in place${skip ? ` (${skip})` : ""}`, ()
       await page.waitForSelector(".deck-one");
       saveToRegistry(booted.payloadDir, { off: ["rigline/edit", "rigline/reload", "deck/one"] });
       await enterEditing(page);
-      await bar.getByText("a newer layout is saved").waitFor();
-      await bar.getByRole("button", { name: "Reload", exact: true }).click();
+      // Nothing was unsaved, so the layout entering the mode read is the one it shows.
       await page.waitForSelector(".deck-one", { state: "detached" });
-      await bar.getByText("a newer layout is saved").waitFor({ state: "detached" });
+      expect(await bar.getByText("a newer layout is saved").count()).toBe(0);
       expect(await page.locator(".rigline-edit-handle").count()).toBeGreaterThan(0);
 
       await bar.getByRole("button", { name: "Reset to defaults" }).click();
@@ -917,24 +934,31 @@ describe.skipIf(skip !== null)(`Rigline's own elements${skip ? ` (${skip})` : ""
     }
   }, 30000);
 
-  it("turn yellow when focus comes back to a panel whose saved layout has moved on", async () => {
+  it("turn yellow when focus comes back to a panel whose saved layout moved behind unsaved changes", async () => {
     const layout = { rigRow: ["rigline/reload"] };
-    const booted = await boot({ plugins: [deck], layout });
+    const booted = await boot({ plugins: [deck], layout, clock: new Date("2026-10-17T09:00:00Z") });
     const { page } = booted;
     try {
       const newer = page.locator(".rigline-own-newer");
       await page.waitForSelector('[data-rigline-element="rigline/reload"]');
-      await page.waitForSelector(".deck-one");
+      await openLayout(page);
+      await choose(page, "Two", "Switch off");
+      await page.waitForSelector(".deck-two", { state: "detached" });
+      await closeMenu(page);
       saveToRegistry(booted.payloadDir, { ...layout, off: ["deck/one"] });
       expect(await newer.count()).toBe(0);
+      // Past the gap the pointer entering for those clicks began (D126).
+      await page.clock.fastForward(31_000);
       await page.evaluate(() => dispatchEvent(new Event("focus")));
       await expect.poll(() => newer.count()).toBe(2);
       await expect(
         page.locator('[data-rigline-element="rigline/edit"] button').getAttribute("title"),
       ).resolves.toMatch(/^Edit in place\nA newer layout is saved\n/);
 
+      // Unsaved, so Reload reverts to it.
       await page.click('[data-rigline-element="rigline/reload"] button');
       await page.waitForSelector(".deck-one", { state: "detached" });
+      await page.waitForSelector(".deck-two");
       expect(await newer.count()).toBe(0);
     } finally {
       await booted.close();

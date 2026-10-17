@@ -35,6 +35,7 @@ import {
 } from "@rigline/plugin-api/internal";
 import { MODULES } from "./capabilities/index.ts";
 import { type Bridge, bridge as findBridge, type PluginStatus } from "./kernel/bridge.ts";
+import { createBroadcast } from "./kernel/broadcast.ts";
 import { createCheckService, HOST, kernelChecks } from "./kernel/checks.ts";
 import { createContextService } from "./kernel/context.ts";
 import { createCostService } from "./kernel/cost.ts";
@@ -177,6 +178,8 @@ interface RegistryModule {
   readonly settings?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   /** Rigline's own model settings (D139). Absent in a payload older than them. */
   readonly model?: unknown;
+  /** The channel the panels tell each other about a save on (D141). Absent in a payload older. */
+  readonly broadcast?: unknown;
 }
 
 /** The baked model settings, read as the engine read them, and the gate off where they cannot be. */
@@ -443,6 +446,7 @@ async function main(): Promise<void> {
   let omitted = 0;
   let settings: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {};
   let modelSettings: ModelSettings = NO_MODEL_SETTINGS;
+  let channel: string | null = null;
   try {
     const registry = (await import(
       new URL("./registry.js", import.meta.url).href
@@ -454,6 +458,7 @@ async function main(): Promise<void> {
     omitted = registry.presetsOmitted ?? 0;
     settings = registry.settings ?? {};
     modelSettings = modelSettingsOf(registry.model);
+    channel = typeof registry.broadcast === "string" ? registry.broadcast : null;
     diagnostics.hostPatches = [...(registry.patches ?? [])];
     // Carried onto diagnostics rather than left in the module, so a plugin reads it the way it
     // reads every other host-provided value and never imports the host to get it (D18, D63, D75).
@@ -463,17 +468,29 @@ async function main(): Promise<void> {
   }
 
   const mounts = createMountService(message, react, diagnostics.mounts, meter);
-  // Every read of the file, whoever asked for it, is a source for what is saved.
+  const broadcast = createBroadcast({
+    name: channel,
+    counts: diagnostics.broadcast,
+    fail: (reason) => {
+      diagnostics.errors.push(`broadcast: ${reason}`);
+      console.error(`[rigline] broadcast: ${reason}`);
+    },
+  });
+  // Every read of the file, whoever asked for it, is a source for what is saved, once another
+  // panel's save the file has not caught up with is put back over it (D141).
   const readSaved = async (): Promise<SavedState | null> => {
     const read = await readSavedState();
-    if (read !== null) settingsEditor.observe(read);
-    return read;
+    if (read === null) return null;
+    const seen = broadcast.seen(read);
+    settingsEditor.observe(seen);
+    return seen;
   };
   const settingsEditor: SettingsEditor = createSettingsEditor({
     save,
     sections: settings,
     rigline: { model: modelSettings },
     readSaved,
+    announce: broadcast,
   });
   const editor = createLayoutEditor({
     baked: layout,
@@ -482,7 +499,22 @@ async function main(): Promise<void> {
     presets,
     omitted,
     readSaved,
+    announce: broadcast,
   });
+  broadcast.listen(
+    () => {
+      const saved = settingsEditor.saved.get();
+      return { layout: editor.baseline.get(), settings: saved.sections, rigline: saved.rigline };
+    },
+    (changed) => {
+      const saved = settingsEditor.saved.get();
+      settingsEditor.observe({
+        settings: { ...saved.sections, ...changed.settings },
+        rigline: { ...saved.rigline, ...changed.rigline },
+      });
+      if (changed.layout !== undefined) editor.observe(changed.layout);
+    },
+  );
   const checks = createCheckService();
   const surface = detectSurface();
   const spacer = tables.anchorSelectors?.footerSpacer ?? null;

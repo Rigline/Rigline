@@ -316,6 +316,7 @@ export function bakeRegistry(
   presets: BakedPresets = { presets: [], omitted: 0 },
   settings: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {},
   model: ModelSettings = NO_MODEL_SETTINGS,
+  broadcast: string | null = null,
 ): string {
   const entries = enabled.map((p) =>
     JSON.stringify({
@@ -340,6 +341,7 @@ export const presets = ${JSON.stringify(presets.presets)};
 export const presetsOmitted = ${JSON.stringify(presets.omitted)};
 export const settings = ${JSON.stringify(settings)};
 export const model = ${JSON.stringify(model)};
+export const broadcast = ${JSON.stringify(broadcast)};
 `;
 }
 

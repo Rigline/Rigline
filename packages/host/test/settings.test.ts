@@ -11,7 +11,7 @@ import {
   type SaveRecord,
 } from "@rigline/plugin-api/internal";
 import { describe, expect, it } from "vitest";
-import type { SavedState } from "../src/kernel/saving.ts";
+import type { Changed, SavedState } from "../src/kernel/saving.ts";
 import { createSettingsEditor } from "../src/kernel/settings.ts";
 
 type Sections = Record<string, Record<string, unknown>>;
@@ -173,6 +173,40 @@ describe("confirming a save", () => {
     await e.confirm(new Map([["clock", { tick: 2 }]]));
     expect(e.saving.get()).toBe("unconfirmed");
     expect(e.drafts.get().size).toBe(1);
+  });
+});
+
+describe("telling the other panels (D141)", () => {
+  it("says only the sections and blocks a save wrote, and then what the file held of them", async () => {
+    const said: [string, Changed][] = [];
+    const file = { sections: { clock: { tick: 1 }, quiet: { y: 1 } } as Sections, rigline: OFF };
+    const e = createSettingsEditor({
+      save,
+      sections: file.sections,
+      rigline: OFF,
+      readSaved: async () => ({
+        layout: {},
+        presets: [],
+        omitted: 0,
+        settings: file.sections,
+        rigline: file.rigline,
+      }),
+      announce: {
+        saving: (changed) => said.push(["saving", changed]),
+        saved: (changed) => said.push(["saved", changed]),
+      },
+      wait: async () => {},
+    });
+    e.set("clock", { tick: 2 });
+    e.set("rigline", { ...ALWAYS });
+    const sent = new Map([...e.drafts.get()].map(([owner, d]) => [owner, d.to]));
+
+    // Never lands: the file still holds what it did, and the other panels are told so.
+    await e.confirm(sent);
+    expect(said).toEqual([
+      ["saving", { settings: { clock: { tick: 2 } }, rigline: ALWAYS }],
+      ["saved", { settings: { clock: { tick: 1 } }, rigline: OFF }],
+    ]);
   });
 });
 

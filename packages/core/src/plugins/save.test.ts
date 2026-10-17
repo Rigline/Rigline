@@ -12,7 +12,14 @@ import { join } from "node:path";
 import { encodeSavePayload, type Layout, SAVE_PAYLOAD_VERSION } from "@rigline/plugin-api/internal";
 import { afterEach, describe, expect, it } from "vitest";
 import { readConfig } from "./config.ts";
-import { companionHandlesSave, ensureToken, readToken, saveFromPanel, saveRecord } from "./save.ts";
+import {
+  broadcastName,
+  companionHandlesSave,
+  ensureToken,
+  readToken,
+  saveFromPanel,
+  saveRecord,
+} from "./save.ts";
 
 const dirs: string[] = [];
 
@@ -60,6 +67,17 @@ describe("the token", () => {
     writeFileSync(path, "garbage");
     expect(ensureToken(path)).toMatchObject({ problem: expect.stringContaining("delete it") });
     expect(readFileSync(path, "utf8")).toBe("garbage");
+  });
+});
+
+describe("the broadcast channel's name (D141)", () => {
+  it("is the token's, every time, and gives the token away nowhere in it", () => {
+    const token = "ABCDEFGHIJKLMNOPQRSTUV";
+    const name = broadcastName(token);
+    expect(name).toMatch(/^rigline-[0-9a-f]{32}$/);
+    expect(broadcastName(token)).toBe(name);
+    expect(name).not.toContain(token);
+    expect(broadcastName("ABCDEFGHIJKLMNOPQRSTUW")).not.toBe(name);
   });
 });
 

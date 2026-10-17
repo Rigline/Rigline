@@ -192,11 +192,13 @@ the panel behind it is the preview. Save is a real link, `vscode://rigline.rigli
 carrying the copy, what it started from and the token, where `registry.js`'s `save` says a companion
 answers; elsewhere it is Copy commands, the `rigline layout` commands for the places that changed.
 
-Nothing can push into a panel, so everything it learns about the file it pulls, by re-importing
+Node cannot push into a panel, so what it learns about the file it pulls, by re-importing
 `registry.js` under a fresh query: after a Save click, until the baked layout equals the copy; when
-the menu opens or edit mode starts, to say a newer layout is saved; when the person comes back to the
-panel — the window's `focus`, the document turning visible, the pointer entering it — at most every
-30 seconds and only until one is found (D126); and for Reload, which shows that layout in place.
+the menu opens or edit mode starts; when the person comes back to the panel — the window's `focus`,
+the document turning visible, the pointer entering it — at most every 30 seconds (D126); and for
+Reload. A read that finds a newer layout shows it where nothing is unsaved, and where something is,
+keeps the copy and says a newer layout is saved behind it, which stops the reads on coming back
+until Reload or a save. Another panel's save arrives the same way, from the broadcast below (D141).
 
 That read carries the presets with the layout, since it is the only one: Reload refreshes both, so a
 preset just exported in a terminal appears (D133). Only the layout decides whether a newer one is
@@ -216,7 +218,8 @@ Rigline's own elements, `rigline/edit` and `rigline/reload`, are bound once `she
 from the components it exports as `riglineElements`, at a registry order after every plugin's (D97).
 They go through the same `element` service as a plugin's, reporting to the shell's error path. A
 click with Ctrl or Cmd held does the other one's action, and Reload starts off (D124). While a newer
-layout is saved, each one's R is the theme's warning colour and its tooltip says so (D126).
+layout is saved behind unsaved changes, each one's R is the theme's warning colour and its tooltip
+says so (D126, D141).
 
 Edit in place, a checkbox at the top of the submenu, sets the editor's `editing` store (D95). While
 it is set, the kernel holds every row in place, empty or not, and the next row as the target that
@@ -263,6 +266,26 @@ opening, look-on-focus — feeds the settings editor, which publishes only what 
 section to its `ctx.onSettings`, and Rigline's model settings to the models service and the gate.
 A `SaveSettings` click confirms through the same poll. Both editors share `saving.ts`, the save
 state and the poll that ends in `unconfirmed`; the layout editor adds only the closing of edit mode.
+
+### Telling the other panels
+
+`kernel/broadcast.ts` opens a `BroadcastChannel` under `registry.js`'s `broadcast`, which `install`
+derives from the token, and opens none where that is null (D141). Every editor-tab panel shares one
+origin, so the channel reaches the others in every window; the sidebar's origin is its own.
+
+`saving.ts` is the poster, so either editor's save is told the same way: `saving` as `confirm`
+starts, with what the save writes, and `saved` as it ends, with what the last read found of the same
+keys, landed or not. The envelope is `{ v, from, ns: "rigline", type, body }`, and a body names only
+the layout, plugins' sections and blocks of Rigline's own that the save wrote.
+
+A receiver takes a body as a read of the keys it names: into the settings editor's saved state, and
+to the layout editor's `observe`, which shows it or says it is newer as a read does. A `saving`
+value is also held per key, over every read, while the file still holds what the panel had before it
+was told; a read finding anything else, a `saved` for the key, or `CONFIRM_FOR_MS` passing ends it.
+That hold is `broadcast.seen`, applied in the one `readSaved` every consumer goes through. A message
+whose version, sender, namespace or type the panel does not know, or whose body does not hold, is
+dropped, and `diagnostics.broadcast` counts it with the reason, beside what the panel posted and
+heard; the copied report carries that line.
 
 The kernel knows no capability by name. It owns the plugin lifecycle, the per-React-commit pass
 that re-places mounts and re-anchors watches (D52), the mount arbitration (host-placed nodes ordered

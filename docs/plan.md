@@ -416,40 +416,6 @@ what a plugin is written against.
 - **Merging layout edits from several sources.** A save from the panel overwrites the file's layout
   and warns when that replaces a change made since the panel loaded (D92). Revisit when that warning
   costs somebody work.
-- **Telling the other panels a save happened** (D126). The panel looks when the person comes back to
-  it, which misses two windows on screen side by side with the pointer never entering this one. The
-  candidate is a `BroadcastChannel`, not the timer this entry used to propose: the webview origin is
-  stable and keyed by viewType and extension id, so every editor-tab panel shares one origin across
-  tabs *and* windows. It carries the changed sections, so a receiver needs no second read and acts on
-  what it is handed. **The name is `sha256(token + "/broadcast")`, computed at install and baked into
-  `registry.js`**: a guardrail in D79's middle sense, since nobody stumbles onto it and whoever digs
-  it out of the registry knows they are unsupported. Derived from the token because it has to persist
-  across installs — every extension-host start runs one, so a regenerated name would rotate on every
-  reload anywhere and cut off every open webview, which is not the narrow settling skew but a
-  constant one — and because the token already persists, is already created race-safely, and is
-  already per home. Derived rather than reused, so the name does not hand anybody the token. Not a
-  wall, so not worth the install-time substitution into `post.js` or a build-time rule about inlining
-  that nothing enforces; and not derived from the *home path* either, since a computable name is a
-  public one and an author might post on it never realising it was not theirs. The envelope is `{ v, from, ns, type, body }`, namespaced so
-  that what is enumerable is **who may claim a namespace** rather than what anyone may say in one:
-  `ns` is stamped by the host as a settings section is, and `rigline` carries `type: "registry"` with
-  the changed exports as its body. Keying it by registry part instead would have been closed only by
-  choosing the domain. `v` buys only "I do not
-  understand this, fall back", as an unknown `ns` or `type` does one level down: two payload versions
-  coexist until the reload the companion offers, and that window is narrow enough that a mismatch
-  costs nothing worth building for (CLAUDE.md, *transient version skew*). It stays a hint that
-  shortens the wait and is never relied on, as the companion's `extensions.onDidChange` is, so the
-  look-on-focus remains the backstop. Posting on the save rather than after the write confirms puts
-  the broadcast ahead of the file, so **a value applied from a broadcast is optimistic and expires**:
-  while it is unexpired a read finding the file still at the pre-broadcast baseline is ignored, since
-  that is the write not having landed rather than divergence, while a read finding anything else wins.
-  A second post when the save settles ends it early and is the common case; expiry is the backstop
-  for a saver whose window closed mid-save, at `CONFIRM_FOR_MS` plus a random spread so panels do not
-  all resume trusting the file at once. No plugin capability comes with it: only room for one. Two things it does not reach: the sidebar, which is a different
-  viewType and so a different origin, and any edit made outside a panel, since the engine is not in a
-  webview. **Whether it crosses webviews at all is a live-panel question** — the harness is one page
-  on one origin, so a test there would pass and prove nothing. It would also make `ctx.onSettings`
-  honest, which D138 currently rules out.
 - **Decorations in React.** Per-row transcript decorations stay DOM. Triggered by a decoration DOM
   makes painful; first answer the cost of one portal per row at several hundred rows, and the frame
   in which a new row's node is empty before React renders into it.
@@ -713,3 +679,8 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   amended again). The harness missed it because its fake host never acts on a write and no test
   looked at Claude Code's own picker after a click; one now does, and fails against the old
   mechanism. The plugin is one segmented pill and a default pill, at Leo's redesign.
+- 2026-10-17: a save tells the other editor-tab panels at once, on a `BroadcastChannel` named from
+  the token (D141), so a second window shows a layout or settings saved in the first without
+  anybody coming back to it; a value it is told is held over a read the file has not caught up
+  with. A clean panel now shows a newer layout on any read rather than flagging it, which amends
+  D126. The harness drives two pages; the live re-check across windows is Leo's.

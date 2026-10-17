@@ -21,7 +21,13 @@ import {
 } from "@rigline/plugin-api/internal";
 import type { SaveLink } from "@rigline/plugin-api/ui/internal";
 import { maySaveSection, settingsLink, tooLarge } from "./save.ts";
-import { createSaveTracker, type SavedState, type SaveState } from "./saving.ts";
+import {
+  type Announcer,
+  type Changed,
+  createSaveTracker,
+  type SavedState,
+  type SaveState,
+} from "./saving.ts";
 
 type Section = Readonly<Record<string, unknown>>;
 
@@ -60,8 +66,11 @@ export interface SettingsEditor {
   unsaveable(owner: string): string | null;
   /** After a Save click: waits for `registry.js` to hold what `sent` carried, by owner. */
   confirm(sent: ReadonlyMap<string, Section>): Promise<void>;
-  /** A re-read of `registry.js`, whoever asked for it: every one is a source for what is saved. */
-  observe(read: SavedState): void;
+  /**
+   * A re-read of `registry.js`, whoever asked for it, or another panel's save (D141): every one is
+   * a source for what is saved.
+   */
+  observe(read: Pick<SavedState, "settings" | "rigline">): void;
   /** Hands `handler` `owner`'s saved settings now, and again whenever they change. */
   subscribe(owner: string, handler: (section: Section) => void): () => void;
 }
@@ -72,6 +81,8 @@ export interface SettingsEditorOptions {
   readonly rigline: RiglineSettings;
   /** What `registry.js` holds now, read afresh, or null when it cannot be read. */
   readonly readSaved: () => Promise<SavedState | null>;
+  /** How a save from here reaches the other panels. */
+  readonly announce?: Announcer;
   /** Injected so a test need not wait out the confirmation. */
   readonly wait?: (ms: number) => Promise<void>;
 }
@@ -90,6 +101,20 @@ function settled<T>(value: T): T {
   return deepFreeze(structuredClone(value));
 }
 
+/** `values`, by owner, as the part of a read they are: plugins' sections, and Rigline's own. */
+function changedOf(values: ReadonlyMap<string, Section>): Changed {
+  const settings: Record<string, Section> = {};
+  let rigline: RiglineSettings | undefined;
+  for (const [owner, value] of values) {
+    if (owner === RIGLINE) rigline = value as unknown as RiglineSettings;
+    else settings[owner] = value;
+  }
+  return {
+    ...(Object.keys(settings).length > 0 ? { settings } : {}),
+    ...(rigline === undefined ? {} : { rigline }),
+  };
+}
+
 export function createSettingsEditor(options: SettingsEditorOptions): SettingsEditor {
   const { save, readSaved } = options;
   const wait = options.wait ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
@@ -97,7 +122,7 @@ export function createSettingsEditor(options: SettingsEditorOptions): SettingsEd
     settled({ sections: options.sections, rigline: options.rigline }),
   );
   const drafts = store<ReadonlyMap<string, Draft>>(new Map());
-  const tracker = createSaveTracker(readSaved, wait);
+  const tracker = createSaveTracker(readSaved, wait, options.announce);
   const open = store<string | null>(null);
 
   function of(settings: SavedSettings, owner: string): Section {
@@ -109,7 +134,7 @@ export function createSettingsEditor(options: SettingsEditorOptions): SettingsEd
     return of(saved.get(), owner);
   }
 
-  function observe(read: SavedState): void {
+  function observe(read: Pick<SavedState, "settings" | "rigline">): void {
     const next = { sections: read.settings, rigline: read.rigline };
     if (sameValue(next, saved.get())) return;
     saved.set(settled(next));
@@ -170,9 +195,13 @@ export function createSettingsEditor(options: SettingsEditorOptions): SettingsEd
       return tooLarge(payload.length);
     },
     async confirm(sent) {
+      const fileOf = (read: SavedState): SavedSettings => ({
+        sections: read.settings,
+        rigline: read.rigline,
+      });
       await tracker.confirm(
         (read) => {
-          const file = { sections: read.settings, rigline: read.rigline };
+          const file = fileOf(read);
           return [...sent].every(([owner, value]) => sameValue(of(file, owner), value));
         },
         (read) => {
@@ -186,6 +215,13 @@ export function createSettingsEditor(options: SettingsEditorOptions): SettingsEd
               else next.set(owner, { from: savedOf(owner), to: draft.to });
             }
           });
+        },
+        {
+          changed: changedOf(sent),
+          held: (read) => {
+            const file = fileOf(read);
+            return changedOf(new Map([...sent.keys()].map((owner) => [owner, of(file, owner)])));
+          },
         },
       );
     },

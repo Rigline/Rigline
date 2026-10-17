@@ -310,7 +310,9 @@ Its copied report also carries the numbers nothing else can produce: the meters'
 counters, and the two findings that should be empty. `mounts.multiple` names a singleton anchor
 whose selector matched several elements, so a decoration may be on the wrong control.
 `mounts.abandoned` names a mount or watch the host gave up on, so a decoration is gone and the panel
-was flickering before it went.
+was flickering before it went. Its `broadcast` line is how two windows are read against each other:
+a save in one raises the other's `heard`. Tier 2's two pages share an origin by construction, so
+only this tier says whether VS Code's webviews do (D141).
 
 `rigline doctor` is the other half of a bug report: install state per version, as a pasteable
 report, from files we wrote. VS Code's own logs are deliberately out of scope (D53).

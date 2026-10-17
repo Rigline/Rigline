@@ -1094,7 +1094,7 @@ function Bar(props: {
   const saving = useStore(editor.saving);
   const newer = useStore(editor.newer);
   const dirty = !sameLayout(working, baseline);
-  // On entering the mode, as the menu does on opening, so Reload can say there is something to get.
+  // On entering the mode, as the menu does on opening, so a layout saved elsewhere is seen (D126).
   useEffect(() => {
     void editor.check();
   }, [editor]);

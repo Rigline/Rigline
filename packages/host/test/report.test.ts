@@ -109,6 +109,7 @@ describe("formatReport", () => {
       to: Date.parse("2026-09-14T06:26:41Z"),
       entries: [{ at: Date.parse("2026-09-14T06:26:41Z"), outbound: 900, lost: 0, peaks: {} }],
     },
+    broadcast: { open: true, posted: 2, heard: 5, dropped: 0, lastDrop: null },
     errors: [],
   };
   const groups = [group("rigline", line("tables loaded", "pass", "2.1.270"))];
@@ -189,6 +190,19 @@ describe("formatReport", () => {
   it("includes the previous run's tail, which is the whole reason it is persisted", () => {
     expect(formatReport(facts, groups)).toContain("previous run (");
     expect(formatReport(facts, groups)).toContain("outbound=900");
+  });
+
+  it("says what this panel told the others and heard from them, and why it dropped any", () => {
+    expect(formatReport(facts, groups)).toContain("broadcast  2 posted / 5 heard\n");
+    const dropped = {
+      ...facts,
+      broadcast: { ...facts.broadcast, dropped: 1, lastDrop: "an unknown version" },
+    };
+    expect(formatReport(dropped, groups)).toContain(
+      "broadcast  2 posted / 5 heard, 1 dropped, last an unknown version",
+    );
+    const closed = { ...facts, broadcast: { ...facts.broadcast, open: false } };
+    expect(formatReport(closed, groups)).toContain("broadcast  not open");
   });
 
   it("says so plainly when there are no host errors", () => {
