@@ -123,8 +123,8 @@ describe("acquireAndInject", () => {
     const a = acquisition({
       updateEngine: async () => ({
         outcome: "failed",
-        to: "2.0.0",
-        reason: "rigline 1.x cannot run engine 2.x",
+        to: "3.0.0",
+        reason: "rigline 2.x cannot run engine 3.x",
       }),
     });
     const result = await acquireAndInject({
@@ -132,14 +132,14 @@ describe("acquireAndInject", () => {
       acquisition: a.acquisition,
       ...runner(a),
       ...QUIET,
-      version: "1.0.0-alpha.12",
+      version: "2.0.0",
       exists: (p) => p === NODE,
       env: { PATH: NODE_DIR },
     });
 
     expect(result.kind).toBe("attention");
     expect(e.statuses.at(-1)).toMatchObject({ health: "attention", text: "Rigline: needs you" });
-    expect(e.statuses.at(-1)?.tooltip).toContain("rigline vscode-setup");
+    expect(e.statuses.at(-1)?.tooltip).toContain("then `rigline install`");
   });
 
   it("hands the wrapper the Node it found and the companion's lock label (D80)", async () => {

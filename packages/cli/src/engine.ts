@@ -98,12 +98,23 @@ export function majorProblem(wrapper: string, engine: string): string | null {
   const ours = majorOf(wrapper);
   const theirs = majorOf(engine);
   if (ours === null || theirs === null || ours === theirs) return null;
-  // Both steps, as stability.md promises, and the second only for somebody who uses the companion,
-  // since declining it must cost nothing (D80).
   return (
-    `rigline ${ours}.x cannot run engine ${theirs}.x (${ENGINE_PACKAGE} ${engine}). ` +
-    "Run npm i -g rigline@latest, then rigline vscode-setup if you use the companion."
+    `rigline ${ours}.x cannot run engine ${theirs}.x (${ENGINE_PACKAGE} ${engine}).` +
+    (theirs > ours ? " Run npm i -g rigline@latest." : "")
   );
+}
+
+/** Whether an installed engine is of an older major, which this wrapper counts as none (D143). */
+function olderMajor(wrapper: string, state: EngineState): boolean {
+  const ours = majorOf(wrapper);
+  const theirs = state.kind === "none" ? null : majorOf(state.version);
+  return ours !== null && theirs !== null && theirs < ours;
+}
+
+/** The engine at a prefix, as this wrapper may use it: one of an older major is none (D143). */
+function usableState(prefix: string, wrapper: string): EngineState {
+  const state = readEngineState(prefix);
+  return olderMajor(wrapper, state) ? { kind: "none" } : state;
 }
 
 /**
@@ -152,23 +163,6 @@ export function newerWrapper(wrapper: string, engine: string): string | null {
   const order = compareVersions(engine, wrapper);
   if (order === null || order <= 0) return null;
   return `rigline ${engine} is out, and this is ${wrapper}: npm i -g rigline@${engine}`;
-}
-
-/** The last engine whose `update` refuses rather than runs, so a hand-off to it says nothing useful. */
-const LAST_WITHOUT_UPDATE = "1.0.0-alpha.12";
-
-/**
- * Why `update` cannot hand off to this engine, or null (D106). Only an engine older than the wrapper
- * can lack it: a build between releases carries the last release's version, as tier 4's does.
- */
-export function handOffProblem(wrapper: string, engine: string): string | null {
-  const behind = compareVersions(engine, wrapper);
-  const old = compareVersions(engine, LAST_WITHOUT_UPDATE);
-  if (behind === null || old === null || behind >= 0 || old > 0) return null;
-  return (
-    `${ENGINE_PACKAGE} ${engine} does no update of its own, so no plugin was updated. ` +
-    `Run rigline update again once the engine has moved past ${LAST_WITHOUT_UPDATE}.`
-  );
 }
 
 /**
@@ -286,7 +280,7 @@ export interface Engine {
 export async function ensureEngine(options: EngineOptions = {}): Promise<Engine> {
   const prefix = engineDir(options.home ?? riglineHome());
   const version = options.version ?? wrapperVersion();
-  const state = readEngineState(prefix);
+  const state = usableState(prefix, version);
 
   if (state.kind === "ready") {
     const problem = majorProblem(version, state.version);
@@ -420,7 +414,8 @@ export type EngineUpdate =
  */
 export async function updateEngine(options: EngineOptions = {}): Promise<EngineUpdate> {
   const prefix = engineDir(options.home ?? riglineHome());
-  const state = readEngineState(prefix);
+  const version = options.version ?? wrapperVersion();
+  const state = usableState(prefix, version);
   const installed = state.kind === "none" ? null : state.version;
 
   let resolved: Awaited<ReturnType<typeof resolveEngine>>;
@@ -438,7 +433,7 @@ export async function updateEngine(options: EngineOptions = {}): Promise<EngineU
     return { outcome: "current", from: state.version };
   }
 
-  const problem = majorProblem(options.version ?? wrapperVersion(), resolved.version);
+  const problem = majorProblem(version, resolved.version);
   if (problem !== null) {
     // `to`, so a caller can tell a major it cannot follow from a failure it can retry (D99).
     return {
@@ -449,8 +444,8 @@ export async function updateEngine(options: EngineOptions = {}): Promise<EngineU
     };
   }
 
-  // The gates need something to stay on, so they do not apply where there is no engine (D48, D73,
-  // D116). `ensureEngine` installs one regardless a moment later — a first run has to produce a
+  // The gates need something to stay on, so they do not apply where there is no engine, or only one
+  // of an older major (D48, D73, D116, D143). `ensureEngine` installs one regardless a moment later — a first run has to produce a
   // working command — so gating here would only have this run refuse and then contradict itself.
   if (installed !== null) {
     const node = nodeFloorProblem(resolved, options);

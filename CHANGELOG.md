@@ -21,6 +21,10 @@ hole, or raises the Node or VS Code it needs, its entry says so.
 - *Reset to defaults* in the panel, and `rigline layout reset`, now put back that starting layout
   rather than every element where its plugin puts it. For that, write `layout: {}` in
   `config.yaml`, or use *Plugin default* on one element.
+- `rigline` installs its engine over one from an older major, as it would on a first run, so
+  `npm i -g rigline@latest` is all it takes to bring a 1.x machine's engine across. An engine from
+  a newer major is still refused, and the line says to run `npm i -g rigline@latest`. A companion
+  that cannot follow a new major says to run that, then `rigline install`.
 
 ## 1.2.0 — 2026-10-19
 

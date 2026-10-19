@@ -222,7 +222,7 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
       // The wrapper refuses another major, so this companion stays on the old engine for good (D99).
       const message =
         `Rigline ${majorAhead} is a new major version, which this companion cannot run. ` +
-        "Run `npm i -g rigline@latest`, then `rigline vscode-setup`.";
+        "Run `npm i -g rigline@latest`, then `rigline install`.";
       editor.status("attention", "Rigline: needs you", message);
       editor.log(message);
       return { kind: "attention", message, reload, runner };

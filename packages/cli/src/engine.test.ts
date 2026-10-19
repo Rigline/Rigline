@@ -24,7 +24,6 @@ import {
   ensureEngine,
   findNpmCli,
   formatEngineUpdate,
-  handOffProblem,
   majorProblem,
   newerWrapper,
   readEngineState,
@@ -99,9 +98,15 @@ describe("readEngineState", () => {
 describe("majorProblem", () => {
   it("passes a matching major and refuses a different one by name", () => {
     expect(majorProblem("1.0.0-alpha.6", "1.2.3")).toBeNull();
-    expect(majorProblem("1.0.0", "2.0.0")).toBe(
-      `rigline 1.x cannot run engine 2.x (${ENGINE_PACKAGE} 2.0.0). Run npm i -g rigline@latest, ` +
-        "then rigline vscode-setup if you use the companion.",
+    expect(majorProblem("2.0.0", "3.0.0")).toBe(
+      `rigline 2.x cannot run engine 3.x (${ENGINE_PACKAGE} 3.0.0). Run npm i -g rigline@latest.`,
+    );
+  });
+
+  // A newer wrapper is no fix for an older engine, so the line names none.
+  it("names no fix for an older major", () => {
+    expect(majorProblem("2.0.0", "1.2.0")).toBe(
+      `rigline 2.x cannot run engine 1.x (${ENGINE_PACKAGE} 1.2.0).`,
     );
   });
 
@@ -152,19 +157,6 @@ describe("newerWrapper", () => {
     expect(newerWrapper("1.0.1", "1.0.0")).toBeNull();
     expect(newerWrapper("1.0.0", "1.0.0-rc.1")).toBeNull();
     expect(newerWrapper("1.0.0", "unreadable")).toBeNull();
-  });
-});
-
-describe("handOffProblem", () => {
-  it("refuses an engine behind this wrapper whose update refuses, and passes any after it", () => {
-    expect(handOffProblem("1.0.0-alpha.13", "1.0.0-alpha.12")).toContain("no plugin was updated");
-    expect(handOffProblem("1.0.0", "1.0.0-alpha.6")).not.toBeNull();
-    expect(handOffProblem("1.0.0", "1.0.0-alpha.13")).toBeNull();
-    expect(handOffProblem("1.0.1", "1.0.0")).toBeNull();
-  });
-
-  it("passes an engine level with the wrapper, which a build between releases is", () => {
-    expect(handOffProblem("1.0.0-alpha.12", "1.0.0-alpha.12")).toBeNull();
   });
 });
 
@@ -465,6 +457,24 @@ describe("updateEngine", () => {
     expect(update).toEqual({ outcome: "installed", to: "1.3.0" });
   });
 
+  // The 2.0 wrapper meets the 1.x engine it was installed over, which nothing else would replace.
+  it("installs over an engine of an older major, held to neither gate (D143)", async () => {
+    const prefix = temp();
+    writeEngine(engineDir(prefix), core("1.2.0"));
+    const update = await updateEngine({
+      home: prefix,
+      version: "2.0.0",
+      nodePath: process.execPath,
+      nodeVersion: "22.12.0",
+      registry: npm("2.0.0", "2026-09-21T11:51:00.000Z", ">=24.0.0"),
+      spawnImpl: () => {
+        writeEngine(engineDir(prefix), core("2.0.0"));
+        return fakeChild(0);
+      },
+    });
+    expect(update).toEqual({ outcome: "installed", to: "2.0.0" });
+  });
+
   it("refuses a major of its own rather than installing one it cannot run", async () => {
     const prefix = temp();
     const update = await updateEngine({
@@ -520,6 +530,40 @@ describe("ensureEngine", () => {
     expect(error).toHaveBeenCalledWith(
       `rigline: installing the engine, ${ENGINE_PACKAGE} 1.0.0-alpha.7`,
     );
+  });
+
+  // What `npm i -g rigline@latest`, then any command, does on a machine that was on 1.x.
+  it("installs over an engine of an older major, as on a first run (D143)", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const prefix = temp();
+    writeEngine(engineDir(prefix), core("1.2.0"));
+    const engine = await ensureEngine({
+      home: prefix,
+      version: "2.0.0",
+      registry: npm("2.0.0"),
+      spawnImpl: () => {
+        writeEngine(engineDir(prefix), core("2.0.0"));
+        return fakeChild(0);
+      },
+    });
+    expect(engine.version).toBe("2.0.0");
+  });
+
+  it("refuses an engine of a newer major in one line, and leaves it", async () => {
+    const prefix = temp();
+    writeEngine(engineDir(prefix), core("3.0.0"));
+    await expect(
+      ensureEngine({
+        home: prefix,
+        version: "2.0.0",
+        spawnImpl: () => {
+          throw new Error("nothing should have been spawned");
+        },
+      }),
+    ).rejects.toThrow(
+      `rigline 2.x cannot run engine 3.x (${ENGINE_PACKAGE} 3.0.0). Run npm i -g rigline@latest.`,
+    );
+    expect(readEngineState(engineDir(prefix))).toMatchObject({ version: "3.0.0" });
   });
 });
 

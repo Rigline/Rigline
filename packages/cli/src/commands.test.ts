@@ -149,11 +149,15 @@ describe("updateCommand", () => {
     expect(await updateCommand([], { ...options, registry: npm("1.0.0-alpha.13") })).toBe(1);
   });
 
-  it("refuses to hand off to an engine whose update refuses, rather than running it", async () => {
-    const { calls, options } = machine("1.0.0-alpha.12", null, 0, "1.0.0-alpha.13");
-    await expect(updateCommand([], { ...options, registry: unreachable })).rejects.toThrow(
-      /no plugin was updated/,
-    );
-    expect(calls).toEqual([]);
+  it("installs over an engine of an older major, ungated, and hands off to that (D143)", async () => {
+    const { entry, calls, options } = machine("1.2.0", "2.0.0", 0, "2.0.0");
+    const code = await updateCommand([], {
+      ...options,
+      registry: npm("2.0.0", new Date().toISOString()),
+    });
+
+    expect(code).toBe(0);
+    expect(calls.map((argv) => argv[0])).toEqual([expect.stringMatching(/npm-cli\.js$/), entry]);
+    expect(log.mock.calls[0]?.[0]).toBe("engine: installed 2.0.0");
   });
 });

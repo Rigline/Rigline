@@ -8,7 +8,6 @@ import {
   engineDir,
   ensureEngine,
   formatEngineUpdate,
-  handOffProblem,
   newerWrapper,
   readEngineState,
   riglineHome,
@@ -61,10 +60,7 @@ export async function updateCommand(
   console.log(formatEngineUpdate(moved, options.home ?? riglineHome()));
 
   const engine = await ensureEngine(given);
-  const wrapper = options.version ?? wrapperVersion();
-  const problem = handOffProblem(wrapper, engine.version);
-  if (problem !== null) throw new UserError(problem);
-  notice(engine.version, wrapper);
+  notice(engine.version, options.version ?? wrapperVersion());
   const code = await engine.run(["update", ...forward]);
   // A Node below the new engine's floor needs you; a release too young only needs waiting (D115).
   const needsYou =
