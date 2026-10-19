@@ -1,17 +1,20 @@
 /**
  * The settings saver the shell provides around each contribution (D138): what it stamps, what it
- * refuses, and what travels in the link.
+ * refuses, and what travels in the link. Then the layout's Save link, which refuses alike.
  */
 import {
   COMPANION,
   decodeSettingsPayload,
+  MAX_SAVE_PAYLOAD,
   MAX_SETTINGS_PAYLOAD,
+  NO_TOKEN,
   type SaveRecord,
 } from "@rigline/plugin-api/internal";
 import { describe, expect, it } from "vitest";
 import { maySaveSection, settingsSaver } from "../src/kernel/save.ts";
+import { saveLink } from "../src/shell/layout.tsx";
 
-const save: SaveRecord = { token: "a".repeat(32), companion: true, scheme: "vscode" };
+const save: SaveRecord = { token: "a".repeat(32), scheme: "vscode" };
 const baked: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
   clock: { tick: 1 },
   other: { x: 9 },
@@ -91,8 +94,7 @@ describe("settingsSaver", () => {
   });
 
   it.each([
-    [{ token: null, companion: true, scheme: "vscode" }, /no token for this machine/],
-    [{ token: "a".repeat(32), companion: false, scheme: "vscode" }, /companion extension is not/],
+    [{ token: null, scheme: "vscode" }, /no token for this machine/],
     [null, /no token for this machine/],
   ])("refuses and says why when there is no route: %o", (record, reason) => {
     const link = saverFor(record, "clock").link({ tick: 2 });
@@ -108,5 +110,29 @@ describe("settingsSaver", () => {
     });
     expect("refused" in link).toBe(true);
     expect("refused" in link && link.refused).toMatch(/too large to save from the panel/);
+  });
+});
+
+// The layout's Save refuses as the settings screen's does, and never offers a fallback (D143).
+describe("saveLink", () => {
+  const from = { rigRow: ["clock/face"] };
+
+  it("links to the companion with the copy where there is a token", () => {
+    const link = saveLink(save, from, { off: ["clock/face"] });
+    expect("href" in link && link.href).toMatch(
+      new RegExp(`^vscode://${COMPANION.replace(".", "\\.")}/layout\\?p=`),
+    );
+  });
+
+  it("is refused, saying why, with no token or a copy too large for a link", () => {
+    expect(saveLink(null, from, {})).toEqual({ refused: NO_TOKEN });
+    expect(saveLink({ ...save, token: null }, from, {})).toEqual({ refused: NO_TOKEN });
+    const many = { rigRow: Array.from({ length: 2000 }, (_, i) => `plugin/element-${i}`) };
+    const link = saveLink(save, from, many);
+    expect("refused" in link && link.refused).toMatch(
+      new RegExp(
+        `^this layout is too large to save from the panel: \\d+ characters, over the ${MAX_SAVE_PAYLOAD}`,
+      ),
+    );
   });
 });

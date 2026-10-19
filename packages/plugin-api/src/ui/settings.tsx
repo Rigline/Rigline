@@ -71,7 +71,7 @@ export interface SaveSettingsProps {
 /**
  * The anchor a settings save travels on, around the plugin's own control.
  *
- * Where no save is possible — no companion, no token, or a section past what a link carries — the
+ * Where no save is possible — no token, or a section past what a link carries — the
  * children render with the reason as their tooltip and no link, rather than a link that does
  * nothing: a save that silently fails is the one outcome this whole path is built to avoid.
  */

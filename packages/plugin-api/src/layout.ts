@@ -403,35 +403,6 @@ export function withOrder(layout: Layout, place: string, names: readonly string[
 }
 
 /**
- * The `rigline layout` commands that turn `from` into `to`, for a panel with no companion to save
- * through (D93). Only the places that differ are named: a command cannot write back an entry that
- * does not resolve, so one left alone in an untouched place is kept rather than reset away.
- */
-export function layoutCommands(from: Layout, to: Layout): string[] {
-  // `reset` writes the shipped layout whole, taking out unresolved entries as Save does (D142).
-  if (sameLayout(to, SHIPPED_LAYOUT)) {
-    return sameLayout(from, SHIPPED_LAYOUT) ? [] : ["rigline layout reset"];
-  }
-  const at = (layout: Layout, place: string): readonly string[] =>
-    Object.hasOwn(layout, place) ? (layout[place] ?? []) : [];
-  const kept = new Set(Object.values(to).flat());
-  const commands: string[] = [];
-  for (const place of new Set([...Object.keys(to), ...Object.keys(from)])) {
-    const want = at(to, place);
-    const had = at(from, place);
-    if (want.length === had.length && want.every((n, i) => n === had[i])) continue;
-    if (want.length > 0) {
-      commands.push(`rigline layout order ${place} ${want.join(" ")}`);
-      continue;
-    }
-    for (const name of had) {
-      if (!kept.has(name)) commands.push(`rigline layout place ${name} default`);
-    }
-  }
-  return commands;
-}
-
-/**
  * Every entry of `layout` that does not resolve against `plugins`, one line each. Reported, never a
  * refusal: the element stays at its default, and the entry stays in the file, since its plugin may
  * come back. Entries for a plugin in `disabled` say nothing.

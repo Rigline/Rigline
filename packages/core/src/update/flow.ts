@@ -62,7 +62,7 @@ import {
   registryEngine,
 } from "../plugins/discover.ts";
 import { bakePresets, listPresets, type PresetDirs } from "../plugins/preset.ts";
-import { readToken } from "../plugins/save.ts";
+import { readToken, SAVE_OFF } from "../plugins/save.ts";
 import { CORE_VERSION } from "../version.ts";
 import { type BaselineSource, readBaseline, riglineGenerated, writeBaseline } from "./baseline.ts";
 
@@ -378,9 +378,7 @@ function checkHeld(options: FlowOptions): FlowReport {
   const tokenPath = options.plugins?.tokenPath;
   const token = tokenPath !== undefined && existsSync(tokenPath) ? readToken(tokenPath) : null;
   const tokenProblem =
-    token !== null && "problem" in token
-      ? `Save in the panel copies commands instead: ${token.problem}`
-      : null;
+    token !== null && "problem" in token ? `${SAVE_OFF}: ${token.problem}` : null;
 
   return settle(options, overrides, harvested, versions, null, {
     kind: "check",

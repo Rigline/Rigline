@@ -9,7 +9,6 @@
 import {
   type BakedPreset,
   type Layout,
-  layoutCommands,
   OFF,
   placeTitle,
   pluginsNamed,
@@ -19,7 +18,7 @@ import {
   sameLayout,
   type ViewPlace,
 } from "@rigline/plugin-api/internal";
-import { copyText, useStore } from "@rigline/plugin-api/ui";
+import { useStore } from "@rigline/plugin-api/ui";
 import { type MenuEntry, MenuPanel, NO_SAVER } from "@rigline/plugin-api/ui/internal";
 import {
   type CSSProperties,
@@ -36,7 +35,7 @@ import {
 } from "react";
 import type { LayoutEditor } from "../kernel/layout.ts";
 import type { ElementReading } from "../kernel/shell.ts";
-import { movesOf, rowMovesOf, SAVE_NOTES, saveHref } from "./layout.tsx";
+import { movesOf, rowMovesOf, SAVE_NOTES, saveLink } from "./layout.tsx";
 import { type Box, contains, insertionIndex, readingOrder, union } from "./order.ts";
 import type { PanelPlace } from "./types.ts";
 
@@ -1118,8 +1117,7 @@ function Bar(props: {
           Reset to defaults
         </button>
       )}
-      {/* Keyed by the copy, so "Commands copied" goes once the copy changes again. */}
-      {dirty && <Save key={JSON.stringify(working)} editor={editor} from={baseline} to={working} />}
+      {dirty && <Save editor={editor} from={baseline} to={working} />}
       <button
         type="button"
         className="rigline-edit-button"
@@ -1141,39 +1139,28 @@ function Save(props: {
   readonly to: Layout;
 }): ReactNode {
   const { editor, from, to } = props;
-  const [copied, setCopied] = useState<boolean | null>(null);
-  const applied = useStore(editor.appliedPreset);
-  const href = saveHref(editor, from, to);
-  if (href !== null) {
-    // Neither prevented nor stopped: VS Code acts only on a click that reaches its listener (D93).
+  const link = saveLink(editor.save, from, to);
+  if ("refused" in link) {
     return (
-      <a
-        href={href}
+      <button
+        type="button"
         className="rigline-edit-button rigline-edit-primary"
-        title="to config.yaml, through the Rigline companion"
-        onClick={() => void editor.confirm(to)}
+        disabled
+        title={link.refused}
       >
         Save
-      </a>
+      </button>
     );
   }
-  // A preset's own command, where the copy is still a preset's: `layoutCommands` cannot write
-  // back an entry that does not resolve, so for a preset naming a plugin somebody has not got
-  // the commands would not reproduce what is on screen. `layout apply` does (D133).
-  const commands =
-    applied === null ? layoutCommands(from, to).join("\n") : `rigline layout apply ${applied}`;
+  // Neither prevented nor stopped: VS Code acts only on a click that reaches its listener (D93).
   return (
-    <button
-      type="button"
+    <a
+      href={link.href}
       className="rigline-edit-button rigline-edit-primary"
-      title={
-        applied === null
-          ? "the rigline layout commands that save this layout, to run in a terminal"
-          : "the rigline command that applies this preset, to run in a terminal"
-      }
-      onClick={() => setCopied(copyText(commands))}
+      title="to config.yaml, through the Rigline companion"
+      onClick={() => void editor.confirm(to)}
     >
-      {copied === null ? "Copy commands" : copied ? "Commands copied" : "The copy failed"}
-    </button>
+      Save
+    </a>
   );
 }

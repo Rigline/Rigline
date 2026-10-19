@@ -214,13 +214,7 @@ export type {
 } from "./plugins/remote.ts";
 export { addFromNpm, formatUpdates, updatePlugins } from "./plugins/remote.ts";
 export type { PanelSave } from "./plugins/save.ts";
-export {
-  companionHandlesSave,
-  ensureToken,
-  readToken,
-  saveFromPanel,
-  saveRecord,
-} from "./plugins/save.ts";
+export { ensureToken, readToken, saveFromPanel, saveRecord } from "./plugins/save.ts";
 export type { SettingsSaved } from "./plugins/settings.ts";
 export { saveSettingsFromPanel, writeSettings } from "./plugins/settings.ts";
 export type { BaselineSource } from "./update/baseline.ts";

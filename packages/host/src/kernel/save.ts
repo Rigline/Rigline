@@ -6,6 +6,7 @@ import {
   COMPANION,
   encodeSettingsPayload,
   MAX_SETTINGS_PAYLOAD,
+  NO_TOKEN,
   type RiglineSave,
   type SaveRecord,
   SETTINGS_PAYLOAD_VERSION,
@@ -40,14 +41,7 @@ export function settingsLink(
   sections: Readonly<Record<string, SettingsSave>>,
   rigline?: RiglineSave,
 ): SaveLink {
-  if (!save?.token) {
-    return { refused: "Rigline has no token for this machine, so nothing can be saved" };
-  }
-  if (!save.companion) {
-    return {
-      refused: "the Rigline companion extension is not installed, so nothing can be saved",
-    };
-  }
+  if (!save?.token) return { refused: NO_TOKEN };
   const payload = encodeSettingsPayload({
     v: SETTINGS_PAYLOAD_VERSION,
     token: save.token,

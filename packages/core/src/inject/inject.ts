@@ -412,7 +412,7 @@ export interface InstallReport {
   readonly problems: readonly string[];
   /** Discovery and `config.yaml` problems, the same for every version. */
   readonly configNotes: readonly string[];
-  /** Why the panel's Save copies commands instead, when the token file is unusable (D93). */
+  /** Why the panel's Save is off, when the token file is unusable (D93). */
   readonly tokenProblem: string | null;
   /** Plugins not loaded because their manifest does not hold, the same for every version (P3). */
   readonly unloaded: readonly string[];
@@ -597,7 +597,7 @@ export function install(ext: string, options: InstallOptions): InstallReport {
     const save =
       tokenPath === undefined
         ? null
-        : saveRecord(ext, tokenPath, (line) => {
+        : saveRecord(tokenPath, (line) => {
             tokenProblem = line;
           });
     const baked = Buffer.from(

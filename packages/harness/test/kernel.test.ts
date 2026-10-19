@@ -2293,7 +2293,7 @@ export default { setup(ctx) {
       };
       const booted = await boot({
         plugins: [saver],
-        save: { token: "f".repeat(32), companion: true, scheme: "vscode" },
+        save: { token: "f".repeat(32), scheme: "vscode" },
         settings: { saver: { favourites: [] } },
       });
       try {

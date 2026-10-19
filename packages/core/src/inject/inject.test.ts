@@ -331,7 +331,7 @@ describe("a second run writes nothing", () => {
     expect(report.configNotes).toContain(`${configPath}: gone/away: no plugin "gone" is installed`);
   });
 
-  it("makes the token once and bakes it into every version, with no companion beside them (D93)", () => {
+  it("makes the token once and bakes it into every version (D93)", () => {
     const first = fixture({ version: "2.1.268" });
     const second = fixture({ version: "2.1.270" });
     const tokenPath = join(tempDir("rigline-home-"), "token");
@@ -341,9 +341,7 @@ describe("a second run writes nothing", () => {
     const token = readFileSync(tokenPath, "utf8").trim();
     for (const ext of [first, second]) {
       const registry = readFileSync(join(payloadOutDir(ext), "registry.js"), "utf8");
-      expect(registry).toContain(
-        `export const save = {"token":"${token}","companion":false,"scheme":"vscode"};`,
-      );
+      expect(registry).toContain(`export const save = {"token":"${token}","scheme":"vscode"};`);
       // The same channel in every version, so a panel on one hears a panel on another (D141).
       expect(registry).toContain(`export const broadcast = "${broadcastName(token)}";`);
     }

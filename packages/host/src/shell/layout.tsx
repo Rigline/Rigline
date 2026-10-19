@@ -6,28 +6,28 @@ import {
   COMPANION,
   encodeSavePayload,
   type Layout,
-  layoutCommands,
   MAX_SAVE_PAYLOAD,
+  NO_TOKEN,
   OFF,
   placeTitle,
   rowNumbers,
   rowOf,
   rowPlace,
   SAVE_PAYLOAD_VERSION,
+  type SaveRecord,
   type Store,
   sameLayout,
   type ViewElement,
 } from "@rigline/plugin-api/internal";
 import {
-  copyText,
   MenuItem,
   MenuNote,
   type MenuSelectEvent,
   Submenu,
   useStore,
 } from "@rigline/plugin-api/ui";
-import { MenuLink } from "@rigline/plugin-api/ui/internal";
-import { Fragment, type ReactNode, useEffect, useState } from "react";
+import { MenuLink, type SaveLink } from "@rigline/plugin-api/ui/internal";
+import { Fragment, type ReactNode, useEffect } from "react";
 import type { LayoutEditor, SaveState } from "../kernel/layout.ts";
 import type { ElementReading } from "../kernel/shell.ts";
 import type { PanelPlace } from "./types.ts";
@@ -36,7 +36,7 @@ export const SAVE_NOTES: Record<Exclude<SaveState, "idle">, string> = {
   saving: "Saving through the Rigline companion…",
   saved: "Saved.",
   unconfirmed:
-    "Not confirmed. Rigline's notification says why; with none, the companion never got the save.",
+    "Not confirmed. Rigline's notification says why; with none, no companion answered, which `rigline install` puts right.",
 };
 
 /** A move, which keeps the menu open. */
@@ -47,13 +47,16 @@ const stay =
     move();
   };
 
-/** Save's link where a companion answers and the copy fits in one, else null for Copy commands. */
-export function saveHref(editor: LayoutEditor, from: Layout, to: Layout): string | null {
-  const { save } = editor;
-  if (!save?.token || !save.companion) return null;
+/** Save's link, or why there is none: the settings screen's shape, so both Saves refuse alike. */
+export function saveLink(save: SaveRecord | null, from: Layout, to: Layout): SaveLink {
+  if (!save?.token) return { refused: NO_TOKEN };
   const payload = encodeSavePayload({ v: SAVE_PAYLOAD_VERSION, token: save.token, from, to });
-  if (payload.length > MAX_SAVE_PAYLOAD) return null;
-  return `${save.scheme}://${COMPANION}/layout?p=${payload}`;
+  if (payload.length > MAX_SAVE_PAYLOAD) {
+    return {
+      refused: `this layout is too large to save from the panel: ${payload.length} characters, over the ${MAX_SAVE_PAYLOAD} a Save link carries`,
+    };
+  }
+  return { href: `${save.scheme}://${COMPANION}/layout?p=${payload}` };
 }
 
 /** The submenu, bound to one editor, for the shell to add as its own menu entry. */
@@ -259,36 +262,21 @@ function MoveItems(props: Where): ReactNode {
   );
 }
 
-/** A link to the companion where one answers, else the commands that make the same change. */
+/** A link to the companion, or a Save that is off and says why. */
 function Save(props: {
   readonly editor: LayoutEditor;
   readonly from: Layout;
   readonly to: Layout;
 }): ReactNode {
   const { editor, from, to } = props;
-  const [copied, setCopied] = useState<boolean | null>(null);
-  const href = saveHref(editor, from, to);
-  if (href !== null) {
-    return (
-      <MenuLink
-        href={href}
-        label="Save"
-        description="to config.yaml, through the Rigline companion"
-        onFollow={() => void editor.confirm(to)}
-      />
-    );
-  }
+  const link = saveLink(editor.save, from, to);
+  if ("refused" in link) return <MenuItem label="Save" disabled title={link.refused} />;
   return (
-    <MenuItem
-      label="Copy commands"
-      description={
-        copied === null
-          ? "that save this layout, to run in a terminal"
-          : copied
-            ? "copied: run them, then Reload saved layout"
-            : "the copy failed"
-      }
-      onSelect={stay(() => setCopied(copyText(layoutCommands(from, to).join("\n"))))}
+    <MenuLink
+      href={link.href}
+      label="Save"
+      description="to config.yaml, through the Rigline companion"
+      onFollow={() => void editor.confirm(to)}
     />
   );
 }

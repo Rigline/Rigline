@@ -361,7 +361,7 @@ describe("bakeRegistry", () => {
   });
 
   it("carries what the panel's Save needs (D93)", async () => {
-    const save = { token: "ABCDEFGHIJKLMNOPQRSTUV", companion: true, scheme: "vscode" };
+    const save = { token: "ABCDEFGHIJKLMNOPQRSTUV", scheme: "vscode" };
     const path = join(tempDir(), "registry.mjs");
     writeFileSync(path, bakeRegistry([], [], {}, save));
     const mod = (await import(pathToFileURL(path).href)) as { save: object };

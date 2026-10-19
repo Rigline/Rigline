@@ -16,7 +16,7 @@ import { createSettingsEditor } from "../src/kernel/settings.ts";
 
 type Sections = Record<string, Record<string, unknown>>;
 
-const save: SaveRecord = { token: "a".repeat(32), companion: true, scheme: "vscode" };
+const save: SaveRecord = { token: "a".repeat(32), scheme: "vscode" };
 const OFF: RiglineSettings = { model: NO_MODEL_SETTINGS };
 const ALWAYS: RiglineSettings = { model: { requireChoice: "always", default: null } };
 
@@ -132,11 +132,12 @@ describe("Save", () => {
     expect(e.unsaveable("rigline")).toBeNull();
   });
 
-  it("says there is no route where the companion is missing", () => {
-    const { e } = editor({}, OFF, { ...save, companion: false });
+  // A companion is required, so nothing is baked about one and the link is offered (D143).
+  it("says there is no route only where there is no token", () => {
+    const { e } = editor({}, OFF, { ...save, token: null });
     e.set("clock", { tick: 2 });
     const link = e.link();
-    expect("refused" in link && link.refused).toMatch(/companion extension is not installed/);
+    expect("refused" in link && link.refused).toMatch(/no token for this machine/);
   });
 });
 

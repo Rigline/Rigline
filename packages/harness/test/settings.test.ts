@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest";
 import type { FixturePlugin } from "../src/payload.ts";
 import { harnessSkipReason, register, HARNESS_VERSION as VERSION } from "../src/suite.ts";
 
-const COMPANION: SaveRecord = { token: "c".repeat(32), companion: true, scheme: "vscode" };
+const COMPANION: SaveRecord = { token: "c".repeat(32), scheme: "vscode" };
 const OFF: ModelSettings = { requireChoice: "off", default: null };
 const SCREEN = '[role="dialog"].rigline-settings-frame';
 const SAVE = `${SCREEN} a[href^="vscode://rigline.rigline/settings?p="]`;

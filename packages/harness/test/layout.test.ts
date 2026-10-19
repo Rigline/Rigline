@@ -1,7 +1,7 @@
 /**
  * The Layout submenu against the real bundle (D93): moves re-place live, Save is a link carrying the
- * copy, the guard cancels a click VS Code would never see, no companion means Copy commands, and
- * Reload picks up a layout saved elsewhere. `registry.js` is rewritten mid-run where a test stands
+ * copy, the guard cancels a click VS Code would never see, no token means a Save that is off and
+ * says why, and Reload picks up a layout saved elsewhere. `registry.js` is rewritten mid-run where a test stands
  * in for the engine, since the panel learns what the file holds only by reading it again. Then
  * editing in place over the same copy (D95).
  */
@@ -25,7 +25,7 @@ import {
 
 const SPACER = { anchor: "footerSpacer", at: "before" } as const;
 const TOKEN = "ABCDEFGHIJKLMNOPQRSTUV";
-const COMPANION: SaveRecord = { token: TOKEN, companion: true, scheme: "vscode" };
+const COMPANION: SaveRecord = { token: TOKEN, scheme: "vscode" };
 
 const deck: FixturePlugin = {
   name: "deck",
@@ -253,26 +253,18 @@ describe.skipIf(skip !== null)(`the Layout submenu${skip ? ` (${skip})` : ""}`, 
     }
   }, 30000);
 
-  it("offers the commands instead where no companion answers", async () => {
-    const booted = await boot({ plugins: [deck], save: { ...COMPANION, companion: false } });
+  // Nothing about a companion is baked any more: Save is a link wherever there is a token (D143).
+  it("turns Save off, saying why, where there is no token", async () => {
+    const booted = await boot({ plugins: [deck], save: { ...COMPANION, token: null } });
     const { page } = booted;
     try {
       await openLayout(page);
       await choose(page, "Three", "Move to Rigline row");
       await page.waitForSelector('[data-rigline-zone="rigRow"] .deck-three');
       expect(await page.locator('a[href^="vscode:"]').count()).toBe(0);
-      await page.evaluate(() => {
-        document.execCommand = () => {
-          (window as unknown as { __copied: string }).__copied = (
-            document.activeElement as HTMLTextAreaElement
-          ).value;
-          return true;
-        };
-      });
-      await page.getByRole("menuitem", { name: /^Copy commands/ }).click();
-      expect(await page.evaluate(() => (window as unknown as { __copied: string }).__copied)).toBe(
-        "rigline layout order rigRow deck/three",
-      );
+      const save = page.getByRole("menuitem", { name: /^Save/ });
+      expect(await save.isDisabled()).toBe(true);
+      expect(await save.getAttribute("title")).toMatch(/no token for this machine/);
     } finally {
       await booted.close();
     }
@@ -1086,7 +1078,7 @@ describe.skipIf(skip !== null)(`presets in the panel${skip ? ` (${skip})` : ""}`
     }
   }, 30000);
 
-  it("copies the preset's own command where there is no companion to save through", async () => {
+  it("turns the bar's Save off too, saying why, where nothing can be saved", async () => {
     const booted = await boot({ plugins: [deck], presets: [mine], save: null });
     const { page } = booted;
     try {
@@ -1094,19 +1086,9 @@ describe.skipIf(skip !== null)(`presets in the panel${skip ? ` (${skip})` : ""}`
       const bar = page.locator(".rigline-edit-bar");
       await bar.getByRole("button", { name: "Presets" }).click();
       await page.getByRole("button", { name: /^mine/ }).click();
-      await page.evaluate(() => {
-        document.execCommand = () => {
-          (window as unknown as { __copied: string }).__copied = (
-            document.activeElement as HTMLTextAreaElement
-          ).value;
-          return true;
-        };
-      });
-      // `layoutCommands` cannot write back an entry that does not resolve; `layout apply` can.
-      await bar.getByRole("button", { name: "Copy commands" }).click();
-      expect(await page.evaluate(() => (window as unknown as { __copied: string }).__copied)).toBe(
-        "rigline layout apply mine",
-      );
+      const save = bar.getByRole("button", { name: "Save" });
+      expect(await save.isDisabled()).toBe(true);
+      expect(await save.getAttribute("title")).toMatch(/no token for this machine/);
     } finally {
       await booted.close();
     }

@@ -7,13 +7,14 @@ import { type ModelSettings, readModelSettings } from "./models.ts";
 
 /** What `install` bakes for the panel's Save. */
 export interface SaveRecord {
-  /** This machine's token, or null where the file does not hold one, which leaves Copy commands. */
+  /** This machine's token, or null where the file does not hold one, which leaves Save off. */
   readonly token: string | null;
-  /** Whether an installed companion answers a Save link. */
-  readonly companion: boolean;
   /** The link's scheme: the product whose extensions directory was injected. */
   readonly scheme: string;
 }
+
+/** Why there is no Save where `install` found no token, in the layout's Save and the settings'. */
+export const NO_TOKEN = "Rigline has no token for this machine, so nothing can be saved";
 
 /**
  * The companion's extension id, which a Save link names as its authority.

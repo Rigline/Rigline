@@ -45,14 +45,6 @@ export interface LayoutEditor {
   readonly presets: Store<readonly BakedPreset[]>;
   /** How many of their own a bound left out of the bake, for the line that says so. */
   readonly omitted: Store<number>;
-  /**
-   * The preset the working copy came from, while it is still that preset's.
-   *
-   * Only the Save fallback needs it: `layoutCommands` cannot write back an entry that does not
-   * resolve, so for a preset naming a plugin somebody has not got it would copy commands that
-   * do not reproduce the copy. `rigline layout apply <name>` does.
-   */
-  readonly appliedPreset: Store<string | null>;
   /** What Save goes through, or null where `install` baked nothing. */
   readonly save: SaveRecord | null;
   /** Moves `name` last into `place`, or back to its default where `place` is null. */
@@ -133,7 +125,6 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
   const editing = store(false);
   const presets = store<readonly BakedPreset[]>(options.presets ?? []);
   const omitted = store(options.omitted ?? 0);
-  const appliedPreset = store<string | null>(null);
   const shipped = compactRows(SHIPPED_LAYOUT, plugins);
   working.subscribe(() => view.set(layoutView(working.get(), plugins)));
 
@@ -141,9 +132,8 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
    * A move, leaving the rows numbered from one (D122). A save's outcome is about the copy it saved,
    * so it goes once the copy changes.
    */
-  function edit(next: Layout, from: string | null = null): void {
+  function edit(next: Layout): void {
     working.set(compactRows(next, plugins));
-    appliedPreset.set(from);
     tracker.edited();
   }
 
@@ -152,7 +142,6 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
       if (!sameLayout(saved, baseline.get())) {
         baseline.set(saved);
         working.set(saved);
-        appliedPreset.set(null);
       }
       newer.set(false);
       return;
@@ -176,7 +165,6 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
     editing,
     presets,
     omitted,
-    appliedPreset,
     save,
     move(name, place) {
       edit(withElementAt(working.get(), name, place));
@@ -242,7 +230,7 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
     apply(name) {
       const preset = presets.get().find((p) => p.name === name);
       if (preset === undefined || !isApplicable(preset)) return;
-      edit(preset.layout, preset.name);
+      edit(preset.layout);
     },
     async reload() {
       const saved = await readSaved();
@@ -251,7 +239,6 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
       working.set(saved.layout);
       presets.set(saved.presets);
       omitted.set(saved.omitted);
-      appliedPreset.set(null);
       newer.set(false);
       saving.set("idle");
     },

@@ -4,9 +4,8 @@
  */
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, linkSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
 import { decodeSavePayload, type SaveRecord, sameLayout } from "@rigline/plugin-api/internal";
-import { companionDirs } from "../companion/fingerprint.ts";
 import { UserError } from "../errors.ts";
 import { URL_SCHEME } from "../extension/locate.ts";
 import { readConfig } from "./config.ts";
@@ -57,40 +56,15 @@ function writeExclusive(path: string, text: string): void {
   }
 }
 
-/**
- * Whether a companion in `extensionsDir` answers a Save link, which its manifest says by listing
- * `onUri`. Any of them rather than the newest: an update leaves the old directory behind for a
- * while, and nothing here orders versions.
- */
-export function companionHandlesSave(extensionsDir: string): boolean {
-  return companionDirs(extensionsDir).some((dir) => {
-    try {
-      const manifest = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")) as {
-        activationEvents?: unknown;
-      };
-      return (
-        Array.isArray(manifest.activationEvents) && manifest.activationEvents.includes("onUri")
-      );
-    } catch {
-      return false;
-    }
-  });
+/** What `install` bakes for the panel's Save. */
+export function saveRecord(tokenPath: string, log: (line: string) => void): SaveRecord {
+  const token = ensureToken(tokenPath);
+  if ("problem" in token) log(`${SAVE_OFF}: ${token.problem}`);
+  return { token: "token" in token ? token.token : null, scheme: URL_SCHEME };
 }
 
-/** What `install` bakes for the Save of a panel running from `ext`. */
-export function saveRecord(
-  ext: string,
-  tokenPath: string,
-  log: (line: string) => void,
-): SaveRecord {
-  const token = ensureToken(tokenPath);
-  if ("problem" in token) log(`Save in the panel copies commands instead: ${token.problem}`);
-  return {
-    token: "token" in token ? token.token : null,
-    companion: companionHandlesSave(dirname(ext)),
-    scheme: URL_SCHEME,
-  };
-}
+/** What a token file that cannot be read costs, for the line that names it. */
+export const SAVE_OFF = "Save in the panel is off";
 
 /**
  * The channel the panels tell each other about a save on (D141): this home's, unguessable, and

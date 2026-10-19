@@ -4,7 +4,6 @@ import {
   compactRows,
   describeElements,
   type Layout,
-  layoutCommands,
   layoutProblems,
   layoutView,
   parsePlace,
@@ -14,7 +13,6 @@ import {
   rowNumbers,
   rowOf,
   rowPlace,
-  SHIPPED_LAYOUT,
   sameLayout,
   withElementAt,
   withOrder,
@@ -376,40 +374,5 @@ describe("moves", () => {
     const moved = withElementAt({}, "a/x", "__proto__");
     expect(Object.hasOwn(moved, "__proto__")).toBe(true);
     expect(Object.getPrototypeOf(moved)).toBe(Object.prototype);
-  });
-});
-
-describe("layoutCommands", () => {
-  it("names only the places that changed, and orders each one that still lists something", () => {
-    const from = { rigRow: ["a/x"], "before footerSpacer": ["gone/away"] };
-    const to = { rigRow: ["b/y", "a/x"], "before footerSpacer": ["gone/away"] };
-    expect(layoutCommands(from, to)).toEqual(["rigline layout order rigRow b/y a/x"]);
-  });
-
-  it("puts back at its default an element whose place is left empty, unless it moved", () => {
-    const from = { rigRow: ["a/x", "b/y"] };
-    const to = { off: ["b/y"] };
-    expect(layoutCommands(from, to)).toEqual([
-      "rigline layout order off b/y",
-      "rigline layout place a/x default",
-    ]);
-  });
-
-  it("says nothing when nothing changed", () => {
-    expect(layoutCommands({ rigRow: ["a/x"] }, { rigRow: ["a/x"], off: [] })).toEqual([]);
-    expect(layoutCommands({}, { off: [] })).toEqual([]);
-  });
-
-  it("resets a copy holding the shipped layout, unresolved entries and all, as Save writes it", () => {
-    const from = { rigRow: ["a/x"], off: ["gone/away"] };
-    expect(layoutCommands(from, SHIPPED_LAYOUT)).toEqual(["rigline layout reset"]);
-    expect(layoutCommands(SHIPPED_LAYOUT, SHIPPED_LAYOUT)).toEqual([]);
-  });
-
-  it("puts each element back at its plugin's default for a copy with nothing listed", () => {
-    expect(layoutCommands({ rigRow: ["a/x", "b/y"] }, {})).toEqual([
-      "rigline layout place a/x default",
-      "rigline layout place b/y default",
-    ]);
   });
 });

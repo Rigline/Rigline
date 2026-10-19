@@ -21,7 +21,7 @@ import { harnessSkipReason, register, HARNESS_VERSION as VERSION } from "../src/
 const PLUGIN_DIR = new URL("../../../plugins/model-favourites/", import.meta.url);
 const NAME = "model-favourites";
 
-const COMPANION: SaveRecord = { token: "c".repeat(32), companion: true, scheme: "vscode" };
+const COMPANION: SaveRecord = { token: "c".repeat(32), scheme: "vscode" };
 const SCREEN = '[role="dialog"].rigline-settings-frame';
 const SAVE = `${SCREEN} a[href^="vscode://rigline.rigline/settings?p="]`;
 const USUAL: ModelSettings = { requireChoice: "off", default: { model: "opus", effort: "xhigh" } };

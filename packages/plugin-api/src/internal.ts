@@ -40,7 +40,6 @@ export {
   compactRows,
   describeElements,
   elementRank,
-  layoutCommands,
   layoutProblems,
   layoutView,
   MAX_LAYOUT_ENTRIES,
@@ -129,7 +128,7 @@ export type {
   SettingsPayload,
   SettingsSave,
 } from "./save.ts";
-export { COMPANION } from "./save.ts";
+export { COMPANION, NO_TOKEN } from "./save.ts";
 export {
   decodeSavePayload,
   decodeSettingsPayload,

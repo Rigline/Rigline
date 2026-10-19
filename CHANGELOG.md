@@ -40,6 +40,10 @@ hole, or raises the Node or VS Code it needs, its entry says so.
   could install into none, nothing is injected. Installing needs VS Code's `code` command on
   `PATH`, and only then.
 - `rigline check` names each profile `install` would give the companion or bring it up to date in.
+- Save in the panel is always a link to the companion. Where nothing can be saved, because
+  `~/.rigline/token` cannot be read or the layout is too large for a link, the layout's Save is off
+  and its tooltip says why, as the settings screen's already was. A save no companion answered
+  says so, and names `rigline install`.
 
 ### Removed
 
@@ -47,6 +51,7 @@ hole, or raises the Node or VS Code it needs, its entry says so.
   with `skipProfiles` and `everyProfile`. A `companion` block left in the file is named as a key
   Rigline does not read. `rigline vscode-setup` on its own is what `install` is.
 - `rigline watch`. The companion re-injects after every extension update.
+- *Copy commands*, which stood in for the layout's Save where no companion answered.
 - The one-time move of a `~/.rigline/config.json` from before 1.0 into `config.yaml` and
   `sources.json`. One still there is ignored.
 

@@ -1,25 +1,10 @@
-import {
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { encodeSavePayload, type Layout, SAVE_PAYLOAD_VERSION } from "@rigline/plugin-api/internal";
 import { afterEach, describe, expect, it } from "vitest";
 import { readConfig } from "./config.ts";
-import {
-  broadcastName,
-  companionHandlesSave,
-  ensureToken,
-  readToken,
-  saveFromPanel,
-  saveRecord,
-} from "./save.ts";
+import { broadcastName, ensureToken, readToken, saveFromPanel, saveRecord } from "./save.ts";
 
 const dirs: string[] = [];
 
@@ -81,43 +66,20 @@ describe("the broadcast channel's name (D141)", () => {
   });
 });
 
-describe("whether a companion answers", () => {
-  function companion(extensions: string, version: string, events: string[]): void {
-    const dir = join(extensions, `rigline.rigline-${version}`);
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, "package.json"), JSON.stringify({ activationEvents: events }));
-  }
-
-  it("is no where there is none, or only one that predates the handler", () => {
-    const extensions = tempDir();
-    expect(companionHandlesSave(extensions)).toBe(false);
-    expect(companionHandlesSave(join(extensions, "absent"))).toBe(false);
-    companion(extensions, "1.0.0-alpha.9", ["onStartupFinished"]);
-    expect(companionHandlesSave(extensions)).toBe(false);
-  });
-
-  it("is yes where one lists onUri, an older directory beside it or not", () => {
-    const extensions = tempDir();
-    companion(extensions, "1.0.0-alpha.9", ["onStartupFinished"]);
-    companion(extensions, "1.0.0-alpha.11", ["onStartupFinished", "onUri"]);
-    expect(companionHandlesSave(extensions)).toBe(true);
-  });
-
-  it("is baked beside the token and the scheme, from the directory beside the extension", () => {
-    const extensions = tempDir();
-    companion(extensions, "1.0.0-alpha.11", ["onUri"]);
-    const ext = join(extensions, "anthropic.claude-code-2.1.280-win32-x64");
+// Nothing about the companion: it is required, so where it matters it is there (D143).
+describe("the save record", () => {
+  it("is the token and the scheme", () => {
     const tokenPath = join(tempDir(), "token");
-    const record = saveRecord(ext, tokenPath, () => {});
-    expect(record).toEqual({ token: tokenOf(tokenPath), companion: true, scheme: "vscode" });
+    const record = saveRecord(tokenPath, () => {});
+    expect(record).toEqual({ token: tokenOf(tokenPath), scheme: "vscode" });
   });
 
-  it("bakes no token where the file holds none, and says so", () => {
+  it("bakes no token where the file holds none, and says Save is off", () => {
     const tokenPath = join(tempDir(), "token");
     writeFileSync(tokenPath, "garbage");
     const log: string[] = [];
-    expect(saveRecord(join(tempDir(), "ext"), tokenPath, (l) => log.push(l)).token).toBeNull();
-    expect(log).toEqual([expect.stringContaining("copies commands instead")]);
+    expect(saveRecord(tokenPath, (l) => log.push(l)).token).toBeNull();
+    expect(log).toEqual([expect.stringMatching(/^Save in the panel is off: /)]);
   });
 });
 

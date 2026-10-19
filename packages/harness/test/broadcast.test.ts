@@ -18,7 +18,7 @@ import {
 } from "../src/suite.ts";
 
 const CHANNEL = "rigline-harness";
-const COMPANION: SaveRecord = { token: "c".repeat(22), companion: true, scheme: "vscode" };
+const COMPANION: SaveRecord = { token: "c".repeat(22), scheme: "vscode" };
 const SCREEN = '[role="dialog"].rigline-settings-frame';
 
 /** A plugin with a tab of its own, that reports what `onSettings` hands it. */

@@ -455,17 +455,6 @@ describe("presets (D133)", () => {
     e.apply("broken");
     e.apply("nothing-like-this");
     expect(e.working.get()).toEqual({ rigRow: ["clock/face"] });
-    expect(e.appliedPreset.get()).toBeNull();
-  });
-
-  it("remembers which preset the copy came from, and forgets on any other edit", () => {
-    const rows = preset("rows", { rigRow: ["session-id/address"] });
-    const { editor: e } = editor({}, undefined, undefined, undefined, [rows]);
-    e.apply("rows");
-    expect(e.appliedPreset.get()).toBe("rows");
-    // One move and the copy is no longer the preset's, so `layout apply rows` would not reproduce it.
-    e.move("clock/face", "rigRow");
-    expect(e.appliedPreset.get()).toBeNull();
   });
 
   it("refreshes the list on Reload, which is the editor's only re-read", async () => {
@@ -487,13 +476,11 @@ describe("presets (D133)", () => {
     expect(e.presets.get().map((p) => p.name)).toEqual(["mine", "exported"]);
   });
 
-  it("carries how many a bound left out, and clears the applied name on Reload", async () => {
+  it("carries how many a bound left out", async () => {
     const rows = preset("rows", { rigRow: ["session-id/address"] });
     const { editor: e } = editor({}, () => ({}), undefined, undefined, [rows]);
     e.apply("rows");
-    expect(e.appliedPreset.get()).toBe("rows");
     await e.reload();
-    expect(e.appliedPreset.get()).toBeNull();
     expect(e.omitted.get()).toBe(0);
   });
 
