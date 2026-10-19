@@ -11,6 +11,9 @@ from. **New work is planned in `.local/plans/<topic>.md`**, which is gitignored:
 document, and whatever should outlive it goes into `docs/` as the work lands. `docs/plan.md` takes
 no new plans. Update the plan before writing code; log status there, not here.
 
+**Before deleting a landed plan, check its promises against `docs/`.** What a plan settled while
+building, deferred, or said a doc would gain often never reaches one, and deleting the plan loses it.
+
 **List `.local/plans/` before concluding there is no plan.** In-flight work lives there and nothing
 committed points at it, deliberately: a tracked pointer into a gitignored directory goes stale the
 day the plan lands and is deleted, which is how `docs/plan.md` came to name a working plan that no

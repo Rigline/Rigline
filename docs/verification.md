@@ -195,6 +195,16 @@ listening, does not — and it fails only when the machine is loaded enough to w
 is the whole suite and never the test alone. `bufferSealed` is set in the `finally` of the
 plugin-loading loop, so it means *every plugin has had its chance*, refusals included.
 
+**`bufferSealed` does not mean the shell has loaded.** The shell — the RIG pill, its own
+`style[data-rigline-style="rigline"]`, Rigline's own elements — starts after the seal and imports
+`runtime/shell.js`, so a count of Rigline-owned nodes taken straight after `boot()` races it and
+flips with load. Count only the nodes the test is about, or wait for the shell.
+
+**To assert that something survives a panel's read, wait for the read.** A read is an `import()` of
+`registry.js?read=N`, so `page.waitForResponse` on that URL, then a tick, is when the panel has taken
+it in. An assertion made before then passes whatever the read would have done: the broadcast's
+optimistic hold looked tested until the hold was switched off and the layout case still passed.
+
 **A pushed reply reaches Rigline's taps and not the app.** The app settles a `response` by its own
 `requestId`, so one a test invents is dropped with a warning after the taps have seen it: a service
 learns from it and the panel's own controls do not. To move the panel itself — its model picker,
