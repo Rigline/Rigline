@@ -302,8 +302,14 @@ export default { setup() {} };`,
         expect(status("importer")?.status).toBe("error");
         expect(status("importer")?.reason).toContain("@import");
         expect(status("mounter")?.status).toBe("loaded");
+        // Theirs only: the shell adds a style of its own whenever it finishes loading.
         const placed = await booted.page.evaluate(
-          () => document.querySelectorAll("style[data-rigline-style]").length,
+          () =>
+            document.querySelectorAll(
+              ["sneaky", "attribute", "importer"]
+                .map((name) => `style[data-rigline-style="${name}"]`)
+                .join(","),
+            ).length,
         );
         expect(placed).toBe(0);
       } finally {
