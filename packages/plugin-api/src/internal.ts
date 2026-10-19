@@ -57,6 +57,7 @@ export {
   rowNumbers,
   rowOf,
   rowPlace,
+  SHIPPED_LAYOUT,
   SIDES,
   sameLayout,
   withElementAt,

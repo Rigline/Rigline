@@ -1,7 +1,7 @@
 # context-meter
 
-How full the session's context is, at all times: a bar in the row under the composer's controls,
-and a percentage in the composer footer.
+How full the session's context is, at all times: a percentage and a bar, in the row under the
+composer's controls.
 
 ## What it shows
 
@@ -15,7 +15,7 @@ and a percentage in the composer footer.
 - With auto-compact switched off, the percentage is of the whole window, and the tooltip says so.
 
 Both are elements, so either can be moved or switched off from Rigline's menu or with `rigline
-layout`. The bar belongs in `rigRow`; the percentage also fits there.
+layout`. The bar belongs in `rigRow`; the percentage also fits in the composer footer.
 
 ## When it changes
 

@@ -9,9 +9,9 @@ import { existsSync, readFileSync, rmSync } from "node:fs";
 import {
   type Layout,
   type ModelSettings,
-  NO_MODEL_SETTINGS,
   parsePlace,
   readModelSettings,
+  SHIPPED_LAYOUT,
 } from "@rigline/plugin-api/internal";
 import { Document, isMap, isScalar, isSeq, parseDocument } from "yaml";
 import { writeFileAtomic } from "../atomic.ts";
@@ -99,19 +99,10 @@ const HEADER =
 /** `[a]` stays `[a]` rather than becoming `[ a ]`. */
 const TO_STRING = { flowCollectionPadding: false } as const;
 
-/** Absent means nothing is disabled; malformed is a person's mistake, loud. */
+/** Absent reads as the file a command would create (D142); malformed is a person's mistake, loud. */
 export function readConfig(path: string): PluginsConfig {
-  if (!existsSync(path)) {
-    return {
-      path,
-      disabled: [],
-      layout: {},
-      settings: {},
-      model: NO_MODEL_SETTINGS,
-      unknownKeys: [],
-    };
-  }
-  return configOf(path, parseConfig(path, readFileSync(path, "utf8")));
+  const doc = existsSync(path) ? parseConfig(path, readFileSync(path, "utf8")) : freshConfig();
+  return configOf(path, doc);
 }
 
 /** A line under *Needs you* for each key the engine does not read (D110). */
@@ -196,8 +187,13 @@ export function removeFromList(doc: Document, path: readonly string[], name: str
   return node.items.length !== before;
 }
 
+/** A new file: the header and the shipped layout (D142). */
 function freshConfig(): Document {
-  const doc = new Document({});
+  return headed({ layout: SHIPPED_LAYOUT });
+}
+
+function headed(contents: Record<string, unknown>): Document {
+  const doc = new Document(contents);
   doc.commentBefore = HEADER;
   return doc;
 }
@@ -365,7 +361,8 @@ export function splitLegacyConfig(files: ConfigFiles): string | null {
   const { sources, ...rest } = readJsonObject(files.legacy) ?? {};
   if (sources !== undefined)
     writeFileAtomic(files.sources, `${JSON.stringify(sources, null, 2)}\n`);
-  const doc = freshConfig();
+  // The person's own file, moved, so it gains no layout it did not have.
+  const doc = headed({});
   for (const [key, value] of Object.entries(rest)) doc.set(key, doc.createNode(value));
   writeFileAtomic(files.config, doc.toString(TO_STRING));
   // Forced, because two engines can split at once — the companion and a terminal — and the second

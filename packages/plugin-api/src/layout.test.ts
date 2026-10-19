@@ -14,6 +14,7 @@ import {
   rowNumbers,
   rowOf,
   rowPlace,
+  SHIPPED_LAYOUT,
   sameLayout,
   withElementAt,
   withOrder,
@@ -399,8 +400,16 @@ describe("layoutCommands", () => {
     expect(layoutCommands({}, { off: [] })).toEqual([]);
   });
 
-  it("resets a copy with nothing listed, unresolved entries and all, as Save writes it", () => {
+  it("resets a copy holding the shipped layout, unresolved entries and all, as Save writes it", () => {
     const from = { rigRow: ["a/x"], off: ["gone/away"] };
-    expect(layoutCommands(from, {})).toEqual(["rigline layout reset"]);
+    expect(layoutCommands(from, SHIPPED_LAYOUT)).toEqual(["rigline layout reset"]);
+    expect(layoutCommands(SHIPPED_LAYOUT, SHIPPED_LAYOUT)).toEqual([]);
+  });
+
+  it("puts each element back at its plugin's default for a copy with nothing listed", () => {
+    expect(layoutCommands({ rigRow: ["a/x", "b/y"] }, {})).toEqual([
+      "rigline layout place a/x default",
+      "rigline layout place b/y default",
+    ]);
   });
 });

@@ -188,8 +188,9 @@ const USAGE = `rigline ${CORE_VERSION}
       there and where else each may go. place moves one element, written plugin/element, to
       WHERE: a zone such as rigRow, before, after or inside an anchor such as before
       footerSpacer, off, or default to put it back where its plugin puts it. order sets
-      which elements come first in a place, in that order. reset empties the layout. Each
-      edits ~/.rigline/config.yaml, keeping your comments, and re-injects.
+      which elements come first in a place, in that order. reset puts back the layout
+      Rigline starts with. Each edits ~/.rigline/config.yaml, keeping your comments, and
+      re-injects.
 
   rigline layout presets
   rigline layout apply NAME|FILE
@@ -632,13 +633,14 @@ function layoutCommand(args: string[]): number {
   } else if (verb === "reset") {
     if (rest.length > 0) {
       throw new UserError(
-        "reset empties the whole layout; `layout place ELEMENT default` puts one back",
+        "reset puts back the whole layout Rigline starts with; " +
+          "`layout place ELEMENT default` puts one element where its plugin puts it",
       );
     }
     console.log(
       resetLayout(paths.config)
-        ? `emptied the layout in ${paths.config}`
-        : `${paths.config} has no layout`,
+        ? `put back the layout Rigline starts with in ${paths.config}`
+        : `${paths.config} already has the layout Rigline starts with`,
     );
   } else if (verb === "presets") {
     if (rest.length > 0) throw new UserError("presets takes no arguments");

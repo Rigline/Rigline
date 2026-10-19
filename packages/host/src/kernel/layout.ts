@@ -16,6 +16,7 @@ import {
   rowOf,
   rowPlace,
   type SaveRecord,
+  SHIPPED_LAYOUT,
   SIDES,
   type Side,
   type Store,
@@ -65,7 +66,9 @@ export interface LayoutEditor {
   drop(name: string, place: string, index: number): void;
   /** Moves the row `place` is a side of to be the `to`th of its zone's rows, from 0 (D122, D127). */
   moveRow(place: string, to: number): void;
-  /** Every element back where its plugin puts it, in the working copy only. */
+  /** What `reset` puts in the working copy: the shipped layout, its rows numbered for this panel. */
+  readonly shipped: Layout;
+  /** The shipped layout in the working copy only (D142). */
   reset(): void;
   /**
    * Shows the named preset's layout in the working copy, which a Save keeps and Revert drops.
@@ -131,6 +134,7 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
   const presets = store<readonly BakedPreset[]>(options.presets ?? []);
   const omitted = store(options.omitted ?? 0);
   const appliedPreset = store<string | null>(null);
+  const shipped = compactRows(SHIPPED_LAYOUT, plugins);
   working.subscribe(() => view.set(layoutView(working.get(), plugins)));
 
   /**
@@ -231,8 +235,9 @@ export function createLayoutEditor(options: LayoutEditorOptions): LayoutEditor {
       });
       edit(next);
     },
+    shipped,
     reset() {
-      edit({});
+      edit(shipped);
     },
     apply(name) {
       const preset = presets.get().find((p) => p.name === name);

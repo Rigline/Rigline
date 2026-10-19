@@ -11,6 +11,17 @@ hole, or raises the Node or VS Code it needs, its entry says so.
 
 ## Unreleased
 
+### Changed
+
+- A fresh install starts with a layout in two rows instead of one crowded one. The first row has
+  model favourites, the session id, the worktree and the messaging address, with the Edit button at
+  its right. The second has the context percentage and bar, with the session's cost and both limits
+  at its right. If you have never changed anything, so there is no `~/.rigline/config.yaml`, you
+  get this layout on update too. A file you have already got keeps what it says.
+- *Reset to defaults* in the panel, and `rigline layout reset`, now put back that starting layout
+  rather than every element where its plugin puts it. For that, write `layout: {}` in
+  `config.yaml`, or use *Plugin default* on one element.
+
 ## 1.2.0 — 2026-10-19
 
 ### Added

@@ -1,7 +1,7 @@
 # session-id
 
-A small pill at the end of the composer footer's left cluster, showing which session this panel is
-hosting, with every identifier it has in Rigline's menu.
+A small pill showing which session this panel is hosting, with every identifier it has in
+Rigline's menu.
 
 ## What it shows
 
@@ -18,7 +18,8 @@ Every known identifier — the messaging address, the full session id and its sh
 **Session identifiers** in Rigline's menu, behind the RIG pill. Choose one to copy it.
 
 The pill is one of three elements. The other two, **Full session id** and **Messaging address**,
-belong in `rigRow`, the row under the composer's controls, and start off.
+belong in `rigRow`, the row under the composer's controls. The address shows from the start, and
+the full id starts off.
 
 ### Why the pill is not the messaging address
 

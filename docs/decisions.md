@@ -3285,6 +3285,9 @@ offers.
 **Amended by D127:** a row is both its sides, the row's own name its left and `rigRow right`,
 `rigRow 2 right` and on its right.
 
+**Amended by D142:** Rigline ships one arrangement of rows, of its bundled elements, as a fresh
+install's layout. A manifest still cannot name a row.
+
 **D123. Copying with a click is in the kit, and a flash is a prop of what it covers (2026-10-07,
 Leo).** Copying a value and saying so is the commonest thing a pill or a menu item does besides
 showing something, and both halves have a trap. The async Clipboard API needs a permission a
@@ -3332,6 +3335,9 @@ closes at the end of that, not at the confirmation, unless the copy moved meanwh
 until the next change, so it greeted a person returning to the mode. It is not removed outright
 because the Layout submenu's Save has no other sign that it landed: the menu stays open and nothing
 closes.
+
+**Amended by D142:** Reset to defaults sets the working copy to the layout Rigline ships, and
+`rigline layout reset` writes it.
 
 **D126. The panel learns of a newer saved layout when the person comes back to it, not on a clock
 (2026-10-07, Leo).** Rigline's Edit and Reload pills turn their R the theme's warning colour while a
@@ -3968,3 +3974,44 @@ a read of the settings did (D140).** A panel with nothing unsaved shows a newer 
 unsaved moves keeps them and is told, by the yellow R and the menu. Flagging a clean panel instead
 left a second window on the old layout until somebody clicked Reload, which is the staleness this
 exists to end, and the read that backs the channel up has to reach the same end it does.
+
+**D142. A fresh install starts on a layout Rigline ships, written into the file (2026-10-19,
+Leo).** Every element at its author's default put everything Rigline ships on one crowded row. Now
+a missing `config.yaml` reads as the file Rigline would write, and that file starts with a layout of
+the bundled elements in two rows. The first has model favourites, session id, worktree and messaging
+address on the left, and Edit on the right. The second has the context percentage and bar on the
+left, and session cost and both limits on the right. From then on it is an ordinary layout. A
+command that creates the file writes the same document, so a first `rigline disable` keeps the
+layout. A `config.json` split into the file (D91) is not a new file, and gets no layout.
+
+The layout names only bundled elements. Another plugin's elements go where their author puts them,
+after the listed ones in their place, and so does an element a later release adds to a bundled
+plugin. Nothing is listed under `off`: everything it would hold is off by default already, and
+listing it would stop a changed default from reaching anybody.
+
+Reset to defaults and `rigline layout reset` go to this layout, not to nothing listed. Otherwise a
+person's first reset would land on one long row, worse than where they started. *Plugin default* on
+one element is unchanged, and `layout: {}` puts the whole layout at plugin defaults. The layout is a
+constant in plugin-api's internal entry, which the engine and the panel both import, so Reset needs
+nothing baked.
+
+Somebody with no `config.yaml` gets this layout on update, including a person who used Rigline and
+never changed anything. A file keeps what it says, even with no `layout` in it.
+
+Rejected:
+
+- Manifest defaults. A manifest names no row (D122) and no right side (D127). Elements at their
+  defaults in one place sort by plugin, so a first row with session-id on both sides of worktree
+  cannot be written as defaults at all.
+- A layer under the person's layout. It needs rules for which list wins when both name an element,
+  how its second row numbers against one the person makes, and what Save writes back. Written into
+  the file, there are none.
+- An absent `layout` key meaning the shipped layout. `writeLayout` drops the key when the last list
+  empties, so a person sending every element to its plugin default would get the shipped layout
+  back.
+
+The cost: a later release that changes this layout reaches nobody who already has a file, which is
+the trade a preset makes too (D131).
+
+**Amends D122:** Rigline ships an arrangement of rows, of its bundled elements. **Amends D125:**
+Reset to defaults goes to the shipped layout.

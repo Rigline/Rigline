@@ -1,6 +1,7 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { SHIPPED_LAYOUT } from "@rigline/plugin-api/internal";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   addToList,
@@ -66,16 +67,30 @@ describe("readCompanionSettings", () => {
 });
 
 describe("readConfig", () => {
-  it("returns an empty disabled list when the file is absent, and still says where it looked", () => {
+  it("reads an absent file as a new one, the shipped layout and nothing else, and says where it looked", () => {
     const path = join(tempDir(), "config.yaml");
     expect(readConfig(path)).toEqual({
       path,
       disabled: [],
-      layout: {},
+      layout: SHIPPED_LAYOUT,
       settings: {},
       model: { requireChoice: "off", default: null },
       unknownKeys: [],
     });
+    expect(existsSync(path)).toBe(false);
+  });
+
+  it("writes the shipped layout into a file a command creates, beside what the command wrote", () => {
+    const path = join(tempDir(), "config.yaml");
+    editConfig(path, (doc) => addToList(doc, ["disabled"], "time-marks"));
+    expect(readConfig(path).layout).toEqual(SHIPPED_LAYOUT);
+    expect(readConfig(path).disabled).toEqual(["time-marks"]);
+  });
+
+  it("keeps a file with no layout at every plugin's default", () => {
+    const path = join(tempDir(), "config.yaml");
+    writeFileSync(path, "disabled: []\n");
+    expect(readConfig(path).layout).toEqual({});
   });
 
   it("reads Rigline's model block, and names what this version does not know (D110)", () => {
@@ -343,6 +358,8 @@ describe("splitLegacyConfig", () => {
 
     expect(existsSync(f.legacy)).toBe(false);
     expect(readConfig(f.config).disabled).toEqual(["probe"]);
+    // The person's file, moved: it gains no layout it did not have (D142).
+    expect(readConfig(f.config).layout).toEqual({});
     expect(readFileSync(f.config, "utf8")).toContain("theirs:\n  a: 1\n");
     expect(readFileSync(f.config, "utf8")).not.toContain("sources");
     expect(readSources(f.sources)).toEqual({ clock: SOURCE });

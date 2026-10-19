@@ -127,8 +127,9 @@ An element whose plugin you have not got is *not* a refusal. That is the whole p
 - **everything** — every element the bundled plugins have, on, to see what there is.
 
 `rigline layout presets` lists them with anything of your own. A preset of yours with the same name
-as a shipped one wins, and the listing says so. To get back to where every element is where its
-plugin puts it, there is no preset to apply: `rigline layout reset` is that.
+as a shipped one wins, and the listing says so. To get back to the layout Rigline starts with,
+there is no preset to apply: `rigline layout reset` is that, and so is *Reset to defaults* in the
+panel. [config.md](config.md) shows what that layout is.
 
 ## The files
 

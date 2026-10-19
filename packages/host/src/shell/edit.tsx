@@ -1113,7 +1113,7 @@ function Bar(props: {
       {saving !== "idle" && <span className="rigline-edit-note">{SAVE_NOTES[saving]}</span>}
       {newer && <span className="rigline-edit-note">a newer layout is saved</span>}
       <Presets editor={editor} />
-      {!sameLayout(working, {}) && (
+      {!sameLayout(working, editor.shipped) && (
         <button type="button" className="rigline-edit-button" onClick={() => editor.reset()}>
           Reset to defaults
         </button>

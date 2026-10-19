@@ -16,6 +16,7 @@ import {
   placeName,
   RIGLINE,
   RIGLINE_ELEMENTS,
+  SHIPPED_LAYOUT,
   type ViewElement,
   type ViewPlace,
   withRigline,
@@ -239,9 +240,9 @@ export function writeLayout(configPath: string, layout: Layout): boolean {
   });
 }
 
-/** Takes `layout` out of the file, which puts every element back where its plugin puts it. */
+/** Writes the shipped layout over the file's (D142). */
 export function resetLayout(configPath: string): boolean {
-  return editConfig(configPath, (doc) => doc.delete("layout"));
+  return writeLayout(configPath, SHIPPED_LAYOUT);
 }
 
 /** The places the file's layout names, in the order it names them. */

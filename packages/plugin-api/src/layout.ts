@@ -43,6 +43,19 @@ export function plainText(text: string): boolean {
 /** The place an element goes to be switched off. */
 export const OFF = "off";
 
+/** The layout a fresh install starts on and Reset goes back to: the bundled elements only (D142). */
+export const SHIPPED_LAYOUT = {
+  rigRow: [
+    "model-favourites/favourites",
+    "session-id/short-id",
+    "worktree/short-name",
+    "session-id/address",
+  ],
+  "rigRow right": ["rigline/edit"],
+  "rigRow 2": ["context-meter/percent", "context-meter/bar"],
+  "rigRow 2 right": ["usage-meter/cost", "usage-meter/five-hour", "usage-meter/seven-day"],
+} as const satisfies Layout;
+
 const SLOT = new RegExp(`^(${SLOT_POSITIONS.join("|")}) ([A-Za-z][A-Za-z0-9]{0,63})$`);
 
 const ROW = /^([A-Za-z][A-Za-z0-9]{0,63})(?: ([0-9]{1,3}))?(?: ([A-Za-z]{1,16}))?$/;
@@ -395,8 +408,10 @@ export function withOrder(layout: Layout, place: string, names: readonly string[
  * does not resolve, so one left alone in an untouched place is kept rather than reset away.
  */
 export function layoutCommands(from: Layout, to: Layout): string[] {
-  // Everything back to its default, unresolved entries included, as Save writes it.
-  if (sameLayout(to, {})) return sameLayout(from, {}) ? [] : ["rigline layout reset"];
+  // `reset` writes the shipped layout whole, taking out unresolved entries as Save does (D142).
+  if (sameLayout(to, SHIPPED_LAYOUT)) {
+    return sameLayout(from, SHIPPED_LAYOUT) ? [] : ["rigline layout reset"];
+  }
   const at = (layout: Layout, place: string): readonly string[] =>
     Object.hasOwn(layout, place) ? (layout[place] ?? []) : [];
   const kept = new Set(Object.values(to).flat());

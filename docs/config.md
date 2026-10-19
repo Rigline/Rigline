@@ -150,6 +150,29 @@ Leave an element out and it stays where its plugin puts it, and so does everythi
 install later brings. In a place, the elements you list come first, in your order, and anything else
 that belongs there follows.
 
+Rigline starts you with a layout. Until a command first creates this file, Rigline reads it as if the
+layout were already there, and the new file starts with it:
+
+    layout:
+      rigRow:
+        - model-favourites/favourites
+        - session-id/short-id
+        - worktree/short-name
+        - session-id/address
+      rigRow right:
+        - rigline/edit
+      rigRow 2:
+        - context-meter/percent
+        - context-meter/bar
+      rigRow 2 right:
+        - usage-meter/cost
+        - usage-meter/five-hour
+        - usage-meter/seven-day
+
+It names only the plugins Rigline ships, so a plugin you add puts its elements where its author
+chose. `rigline layout reset`, or *Reset to defaults* in the panel, puts this layout back. For every
+element where its plugin puts it instead, write `layout: {}`.
+
 The same changes from the command line, each of which edits the file and re-injects:
 
     rigline layout place session-id/address rigRow           # to the end of that place
@@ -158,7 +181,7 @@ The same changes from the command line, each of which edits the file and re-inje
     rigline layout place session-id/short-id off
     rigline layout place session-id/short-id default         # back where its plugin puts it
     rigline layout order rigRow session-id/full-id session-id/address
-    rigline layout reset                                     # everything back to its plugin's place
+    rigline layout reset                                     # the layout Rigline starts with
 
 A place of more than one word, like `before footerSpacer` or `rigRow 2 right`, needs no quotes.
 `order` replaces what you have listed in that place; an element you leave out of it goes back where

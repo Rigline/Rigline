@@ -8,6 +8,7 @@ import {
   type Layout,
   type LayoutPlugin,
   NO_MODEL_SETTINGS,
+  SHIPPED_LAYOUT,
 } from "@rigline/plugin-api/internal";
 import { describe, expect, it } from "vitest";
 import { createLayoutEditor } from "../src/kernel/layout.ts";
@@ -97,12 +98,22 @@ describe("moves", () => {
     expect(e.working.get()).toEqual({ rigRow: ["clock/face", "session-id/address"] });
   });
 
-  it("resets the working copy to every plugin's default, and leaves the baseline", () => {
+  it("resets the working copy to the shipped layout, and leaves the baseline", () => {
     const baked = { rigRow: ["session-id/address"], off: ["clock/face"] };
     const { editor: e } = editor(baked);
     e.reset();
-    expect(e.working.get()).toEqual({});
+    // These plugins show nothing in the second row, so it goes, as any empty row does (D122).
+    const { rigRow, "rigRow right": right } = SHIPPED_LAYOUT;
+    expect(e.working.get()).toEqual({ rigRow, "rigRow right": right });
+    expect(e.working.get()).toEqual(e.shipped);
     expect(e.baseline.get()).toEqual(baked);
+    // A plugin the shipped layout does not name is at its default, after the listed elements.
+    const first = e.view.get().find((p) => p.place === "rigRow");
+    expect(first?.elements.map((el) => el.name)).toEqual([
+      "session-id/short-id",
+      "session-id/address",
+      "clock/face",
+    ]);
   });
 
   it("puts an element back at its default", () => {

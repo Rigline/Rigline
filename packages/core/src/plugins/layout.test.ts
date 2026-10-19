@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { type Elements, EMPTY_USES } from "@rigline/plugin-api/internal";
+import { type Elements, EMPTY_USES, SHIPPED_LAYOUT } from "@rigline/plugin-api/internal";
 import { afterEach, describe, expect, it } from "vitest";
 import { readConfig } from "./config.ts";
 import type { DiscoveredPlugin } from "./discover.ts";
@@ -254,10 +254,11 @@ describe("orderInLayout", () => {
 });
 
 describe("resetLayout", () => {
-  it("takes the layout out, and says when there was none", () => {
-    const path = configFile("disabled: []\nlayout:\n  rigRow: [clock/face]\n");
+  it("writes the shipped layout over the file's, and says when it was there already", () => {
+    const path = configFile("disabled: []\nlayout:\n  rigRow: [clock/face]\n  off: [gone/away]\n");
     expect(resetLayout(path)).toBe(true);
-    expect(readFileSync(path, "utf8")).toBe("disabled: []\n");
+    expect(readConfig(path).layout).toEqual(SHIPPED_LAYOUT);
+    expect(readConfig(path).disabled).toEqual([]);
     expect(resetLayout(path)).toBe(false);
   });
 });

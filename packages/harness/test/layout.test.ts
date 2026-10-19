@@ -7,7 +7,12 @@
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { BakedPreset, Layout, SaveRecord } from "@rigline/plugin-api/internal";
+import {
+  type BakedPreset,
+  type Layout,
+  type SaveRecord,
+  SHIPPED_LAYOUT,
+} from "@rigline/plugin-api/internal";
 import type { Page } from "playwright";
 import { describe, expect, it } from "vitest";
 import type { FixturePlugin } from "../src/payload.ts";
@@ -603,7 +608,9 @@ describe.skipIf(skip !== null)(`editing in place${skip ? ` (${skip})` : ""}`, ()
           document.querySelector('.rigline-edit-bar a[href^="vscode:"]') as HTMLAnchorElement
         ).click(),
       );
-      saveToRegistry(booted.payloadDir, {});
+      // The shipped layout, less the second row, which nothing in this panel shows (D122).
+      const { rigRow, "rigRow right": right } = SHIPPED_LAYOUT;
+      saveToRegistry(booted.payloadDir, { rigRow, "rigRow right": right });
       await bar.getByText("Saved.").waitFor({ timeout: 5000 });
       await page.waitForSelector(".rigline-edit-bar", { state: "detached" });
 

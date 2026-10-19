@@ -1,7 +1,13 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { MAX_BAKED_PRESET_BYTES, MAX_BAKED_PRESETS } from "@rigline/plugin-api/internal";
+import {
+  layoutProblems,
+  MAX_BAKED_PRESET_BYTES,
+  MAX_BAKED_PRESETS,
+  SHIPPED_LAYOUT,
+  withRigline,
+} from "@rigline/plugin-api/internal";
 import { afterEach, describe, expect, it } from "vitest";
 import { bundledPresetsDir } from "../assets.ts";
 import { readConfig } from "./config.ts";
@@ -428,6 +434,16 @@ describe("the shipped presets", () => {
       const result = applyPreset(paths, discovered, readPreset(listing.path));
       expect(result.needs, `${listing.name} names a plugin that is not bundled`).toEqual([]);
     }
+  });
+
+  it("the shipped layout resolves against them too, and places every element it names (D142)", () => {
+    const discovered = discoverPlugins([join(bundledPresetsDir(), "..", "plugins")], {
+      bundledRoot: join(bundledPresetsDir(), "..", "plugins"),
+    });
+    const plugins = withRigline(
+      discovered.map((p) => ({ name: p.name, elements: p.manifest.elements })),
+    );
+    expect(layoutProblems(SHIPPED_LAYOUT, plugins)).toEqual([]);
   });
 });
 
