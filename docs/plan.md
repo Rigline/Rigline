@@ -416,6 +416,16 @@ what a plugin is written against.
 - **Merging layout edits from several sources.** A save from the panel overwrites the file's layout
   and warns when that replaces a change made since the panel loaded (D92). Revisit when that warning
   costs somebody work.
+- **Two saves from two windows at once can lose one.** Each window's companion chains its own saves,
+  but two companions share no lock — `withHomeLock` wraps installing the engine, not writing
+  `config.yaml` — so two saves landing within the same few milliseconds can each read the file
+  before the other writes, and the second silently drops the first. The write is atomic (D114), so
+  nothing tears. Layout and settings saves alike, and nobody saves from two windows in the same
+  instant. The fix is to take the home lock around a config write. Triggered by one report of a
+  save that vanished.
+- **Ultracode in `model-favourites`' tab.** A favourite or the default may carry `ultracode`, and a
+  hand-written one is kept, applied and shown on its chip, but the tab has no control for it.
+  Triggered by somebody wanting to set it without editing `config.yaml`.
 - **Decorations in React.** Per-row transcript decorations stay DOM. Triggered by a decoration DOM
   makes painful; first answer the cost of one portal per row at several hundred rows, and the frame
   in which a new row's node is empty before React renders into it.
