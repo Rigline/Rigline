@@ -286,9 +286,10 @@ there is no single place for an element to be.
 `ctx.settings` is your own block of the person's `~/.rigline/config.yaml`, under your plugin's
 name — frozen, as it was when the panel loaded, and `{}` when there is none. It is what `setup`
 reads. `ctx.onSettings(handler)` hands you the same block at once and again whenever the panel
-learns it changed: a save from this panel, or one made elsewhere that the panel has read since. No
-declaration for either: reading your own configuration reaches nothing you could not already
-reach. You never see another plugin's.
+learns it changed: a save from this panel or another Claude Code tab, or one made elsewhere that
+the panel has read since. No declaration for either: reading your own configuration reaches nothing
+you could not already reach. Neither hands you another plugin's, and reading one some other way is
+asked against in [plugin-policy.md](plugin-policy.md).
 
 **Tolerate what you find.** It is a file people edit by hand, so expect a key you have never heard
 of, a key you expect that is missing, and a value of the wrong shape. Rigline cannot check any of

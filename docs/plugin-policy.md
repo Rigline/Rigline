@@ -34,13 +34,12 @@ help: there is no clever way to reach something that is not there.
   count, and a timer or a message tap has none to offer. It also refuses a model this install is
   not offering, and an effort the chosen model does not take, so a combination Claude Code would
   not have shown cannot be sent.
-- **No settings but your own, and no save without a person.** `ctx.settings` and `ctx.onSettings`
-  hand you your own section and nothing else, your settings tab's draft is stamped with your name by
-  the host, and a save goes as a link to the companion extension, which only a click a person made
-  reaches: one your code dispatches is cancelled before it navigates. So a
-  plugin cannot read another plugin's settings, cannot write one, and cannot write its own
-  unprompted. What this does *not* wall off is a plugin drawing a link that claims to do one thing
-  and saves another — see the deception rule below, which is where that belongs.
+- **No save without a person.** Your settings tab's draft is stamped with your name by the host,
+  and a save goes as a link to the companion extension, which only a click a person made reaches:
+  one your code dispatches is cancelled before it navigates. So a plugin cannot write settings
+  unprompted, and through `ctx` it can write only its own. What this does *not* wall off is a
+  plugin drawing a link that claims to do one thing and saves another — see the deception rule
+  below, which is where that belongs.
 - **No install-time execution.** `rigline add` never runs a lifecycle script. The tar reader writes
   regular files and refuses everything else by name.
 
@@ -71,6 +70,11 @@ worst case is bounded and local, not that there is no bad case.
 - **Do not hold back a send.** `ctx` has no way to, and the page would let you. Only Rigline's own
   gate holds one, until a model is chosen, and only where the person switched it on in their own
   settings. A plugin offers a way to choose; it never decides whether a prompt goes.
+- **Read only your own settings.** `ctx.settings` and `ctx.onSettings` hand you your own section
+  and nothing else, but nothing stops a plugin reading the rest: every plugin's settings are in the
+  file the panel loads them from, which your plugin can import as the panel does. Do not. Another
+  plugin's settings are its person's business with that plugin, and they are not an API: their
+  shape and where they live can change without notice.
 - **Cope with a settings value you did not write.** `~/.rigline/config.yaml` is a file people edit
   by hand, and Rigline passes an unknown key through rather than dropping it, because it does not
   know your schema. So your section can hold a key you have never heard of, be missing one you
