@@ -11,6 +11,8 @@ hole, or raises the Node or VS Code it needs, its entry says so.
 
 ## Unreleased
 
+## 1.2.0 — 2026-10-19
+
 ### Added
 
 - A bundled plugin, `model-favourites`: your usual model and effort combinations as one pill under
