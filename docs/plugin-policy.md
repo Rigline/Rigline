@@ -28,8 +28,8 @@ help: there is no clever way to reach something that is not there.
   bundle.
 - **No changing Claude Code's own settings except through a curated verb, on a person's click.**
   A plugin cannot send a message of its own, so the only way to change the model or the effort is
-  Rigline's own verb, which composes every payload itself: a plugin names a model and an effort
-  and never a message type, a settings key or a field. The verb takes the event behind the click
+  Rigline's own verb, which applies it through the panel's own controls: a plugin names a model and
+  an effort and never a message type, a settings key or a field. The verb takes the event behind the click
   and applies nothing unless the browser itself produced it — an event your code made does not
   count, and a timer or a message tap has none to offer. It also refuses a model this install is
   not offering, and an effort the chosen model does not take, so a combination Claude Code would
@@ -75,6 +75,10 @@ worst case is bounded and local, not that there is no bad case.
   file the panel loads them from, which your plugin can import as the panel does. Do not. Another
   plugin's settings are its person's business with that plugin, and they are not an API: their
   shape and where they live can change without notice.
+- **Keep off Rigline's channel between panels.** A panel that saves tells the other panels on a
+  channel whose name is in the same file, and they take what arrives in Rigline's name as
+  Rigline's. Nothing checks that it was: the name is hard to stumble on, not impossible to find.
+  Do not post on it or listen to it.
 - **Cope with a settings value you did not write.** `~/.rigline/config.yaml` is a file people edit
   by hand, and Rigline passes an unknown key through rather than dropping it, because it does not
   know your schema. So your section can hold a key you have never heard of, be missing one you

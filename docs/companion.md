@@ -224,11 +224,16 @@ already on disk with `ensureEngine` alone, never `updateEngine`, and pipes the e
 into the output channel. It never touches the status item. Plugin state stays in `config.yaml`, and
 enable and disable stay in the CLI (D84).
 
-## Saving the panel's layout
+## Saving from the panel
 
-The panel's Save is a link, `vscode://rigline.rigline/layout?p=…`, and VS Code hands a person's
-click on it to the companion's URI handler (D93). The handler answers one path, `/layout`, and hands
-the payload to the engine's `layout save` unread, through the engine already on disk and never an
+The panel's Save is a link, `vscode://rigline.rigline/layout?p=…` or `…/settings?p=…`, and VS Code
+hands a person's click on it to the companion's URI handler (D93, D140). The handler answers those
+two paths and hands the payload to the engine's `layout save` or `settings save` unread; any other
+path logs `ignored a link Rigline does not answer`, which is what an older companion does with a
+newer panel's link while the panel's save goes `unconfirmed`. `install` bakes only whether a
+companion answers at all, never which paths: companion versions are prereleases the repo's
+comparator ties, and a superseded directory lingers after an update, so a per-path bake would
+withhold the Save for as long as it does. The handler runs each save through the engine already on disk and never an
 update, as Show Plugins does. Saves run one at a time, so a save never waits on its notification:
 one left standing in the notification centre would hold every later save, which then never runs and
 says nothing. The engine prints the outcome first, and that line is the notification: a warning when

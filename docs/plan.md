@@ -413,9 +413,10 @@ what a plugin is written against.
   when it is taken.
 - **A plugins repository**, the home for a first-party plugin that is not part of the product.
   Triggered by the first such plugin; the git source comes first.
-- **Merging layout edits from several sources.** A save from the panel overwrites the file's layout
-  and warns when that replaces a change made since the panel loaded (D92). Revisit when that warning
-  costs somebody work.
+- **Merging edits from several sources.** A save from the panel overwrites the file's layout, or a
+  plugin's whole section, and warns when that replaces a change made since the panel loaded (D92,
+  D140). So two windows editing two keys of one section lose one, and say so. Revisit when that
+  warning costs somebody work.
 - **Two saves from two windows at once can lose one.** Each window's companion chains its own saves,
   but two companions share no lock — `withHomeLock` wraps installing the engine, not writing
   `config.yaml` — so two saves landing within the same few milliseconds can each read the file

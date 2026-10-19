@@ -3830,6 +3830,14 @@ the loop is the companion watching `config.yaml` and re-baking, which is the sam
 runs for the extension directories and needs no change of store. Reopen this only for the settings
 UI, which is the one thing a file watcher cannot supply.
 
+**Amended 2026-10-16:** the save is a component, `SaveSettings` in `@rigline/plugin-api/ui`, not
+`ctx.saveSettings`. Only a person's click on a real anchor saves (D93), so a function could only
+have returned an href, which a plugin could put on a button and click from code for a save that
+silently does nothing. The component renders the anchor itself, stamps the section from the host's
+context so a plugin never names it, and renders its children inert, saying why, where the section
+is too large to save. What it costs is that a save cannot be a side effect: the click that does the
+thing must be the anchor.
+
 **Amended 2026-10-17 by D140:** `ctx.settings` stays, as what `setup` reads, and `ctx.onSettings`
 follows it. "A subscription would promise live updates that do not exist" held while nothing in the
 panel saved; once the panel saves and reads its own save back, as the layout editor does, the update
