@@ -1,8 +1,8 @@
 /**
  * What is installed, where it came from, and what it can do.
  *
- * Deliberately not part of `install`, which runs unattended under `watch` and again after every
- * extension update: a description of every plugin there is the same paragraph on a loop, which is
+ * Deliberately not part of `install`, which the companion runs unattended after every extension
+ * update: a description of every plugin there is the same paragraph on a loop, which is
  * the shape of output people stop reading. Here somebody asked the question.
  *
  * Listing order is discovery order, `last` included, so this and the baked registry can never

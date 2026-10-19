@@ -114,7 +114,6 @@ import {
   scanOf,
   type SettingsSaved,
   setPluginEnabled,
-  splitLegacyConfig,
   UserError,
   undoLayout,
   uninstallCompanion,
@@ -122,7 +121,6 @@ import {
   updatePlugins,
   verdict,
   viewLayout,
-  watch,
   withInjectionLock,
   workspaceRoot,
   writePreset,
@@ -157,10 +155,6 @@ const USAGE = `rigline ${CORE_VERSION}
       it lacks, and what it makes of each entry in ~/.rigline/anchors.json; and which VS
       Code profiles install would give the companion or bring it up to date in. --verbose
       lists what moved since the baseline. Exits 1 when a person is needed.
-
-  rigline watch [--interval SECONDS] [--verbose]
-      install, and again whenever the set of installed extension directories changes,
-      which is what an extension update looks like from outside VS Code.
 
   rigline add PATH|SPEC [--now]
       Install a plugin into ~/.rigline/plugins, say what it can do, and re-inject. PATH is a
@@ -1317,54 +1311,6 @@ function checkCommand(args: string[]): number {
 }
 
 /**
- * Runs until interrupted. Its exit code is the last report's, so a watcher stopped after an update
- * that needs a person still says so, and `rigline watch; echo $?` from a script is meaningful.
- */
-function watchCommand(args: string[]): Promise<number> {
-  const { values } = parseArgs({
-    args,
-    options: { interval: { type: "string" }, verbose: { type: "boolean", default: false } },
-    allowPositionals: false,
-  });
-  const seconds = values.interval === undefined ? 30 : Number(values.interval);
-  if (!Number.isFinite(seconds) || seconds < 1) {
-    throw new UserError(`--interval needs a number of seconds, got ${values.interval}`);
-  }
-  putBack();
-
-  return new Promise((resolveWith) => {
-    let code = 0;
-    const watcher = watch({
-      payloadDir: bundledDir(),
-      plugins: pluginOptions(),
-      codegen: true,
-      lock: lockWait,
-      intervalMs: seconds * 1000,
-      onReport(report) {
-        console.log(`
-[${new Date().toISOString()}]`);
-        console.log(formatFlow(report, { verbose: values.verbose }));
-        code = report.attention.length > 0 ? 1 : 0;
-      },
-      onError(error) {
-        // Reported and survived, never fatal: a harvest run against a directory VS Code is still
-        // writing fails once and succeeds on the next pass, and a watcher that exits then is a
-        // watcher that is never running when it is needed.
-        console.error(`rigline watch: ${error instanceof Error ? error.message : String(error)}`);
-        code = 1;
-      },
-    });
-    console.log(`watching ${EXTENSIONS_DIR} every ${seconds}s; Ctrl-C to stop`);
-    const stop = (): void => {
-      watcher.stop();
-      resolveWith(code);
-    };
-    process.once("SIGINT", stop);
-    process.once("SIGTERM", stop);
-  });
-}
-
-/**
  * The development loop: build, inject, and do it again on every source change.
  *
  * It rebuilds and re-injects rather than watching the injected copy, because a plugin's shipped
@@ -1387,7 +1333,7 @@ async function dev(args: string[]): Promise<number> {
   if (ensured.installed.length > 0) console.log(COMPANION_RELOAD);
   putBack();
 
-  // `install`, `check` and `watch` read `~/.rigline/anchors.json` through the flow, which owns user
+  // `install` and `check` read `~/.rigline/anchors.json` through the flow, which owns user
   // state. `dev` drives the installer directly, so it reads the file here: a development loop
   // resolving anchors differently from the install it stands in for is a difference nobody would
   // think to look for (D44).
@@ -1493,43 +1439,12 @@ function samePath(a: string, b: string): boolean {
     : x === y;
 }
 
-/**
- * The verbs that read `config.yaml` or `sources.json`, each of which splits a `config.json` first.
- * Not every verb: `pnpm build` runs `rigline-engine build` in each first-party plugin at once, against
- * the developer's own `~/.rigline`.
- */
-const SETTINGS_VERBS = new Set([
-  "install",
-  "check",
-  "watch",
-  "dev",
-  "add",
-  "update",
-  "remove",
-  "disable",
-  "enable",
-  "list",
-  "layout",
-  "vscode-setup",
-  "companion-profiles",
-]);
-
 async function main(argv: string[]): Promise<number> {
   const [command, ...rest] = argv;
   const verbUsage = command === undefined ? null : usageFor(command);
   if (verbUsage !== null && (rest.includes("--help") || rest.includes("-h"))) {
     console.log(verbUsage);
     return 0;
-  }
-  if (command !== undefined && SETTINGS_VERBS.has(command)) {
-    const paths = riglinePaths();
-    // On stderr, so `list --json` and `doctor` still print only what they are for.
-    const split = splitLegacyConfig({
-      config: paths.config,
-      sources: paths.sources,
-      legacy: paths.legacyConfig,
-    });
-    if (split !== null) console.error(`rigline: ${split}`);
   }
   switch (command) {
     case "codegen":
@@ -1542,8 +1457,6 @@ async function main(argv: string[]): Promise<number> {
       return await installCommand(rest);
     case "check":
       return checkCommand(rest);
-    case "watch":
-      return watchCommand(rest);
     case "dev":
       return dev(rest);
     case "add":

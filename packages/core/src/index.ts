@@ -3,8 +3,8 @@
  *
  * Locating installed extensions, harvesting identifier layers, generating types and runtime
  * tables, injecting and restoring the loader, discovering plugins and baking the registry, the
- * update flow and its watcher, and resolving the curated anchor table. The CLI is a thin surface
- * over this; a companion VS Code extension would be another.
+ * update flow, keeping the companion in VS Code's profiles, and resolving the curated anchor table.
+ * The CLI is a thin surface over this.
  */
 
 export type { AnchorOverrideOutcome, AnchorOverrides } from "./anchors/overrides.ts";
@@ -125,13 +125,7 @@ export * from "./layers/index.ts";
 export { harvestAll, LAYERS, scanOf } from "./layers/index.ts";
 export type { RiglinePaths } from "./paths.ts";
 export { RIGLINE_HOME_VARIABLE, riglineHome, riglinePaths } from "./paths.ts";
-export type {
-  ConfigFiles,
-  NpmSource,
-  PathSource,
-  PluginSource,
-  PluginsConfig,
-} from "./plugins/config.ts";
+export type { NpmSource, PathSource, PluginSource, PluginsConfig } from "./plugins/config.ts";
 export {
   addToList,
   describeSource,
@@ -141,7 +135,6 @@ export {
   readConfig,
   readSources,
   removeFromList,
-  splitLegacyConfig,
   updateSources,
 } from "./plugins/config.ts";
 export type { DiscoveredPlugin, ManifestCheck } from "./plugins/discover.ts";
@@ -245,6 +238,4 @@ export type {
   VersionReport,
 } from "./update/flow.ts";
 export { check, formatFlow, refusalOf, update } from "./update/flow.ts";
-export type { Watcher, WatchOptions } from "./update/watch.ts";
-export { watch } from "./update/watch.ts";
 export { CORE_VERSION } from "./version.ts";

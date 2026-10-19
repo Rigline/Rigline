@@ -46,6 +46,9 @@ hole, or raises the Node or VS Code it needs, its entry says so.
 - `rigline vscode-setup --profile` and `--remove`, and the `companion` block in `config.yaml`,
   with `skipProfiles` and `everyProfile`. A `companion` block left in the file is named as a key
   Rigline does not read. `rigline vscode-setup` on its own is what `install` is.
+- `rigline watch`. The companion re-injects after every extension update.
+- The one-time move of a `~/.rigline/config.json` from before 1.0 into `config.yaml` and
+  `sources.json`. One still there is ignored.
 
 ## 1.2.0 — 2026-10-19
 

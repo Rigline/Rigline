@@ -24,8 +24,6 @@ export interface RiglinePaths {
   readonly config: string;
   /** Where `add` brought each plugin from (D49, D91). */
   readonly sources: string;
-  /** `config.json`, which held both before D91, and is split into them once. */
-  readonly legacyConfig: string;
   /** Plugins installed for this user, one directory each, discovered like any other plugin root. */
   readonly plugins: string;
   /** Layout presets a person saved or downloaded, one file each, named without their extension. */
@@ -51,7 +49,6 @@ export function riglinePaths(home = riglineHome()): RiglinePaths {
     home,
     config: join(home, "config.yaml"),
     sources: join(home, "sources.json"),
-    legacyConfig: join(home, "config.json"),
     plugins: join(home, "plugins"),
     presets: join(home, "presets"),
     previousLayout: join(home, "previous-layout.yaml"),

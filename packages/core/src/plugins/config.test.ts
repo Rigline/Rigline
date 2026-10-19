@@ -9,7 +9,6 @@ import {
   readConfig,
   readSources,
   removeFromList,
-  splitLegacyConfig,
   unknownKeyLines,
   updateSources,
 } from "./config.ts";
@@ -290,59 +289,5 @@ describe("readSources", () => {
     });
 
     expect(JSON.parse(readFileSync(path, "utf8"))).toEqual({ pigeon, clock: SOURCE });
-  });
-});
-
-describe("splitLegacyConfig", () => {
-  function files(): { config: string; sources: string; legacy: string } {
-    const dir = tempDir();
-    return {
-      config: join(dir, "config.yaml"),
-      sources: join(dir, "sources.json"),
-      legacy: join(dir, "config.json"),
-    };
-  }
-
-  it("does nothing when there is no config.json", () => {
-    const f = files();
-    expect(splitLegacyConfig(f)).toBeNull();
-    expect(existsSync(f.config)).toBe(false);
-  });
-
-  it("moves what a person chose into config.yaml and what add recorded into sources.json", () => {
-    const f = files();
-    writeFileSync(
-      f.legacy,
-      JSON.stringify({ disabled: ["probe"], sources: { clock: SOURCE }, theirs: { a: 1 } }),
-    );
-
-    expect(splitLegacyConfig(f)).toContain("moved");
-
-    expect(existsSync(f.legacy)).toBe(false);
-    expect(readConfig(f.config).disabled).toEqual(["probe"]);
-    // The person's file, moved: it gains no layout it did not have (D142).
-    expect(readConfig(f.config).layout).toEqual({});
-    expect(readFileSync(f.config, "utf8")).toContain("theirs:\n  a: 1\n");
-    expect(readFileSync(f.config, "utf8")).not.toContain("sources");
-    expect(readSources(f.sources)).toEqual({ clock: SOURCE });
-  });
-
-  it("writes no sources.json when config.json recorded no sources", () => {
-    const f = files();
-    writeFileSync(f.legacy, JSON.stringify({ disabled: [] }));
-    splitLegacyConfig(f);
-    expect(existsSync(f.sources)).toBe(false);
-    expect(readConfig(f.config).disabled).toEqual([]);
-  });
-
-  it("leaves a config.json written after the split alone, and says it is not read", () => {
-    // An older engine running beside this one; what it wrote is not what loads.
-    const f = files();
-    writeFileSync(f.config, "disabled: []\n");
-    writeFileSync(f.legacy, JSON.stringify({ disabled: ["probe"] }));
-
-    expect(splitLegacyConfig(f)).toContain("is not read");
-    expect(existsSync(f.legacy)).toBe(true);
-    expect(readConfig(f.config).disabled).toEqual([]);
   });
 });

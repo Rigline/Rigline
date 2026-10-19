@@ -16,7 +16,6 @@ describe("riglineHome", () => {
       home: "/g",
       config: join("/g", "config.yaml"),
       sources: join("/g", "sources.json"),
-      legacyConfig: join("/g", "config.json"),
       anchors: join("/g", "anchors.json"),
       plugins: join("/g", "plugins"),
       presets: join("/g", "presets"),

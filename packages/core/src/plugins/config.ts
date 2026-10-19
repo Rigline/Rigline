@@ -5,7 +5,7 @@
  * The first is edited by hand as well as by commands, so a command edits the document in place and
  * keeps everything a person wrote there, comments included. The second only the engine writes (D74).
  */
-import { existsSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import {
   type Layout,
   type ModelSettings,
@@ -71,14 +71,6 @@ export interface PluginsConfig {
 
 /** The settings this engine reads at the top level. */
 const SETTINGS = ["disabled", "layout", "settings", "model"];
-
-/** The three files the split is between, as `riglinePaths` names them. */
-export interface ConfigFiles {
-  readonly config: string;
-  readonly sources: string;
-  /** `config.json`, which held both before D91. */
-  readonly legacy: string;
-}
 
 const HEADER =
   " Rigline's settings. Edit freely: rigline's commands keep your comments.\n" +
@@ -300,32 +292,6 @@ export function updateSources(
   const value = readJsonObject(path) ?? {};
   mutate(value);
   writeFileAtomic(path, `${JSON.stringify(value, null, 2)}\n`);
-}
-
-/**
- * Splits a `config.json` from before D91 into the two files that replaced it, once. Returns a line
- * saying what it did, or null when there was nothing to do.
- */
-export function splitLegacyConfig(files: ConfigFiles): string | null {
-  if (!existsSync(files.legacy)) return null;
-  if (existsSync(files.config) || existsSync(files.sources)) {
-    // Written by an older engine after the split, so what it says is not what loads.
-    return (
-      `${files.legacy} is not read: ${files.config} and ${files.sources} replaced it. ` +
-      "An older rigline wrote it; delete it."
-    );
-  }
-  const { sources, ...rest } = readJsonObject(files.legacy) ?? {};
-  if (sources !== undefined)
-    writeFileAtomic(files.sources, `${JSON.stringify(sources, null, 2)}\n`);
-  // The person's own file, moved, so it gains no layout it did not have.
-  const doc = headed({});
-  for (const [key, value] of Object.entries(rest)) doc.set(key, doc.createNode(value));
-  writeFileAtomic(files.config, doc.toString(TO_STRING));
-  // Forced, because two engines can split at once — the companion and a terminal — and the second
-  // to get here finds it gone, having written what the first did.
-  rmSync(files.legacy, { force: true });
-  return `moved ${files.legacy} into ${files.config} and ${files.sources}`;
 }
 
 /** The file as raw JSON, or null when it is not there. Throws for anything that is not an object. */
