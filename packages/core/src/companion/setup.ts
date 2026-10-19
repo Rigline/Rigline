@@ -243,7 +243,7 @@ function planFor(
   }
   if (profiles === null) return { ...none, targets: [null] };
   if (options.remove) {
-    const holding = profiles.filter((p) => !p.sharesDefault && p.companion);
+    const holding = profiles.filter((p) => !p.sharesDefault && p.companion !== null);
     return { ...none, targets: holding.map(cliProfile) };
   }
   const { targets, skipped } = setupTargets(profiles, options.settings);

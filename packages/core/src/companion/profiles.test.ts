@@ -5,6 +5,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import type { CompanionSettings } from "../plugins/config.ts";
 import { type CarriedCompanion, companionFingerprint } from "./fingerprint.ts";
@@ -76,12 +77,15 @@ function profile(name: string, over: Partial<Profile> = {}): Profile {
     location: name === "Default" ? null : name.toLowerCase(),
     sharesDefault: false,
     claudeCode: false,
-    companion: false,
+    companion: null,
     ...over,
   };
 }
 
 const EVERY: CompanionSettings = { everyProfile: true, skipProfiles: [] };
+
+/** A companion as the `editor` fixture lists one: a version, and no location. */
+const HELD = { version: "1.0.0", dir: null };
 
 describe("readProfiles", () => {
   it("lists the default profile first, then each named one, with what each has installed", () => {
@@ -96,7 +100,7 @@ describe("readProfiles", () => {
     expect(read).toEqual({
       kind: "read",
       profiles: [
-        profile("Default", { claudeCode: true, companion: true }),
+        profile("Default", { claudeCode: true, companion: HELD }),
         profile("Yarn PNP", { location: "-5754f4db", claudeCode: true }),
         profile("Kokai", { location: "-546c661a" }),
       ],
@@ -119,6 +123,31 @@ describe("readProfiles", () => {
     const { userData, extensionsDir } = editor([], [{ name: "Empty", location: "pe" }]);
     const read = readProfiles(userData, extensionsDir);
     expect(read.kind === "read" && read.profiles[1]).toMatchObject({ claudeCode: false });
+  });
+
+  it("gives the companion's version and directory, as VS Code resolves the entry", () => {
+    const { userData, extensionsDir } = editor([]);
+    const dir = join(extensionsDir, "rigline.rigline-1.2.0");
+    const entries = [
+      { relativeLocation: "rigline.rigline-1.2.0", location: { fsPath: "elsewhere" } },
+      { location: { fsPath: dir } },
+      { location: { path: pathToFileURL(dir).pathname, scheme: "file" } },
+      { location: { path: "/x", scheme: "vscode-remote" } },
+    ];
+    const read = entries.map((entry) => {
+      writeFileSync(
+        join(extensionsDir, "extensions.json"),
+        JSON.stringify([{ identifier: { id: COMPANION }, version: "1.2.0", ...entry }]),
+      );
+      const profiles = readProfiles(userData, extensionsDir);
+      return profiles.kind === "read" ? profiles.profiles[0]?.companion : undefined;
+    });
+    expect(read).toEqual([
+      { version: "1.2.0", dir },
+      { version: "1.2.0", dir },
+      { version: "1.2.0", dir },
+      { version: "1.2.0", dir: null },
+    ]);
   });
 
   it("matches ids whatever their case, as VS Code does", () => {
@@ -186,7 +215,7 @@ describe("editorDirs", () => {
 });
 
 describe("missingFrom", () => {
-  const holding = profile("Default", { claudeCode: true, companion: true });
+  const holding = profile("Default", { claudeCode: true, companion: HELD });
 
   it("names each profile with Claude Code and without the companion", () => {
     const lacking = profile("B", { claudeCode: true });
@@ -216,7 +245,7 @@ describe("setupTargets", () => {
   it("picks every profile with Claude Code or the companion, less the skipped", () => {
     const profiles = [
       profile("Default", { claudeCode: true }),
-      profile("B", { companion: true }),
+      profile("B", { companion: HELD }),
       profile("C"),
       profile("K", { claudeCode: true }),
     ];

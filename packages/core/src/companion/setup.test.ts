@@ -42,13 +42,15 @@ const CURSOR = editor("cursor", "Cursor", join(abs("bin"), "cursor.cmd"));
 
 const EVERY: CompanionSettings = { everyProfile: true, skipProfiles: [] };
 
+const HELD = { version: "1.0.0", dir: null };
+
 function profile(name: string, over: Partial<Profile> = {}): Profile {
   return {
     name,
     location: name === "Default" ? null : name.toLowerCase(),
     sharesDefault: false,
     claudeCode: false,
-    companion: false,
+    companion: null,
     ...over,
   };
 }
@@ -148,7 +150,7 @@ describe("setupCompanion", () => {
               profile("Yarn PNP", { claudeCode: true }),
               profile("Kokai"),
             )
-          : read(profile("Default", { companion: true })),
+          : read(profile("Default", { companion: HELD })),
       run,
     });
     expect(calls).toEqual([
@@ -223,9 +225,9 @@ describe("setupCompanion", () => {
       settings: EVERY,
       profilesOf: () =>
         read(
-          profile("Default", { companion: true }),
+          profile("Default", { companion: HELD }),
           profile("B"),
-          profile("C", { companion: true }),
+          profile("C", { companion: HELD }),
         ),
       run,
     });

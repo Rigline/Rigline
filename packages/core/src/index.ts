@@ -26,6 +26,8 @@ export {
 } from "./assets.ts";
 export type { Generated } from "./codegen/generate.ts";
 export { generate, sameSource } from "./codegen/generate.ts";
+export type { Ensured, EnsureOptions, LookOptions } from "./companion/ensure.ts";
+export { ensureCompanion, isAcquiredEngine, lookAtCompanion } from "./companion/ensure.ts";
 export type { CarriedCompanion, CompanionStatus } from "./companion/fingerprint.ts";
 export {
   COMPANION_SIDECAR,
@@ -39,6 +41,7 @@ export type {
   EditorCli,
   EditorContext,
   EditorDirs,
+  InstalledCompanion,
   Profile,
   ProfilesRead,
 } from "./companion/profiles.ts";

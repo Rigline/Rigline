@@ -8,6 +8,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { CompanionSettings } from "../plugins/config.ts";
 import { type CarriedCompanion, installedFingerprint } from "./fingerprint.ts";
 
@@ -17,6 +18,13 @@ const CLAUDE_CODE_ID = "anthropic.claude-code";
 /** What VS Code calls the one profile `storage.json` does not list, and so what skips it. */
 export const DEFAULT_PROFILE = "Default";
 
+/** A profile's companion, as its `extensions.json` entry names it. */
+export interface InstalledCompanion {
+  readonly version: string | null;
+  /** The directory the entry names, or null where it names none this can read. */
+  readonly dir: string | null;
+}
+
 export interface Profile {
   /** As VS Code's profile switcher shows it. */
   readonly name: string;
@@ -25,7 +33,7 @@ export interface Profile {
   /** Uses the default profile's extensions, so installing into the default covers it. */
   readonly sharesDefault: boolean;
   readonly claudeCode: boolean;
-  readonly companion: boolean;
+  readonly companion: InstalledCompanion | null;
 }
 
 export type ProfilesRead =
@@ -39,19 +47,13 @@ export function readProfiles(userData: string, extensionsDir: string): ProfilesR
   const storage = join(userData, "User", "globalStorage", "storage.json");
   if (!existsSync(storage)) return { kind: "none", why: `there is no ${storage}` };
   try {
-    const defaults = extensionIds(join(extensionsDir, "extensions.json"));
+    const defaults = extensionEntries(join(extensionsDir, "extensions.json"));
     const profile = (
       name: string,
       location: string | null,
       sharesDefault: boolean,
-      ids: ReadonlySet<string>,
-    ): Profile => ({
-      name,
-      location,
-      sharesDefault,
-      claudeCode: ids.has(CLAUDE_CODE_ID),
-      companion: ids.has(COMPANION_ID),
-    });
+      entries: Entries,
+    ): Profile => profileOf(name, location, sharesDefault, entries, extensionsDir);
     return {
       kind: "read",
       profiles: [
@@ -63,7 +65,7 @@ export function readProfiles(userData: string, extensionsDir: string): ProfilesR
             sharesDefault,
             sharesDefault
               ? defaults
-              : extensionIds(join(userData, "User", "profiles", location, "extensions.json")),
+              : extensionEntries(join(userData, "User", "profiles", location, "extensions.json")),
           ),
         ),
       ],
@@ -71,6 +73,58 @@ export function readProfiles(userData: string, extensionsDir: string): ProfilesR
   } catch (error) {
     return { kind: "unreadable", why: error instanceof Error ? error.message : String(error) };
   }
+}
+
+/** The default profile alone, from the extensions directory, for where `storage.json` failed. */
+export function readDefaultProfile(extensionsDir: string): Profile | { readonly why: string } {
+  try {
+    const entries = extensionEntries(join(extensionsDir, "extensions.json"));
+    return profileOf(DEFAULT_PROFILE, null, false, entries, extensionsDir);
+  } catch (error) {
+    return { why: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+/** A profile's `extensions.json` entries by id, lowercased. */
+type Entries = ReadonlyMap<string, Record<string, unknown>>;
+
+function profileOf(
+  name: string,
+  location: string | null,
+  sharesDefault: boolean,
+  entries: Entries,
+  extensionsDir: string,
+): Profile {
+  const companion = entries.get(COMPANION_ID);
+  return {
+    name,
+    location,
+    sharesDefault,
+    claudeCode: entries.has(CLAUDE_CODE_ID),
+    companion: companion === undefined ? null : installedCompanion(companion, extensionsDir),
+  };
+}
+
+/**
+ * The directory an entry names, as VS Code resolves it: `relativeLocation` under the extensions
+ * directory where there is one, else `location`'s file path.
+ */
+function installedCompanion(
+  entry: Record<string, unknown>,
+  extensionsDir: string,
+): InstalledCompanion {
+  const version = typeof entry.version === "string" ? entry.version : null;
+  if (typeof entry.relativeLocation === "string" && entry.relativeLocation !== "") {
+    return { version, dir: join(extensionsDir, entry.relativeLocation) };
+  }
+  const location = (entry.location ?? {}) as Record<string, unknown>;
+  if (typeof location.fsPath === "string") return { version, dir: location.fsPath };
+  if (typeof location.path === "string" && location.scheme === "file") {
+    const url = new URL("file:///");
+    url.pathname = location.path;
+    return { version, dir: fileURLToPath(url) };
+  }
+  return { version, dir: null };
 }
 
 function readJson(path: string): unknown {
@@ -101,15 +155,17 @@ function namedProfiles(
   });
 }
 
-/** The ids a profile's `extensions.json` lists, lowercased; none when it has never had one. */
-function extensionIds(path: string): ReadonlySet<string> {
-  if (!existsSync(path)) return new Set();
+/** The entries a profile's `extensions.json` lists; none when it has never had one. */
+function extensionEntries(path: string): Entries {
+  if (!existsSync(path)) return new Map();
   const list = readJson(path);
   if (!Array.isArray(list)) throw new Error(`${path} is not a list of extensions`);
-  const ids = list
-    .map((entry) => (entry as { identifier?: { id?: unknown } } | null)?.identifier?.id)
-    .filter((id): id is string => typeof id === "string");
-  return new Set(ids.map((id) => id.toLowerCase()));
+  const entries = new Map<string, Record<string, unknown>>();
+  for (const entry of list) {
+    const id = (entry as { identifier?: { id?: unknown } } | null)?.identifier?.id;
+    if (typeof id === "string") entries.set(id.toLowerCase(), entry as Record<string, unknown>);
+  }
+  return entries;
 }
 
 export interface EditorDirs {
@@ -160,10 +216,13 @@ export function missingFrom(
   profiles: readonly Profile[],
   settings: CompanionSettings,
 ): readonly Profile[] {
-  if (!settings.everyProfile || !profiles.some((p) => p.companion)) return [];
+  if (!settings.everyProfile || !profiles.some((p) => p.companion !== null)) return [];
   return profiles.filter(
     (p) =>
-      !p.sharesDefault && p.claudeCode && !p.companion && !settings.skipProfiles.includes(p.name),
+      !p.sharesDefault &&
+      p.claudeCode &&
+      p.companion === null &&
+      !settings.skipProfiles.includes(p.name),
   );
 }
 
@@ -178,7 +237,7 @@ export function setupTargets(
 ): { readonly targets: readonly Profile[]; readonly skipped: readonly Profile[] } {
   const fallback = profiles.filter((p) => p.location === null);
   if (!settings.everyProfile) return { targets: fallback, skipped: [] };
-  const wanted = profiles.filter((p) => !p.sharesDefault && (p.claudeCode || p.companion));
+  const wanted = profiles.filter((p) => !p.sharesDefault && (p.claudeCode || p.companion !== null));
   const skipped = wanted.filter((p) => settings.skipProfiles.includes(p.name));
   if (wanted.length === 0 && !settings.skipProfiles.includes(DEFAULT_PROFILE)) {
     return { targets: fallback, skipped: [] };
