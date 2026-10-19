@@ -698,5 +698,5 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
 - 2026-10-19: a fresh install starts on a two-row layout of the bundled elements, written into
   `config.yaml` rather than layered under it: a missing file reads as the one a command would
   create, and *Reset to defaults* and `rigline layout reset` go back to it (D142, amending D122 and
-  D125). Another plugin's elements stay at their author's defaults. Checked in the harness and by
-  `rigline layout` on an empty home; not yet seen live in a panel with no `config.yaml`.
+  D125). Another plugin's elements stay at their author's defaults. Seen live by Leo, with
+  `config.yaml` moved aside and after a Reset.
