@@ -907,6 +907,9 @@ The costs, stated: npm must be beside the running Node; the first run needs the 
 after the user ran `npm i -g rigline`; and a user cannot override the engine with `npm i -g
 @rigline/core`, which is the price of never colliding.
 
+**Amended by D143:** an installed engine of an older major is no engine, and the wrapper installs
+over it as on a first run.
+
 **D32. User state lives under `~/.rigline`**: config, installed plugins, anchor-table overrides
 (D44), the harvest baseline, and — since 2026-09-21 — `engine/`, the npm prefix the wrapper installs
 `@rigline/core` into (D73). A clone of this repo is for developing Rigline, not for using it. The
@@ -1367,6 +1370,9 @@ The changelog is the one file this reliably conflicts in, since both lines appen
 `## Unreleased`. Resolved at merge, keeping both sides in version order (D60). An entry-file layout
 would remove the conflict and is the known answer if it ever stops being a minute's work.
 
+**Amended by D143:** 2.0 is built on `main`, with no `2.x` branch and no maintained 1.x line, since
+nobody is on 1.x. The rule stands for the next major.
+
 **D71. The first-party plugins ship inside `@rigline/core`, discovered in place, versioned with the
 engine (2026-09-21).** `dist/bundled/` carries `pre.js`, `post.js` and session-id, time-marks,
 worktree and probe — each as its `rigline.json` and the entry that manifest names, never
@@ -1690,6 +1696,9 @@ companion's own module, because the wrapper never needs to search: it is already
 Saving from the panel needs something in Node listening, and the companion is the only such process
 (D93). Without it, Save copies the `rigline layout` commands that make the same change, and editing
 and the live preview are the same either way, so nothing is reachable only through the companion.
+
+**Superseded by D143:** the companion is required, and `install` puts it in. The retrieval layer and
+the lock stand.
 
 **D81. Nothing reacts to an extension directory that is still being written (2026-09-21).**
 `settleWebviewBackup` makes the live bytes the pristine backup in two of its branches: when there is
@@ -2305,6 +2314,9 @@ the answer (Leo). Opening the menu and Reload do the same read, so a panel picks
 from another panel or a terminal without a webview reload. The outcome's detail, a save over a
 change or a refusal and why, is the companion's notification, since only the engine knows it.
 
+**Amended by D143:** Save is a link with no gate on an installed companion, and the Copy commands
+fallback is gone. The token stays.
+
 **D94. On a machine developing Rigline, the companion runs the engine a setting names (2026-09-25,
 Leo).** Two engines claim the bytes there. `pnpm rigline` runs the checkout's; the companion runs the
 one acquired into `<RIGLINE_HOME>/engine`, and re-injects with it on every extension-host start.
@@ -2334,6 +2346,9 @@ Rejected:
   build, and either is replaced whenever the tag differs, by an older release too: between
   `pnpm release` bumping the checkout and `release:finish`. A link puts the checkout under npm's
   reify and under the `rm -rf` D73 gives as the recovery.
+
+**Amended by D143:** `install` run from a checkout installs the checkout's companion and prints the
+line, which was `vscode-setup`'s part.
 
 **D95. Editing in place is a mode over the working copy, and it adds only the pointer (2026-09-25,
 Leo).** The Layout submenu (D93) edits at one remove: an element by its title, a place by its name.
@@ -2531,6 +2546,10 @@ Rejected:
 - Comparing every companion directory rather than `PATH`'s: once one profile updated, every other
   profile's would read as current.
 
+**Amended by D143:** self-update is the step between a person's runs, and every injecting verb
+installs the carried companion wherever a profile has another, so the rejection of `rigline update`
+installing the VSIX no longer holds.
+
 **D100. The companion goes into every profile that has Claude Code, and is added wherever it is
 missing (2026-09-25, Leo).** Each profile carries its own extensions, so a companion installed into
 one is absent from a window bound to another. That window has no Save and no status, and a Claude
@@ -2613,6 +2632,10 @@ Rejected:
   Electron once per profile at every companion start, and it reads the same file.
 - An `enginePath` shared across profiles. No setting scope an extension can declare is both shared
   across profiles and kept out of Settings Sync.
+
+**Amended by D143:** no `skipProfiles` or `everyProfile`, no refusal to add over a different build,
+and no gate on the companion being in the editor already: a person's verb and the companion's look
+both add it wherever a profile has Claude Code.
 
 **D101. Every harvest pattern reads a string in any of the three quotes (2026-09-25, Leo).** Which
 quote a string is written in is the minifier's choice, not the extension's. Claude Code's bundler
@@ -2939,6 +2962,9 @@ This amends D38. Rejected:
 - `restore` naming the profiles that hold the companion. It reads VS Code's profile tables on the one
   path that must depend on nothing but Node and the extension's directories.
 
+**Extended by D143:** while the mark is there the engine offers a companion nothing, and `uninstall`
+is what removes the companion.
+
 **D112. What stability.md claims is what the code keeps (2026-09-27, Leo).** Read against the code,
 the promise claimed more than the code kept in places and less in others. It now says:
 
@@ -3023,6 +3049,9 @@ report: a script reads a report's output, and failing to report is the only fail
 (D111), which it says instead, with 0: a person who ran `restore` meant it. `update` counts a failed
 companion addition. Both land before 1.0, since moving an exit status to 1 is a tightening no 1.x
 can make afterwards.
+
+**Amended by D143:** in 2.0, `install` and every injecting verb exit 1 where a profile's companion
+could not be made current.
 
 **D116. A move of the engine is held to the Node that would run it (2026-09-29, Leo).** A minor
 release may drop a Node version (stability.md), and nothing read an engine's `engines.node` before
@@ -4015,3 +4044,84 @@ the trade a preset makes too (D131).
 
 **Amends D122:** Rigline ships an arrangement of rows, of its bundled elements. **Amends D125:**
 Reset to defaults goes to the shipped layout.
+
+**D143. Rigline requires its companion (2026-10-20, Leo).** There is no functional Rigline without
+a matching companion: Rigline is the engine, the injected host and the companion together. `rigline
+install` puts the companion into VS Code, every injection a person runs makes sure it is there and
+current, and nothing opts out of it. Somebody who does not want the companion does not want
+Rigline, and `rigline uninstall` is how they leave. A machine that cannot install a VS Code
+extension is outside the audience: it could not install an npm package that changes Claude Code
+either. It is a major, 2.0.0. Plugins are not affected: a manifest is still `api: 1`, `ctx` and
+`@rigline/plugin-api` lose nothing, and nothing compares a plugin's version with the engine's.
+
+**Matching is D99's fingerprint, against the engine the companion runs**: the acquired engine in
+`<RIGLINE_HOME>/engine`, recognised by its own path, or a checkout named by `rigline.enginePath`
+(D94). A person's injecting verb installs the carried companion wherever a profile has another, and
+self-update keeps it matching between those verbs. Any other engine, such as a plugin author's
+workspace `@rigline/core`, counts any companion as current and installs only where a profile has
+none. Replacing would match the companion to an engine it does not run, self-update would put it
+back at the next start, and the next `dev` would replace it again. The time between the companion
+moving the engine and the extension host restarting into the companion that engine carries is skew
+that settles at the restart, and nothing refuses over it.
+
+**The ensure step** is one function, `ensureCompanion`, run by `reinject` and once at the start of
+`dev`, so every verb that injects for a person runs it, and it refuses only where a change is needed
+and cannot be made. With no Claude Code installed it does not run, which leaves CI, WSL and a remote
+host as they were. It reads the profiles with D100's reader, which needs no CLI and now gives each
+profile's companion as its `extensions.json` entry names it. The targets are the profiles with
+Claude Code, or the default profile where none lists it or the profiles cannot be read. Only where a
+target is not current does it look for VS Code's CLI on `PATH`, refusing without one and naming the
+fix, and install the carried VSIX: with `--force` where it replaces a companion, which a downgrade
+after an engine rollback needs, and without it where the profile had none. Then it reads
+`extensions.json` again and decides from that, never from the CLI's exit code, since a different
+editor answering to `code` exits 0 having installed somewhere else. Every target current, it
+injects; some, it injects and names the rest under *Needs you*; none, it refuses and injects
+nothing. A refusal takes away no `restore` mark and undoes nothing already injected. The companion's
+own runs and saves are exempt, since the companion updates and adds itself, and so is `install
+--ext` (D118). `check` says what the step would do and installs nothing.
+
+**What Rigline cannot see is closed from the other side.** Nothing tells the panel which profile it
+is in, and the disabled list is in a profile's `state.vscdb`, which Rigline does not read. So every
+person's verb and every companion start add the companion wherever a profile has Claude Code, and a
+profile still without a working one is limited by itself. A Save there finds nothing, because the id
+is held on the Marketplace (D93), and the panel's *unconfirmed* note names `rigline install`.
+
+**`uninstall` is the whole of leaving.** It restores as `restore` does, leaving the mark; takes the
+companion out of every profile that lists it through the editor's CLI, or says to do that from the
+Extensions view where there is no CLI on `PATH`; and prints what it cannot do itself: reload every
+window, `npm uninstall -g rigline`, and delete `~/.rigline`. Uninstalling from a profile stops a
+running companion only at its window's next extension-host restart, and until then its runs would
+undo the uninstall. So while the mark is there the engine offers a companion nothing:
+`companion-status` answers `carried: null` and `companion-profiles` adds none. Being the engine's,
+that holds a 1.x companion back too.
+
+**The crossing from 1.x is the two commands a released 1.x companion and wrapper name**, `npm i -g
+rigline@latest` and then `rigline vscode-setup`, in code nothing updates. So the 2.x wrapper counts
+an installed engine of an older major as none, installs over it as on a first run, and moves from it
+without the age and Node gates, since there is nothing it could stay on (D48, D116). `vscode-setup`
+stays as a hidden alias of `install` that takes no flags. A newer major is still refused.
+
+What went with optionality: Save's *Copy commands* fallback and the bake of whether a companion
+answers, so Save is a link, or a disabled Save that says why where there is no token or the layout
+is too large; the `companion` block in `config.yaml`, which the reader drops and nothing migrates;
+`vscode-setup --remove` and `--profile`; and `watch`, since the companion is the watcher. The
+`config.json` split (D91) goes in the same major, the alphas that wrote that file being long split.
+
+Rejected:
+
+- A recorded opt-out, which `--remove` would need so the next verb did not add the companion back.
+  Leaving is `uninstall`.
+- Asking the CLI whether each profile is current, which starts Electron per profile on every
+  injection. The step reads files in the steady state and starts the CLI only to install.
+- A `2.x` branch and a maintained 1.x line (D62), since nobody is on 1.x.
+
+**Supersedes D80.** **Amends D99:** self-update stays, as the step between a person's runs, and its
+rejection of `rigline update` installing the VSIX no longer holds. **Amends D100:** without
+`skipProfiles`, `everyProfile`, the refusal to add over a different build, and the gate that adds
+only in an editor where some profile has the companion already. **Extends D111:** under the mark the
+engine offers a companion nothing, and `uninstall`, not `restore`, removes it. **Amends D115:**
+`install` exits 1 where a target could not be made current, which only a major may add. **Amends
+D93:** Save loses its gate on an installed companion, and the token stays. **Amends D94:** `install`
+from a checkout is the developer's path `vscode-setup` was. **Amends D73:** an installed engine of an
+older major is no engine. **Amends D62:** this major is built on `main`; the branch rule stands for
+the next one, which will have users.
