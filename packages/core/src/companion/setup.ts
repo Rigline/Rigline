@@ -1,5 +1,5 @@
 /**
- * Finding VS Code's CLI and running it, and taking the companion out of every profile with it.
+ * Finding VS Code's CLI and running it, and taking the companion out of every profile for `uninstall`.
  *
  * The VSIX ships with the engine in `dist/bundled` (D71), so the companion this engine installs is
  * the one it was built with, and nothing is downloaded (D143).
@@ -12,10 +12,12 @@ import { existsSync } from "node:fs";
 import { delimiter, isAbsolute, join } from "node:path";
 import {
   cliProfile,
-  DEFAULT_PROFILE,
-  editorDirs,
+  type EditorDirs,
   type ProductDirs,
-  type ProfilesRead,
+  type Profile,
+  profilesNamed,
+  type RunCli,
+  readDefaultProfile,
   readProfiles,
   uninstallArgv,
 } from "./profiles.ts";
@@ -118,70 +120,84 @@ export function editorSpawn(
   ];
 }
 
-export interface ProfileOutcome {
-  readonly profile: string;
-  readonly code: number;
-  readonly output: string;
+export interface UninstallOptions {
+  /** Where VS Code keeps its profiles and extensions. */
+  readonly dirs: EditorDirs;
+  /** VS Code's CLI on `PATH`, asked for only when a profile has the companion. */
+  readonly findCli: () => readonly FoundEditor[];
+  readonly run: RunCli;
 }
 
-export interface RemovalOutcome {
-  readonly editor: FoundEditor;
-  readonly results: readonly ProfileOutcome[];
-  /** Why the profiles could not be read, when they could not; the default profile was used. */
-  readonly unread?: string;
+export interface Uninstalled {
+  /** What was done, and what is left to do by hand, for the report. */
+  readonly lines: readonly string[];
+  /** The profiles that still list the companion. */
+  readonly kept: readonly string[];
 }
 
-export interface RemovalOptions {
-  readonly editors: readonly FoundEditor[];
-  /** An editor's profiles. Defaults to reading them where `editorDirs` says they are. */
-  readonly profilesOf?: (editor: FoundEditor) => ProfilesRead;
-  run(command: string, argv: readonly string[]): Promise<{ code: number; output: string }>;
-}
-
-/** Take the companion out of every profile that lists it, in each editor given (D143). */
-export async function removeCompanion(options: RemovalOptions): Promise<readonly RemovalOutcome[]> {
-  const profilesOf =
-    options.profilesOf ??
-    ((editor: FoundEditor) => {
-      const dirs = editorDirs(editor);
-      return readProfiles(dirs.userData, dirs.extensionsDir);
-    });
-  const outcomes: RemovalOutcome[] = [];
-  for (const editor of options.editors) {
-    const read = profilesOf(editor);
-    const targets =
-      read.kind === "read"
-        ? read.profiles.filter((p) => !p.sharesDefault && p.companion !== null).map(cliProfile)
-        : [null];
-    const results: ProfileOutcome[] = [];
-    for (const target of targets) {
-      const { code, output } = await options.run(editor.path, uninstallArgv(target));
-      results.push({ profile: target ?? DEFAULT_PROFILE, code, output });
-    }
-    outcomes.push({ editor, results, ...(read.kind === "read" ? {} : { unread: read.why }) });
+/** The profiles that list the companion, or the default profile alone where they cannot be read. */
+function holding(dirs: EditorDirs): { readonly profiles: readonly Profile[]; unread?: string } {
+  const read = readProfiles(dirs.userData, dirs.extensionsDir);
+  if (read.kind === "read") {
+    return { profiles: read.profiles.filter((p) => !p.sharesDefault && p.companion !== null) };
   }
-  return outcomes;
+  const found = readDefaultProfile(dirs.extensionsDir);
+  if ("why" in found) return { profiles: [], unread: found.why };
+  return {
+    profiles: found.companion === null ? [] : [found],
+    ...(read.kind === "unreadable" ? { unread: read.why } : {}),
+  };
 }
 
 /**
- * What a removal prints. It names the binary it used, because one machine can hold several editors
- * answering to `code`, and the path is the whole diagnosis when the wrong one answered.
+ * Take the companion out of every profile that lists it, for `uninstall` (D143). What is gone is
+ * decided by reading `extensions.json` again, as the ensure step decides what landed.
  */
-export function formatRemoval(outcomes: readonly RemovalOutcome[]): string {
-  return outcomes
-    .flatMap(({ editor, results, unread }) => [
-      `${editor.label}, via ${editor.path}:`,
-      ...(unread === undefined
-        ? []
-        : [`  its profiles could not be read, so this tried the default profile: ${unread}`]),
-      ...(results.length === 0 ? ["  the companion is in none of its profiles"] : []),
-      ...results.flatMap(({ profile, code, output }) =>
-        code === 0
-          ? [`  ${profile}: removed`]
-          : [`  ${profile}: failed (${editor.cli} exited ${code})`, indent(output.trim())],
-      ),
-    ])
-    .join("\n");
+export async function uninstallCompanion(options: UninstallOptions): Promise<Uninstalled> {
+  const before = holding(options.dirs);
+  const unread =
+    before.unread === undefined
+      ? []
+      : [
+          `VS Code's profiles could not be read, so this looked at the default profile alone: ${before.unread}`,
+        ];
+  if (before.profiles.length === 0) {
+    return { lines: [...unread, "the companion is in no VS Code profile"], kept: [] };
+  }
+  const byHand = "uninstall Rigline from the Extensions view";
+  const [editor] = options.findCli();
+  if (editor === undefined) {
+    const where = before.profiles.length === 1 ? "there" : "in each";
+    return {
+      lines: [
+        ...unread,
+        `${profilesNamed(before.profiles)} still ${before.profiles.length === 1 ? "has" : "have"} ` +
+          `the companion, and no VS Code command-line tool was found on PATH to remove it: ${byHand} ${where}`,
+      ],
+      kept: before.profiles.map((p) => p.name),
+    };
+  }
+
+  const cli = { command: editor.path, prefix: [] };
+  const said = new Map<string, { readonly code: number; readonly output: string }>();
+  for (const profile of before.profiles) {
+    said.set(profile.name, await options.run(cli, uninstallArgv(cliProfile(profile))));
+  }
+  const left = new Set(holding(options.dirs).profiles.map((p) => p.name));
+  const lines = [...unread];
+  for (const profile of before.profiles) {
+    if (!left.has(profile.name)) {
+      lines.push(`removed the companion from profile "${profile.name}"`);
+      continue;
+    }
+    const run = said.get(profile.name);
+    const why =
+      run !== undefined && run.code !== 0
+        ? run.output.trim().split(/\r?\n/).at(-1)?.replace(/\.$/, "") || `it exited ${run.code}`
+        : `${editor.path} said it removed it, so that \`code\` is another editor`;
+    lines.push(`profile "${profile.name}" still has the companion: ${why}; ${byHand} there`);
+  }
+  return { lines, kept: before.profiles.filter((p) => left.has(p.name)).map((p) => p.name) };
 }
 
 /** The reload a newly installed companion needs, since it starts only in a reloaded window. */
@@ -200,11 +216,4 @@ export function checkoutEngineNote(entry: string): string {
     "the same Claude Code directories:",
     `  "rigline.enginePath": ${JSON.stringify(entry)}`,
   ].join("\n");
-}
-
-function indent(text: string): string {
-  return text
-    .split("\n")
-    .map((line) => `    ${line}`)
-    .join("\n");
 }

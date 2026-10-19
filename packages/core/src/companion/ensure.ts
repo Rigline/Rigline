@@ -15,6 +15,7 @@ import {
   type EditorDirs,
   installArgv,
   type Profile,
+  profilesNamed,
   readDefaultProfile,
   readProfiles,
   type RunCli,
@@ -100,13 +101,6 @@ function isCurrent(profile: Profile, options: LookOptions): boolean {
     companion.dir !== null &&
     installedFingerprint(companion.dir) === options.carried.fingerprint
   );
-}
-
-/** `profile "A"`, `profiles "A" and "B"`. */
-function profilesNamed(profiles: readonly Profile[]): string {
-  const names = profiles.map((p) => `"${p.name}"`);
-  if (names.length === 1) return `profile ${names[0]}`;
-  return `profiles ${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
 }
 
 /** `check`'s half: what the ensure step would do, installing nothing. */

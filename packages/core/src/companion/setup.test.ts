@@ -5,17 +5,18 @@
  * The search, the choice of profiles and the report are the parts worth holding: everything else is
  * one `spawn` whose behaviour belongs to VS Code.
  */
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { delimiter, join, win32 } from "node:path";
-import { describe, expect, it } from "vitest";
-import { type Profile, type ProfilesRead, uninstallArgv } from "./profiles.ts";
+import { afterEach, describe, expect, it } from "vitest";
+import { COMPANION_ID, uninstallArgv } from "./profiles.ts";
 import {
   checkoutEngineNote,
   EDITOR_CLIS,
   editorSpawn,
   type FoundEditor,
   findEditors,
-  formatRemoval,
-  removeCompanion,
+  uninstallCompanion,
 } from "./setup.ts";
 
 // Absolute wherever this runs, and PATH joined with this platform's separator. A Windows path is
@@ -34,34 +35,6 @@ function editor(cli: string, label: string, path: string): FoundEditor {
 }
 
 const CODE = editor("code", "VS Code", join(abs("bin"), "code.cmd"));
-const CURSOR = editor("cursor", "Cursor", join(abs("bin"), "cursor.cmd"));
-
-const HELD = { version: "1.0.0", dir: null };
-
-function profile(name: string, over: Partial<Profile> = {}): Profile {
-  return {
-    name,
-    location: name === "Default" ? null : name.toLowerCase(),
-    sharesDefault: false,
-    claudeCode: false,
-    companion: null,
-    ...over,
-  };
-}
-
-const read = (...profiles: Profile[]): ProfilesRead => ({ kind: "read", profiles });
-
-/** A CLI that records what it was asked, and fails for the paths `failing` names. */
-function recorder(...failing: string[]) {
-  const calls: { command: string; argv: readonly string[] }[] = [];
-  return {
-    calls,
-    run: async (command: string, argv: readonly string[]) => {
-      calls.push({ command, argv });
-      return failing.includes(command) ? { code: 1, output: "no" } : { code: 0, output: "" };
-    },
-  };
-}
 
 describe("findEditors", () => {
   it("finds VS Code and passes over an editor whose extensions the engine does not inject", () => {
@@ -130,64 +103,107 @@ describe("findEditors", () => {
   });
 });
 
-describe("removeCompanion", () => {
-  it("takes the companion out of every profile that lists it, in each editor", async () => {
-    const { calls, run } = recorder();
-    const outcomes = await removeCompanion({
-      editors: [CODE, CURSOR],
-      profilesOf: (e) =>
-        e === CODE
-          ? read(
-              profile("Default", { companion: HELD }),
-              profile("B"),
-              profile("C", { companion: HELD }),
-              profile("S", { companion: HELD, sharesDefault: true }),
-            )
-          : read(profile("Default")),
-      run,
-    });
-    expect(calls).toEqual([
-      { command: CODE.path, argv: uninstallArgv(null) },
-      { command: CODE.path, argv: uninstallArgv("C") },
-    ]);
-    expect(outcomes[1]?.results).toEqual([]);
+describe("uninstallCompanion", () => {
+  const made: string[] = [];
+
+  afterEach(() => {
+    for (const dir of made.splice(0)) rmSync(dir, { recursive: true, force: true });
   });
 
-  it("tries the default profile where the profiles cannot be read, and says why", async () => {
-    const { calls, run } = recorder();
-    const outcomes = await removeCompanion({
-      editors: [CODE],
-      profilesOf: () => ({ kind: "unreadable", why: "storage.json is not JSON" }),
-      run,
-    });
-    expect(calls.map((c) => c.argv)).toEqual([uninstallArgv(null)]);
-    expect(outcomes[0]?.unread).toBe("storage.json is not JSON");
-  });
-});
+  const ENTRY = { identifier: { id: COMPANION_ID }, version: "2.0.0" };
 
-describe("formatRemoval", () => {
-  // Leo's laptop: `code --list-extensions` listed it, the Extensions view never showed it, and
-  // nothing on screen said which editor had been asked.
-  it("names the binary it used, each profile, and what a failure said", () => {
-    const report = formatRemoval([
-      {
-        editor: CODE,
-        results: [
-          { profile: "Default", code: 0, output: "" },
-          { profile: "B", code: 1, output: "Profile 'B' broke." },
-        ],
+  /** VS Code's files: the default profile, and one named profile per name, each listing `ids`. */
+  function vscode(lists: Record<string, readonly object[]>) {
+    const root = mkdtempSync(join(tmpdir(), "rigline-uninstall-"));
+    made.push(root);
+    const userData = join(root, "user");
+    const extensionsDir = join(root, "ext");
+    const list = (name: string): string =>
+      name === "Default"
+        ? join(extensionsDir, "extensions.json")
+        : join(userData, "User", "profiles", `p-${name}`, "extensions.json");
+    mkdirSync(join(userData, "User", "globalStorage"), { recursive: true });
+    const named = Object.keys(lists).filter((name) => name !== "Default");
+    writeFileSync(
+      join(userData, "User", "globalStorage", "storage.json"),
+      JSON.stringify({ userDataProfiles: named.map((name) => ({ name, location: `p-${name}` })) }),
+    );
+    for (const [name, entries] of Object.entries(lists)) {
+      mkdirSync(join(list(name), ".."), { recursive: true });
+      writeFileSync(list(name), JSON.stringify(entries));
+    }
+    return { dirs: { userData, extensionsDir }, list };
+  }
+
+  /** A CLI that takes the companion out of the profile named, unless told to fail or miss. */
+  function cli(
+    at: ReturnType<typeof vscode>,
+    outcome: Record<string, "removes" | "nowhere" | number> = {},
+  ) {
+    const calls: (readonly string[])[] = [];
+    return {
+      calls,
+      run: async (_cli: unknown, argv: readonly string[]) => {
+        calls.push(argv);
+        const flag = argv.indexOf("--profile");
+        const name = flag === -1 ? "Default" : (argv[flag + 1] as string);
+        const result = outcome[name] ?? "removes";
+        if (typeof result === "number") return { code: result, output: "It is in use." };
+        if (result === "removes") writeFileSync(at.list(name), "[]");
+        return { code: 0, output: "" };
       },
-      { editor: CURSOR, results: [], unread: "no storage.json" },
+    };
+  }
+
+  it("takes the companion out of every profile that lists it, and says so", async () => {
+    const at = vscode({ Default: [ENTRY], Work: [ENTRY], Plain: [] });
+    const fake = cli(at);
+    const done = await uninstallCompanion({ dirs: at.dirs, findCli: () => [CODE], run: fake.run });
+    expect(fake.calls).toEqual([uninstallArgv(null), uninstallArgv("Work")]);
+    expect(done).toEqual({
+      lines: [
+        'removed the companion from profile "Default"',
+        'removed the companion from profile "Work"',
+      ],
+      kept: [],
+    });
+  });
+
+  it("names a profile that kept it, by what the CLI said or by reading it again", async () => {
+    const at = vscode({ Default: [ENTRY], Work: [ENTRY] });
+    const done = await uninstallCompanion({
+      dirs: at.dirs,
+      findCli: () => [CODE],
+      run: cli(at, { Default: 1, Work: "nowhere" }).run,
+    });
+    expect(done.kept).toEqual(["Default", "Work"]);
+    expect(done.lines).toEqual([
+      'profile "Default" still has the companion: It is in use; uninstall Rigline from the Extensions view there',
+      `profile "Work" still has the companion: ${CODE.path} said it removed it, so that \`code\` is another editor; uninstall Rigline from the Extensions view there`,
     ]);
-    expect(report.split("\n")).toEqual([
-      `VS Code, via ${CODE.path}:`,
-      "  Default: removed",
-      "  B: failed (code exited 1)",
-      "    Profile 'B' broke.",
-      `Cursor, via ${CURSOR.path}:`,
-      "  its profiles could not be read, so this tried the default profile: no storage.json",
-      "  the companion is in none of its profiles",
-    ]);
+  });
+
+  it("says where to do it by hand where no CLI is on PATH, and runs nothing", async () => {
+    const at = vscode({ Default: [ENTRY], Work: [ENTRY] });
+    const fake = cli(at);
+    const done = await uninstallCompanion({ dirs: at.dirs, findCli: () => [], run: fake.run });
+    expect(fake.calls).toEqual([]);
+    expect(done.kept).toEqual(["Default", "Work"]);
+    expect(done.lines[0]).toMatch(
+      /^profiles "Default" and "Work" still have the companion, and no VS Code command-line tool was found on PATH to remove it: uninstall Rigline from the Extensions view in each$/,
+    );
+  });
+
+  it("asks for no CLI where no profile has the companion", async () => {
+    const at = vscode({ Default: [], Work: [] });
+    const done = await uninstallCompanion({
+      dirs: at.dirs,
+      findCli: () => {
+        throw new Error("nothing should have looked");
+      },
+      run: cli(at).run,
+    });
+    expect(done).toEqual({ lines: ["the companion is in no VS Code profile"], kept: [] });
   });
 });
 

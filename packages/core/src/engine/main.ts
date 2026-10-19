@@ -46,6 +46,7 @@ import {
   clearLeftovers,
   clearRestored,
   collect,
+  type CompanionStatus,
   companionStatus,
   describeSource,
   diffScans,
@@ -116,6 +117,7 @@ import {
   splitLegacyConfig,
   UserError,
   undoLayout,
+  uninstallCompanion,
   update,
   updatePlugins,
   verdict,
@@ -217,6 +219,12 @@ const USAGE = `rigline ${CORE_VERSION}
       Every installed version back to the extension's own bytes. Needs neither VS Code nor
       the extension to be working. Rigline then stays out, and the companion does not put it
       back, until you run install or another command that injects.
+
+  rigline uninstall
+      Leave Rigline: restore, then the companion out of every VS Code profile through VS
+      Code's code command, then what only you can do: reload every window, npm uninstall -g
+      rigline, and delete ~/.rigline. Exits 1 when a version was not restored or a profile
+      kept the companion.
 
   rigline doctor [--out FILE] [--ext DIR]
       A markdown diagnostic to paste into a bug report: per installed version, whether it is
@@ -949,7 +957,16 @@ async function companionProfilesCommand(args: string[]): Promise<number> {
     },
     allowPositionals: false,
   });
-  console.log(JSON.stringify(await companionAdditions(values)));
+  // A companion still running after `uninstall` would otherwise put itself back (D111, D143).
+  const additions: Additions =
+    restoredSince(riglinePaths().restored) === null
+      ? await companionAdditions(values)
+      : {
+          v: 1,
+          lines: ["added the companion to no profile: Rigline is out since `rigline restore`"],
+          failed: false,
+        };
+  console.log(JSON.stringify(additions));
   return 0;
 }
 
@@ -1016,7 +1033,12 @@ function companionStatusCommand(args: string[]): number {
   if (positionals.length !== 1) {
     throw new UserError("companion-status takes the companion's own directory");
   }
-  console.log(JSON.stringify(companionStatus(resolve(positionals[0] as string))));
+  // While a restore holds, no companion is offered, so none reinstalls itself (D111, D143).
+  const status: CompanionStatus =
+    restoredSince(riglinePaths().restored) === null
+      ? companionStatus(resolve(positionals[0] as string))
+      : { v: 1, current: false, carried: null };
+  console.log(JSON.stringify(status));
   return 0;
 }
 
@@ -1084,6 +1106,16 @@ function doctorCommand(args: string[]): number {
 function restoreCommand(args: string[]): number {
   // Strict, so a flag a later 1.x gives `restore` is refused here rather than restoring everything.
   parseArgs({ args, options: {}, allowPositionals: false });
+  const whole = restoreEverything();
+  console.log(
+    "Rigline stays out, whatever reloads or updates, until you run `rigline install` or another command that injects.",
+  );
+  console.log("Reload the window afterwards.");
+  return whole ? 0 : 1;
+}
+
+/** Every installed version back to the extension's bytes, leaving the mark; false if one was not. */
+function restoreEverything(): boolean {
   const { results, cleared } = withInjectionLock({ ...lockWait, what: "rigline restore" }, () => {
     // Under the lock, so a companion install waiting on it finds the mark (D111).
     markRestored(riglinePaths().restored);
@@ -1125,11 +1157,37 @@ function restoreCommand(args: string[]): number {
       "\nAn extension.js left patched still runs the substitution a plugin declared. Reinstalling Claude Code from the Extensions view replaces it.",
     );
   }
+  return notRestored + hostFailed === 0;
+}
+
+/**
+ * `uninstall`, the whole of leaving Rigline (D143): `restore`, leaving the mark that keeps a
+ * companion still running from putting Rigline back; the companion out of every profile; and what
+ * only the person can do. It reads no `config.yaml`, so a broken one cannot stop it.
+ */
+async function uninstallCommand(args: string[]): Promise<number> {
+  parseArgs({ args, options: {}, allowPositionals: false });
+  const restored = restoreEverything();
+  console.log("");
+  const [vscode] = EDITOR_CLIS;
+  const companion = await uninstallCompanion({
+    dirs: editorDirs(vscode),
+    findCli: () => findEditors(),
+    run: runEditor,
+  });
+  for (const line of companion.lines) console.log(line);
+  const home = riglinePaths().home;
   console.log(
-    "Rigline stays out, whatever reloads or updates, until you run `rigline install` or another command that injects.",
+    [
+      "",
+      "What is left to you, in this order:",
+      "  1. Reload every VS Code window (Developer: Reload Window), so no companion is left running.",
+      "  2. npm uninstall -g rigline",
+      `  3. Delete ${home}, which holds your settings, any plugin you added, and the engine this`,
+      "     ran from. Until every window has reloaded, it also holds what keeps Rigline out.",
+    ].join("\n"),
   );
-  console.log("Reload the window afterwards.");
-  return notRestored + hostFailed > 0 ? 1 : 0;
+  return restored && companion.kept.length === 0 ? 0 : 1;
 }
 
 /**
@@ -1514,6 +1572,8 @@ async function main(argv: string[]): Promise<number> {
       return statusCommand(rest);
     case "restore":
       return restoreCommand(rest);
+    case "uninstall":
+      return await uninstallCommand(rest);
     case "doctor":
       return doctorCommand(rest);
     case "help":

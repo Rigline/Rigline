@@ -212,6 +212,13 @@ export function missingFrom(profiles: readonly Profile[]): readonly Profile[] {
   return profiles.filter((p) => !p.sharesDefault && p.claudeCode && p.companion === null);
 }
 
+/** `profile "A"`, `profiles "A" and "B"`, for a line about them. */
+export function profilesNamed(profiles: readonly Profile[]): string {
+  const names = profiles.map((p) => `"${p.name}"`);
+  if (names.length === 1) return `profile ${names[0]}`;
+  return `profiles ${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+}
+
 /** The CLI's name for a profile: none for the default one, which the CLI uses when told nothing. */
 export function cliProfile(profile: Profile): string | null {
   return profile.location === null ? null : profile.name;

@@ -11,6 +11,13 @@ hole, or raises the Node or VS Code it needs, its entry says so.
 
 ## Unreleased
 
+### Added
+
+- `rigline uninstall`, the whole of leaving Rigline: it restores every version, takes the companion
+  out of every VS Code profile, and says what is left to you — reloading every window,
+  `npm uninstall -g rigline`, and deleting `~/.rigline`. Until every window has reloaded, a
+  companion still running in one leaves Rigline out rather than putting it back.
+
 ### Changed
 
 - A fresh install starts with a layout in two rows instead of one crowded one. The first row has

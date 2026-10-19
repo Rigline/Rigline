@@ -53,12 +53,7 @@ export {
   readProfiles,
   uninstallArgv,
 } from "./companion/profiles.ts";
-export type {
-  FoundEditor,
-  ProfileOutcome,
-  RemovalOutcome,
-  RemovalOptions,
-} from "./companion/setup.ts";
+export type { FoundEditor, Uninstalled, UninstallOptions } from "./companion/setup.ts";
 export {
   COMPANION_RELOAD,
   COMPANION_VSIX,
@@ -66,8 +61,7 @@ export {
   EDITOR_CLIS,
   editorSpawn,
   findEditors,
-  formatRemoval,
-  removeCompanion,
+  uninstallCompanion,
 } from "./companion/setup.ts";
 export type { DoctorOptions, DoctorReport } from "./doctor/collect.ts";
 export { collect } from "./doctor/collect.ts";

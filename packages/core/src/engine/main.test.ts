@@ -206,6 +206,41 @@ describe("the companion (D143)", () => {
     expect(lines().join("\n")).not.toContain("companion");
   }, 60_000);
 
+  it("is offered to no companion, and added to no profile, while a restore holds (D111)", async () => {
+    const userData = join(home, "AppData", "Roaming", "Code");
+    mkdirSync(join(userData, "User", "globalStorage"), { recursive: true });
+    writeFileSync(join(userData, "User", "globalStorage", "storage.json"), "{}");
+    writeFileSync(
+      join(EXTENSIONS_DIR, "extensions.json"),
+      JSON.stringify([{ identifier: { id: "anthropic.claude-code" }, version: "2.1.263" }]),
+    );
+    const look = [
+      "companion-profiles",
+      ...["--user-data-dir", userData, "--extensions-dir", EXTENSIONS_DIR],
+      ...["--cli-node", process.execPath, "--cli-script", join(home, "no-cli.js")],
+    ];
+    const answer = (): Record<string, unknown> =>
+      JSON.parse(String(log.mock.calls.at(-1)?.[0])) as Record<string, unknown>;
+
+    // Without the mark the look tries, and this CLI is a script that is not there.
+    await runEngine(look);
+    expect(answer()).toMatchObject({ failed: true });
+
+    await runEngine(["restore"]);
+    await runEngine(look);
+    expect(answer()).toEqual({
+      v: 1,
+      lines: ["added the companion to no profile: Rigline is out since `rigline restore`"],
+      failed: false,
+    });
+    companionInstalled();
+    await runEngine([
+      "companion-status",
+      join(EXTENSIONS_DIR, `rigline.rigline-${COMPANION.version}`),
+    ]);
+    expect(answer()).toEqual({ v: 1, current: false, carried: null });
+  }, 60_000);
+
   it("comes with vscode-setup, which 1.x names after the major, and which takes no flags", async () => {
     companionInstalled();
     expect(await runEngine(["vscode-setup"])).toBe(await runEngine(["install"]));
@@ -213,6 +248,50 @@ describe("the companion (D143)", () => {
     expect(await runEngine(["vscode-setup", "--remove"])).toBe(1);
     expect(error.mock.calls.at(-2)?.[0]).toMatch(/^rigline: Unknown option '--remove'/);
   }, 60_000);
+});
+
+describe("uninstall (D143)", () => {
+  const ext = join(EXTENSIONS_DIR, "anthropic.claude-code-2.1.263-win32-x64");
+  const lines = (): string[] => log.mock.calls.flat().map(String);
+
+  beforeEach(() => {
+    vi.spyOn(process, "cwd").mockReturnValue(home);
+  });
+
+  afterEach(() => {
+    rmSync(EXTENSIONS_DIR, { recursive: true, force: true });
+    rmSync(join(home, ".rigline"), { recursive: true, force: true });
+  });
+
+  it("restores first, then names the profiles to clear by hand where no CLI is on PATH", async () => {
+    writeFixtureExtension(ext);
+    companionInstalled();
+    await runEngine(["install"]);
+    log.mockClear();
+
+    expect(await runEngine(["uninstall"])).toBe(1);
+
+    const said = lines();
+    const restored = said.findIndex((line) => line.startsWith("restored: "));
+    const kept = said.findIndex((line) => line.startsWith('profile "Default" still has'));
+    expect(restored).toBeGreaterThanOrEqual(0);
+    expect(kept).toBeGreaterThan(restored);
+    expect(said[kept]).toMatch(/uninstall Rigline from the Extensions view there$/);
+    expect(existsSync(join(ext, "webview", "rigline"))).toBe(false);
+    expect(existsSync(join(home, ".rigline", "restored"))).toBe(true);
+    expect(said.join("\n")).toContain("npm uninstall -g rigline");
+  }, 60_000);
+
+  it("exits 0 where nothing of Rigline's is left", async () => {
+    expect(await runEngine(["uninstall"])).toBe(0);
+    expect(lines()).toContain("the companion is in no VS Code profile");
+  });
+
+  it("reads no config.yaml, so a broken one cannot stop it", async () => {
+    mkdirSync(join(home, ".rigline"), { recursive: true });
+    writeFileSync(join(home, ".rigline", "config.yaml"), "- not: [a mapping\n");
+    expect(await runEngine(["uninstall"])).toBe(0);
+  });
 });
 
 describe("runEngine", () => {
