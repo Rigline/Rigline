@@ -23,11 +23,12 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:f
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { bundledDir } from "../../core/src/assets.ts";
 import { writeFixtureExtension } from "../../core/test/fixtures.ts";
+import { editorless } from "../../core/test/sandbox.ts";
 import { packageTarball } from "../../core/test/tar.ts";
 import { engineDir, engineInstallArgv, findNpmCli, readEngineState } from "../src/engine.ts";
 
@@ -399,8 +400,8 @@ async function serveRegistry(engine: string): Promise<Registry> {
 
 /**
  * The environment for a run that re-injects with no `--ext`, as `add` and `update` do: a home with
- * no extensions in it, and a `PATH` with no editor on it, so nothing reaches the live extension or
- * an editor's profiles (D39). Asynchronous, because the registry answering it is in this process.
+ * no extensions in it, and no editor reachable, so nothing reaches the live extension or an
+ * editor's profiles (D39). Asynchronous, because the registry answering it is in this process.
  *
  * Every `npm_` variable goes, matched without case: under `pnpm test` the environment carries
  * `NPM_CONFIG_REGISTRY`, which Windows reads as the same name as ours and may prefer.
@@ -409,15 +410,10 @@ function sandboxed(registry: string): NodeJS.ProcessEnv {
   const user = join(work, "user");
   mkdirSync(user, { recursive: true });
   const env = Object.fromEntries(
-    Object.entries(process.env).filter(([key]) => !/^(path|vscode_.*|npm_.*)$/i.test(key)),
+    Object.entries(process.env).filter(([key]) => !/^npm_/i.test(key)),
   );
   return {
-    ...env,
-    PATH: dirname(process.execPath),
-    HOME: user,
-    USERPROFILE: user,
-    APPDATA: join(user, "AppData", "Roaming"),
-    XDG_CONFIG_HOME: join(user, ".config"),
+    ...editorless(user, env),
     RIGLINE_HOME: home,
     npm_config_registry: registry,
   };

@@ -1,6 +1,7 @@
 /**
  * The engine's argument handling. `homedir()` is a temporary directory, so a verb that failed to
- * refuse would find no extension to act on rather than the live one (D39).
+ * refuse would find no extension to act on rather than the live one, and the environment reaches no
+ * editor, so no verb reads this machine's VS Code profiles or installs into them (D39).
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -21,6 +22,9 @@ import {
   type SettingsSave,
 } from "@rigline/plugin-api/internal";
 import { writeFixtureExtension } from "../../test/fixtures.ts";
+import { editorlessStubs } from "../../test/sandbox.ts";
+import { editorDirs } from "../companion/profiles.ts";
+import { EDITOR_CLIS, findEditors } from "../companion/setup.ts";
 import { readConfig } from "../plugins/config.ts";
 import { ensureToken } from "../plugins/save.ts";
 import { EXTENSIONS_DIR } from "../extension/locate.ts";
@@ -39,12 +43,42 @@ vi.mock("node:os", async (importOriginal) => ({
   homedir: () => home,
 }));
 
+/** Every profile read and every editor search a verb made, for the guard below. */
+const seen = vi.hoisted(() => ({
+  profiles: [] as { userData: string; extensionsDir: string }[],
+  editors: [] as number[],
+}));
+
+vi.mock("../companion/profiles.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../companion/profiles.ts")>();
+  return {
+    ...actual,
+    readProfiles: (userData: string, extensionsDir: string) => {
+      seen.profiles.push({ userData, extensionsDir });
+      return actual.readProfiles(userData, extensionsDir);
+    },
+  };
+});
+
+vi.mock("../companion/setup.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../companion/setup.ts")>();
+  return {
+    ...actual,
+    findEditors: (...args: Parameters<typeof actual.findEditors>) => {
+      const found = actual.findEditors(...args);
+      seen.editors.push(found.length);
+      return found;
+    },
+  };
+});
+
 if (!EXTENSIONS_DIR.startsWith(home)) throw new Error(`${EXTENSIONS_DIR} is not under ${home}`);
 
 let log: MockInstance<typeof console.log>;
 let error: MockInstance<typeof console.error>;
 
 beforeEach(() => {
+  for (const [key, value] of editorlessStubs(home)) vi.stubEnv(key, value);
   vi.stubEnv("RIGLINE_HOME", "");
   log = vi.spyOn(console, "log").mockImplementation(() => {});
   error = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -57,6 +91,37 @@ afterEach(() => {
 
 afterAll(() => {
   rmSync(home, { recursive: true, force: true });
+});
+
+describe("the sandbox (D39)", () => {
+  const ext = join(EXTENSIONS_DIR, "anthropic.claude-code-2.1.263-win32-x64");
+
+  afterEach(() => {
+    rmSync(EXTENSIONS_DIR, { recursive: true, force: true });
+    rmSync(join(home, ".rigline"), { recursive: true, force: true });
+  });
+
+  it("keeps an injecting verb away from this machine's VS Code", async () => {
+    writeFixtureExtension(ext);
+    seen.profiles.length = 0;
+    seen.editors.length = 0;
+    // Away from this checkout's `generated.ts`, which an install over the fixture would rewrite.
+    vi.spyOn(process, "cwd").mockReturnValue(home);
+
+    await runEngine(["install"]);
+
+    expect(existsSync(join(ext, "webview", "rigline", "registry.js"))).toBe(true);
+    for (const read of seen.profiles) {
+      expect(read.userData.startsWith(home)).toBe(true);
+      expect(read.extensionsDir.startsWith(home)).toBe(true);
+    }
+    expect(seen.editors.every((found) => found === 0)).toBe(true);
+    // And what an install would find, whether or not it asked.
+    for (const editor of EDITOR_CLIS) {
+      expect(editorDirs(editor).userData.startsWith(home)).toBe(true);
+    }
+    expect(findEditors()).toEqual([]);
+  }, 60_000);
 });
 
 describe("runEngine", () => {
