@@ -6,11 +6,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   addToList,
   editConfig,
-  readCompanionSettings,
   readConfig,
   readSources,
   removeFromList,
-  SKIP_PROFILES,
   splitLegacyConfig,
   unknownKeyLines,
   updateSources,
@@ -29,42 +27,6 @@ afterEach(() => {
 });
 
 const SOURCE = { kind: "path", from: "/somewhere/clock", addedAt: "2026-09-18T11:00:00.000Z" };
-
-describe("readCompanionSettings", () => {
-  it("is every profile, none skipped, when the file or the block is absent (D100)", () => {
-    const path = join(tempDir(), "config.yaml");
-    expect(readCompanionSettings(path)).toEqual({ everyProfile: true, skipProfiles: [] });
-    writeFileSync(path, "disabled: [x]\n");
-    expect(readCompanionSettings(path)).toEqual({ everyProfile: true, skipProfiles: [] });
-  });
-
-  it("reads both settings as written", () => {
-    const path = join(tempDir(), "config.yaml");
-    writeFileSync(path, "companion:\n  everyProfile: false\n  skipProfiles:\n    - Kokai\n");
-    expect(readCompanionSettings(path)).toEqual({ everyProfile: false, skipProfiles: ["Kokai"] });
-  });
-
-  it("is loud about a block of the wrong shape, for every command that reads the file", () => {
-    const path = join(tempDir(), "config.yaml");
-    writeFileSync(path, "companion:\n  everyProfile: sometimes\n");
-    expect(() => readCompanionSettings(path)).toThrow(
-      /"companion.everyProfile" must be true or false/,
-    );
-    expect(() => readConfig(path)).toThrow(/everyProfile/);
-    writeFileSync(path, "companion:\n  skipProfiles: Kokai\n");
-    expect(() => readCompanionSettings(path)).toThrow(/"companion.skipProfiles" must be a list/);
-  });
-
-  it("makes the block when a command first skips a profile, and keeps what is there", () => {
-    const path = join(tempDir(), "config.yaml");
-    writeFileSync(path, "# mine\ndisabled: [x]\n");
-    editConfig(path, (doc) => addToList(doc, SKIP_PROFILES, "Kokai"));
-    expect(readFileSync(path, "utf8")).toContain("# mine");
-    expect(readCompanionSettings(path).skipProfiles).toEqual(["Kokai"]);
-    editConfig(path, (doc) => removeFromList(doc, SKIP_PROFILES, "Kokai"));
-    expect(readCompanionSettings(path).skipProfiles).toEqual([]);
-  });
-});
 
 describe("readConfig", () => {
   it("reads an absent file as a new one, the shipped layout and nothing else, and says where it looked", () => {
@@ -212,27 +174,27 @@ describe("readConfig", () => {
     expect(() => readConfig(path)).toThrow(/"disabled" must be a list of plugin names/);
   });
 
-  it("names a key it does not read, at the top and in the companion block, and reads the rest", () => {
+  it("names a key it does not read, and reads the rest", () => {
     const path = join(tempDir(), "config.yaml");
-    writeFileSync(
-      path,
-      "disabled: [a]\ntheme: dark\ncompanion:\n  everyProfile: false\n  quiet: true\nlayout:\n",
-    );
+    writeFileSync(path, "disabled: [a]\ntheme: dark\nlayout:\n");
     const config = readConfig(path);
-    expect(config.unknownKeys).toEqual(["theme", "companion.quiet"]);
+    expect(config.unknownKeys).toEqual(["theme"]);
     expect(config.disabled).toEqual(["a"]);
     expect(unknownKeyLines(config)).toEqual([
       `${path} has "theme", which this version of Rigline does not know; fix it if it is a typo, or run \`rigline update\` if a later Rigline wrote it`,
-      `${path} has "companion.quiet", which this version of Rigline does not know; fix it if it is a typo, or run \`rigline update\` if a later Rigline wrote it`,
     ]);
+  });
+
+  // 1.x wrote this block; 2.0 reads none of it and migrates nothing (D143).
+  it("names the companion block 1.x read as a key it does not read", () => {
+    const path = join(tempDir(), "config.yaml");
+    writeFileSync(path, "companion:\n  skipProfiles: [Kokai]\n");
+    expect(readConfig(path).unknownKeys).toEqual(["companion"]);
   });
 
   it("knows every key a command writes, so none of them is named", () => {
     const path = join(tempDir(), "config.yaml");
-    writeFileSync(
-      path,
-      "disabled: []\nlayout:\n  rigRow: [a/b]\ncompanion:\n  everyProfile: true\n  skipProfiles: []\n",
-    );
+    writeFileSync(path, "disabled: []\nlayout:\n  rigRow: [a/b]\n");
     expect(readConfig(path).unknownKeys).toEqual([]);
   });
 });

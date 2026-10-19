@@ -24,7 +24,7 @@ import {
 import { writeFixtureExtension } from "../../test/fixtures.ts";
 import { editorlessStubs } from "../../test/sandbox.ts";
 import { editorDirs } from "../companion/profiles.ts";
-import { EDITOR_CLIS, findEditors } from "../companion/setup.ts";
+import { EDITOR_CLIS } from "../companion/setup.ts";
 import { readConfig } from "../plugins/config.ts";
 import { ensureToken } from "../plugins/save.ts";
 import { EXTENSIONS_DIR } from "../extension/locate.ts";
@@ -60,6 +60,25 @@ vi.mock("../companion/profiles.ts", async (importOriginal) => {
   };
 });
 
+/** The companion this engine carries here, so a test can lay out VS Code's files to match it. */
+const COMPANION = vi.hoisted(() => ({
+  version: "2.0.0",
+  code: '"use strict";\nexports.activate = () => {};\n',
+  manifest: { name: "rigline", publisher: "rigline" },
+}));
+
+vi.mock("../companion/fingerprint.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../companion/fingerprint.ts")>();
+  return {
+    ...actual,
+    carriedCompanion: () => ({
+      version: COMPANION.version,
+      fingerprint: actual.companionFingerprint(COMPANION.code, COMPANION.manifest),
+      vsix: "rigline.vsix",
+    }),
+  };
+});
+
 vi.mock("../companion/setup.ts", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../companion/setup.ts")>();
   return {
@@ -73,6 +92,24 @@ vi.mock("../companion/setup.ts", async (importOriginal) => {
 });
 
 if (!EXTENSIONS_DIR.startsWith(home)) throw new Error(`${EXTENSIONS_DIR} is not under ${home}`);
+
+/** The default profile with Claude Code and the carried companion, as VS Code lists them (D143). */
+function companionInstalled(): void {
+  const name = `rigline.rigline-${COMPANION.version}`;
+  mkdirSync(join(EXTENSIONS_DIR, name), { recursive: true });
+  writeFileSync(join(EXTENSIONS_DIR, name, "extension.cjs"), COMPANION.code);
+  writeFileSync(
+    join(EXTENSIONS_DIR, name, "package.json"),
+    JSON.stringify({ ...COMPANION.manifest, version: COMPANION.version }),
+  );
+  writeFileSync(
+    join(EXTENSIONS_DIR, "extensions.json"),
+    JSON.stringify([
+      { identifier: { id: "anthropic.claude-code" }, version: "2.1.263" },
+      { identifier: { id: "rigline.rigline" }, version: COMPANION.version, relativeLocation: name },
+    ]),
+  );
+}
 
 let log: MockInstance<typeof console.log>;
 let error: MockInstance<typeof console.error>;
@@ -101,26 +138,80 @@ describe("the sandbox (D39)", () => {
     rmSync(join(home, ".rigline"), { recursive: true, force: true });
   });
 
+  // No companion is laid out, so the install reads the profiles and goes looking for a CLI.
   it("keeps an injecting verb away from this machine's VS Code", async () => {
     writeFixtureExtension(ext);
     seen.profiles.length = 0;
     seen.editors.length = 0;
-    // Away from this checkout's `generated.ts`, which an install over the fixture would rewrite.
-    vi.spyOn(process, "cwd").mockReturnValue(home);
 
-    await runEngine(["install"]);
+    expect(await runEngine(["install"])).toBe(1);
 
-    expect(existsSync(join(ext, "webview", "rigline", "registry.js"))).toBe(true);
+    expect(seen.profiles.length).toBeGreaterThan(0);
     for (const read of seen.profiles) {
       expect(read.userData.startsWith(home)).toBe(true);
       expect(read.extensionsDir.startsWith(home)).toBe(true);
     }
-    expect(seen.editors.every((found) => found === 0)).toBe(true);
-    // And what an install would find, whether or not it asked.
+    expect(seen.editors).toEqual([0]);
+    expect(error.mock.calls[0]?.[0]).toMatch(/no VS Code command-line tool was found on PATH/);
     for (const editor of EDITOR_CLIS) {
       expect(editorDirs(editor).userData.startsWith(home)).toBe(true);
     }
-    expect(findEditors()).toEqual([]);
+  }, 60_000);
+});
+
+describe("the companion (D143)", () => {
+  const ext = join(EXTENSIONS_DIR, "anthropic.claude-code-2.1.263-win32-x64");
+  const mark = (): string => join(home, ".rigline", "restored");
+  const lines = (): string[] => log.mock.calls.flat().map(String);
+
+  beforeEach(() => {
+    writeFixtureExtension(ext);
+    seen.editors.length = 0;
+    // Away from this checkout's `generated.ts`, which an install over the fixture would rewrite.
+    vi.spyOn(process, "cwd").mockReturnValue(home);
+  });
+
+  afterEach(() => {
+    rmSync(EXTENSIONS_DIR, { recursive: true, force: true });
+    rmSync(join(home, ".rigline"), { recursive: true, force: true });
+  });
+
+  it("is said nothing about where it is current, and the install goes ahead", async () => {
+    companionInstalled();
+    await runEngine(["install"]);
+    expect(existsSync(join(ext, "webview", "rigline", "registry.js"))).toBe(true);
+    expect(lines().some((line) => line.includes("companion"))).toBe(false);
+  }, 60_000);
+
+  it("refuses an install that needs it and cannot get it, injecting nothing and keeping a restore", async () => {
+    await runEngine(["restore"]);
+    expect(await runEngine(["install"])).toBe(1);
+    expect(existsSync(join(ext, "webview", "rigline"))).toBe(false);
+    expect(existsSync(mark())).toBe(true);
+  }, 60_000);
+
+  it("is checked by check, which names the profile and installs nothing", async () => {
+    expect(await runEngine(["check"])).toBe(1);
+    expect(lines().join("\n")).toContain(
+      'profile "Default" has no companion, which `rigline install` puts in',
+    );
+    expect(seen.editors).toEqual([]);
+  }, 60_000);
+
+  it("is left out of check while a restore holds Rigline out", async () => {
+    await runEngine(["restore"]);
+    log.mockClear();
+    // The fixture's plugins are refused for want of anchors, so the exit says nothing here.
+    await runEngine(["check"]);
+    expect(lines().join("\n")).not.toContain("companion");
+  }, 60_000);
+
+  it("comes with vscode-setup, which 1.x names after the major, and which takes no flags", async () => {
+    companionInstalled();
+    expect(await runEngine(["vscode-setup"])).toBe(await runEngine(["install"]));
+    expect(existsSync(join(ext, "webview", "rigline", "registry.js"))).toBe(true);
+    expect(await runEngine(["vscode-setup", "--remove"])).toBe(1);
+    expect(error.mock.calls.at(-2)?.[0]).toMatch(/^rigline: Unknown option '--remove'/);
   }, 60_000);
 });
 
@@ -131,6 +222,7 @@ describe("runEngine", () => {
     ["status", "--json"],
     ["status", "DIR"],
     ["install", "--payload", "DIR"],
+    ["vscode-setup", "--profile", "Work"],
   ])(
     "refuses what %s does not take, so a later 1.x's flag is never ignored: %s %s",
     async (...argv) => {
@@ -475,10 +567,11 @@ describe("dev (W2)", () => {
 
   beforeEach(() => {
     writeFixtureExtension(ext);
+    companionInstalled();
   });
 
   afterEach(() => {
-    rmSync(ext, { recursive: true, force: true });
+    rmSync(EXTENSIONS_DIR, { recursive: true, force: true });
     rmSync(join(home, ".rigline"), { recursive: true, force: true });
   });
 

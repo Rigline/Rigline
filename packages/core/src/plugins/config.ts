@@ -69,20 +69,8 @@ export interface PluginsConfig {
   readonly unknownKeys: readonly string[];
 }
 
-/** The settings this engine reads, at the top level and in the `companion` block. */
-const SETTINGS = ["disabled", "layout", "companion", "settings", "model"];
-const COMPANION_SETTINGS = ["everyProfile", "skipProfiles"];
-
-/** `config.yaml`'s `companion` block: which VS Code profiles get the companion (D100). */
-export interface CompanionSettings {
-  /** False puts it only where `vscode-setup` is told, and never adds it anywhere by itself. */
-  readonly everyProfile: boolean;
-  /** Profile names, as VS Code shows them, never to add it to. */
-  readonly skipProfiles: readonly string[];
-}
-
-/** The `companion` block's path, for the commands that edit it. */
-export const SKIP_PROFILES = ["companion", "skipProfiles"] as const;
+/** The settings this engine reads at the top level. */
+const SETTINGS = ["disabled", "layout", "settings", "model"];
 
 /** The three files the split is between, as `riglinePaths` names them. */
 export interface ConfigFiles {
@@ -128,16 +116,6 @@ export function unknownPlaceLines(config: PluginsConfig): string[] {
         : "; fix it if it is a typo, or run `rigline update` if a later Rigline wrote it";
     return [`${config.path}: ${parsed.problem}${later}`];
   });
-}
-
-/** The `companion` block, with its defaults when absent; malformed is loud, as for `readConfig`. */
-export function readCompanionSettings(path: string): CompanionSettings {
-  if (!existsSync(path)) return companionOf(path, undefined);
-  const value = (parseConfig(path, readFileSync(path, "utf8")).toJS() ?? {}) as Record<
-    string,
-    unknown
-  >;
-  return companionOf(path, value.companion);
 }
 
 /**
@@ -223,15 +201,10 @@ function configOf(path: string, doc: Document): PluginsConfig {
   if (!Array.isArray(disabled) || !disabled.every((d) => typeof d === "string")) {
     throw new UserError(`${path}: "disabled" must be a list of plugin names`);
   }
-  companionOf(path, value.companion);
-  const companion = (value.companion ?? {}) as Record<string, unknown>;
   const model = readModelSettings(value.model);
   if ("problem" in model) throw new UserError(`${path}: ${model.problem}`);
   const unknownKeys = [
     ...Object.keys(value).filter((key) => !SETTINGS.includes(key)),
-    ...Object.keys(companion)
-      .filter((key) => !COMPANION_SETTINGS.includes(key))
-      .map((key) => `companion.${key}`),
     ...model.unknown,
   ];
   return {
@@ -268,22 +241,6 @@ function settingsOf(
     sections[name] = section as Readonly<Record<string, unknown>>;
   }
   return sections;
-}
-
-function companionOf(path: string, value: unknown): CompanionSettings {
-  if (value === undefined || value === null) return { everyProfile: true, skipProfiles: [] };
-  if (typeof value !== "object" || Array.isArray(value)) {
-    throw new UserError(`${path}: "companion" must be a mapping of settings`);
-  }
-  const { everyProfile = true, skipProfiles } = value as Record<string, unknown>;
-  if (typeof everyProfile !== "boolean") {
-    throw new UserError(`${path}: "companion.everyProfile" must be true or false`);
-  }
-  const skip = skipProfiles ?? [];
-  if (!Array.isArray(skip) || !skip.every((name) => typeof name === "string")) {
-    throw new UserError(`${path}: "companion.skipProfiles" must be a list of profile names`);
-  }
-  return { everyProfile, skipProfiles: skip };
 }
 
 /**

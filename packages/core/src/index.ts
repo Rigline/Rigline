@@ -51,20 +51,23 @@ export {
   installArgv,
   missingFrom,
   readProfiles,
-  setupTargets,
   uninstallArgv,
 } from "./companion/profiles.ts";
-export type { FoundEditor, ProfileOutcome, SetupOptions, SetupOutcome } from "./companion/setup.ts";
+export type {
+  FoundEditor,
+  ProfileOutcome,
+  RemovalOutcome,
+  RemovalOptions,
+} from "./companion/setup.ts";
 export {
   COMPANION_RELOAD,
   COMPANION_VSIX,
   checkoutEngineNote,
-  companionVsix,
   EDITOR_CLIS,
   editorSpawn,
   findEditors,
-  formatSetup,
-  setupCompanion,
+  formatRemoval,
+  removeCompanion,
 } from "./companion/setup.ts";
 export type { DoctorOptions, DoctorReport } from "./doctor/collect.ts";
 export { collect } from "./doctor/collect.ts";
@@ -129,7 +132,6 @@ export { harvestAll, LAYERS, scanOf } from "./layers/index.ts";
 export type { RiglinePaths } from "./paths.ts";
 export { RIGLINE_HOME_VARIABLE, riglineHome, riglinePaths } from "./paths.ts";
 export type {
-  CompanionSettings,
   ConfigFiles,
   NpmSource,
   PathSource,
@@ -142,11 +144,9 @@ export {
   editConfig,
   parseLayoutValue,
   parseYamlMapping,
-  readCompanionSettings,
   readConfig,
   readSources,
   removeFromList,
-  SKIP_PROFILES,
   splitLegacyConfig,
   updateSources,
 } from "./plugins/config.ts";

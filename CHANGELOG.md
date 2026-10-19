@@ -25,6 +25,20 @@ hole, or raises the Node or VS Code it needs, its entry says so.
   `npm i -g rigline@latest` is all it takes to bring a 1.x machine's engine across. An engine from
   a newer major is still refused, and the line says to run `npm i -g rigline@latest`. A companion
   that cannot follow a new major says to run that, then `rigline install`.
+- The companion is part of Rigline. `rigline install` puts it into every VS Code profile that has
+  Claude Code, or brings it up to date there, before it injects, and so does every command that
+  injects: `add`, `remove`, `enable`, `disable`, `update`, the layout commands and `dev`. Where a
+  profile already has the companion this engine carries, nothing is started and nothing is said. A
+  profile it could not install into is named under *Needs you*, and the command exits 1; where it
+  could install into none, nothing is injected. Installing needs VS Code's `code` command on
+  `PATH`, and only then.
+- `rigline check` names each profile `install` would give the companion or bring it up to date in.
+
+### Removed
+
+- `rigline vscode-setup --profile` and `--remove`, and the `companion` block in `config.yaml`,
+  with `skipProfiles` and `everyProfile`. A `companion` block left in the file is named as a key
+  Rigline does not read. `rigline vscode-setup` on its own is what `install` is.
 
 ## 1.2.0 — 2026-10-19
 

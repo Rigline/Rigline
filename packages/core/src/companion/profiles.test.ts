@@ -7,7 +7,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
-import type { CompanionSettings } from "../plugins/config.ts";
 import { type CarriedCompanion, companionFingerprint } from "./fingerprint.ts";
 import {
   addWhereMissing,
@@ -17,7 +16,6 @@ import {
   missingFrom,
   type Profile,
   readProfiles,
-  setupTargets,
   uninstallArgv,
 } from "./profiles.ts";
 
@@ -81,8 +79,6 @@ function profile(name: string, over: Partial<Profile> = {}): Profile {
     ...over,
   };
 }
-
-const EVERY: CompanionSettings = { everyProfile: true, skipProfiles: [] };
 
 /** A companion as the `editor` fixture lists one: a version, and no location. */
 const HELD = { version: "1.0.0", dir: null };
@@ -219,53 +215,18 @@ describe("missingFrom", () => {
 
   it("names each profile with Claude Code and without the companion", () => {
     const lacking = profile("B", { claudeCode: true });
-    expect(missingFrom([holding, lacking, profile("C")], EVERY)).toEqual([lacking]);
+    expect(missingFrom([holding, lacking, profile("C")])).toEqual([lacking]);
   });
 
-  // The companion being somewhere is what says the person wanted it at all.
-  it("names none in an editor the companion is in nowhere", () => {
-    expect(missingFrom([profile("Default", { claudeCode: true })], EVERY)).toEqual([]);
-  });
-
-  it("names none when everyProfile is off, and leaves out the skipped", () => {
-    const lacking = profile("B", { claudeCode: true });
-    expect(missingFrom([holding, lacking], { everyProfile: false, skipProfiles: [] })).toEqual([]);
-    expect(missingFrom([holding, lacking], { everyProfile: true, skipProfiles: ["B"] })).toEqual(
-      [],
-    );
+  // The companion is required, so nothing has to say a person wanted it (D143).
+  it("names one in an editor the companion is in nowhere", () => {
+    const lacking = profile("Default", { claudeCode: true });
+    expect(missingFrom([lacking])).toEqual([lacking]);
   });
 
   it("leaves out a profile that shares the default's extensions", () => {
     const shared = profile("S", { claudeCode: true, sharesDefault: true });
-    expect(missingFrom([holding, shared], EVERY)).toEqual([]);
-  });
-});
-
-describe("setupTargets", () => {
-  it("picks every profile with Claude Code or the companion, less the skipped", () => {
-    const profiles = [
-      profile("Default", { claudeCode: true }),
-      profile("B", { companion: HELD }),
-      profile("C"),
-      profile("K", { claudeCode: true }),
-    ];
-    const { targets, skipped } = setupTargets(profiles, {
-      everyProfile: true,
-      skipProfiles: ["K"],
-    });
-    expect(targets.map((p) => p.name)).toEqual(["Default", "B"]);
-    expect(skipped.map((p) => p.name)).toEqual(["K"]);
-  });
-
-  it("falls back to the default profile when no profile has Claude Code yet", () => {
-    const { targets } = setupTargets([profile("Default"), profile("B")], EVERY);
-    expect(targets.map((p) => p.name)).toEqual(["Default"]);
-  });
-
-  it("is the default profile alone when everyProfile is off", () => {
-    const profiles = [profile("Default"), profile("B", { claudeCode: true })];
-    const { targets } = setupTargets(profiles, { everyProfile: false, skipProfiles: [] });
-    expect(targets.map((p) => p.name)).toEqual(["Default"]);
+    expect(missingFrom([holding, shared])).toEqual([]);
   });
 });
 
@@ -336,7 +297,6 @@ describe("addWhereMissing", () => {
     const { calls, run } = recorder();
     const answer = await addWhereMissing({
       contexts: [context(dirs, "VS Code")],
-      settings: EVERY,
       carried,
       run,
     });
@@ -355,7 +315,6 @@ describe("addWhereMissing", () => {
         context(editor([CLAUDE, COMPANION])),
         context({ userData: join(temp(), "none"), extensionsDir: temp() }),
       ],
-      settings: EVERY,
       carried,
       run,
     });
@@ -368,7 +327,6 @@ describe("addWhereMissing", () => {
     const { run } = recorder(1);
     const answer = await addWhereMissing({
       contexts: [context(dirs)],
-      settings: EVERY,
       carried,
       run,
     });
@@ -378,21 +336,20 @@ describe("addWhereMissing", () => {
     ]);
   });
 
-  // An install re-extracts the shared directory, so it would swap this build out from under any
-  // window running it.
-  it("refuses when a different build is installed at the carried version", async () => {
+  // The companion is required, so a profile without one gets it whatever build is beside it (D143).
+  it("adds even where a different build is installed at the carried version", async () => {
     const dirs = editor([COMPANION], [{ name: "B", location: "pb", ids: [CLAUDE] }]);
     extracted(dirs.extensionsDir, `${CODE};`);
     const { calls, run } = recorder();
-    const answer = await addWhereMissing({
-      contexts: [context(dirs)],
-      settings: EVERY,
-      carried,
-      run,
-    });
-    expect(calls).toEqual([]);
-    expect(answer.failed).toBe(false);
-    expect(answer.lines[0]).toMatch(/different build/);
+    await addWhereMissing({ contexts: [context(dirs)], carried, run });
+    expect(calls).toEqual([installArgv("r.vsix", "B", false)]);
+  });
+
+  it("adds in an editor the companion is in nowhere", async () => {
+    const dirs = editor([CLAUDE]);
+    const { calls, run } = recorder();
+    await addWhereMissing({ contexts: [context(dirs)], carried, run });
+    expect(calls).toEqual([installArgv("r.vsix", null, false)]);
   });
 
   it("says so when this engine carries no companion to add", async () => {
@@ -400,7 +357,6 @@ describe("addWhereMissing", () => {
     const { calls, run } = recorder();
     const answer = await addWhereMissing({
       contexts: [context(dirs)],
-      settings: EVERY,
       carried: null,
       run,
     });
@@ -414,7 +370,6 @@ describe("addWhereMissing", () => {
     const { calls, run } = recorder();
     const answer = await addWhereMissing({
       contexts: [context(dirs)],
-      settings: EVERY,
       carried,
       run,
     });

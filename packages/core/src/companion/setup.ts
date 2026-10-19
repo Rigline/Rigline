@@ -1,9 +1,8 @@
 /**
- * Installing the companion extension, from the VSIX the engine already carries.
+ * Finding VS Code's CLI and running it, and taking the companion out of every profile with it.
  *
- * Nothing is downloaded. `dist/bundled/rigline.vsix` ships with the engine (D71), so it is the
- * version this engine was built with and moves when the engine moves — a companion and an engine
- * that came from one package cannot disagree about what they are.
+ * The VSIX ships with the engine in `dist/bundled` (D71), so the companion this engine installs is
+ * the one it was built with, and nothing is downloaded (D143).
  *
  * Written for several editors, each with its own CLI and extensions directory, and given one: the
  * engine injects VS Code's extensions directory alone, so a companion anywhere else would have
@@ -11,18 +10,13 @@
  */
 import { existsSync } from "node:fs";
 import { delimiter, isAbsolute, join } from "node:path";
-import { bundledDir } from "../assets.ts";
-import { UserError } from "../errors.ts";
-import type { CompanionSettings } from "../plugins/config.ts";
 import {
   cliProfile,
   DEFAULT_PROFILE,
   editorDirs,
-  installArgv,
   type ProductDirs,
   type ProfilesRead,
   readProfiles,
-  setupTargets,
   uninstallArgv,
 } from "./profiles.ts";
 
@@ -130,193 +124,64 @@ export interface ProfileOutcome {
   readonly output: string;
 }
 
-export interface SetupOutcome {
+export interface RemovalOutcome {
   readonly editor: FoundEditor;
   readonly results: readonly ProfileOutcome[];
-  /** Left out by `companion.skipProfiles`. */
-  readonly skipped: readonly string[];
-  /** Profiles with neither Claude Code nor the companion, counted rather than named. */
-  readonly others: number;
   /** Why the profiles could not be read, when they could not; the default profile was used. */
   readonly unread?: string;
-  /** Set when `--profile` named a profile this editor does not have. */
-  readonly absent?: string;
 }
 
-export interface SetupOptions {
-  readonly remove?: boolean;
-  readonly editors?: readonly FoundEditor[];
-  readonly vsix?: string;
-  /** One profile, by name, rather than every profile the settings pick. */
-  readonly profile?: string;
-  readonly settings: CompanionSettings;
+export interface RemovalOptions {
+  readonly editors: readonly FoundEditor[];
   /** An editor's profiles. Defaults to reading them where `editorDirs` says they are. */
   readonly profilesOf?: (editor: FoundEditor) => ProfilesRead;
   run(command: string, argv: readonly string[]): Promise<{ code: number; output: string }>;
 }
 
-/** Where the bundled VSIX is, refusing by name when an engine was built without one. */
-export function companionVsix(): string {
-  const path = join(bundledDir(), COMPANION_VSIX);
-  if (!existsSync(path)) {
-    throw new UserError(
-      `this engine carries no companion extension at ${path}. ` +
-        "It was built without one; a newer engine will have it.",
-    );
-  }
-  return path;
-}
-
-/**
- * Install (or remove) the companion in every editor found, and in each, every profile that has
- * Claude Code or the companion, less the skipped (D100).
- *
- * Finding none is a refusal rather than a silent success, and it names the alternative: a person
- * with no CLI on PATH can still do this from the Command Palette, and telling them so is cheaper
- * than us writing into an extensions directory ourselves — which would be patching VS Code's own
- * state to install a patcher.
- */
-export async function setupCompanion(options: SetupOptions): Promise<readonly SetupOutcome[]> {
-  const remove = options.remove ?? false;
-  const editors = options.editors ?? findEditors();
-  if (editors.length === 0) {
-    throw new UserError(
-      "no VS Code command-line tool was found on PATH, so the companion cannot be installed for " +
-        "you. Install it from the Command Palette with “Extensions: Install from VSIX…” " +
-        `and pick ${remove ? "the Rigline extension to uninstall" : companionVsix()}. ` +
-        "On macOS the CLI is added by “Shell Command: Install 'code' command in PATH”.",
-    );
-  }
-
-  const vsix = remove ? "" : (options.vsix ?? companionVsix());
+/** Take the companion out of every profile that lists it, in each editor given (D143). */
+export async function removeCompanion(options: RemovalOptions): Promise<readonly RemovalOutcome[]> {
   const profilesOf =
     options.profilesOf ??
     ((editor: FoundEditor) => {
       const dirs = editorDirs(editor);
       return readProfiles(dirs.userData, dirs.extensionsDir);
     });
-
-  const reads = editors.map((editor) => ({ editor, read: profilesOf(editor) }));
-  const plans = reads.map(({ editor, read }) => ({ editor, ...planFor(read, options) }));
-  const named = options.profile;
-  if (named !== undefined && plans.every((p) => p.absent !== undefined)) {
-    const known = new Set(
-      reads.flatMap(({ read }) => (read.kind === "read" ? read.profiles.map((p) => p.name) : [])),
-    );
-    const list = [...known].map((n) => `"${n}"`).join(", ");
-    throw new UserError(`no editor has a profile called "${named}". Its profiles are ${list}`);
-  }
-
-  const outcomes: SetupOutcome[] = [];
-  for (const { editor, targets, ...rest } of plans) {
+  const outcomes: RemovalOutcome[] = [];
+  for (const editor of options.editors) {
+    const read = profilesOf(editor);
+    const targets =
+      read.kind === "read"
+        ? read.profiles.filter((p) => !p.sharesDefault && p.companion !== null).map(cliProfile)
+        : [null];
     const results: ProfileOutcome[] = [];
     for (const target of targets) {
-      const argv = remove ? uninstallArgv(target) : installArgv(vsix, target, true);
-      const { code, output } = await options.run(editor.path, argv);
+      const { code, output } = await options.run(editor.path, uninstallArgv(target));
       results.push({ profile: target ?? DEFAULT_PROFILE, code, output });
     }
-    outcomes.push({ editor, results, ...rest });
+    outcomes.push({ editor, results, ...(read.kind === "read" ? {} : { unread: read.why }) });
   }
   return outcomes;
 }
 
-/** One editor's part: the CLI's profile names to act on, null being the default profile. */
-function planFor(
-  read: ProfilesRead,
-  options: SetupOptions,
-): {
-  targets: (string | null)[];
-  skipped: string[];
-  others: number;
-  unread?: string;
-  absent?: string;
-} {
-  const profiles = read.kind === "read" ? read.profiles : null;
-  const none = { skipped: [], others: 0, ...(read.kind === "read" ? {} : { unread: read.why }) };
-
-  const named = options.profile;
-  if (named !== undefined) {
-    if (profiles !== null && !profiles.some((p) => p.name === named)) {
-      return { ...none, targets: [], absent: named };
-    }
-    return { ...none, targets: [named === DEFAULT_PROFILE ? null : named] };
-  }
-  if (profiles === null) return { ...none, targets: [null] };
-  if (options.remove) {
-    const holding = profiles.filter((p) => !p.sharesDefault && p.companion !== null);
-    return { ...none, targets: holding.map(cliProfile) };
-  }
-  const { targets, skipped } = setupTargets(profiles, options.settings);
-  const own = profiles.filter((p) => !p.sharesDefault).length;
-  return {
-    ...none,
-    targets: targets.map(cliProfile),
-    skipped: skipped.map((p) => p.name),
-    others: own - targets.length - skipped.length,
-  };
-}
-
 /**
- * What the command prints.
- *
- * **It names the binary it used, and the VSIX, and it does so on success.** One machine can hold
- * several editors that share the name `code` and share nothing else — a second install, Insiders
- * beside stable, a portable copy, a remote window whose extension host is somewhere else entirely —
- * and `--install-extension` will cheerfully succeed into the one you are not looking at. `installed`
- * on its own is then true and useless: the extension is listed by the CLI, absent from the editor,
- * and there is nothing on screen to suggest where to look. The path is the whole diagnosis, and it
- * costs one line.
- *
- * The VSIX path is printed for the same reason. When the CLI has picked the wrong editor the repair
- * is *Extensions: Install from VSIX…* in the right one, and that needs a file the user would
- * otherwise have to be told how to find.
- *
- * **And it names every profile it touched or left out**, since a profile without the companion is a
- * window where Rigline stops working with nothing on screen to say why (D100).
+ * What a removal prints. It names the binary it used, because one machine can hold several editors
+ * answering to `code`, and the path is the whole diagnosis when the wrong one answered.
  */
-export function formatSetup(
-  outcomes: readonly SetupOutcome[],
-  remove: boolean,
-  vsix?: string,
-  note?: string,
-): string {
-  const changed = outcomes.some((o) => o.results.some((r) => r.code === 0));
-  const unread = outcomes.some((o) => o.unread !== undefined);
-  return [
-    `${remove ? "Removing" : "Installing"} the companion in ${outcomes.length} editor${outcomes.length === 1 ? "" : "s"}:`,
-    ...outcomes.flatMap((outcome) => editorLines(outcome, remove)),
-    ...(note === undefined ? [] : ["", note]),
-    // An install's reload is the last line of the injection that follows it (D98).
-    ...(changed && remove
-      ? ["", "Reload the window for it to take effect: Developer: Reload Window."]
-      : []),
-    ...(changed && !remove && vsix !== undefined ? whyNotVisible(vsix, unread) : []),
-  ].join("\n");
-}
-
-function editorLines(outcome: SetupOutcome, remove: boolean): string[] {
-  const { editor, results, skipped, others, unread, absent } = outcome;
-  const lines = [`  ${editor.label}, via ${editor.path}`];
-  if (unread !== undefined) {
-    lines.push(`    its profiles could not be read, so this used the default profile: ${unread}`);
-  }
-  if (absent !== undefined) lines.push(`    it has no profile called "${absent}"`);
-  else if (results.length === 0) {
-    lines.push(`    ${remove ? "the companion is in none of its profiles" : "nothing to install"}`);
-  }
-  for (const { profile, code, output } of results) {
-    lines.push(
-      code === 0
-        ? `    ${profile}: ${remove ? "removed" : "installed"}`
-        : `    ${profile}: failed (${editor.cli} exited ${code})`,
-    );
-    if (code !== 0) lines.push(indent(output.trim()));
-  }
-  for (const name of skipped) lines.push(`    ${name}: skipped, by companion.skipProfiles`);
-  if (others > 0) {
-    lines.push(`    ${others} other profile${others === 1 ? " has" : "s have"} no Claude Code`);
-  }
-  return lines;
+export function formatRemoval(outcomes: readonly RemovalOutcome[]): string {
+  return outcomes
+    .flatMap(({ editor, results, unread }) => [
+      `${editor.label}, via ${editor.path}:`,
+      ...(unread === undefined
+        ? []
+        : [`  its profiles could not be read, so this tried the default profile: ${unread}`]),
+      ...(results.length === 0 ? ["  the companion is in none of its profiles"] : []),
+      ...results.flatMap(({ profile, code, output }) =>
+        code === 0
+          ? [`  ${profile}: removed`]
+          : [`  ${profile}: failed (${editor.cli} exited ${code})`, indent(output.trim())],
+      ),
+    ])
+    .join("\n");
 }
 
 /** The reload a newly installed companion needs, since it starts only in a reloaded window. */
@@ -324,33 +189,8 @@ export const COMPANION_RELOAD =
   "Reload the window for the companion to start: Developer: Reload Window.";
 
 /**
- * The ways an install can succeed and leave nothing to see: a different editor answering to `code`,
- * and a profile, but only where the profiles could not be read.
- */
-function whyNotVisible(vsix: string, unread: boolean): readonly string[] {
-  if (!unread) {
-    return [
-      "",
-      "Not in the Extensions view afterwards? Then that `code` was a different editor answering",
-      "to the same name. Use Extensions: Install from VSIX… in the window you want, with:",
-      `  ${vsix}`,
-    ];
-  }
-  return [
-    "",
-    "Not in the Extensions view afterwards? Two causes, and they look identical.",
-    "  A profile. Where the profiles could not be read, this went to the default one only, and a",
-    "  workspace bound to another will not see it. Re-run with --profile NAME, using the name in",
-    "  VS Code's profile switcher.",
-    "  A different editor answering to the same `code`. Use Extensions: Install from VSIX… in",
-    "  the window you actually want, with:",
-    `    ${vsix}`,
-  ];
-}
-
-/**
- * What `vscode-setup` adds when this engine is a checkout: the setting that has the companion run
- * it rather than the released engine (D94). Printed, since VS Code's settings are not ours to write.
+ * What `install` adds when this engine is a checkout: the setting that has the companion run it
+ * rather than the released engine (D94). Printed, since VS Code's settings are not ours to write.
  */
 export function checkoutEngineNote(entry: string): string {
   return [
@@ -365,6 +205,6 @@ export function checkoutEngineNote(entry: string): string {
 function indent(text: string): string {
   return text
     .split("\n")
-    .map((line) => `      ${line}`)
+    .map((line) => `    ${line}`)
     .join("\n");
 }

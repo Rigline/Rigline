@@ -9,8 +9,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { CompanionSettings } from "../plugins/config.ts";
-import { type CarriedCompanion, installedFingerprint } from "./fingerprint.ts";
+import type { CarriedCompanion } from "./fingerprint.ts";
 
 export const COMPANION_ID = "rigline.rigline";
 const CLAUDE_CODE_ID = "anthropic.claude-code";
@@ -208,41 +207,9 @@ export function editorDirs(product: ProductDirs, options: DirsOptions = {}): Edi
   };
 }
 
-/**
- * Where a look adds the companion: a profile with Claude Code and without the companion, not
- * skipped, in an editor where the companion already is somewhere.
- */
-export function missingFrom(
-  profiles: readonly Profile[],
-  settings: CompanionSettings,
-): readonly Profile[] {
-  if (!settings.everyProfile || !profiles.some((p) => p.companion !== null)) return [];
-  return profiles.filter(
-    (p) =>
-      !p.sharesDefault &&
-      p.claudeCode &&
-      p.companion === null &&
-      !settings.skipProfiles.includes(p.name),
-  );
-}
-
-/**
- * Where `vscode-setup` installs: every profile with Claude Code or the companion, less the skipped.
- * The default profile when no profile has either, so that running it before Claude Code is installed
- * still puts the companion somewhere.
- */
-export function setupTargets(
-  profiles: readonly Profile[],
-  settings: CompanionSettings,
-): { readonly targets: readonly Profile[]; readonly skipped: readonly Profile[] } {
-  const fallback = profiles.filter((p) => p.location === null);
-  if (!settings.everyProfile) return { targets: fallback, skipped: [] };
-  const wanted = profiles.filter((p) => !p.sharesDefault && (p.claudeCode || p.companion !== null));
-  const skipped = wanted.filter((p) => settings.skipProfiles.includes(p.name));
-  if (wanted.length === 0 && !settings.skipProfiles.includes(DEFAULT_PROFILE)) {
-    return { targets: fallback, skipped: [] };
-  }
-  return { targets: wanted.filter((p) => !skipped.includes(p)), skipped };
+/** Where a look adds the companion: a profile with Claude Code and without the companion (D143). */
+export function missingFrom(profiles: readonly Profile[]): readonly Profile[] {
+  return profiles.filter((p) => !p.sharesDefault && p.claudeCode && p.companion === null);
 }
 
 /** The CLI's name for a profile: none for the default one, which the CLI uses when told nothing. */
@@ -251,8 +218,9 @@ export function cliProfile(profile: Profile): string | null {
 }
 
 /**
- * The argv for an install, kept out of Settings Sync (D93). `--force` only for `vscode-setup`, where
- * it permits a downgrade after an engine rollback: a VSIX install re-extracts with or without it.
+ * The argv for an install, kept out of Settings Sync (D93). `--force` only where it replaces a
+ * companion, since it permits a downgrade after an engine rollback: a VSIX install re-extracts the
+ * directory with or without it.
  */
 export function installArgv(vsix: string, profile: string | null, force: boolean): string[] {
   return [
@@ -301,7 +269,6 @@ export interface Additions {
 
 export interface AddOptions {
   readonly contexts: readonly EditorContext[];
-  readonly settings: CompanionSettings;
   readonly carried: CarriedCompanion | null;
   readonly run: RunCli;
 }
@@ -320,20 +287,12 @@ export async function addWhereMissing(options: AddOptions): Promise<Additions> {
       );
       continue;
     }
-    const missing = missingFrom(read.profiles, options.settings);
+    const missing = missingFrom(read.profiles);
     if (missing.length === 0) continue;
     const names = missing.map((p) => `"${p.name}"`).join(", ");
     const { carried } = options;
     if (carried === null) {
       lines.push(`${names}${where} lack the companion, and this engine carries none to add`);
-      continue;
-    }
-    if (differentBuild(context.extensionsDir, carried)) {
-      // An install re-extracts the shared directory, under any window running it (D100).
-      lines.push(
-        `left ${names}${where} without the companion: the one installed at ${carried.version} ` +
-          "is a different build from the one this engine carries, and adding it would replace it",
-      );
       continue;
     }
     for (const profile of missing) {
@@ -353,9 +312,4 @@ export async function addWhereMissing(options: AddOptions): Promise<Additions> {
     }
   }
   return { v: 1, lines, failed };
-}
-
-function differentBuild(extensionsDir: string, carried: CarriedCompanion): boolean {
-  const dir = join(extensionsDir, `${COMPANION_ID}-${carried.version}`);
-  return existsSync(dir) && installedFingerprint(dir) !== carried.fingerprint;
 }

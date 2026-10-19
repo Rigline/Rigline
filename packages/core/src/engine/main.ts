@@ -32,7 +32,6 @@ import {
   type AddResult,
   addFromNpm,
   addPlugin,
-  addToList,
   addWhereMissing,
   applyPreset,
   bundledDir,
@@ -48,18 +47,20 @@ import {
   clearRestored,
   collect,
   companionStatus,
-  companionVsix,
   describeSource,
   diffScans,
   discoverPlugins,
+  EDITOR_CLIS,
   type EditorCli,
   type EditorContext,
+  type Ensured,
   EXTENSIONS_DIR,
-  editConfig,
   editorDirs,
   editorSpawn,
   enabledPlugins,
+  ensureCompanion,
   extensionVersion,
+  type FlowReport,
   findEditors,
   findExtension,
   formatDiff,
@@ -67,7 +68,6 @@ import {
   formatFlow,
   formatLayout,
   formatPlugins,
-  formatSetup,
   formatUpdates,
   type Generated,
   generate,
@@ -78,9 +78,12 @@ import {
   inspect,
   install,
   installedExtensions,
+  isAcquiredEngine,
+  type LookOptions,
   listJson,
   listPlugins,
   listPresets,
+  lookAtCompanion,
   markRestored,
   orderInLayout,
   type Placement,
@@ -94,11 +97,9 @@ import {
   type RiglinePaths,
   readAnchorOverrides,
   readBundles,
-  readCompanionSettings,
   readConfig,
   readPreset,
   refusalOf,
-  removeFromList,
   removePlugin,
   resetLayout,
   resolvePreset,
@@ -106,14 +107,12 @@ import {
   restoredAt,
   restoredSince,
   riglinePaths,
-  SKIP_PROFILES,
   sameSource,
   saveFromPanel,
   saveSettingsFromPanel,
   scanOf,
   type SettingsSaved,
   setPluginEnabled,
-  setupCompanion,
   splitLegacyConfig,
   UserError,
   undoLayout,
@@ -136,20 +135,25 @@ const lockWait: InjectionLockOptions = {
 const USAGE = `rigline ${CORE_VERSION}
 
   rigline install [--ext DIR] [--verbose]
-      Inject the loader into every installed extension version (or DIR), baking the enabled
-      plugins, and report which plugins each version loads and which it refuses. Any entry
-      in ~/.rigline/anchors.json is applied and named, with what this version makes of it.
+      Put Rigline's companion extension into every VS Code profile that has Claude Code, or
+      bring it up to date there, then inject the loader into every installed extension
+      version (or DIR), baking the enabled plugins, and report which plugins each version
+      loads and which it refuses. The companion comes from this engine, through VS Code's
+      code command, which must be on PATH when a profile needs it. Any entry in
+      ~/.rigline/anchors.json is applied and named, with what this version makes of it.
       What moved since the baseline is listed in ~/.rigline/drift.txt. Rewrites the
       ./generated.ts rigline codegen wrote, when the directory has one, and records the new
-      baseline; never commits either. --ext does neither, and does not undo a restore for
-      the installed versions. The report ends with what to reload, then anything that
-      needs you. --verbose adds paths, harvest counts, each host patch and the full drift.
-      Run it after an extension update. Exits 1 when a person is needed.
+      baseline; never commits either. --ext touches only DIR: no companion, no baseline,
+      and no undoing a restore for the installed versions. The report ends with what to
+      reload, then anything that needs you. --verbose adds paths, harvest counts, each host
+      patch and the full drift. Every command that injects does the same about the
+      companion. Exits 1 when a person is needed.
 
   rigline check [--ext DIR] [--verbose]
       Read-only. Per installed version (or DIR): whether it is injected and by which
       engine, which plugins it would refuse and by which identifier, which curated anchors
-      it lacks, and what it makes of each entry in ~/.rigline/anchors.json. --verbose
+      it lacks, and what it makes of each entry in ~/.rigline/anchors.json; and which VS
+      Code profiles install would give the companion or bring it up to date in. --verbose
       lists what moved since the baseline. Exits 1 when a person is needed.
 
   rigline watch [--interval SECONDS] [--verbose]
@@ -166,8 +170,7 @@ const USAGE = `rigline ${CORE_VERSION}
       Move the engine, and each plugin installed from npm, to whatever its tag resolves to
       now, and re-inject. A plugin pinned to a version, added from a directory, or placed by
       hand is reported and left alone, as is a newer version too young to install. --tag
-      follows a preview line instead of latest, for the engine. Where the companion is
-      installed, it is added to any VS Code profile that has Claude Code without it.
+      follows a preview line instead of latest, for the engine.
 
   rigline remove NAME
       Delete a plugin from ~/.rigline/plugins, however it got there, and re-inject. One
@@ -206,20 +209,6 @@ const USAGE = `rigline ${CORE_VERSION}
   rigline list [--json]
       Every plugin found, in the order they load: its version, where it came from, whether
       it is switched off, and what its manifest says it can do. --json emits the same as data.
-
-  rigline vscode-setup [--profile NAME] [--remove]
-      Optional. Install the companion extension into VS Code, found on PATH, from the VSIX
-      bundled in this engine, and inject. Nothing is downloaded, and the companion moves when
-      the engine does. From then on it re-injects after every extension update without you
-      running anything, so it is a step instead of install rather than after it, and it asks
-      npm's registry for a newer engine each time a window starts. Declining it costs
-      nothing: install is complete on its own. --remove takes the companion out and leaves
-      the injection alone. Reload the window afterwards.
-      It goes into every VS Code profile that has Claude Code, and is added to any profile
-      that gets Claude Code later. --profile NAME installs into that profile alone; with
-      --remove it takes the companion out of that one and keeps it out. The companion block
-      in ~/.rigline/config.yaml says the same by hand: skipProfiles, and everyProfile: false
-      for the default profile only.
 
   rigline status
       Per installed version: is each bundle vanilla or patched, judged against its backup.
@@ -346,8 +335,6 @@ interface ReinjectOptions {
   /** Refuse rather than shrug when nothing is installed: what `install`, asked outright, should do. */
   readonly required?: boolean;
   readonly verbose?: boolean;
-  /** The reload line, when the command has a reason of its own for one. */
-  readonly reload?: string;
   /** Run by the companion, which a `restore` keeps out until a person injects (D111). */
   readonly companion?: boolean;
 }
@@ -373,8 +360,44 @@ function heldOut(): void {
   }
 }
 
+/** The entry of this engine, which the companion runs when it is a checkout's or the acquired one. */
+const ENGINE_ENTRY = fileURLToPath(new URL("bin.js", import.meta.url));
+
+/** What the ensure step judges against: VS Code's directories, and the companion this engine carries. */
+function companionTargets(): LookOptions {
+  const [vscode] = EDITOR_CLIS;
+  return {
+    dirs: editorDirs(vscode),
+    carried: carriedCompanion(),
+    own: checkoutPluginsDir() !== null || isAcquiredEngine(ENGINE_ENTRY, riglinePaths().home),
+  };
+}
+
 /**
- * Inject into every installed version and print the report.
+ * The ensure step, for a person's injection (D143): its lines printed, and the enginePath line where
+ * a checkout just put a companion somewhere (D94). A refusal throws before anything is injected.
+ */
+async function ensureStep(): Promise<Ensured> {
+  const ensured = await ensureCompanion({
+    ...companionTargets(),
+    findCli: () => findEditors(),
+    run: runEditor,
+  });
+  for (const line of ensured.lines) console.log(line);
+  if (ensured.installed.length > 0 && checkoutPluginsDir() !== null) {
+    console.log(checkoutEngineNote(ENGINE_ENTRY));
+  }
+  if (ensured.lines.length > 0) console.log("");
+  return ensured;
+}
+
+/** A flow report with the ensure step's *Needs you* after its own (D98). */
+function withNeeds(report: FlowReport, needs: readonly string[]): FlowReport {
+  return needs.length === 0 ? report : { ...report, attention: [...report.attention, ...needs] };
+}
+
+/**
+ * Make sure of the companion, then inject into every installed version and print the report.
  *
  * `install` is this and nothing else; `add` and `remove` run it too, because they change the plugin
  * set and leaving the payload stale behind them would mean a person who added a plugin has to know
@@ -384,20 +407,24 @@ function heldOut(): void {
  * and saying so and stopping is a better answer than an error about a directory the person may be
  * about to create by installing the extension.
  */
-function reinject(options: ReinjectOptions = {}): number {
+async function reinject(options: ReinjectOptions = {}): Promise<number> {
   // A directory named with `--ext` may be any copy, so it moves nothing kept about the installed set.
   const named = options.exts !== undefined;
+  const targets = options.exts ?? installedExtensions();
+  // Before the mark goes, so a refusal leaves a restore holding (D143). The companion's own runs
+  // update and add the companion themselves.
+  const ensured = named || options.companion || targets.length === 0 ? null : await ensureStep();
   if (named) heldOut();
   else if (!options.companion) putBack();
-  const targets = options.exts ?? installedExtensions();
   if (targets.length === 0) {
     if (options.required) throw new UserError(noExtension());
     console.log(
       `No Claude Code extension is installed in ${EXTENSIONS_DIR}, so nothing was injected.`,
     );
-    if (options.reload !== undefined) console.log(`\n${options.reload}`);
     return 0;
   }
+  // A new companion starts only in a reloaded window, which also takes up the injection.
+  const reload = (ensured?.installed.length ?? 0) > 0 ? COMPANION_RELOAD : undefined;
   const report = update({
     // Listed again under the lock, since a wait is time for the listing to change (D105).
     exts: options.exts,
@@ -410,13 +437,14 @@ function reinject(options: ReinjectOptions = {}): number {
     lock: lockWait,
     ...(options.companion ? { restoredMark: riglinePaths().restored } : {}),
   });
+  const full = withNeeds(report, ensured?.needs ?? []);
   console.log(
-    formatFlow(report, {
+    formatFlow(full, {
       ...(options.verbose === undefined ? {} : { verbose: options.verbose }),
-      ...(options.reload === undefined ? {} : { reload: options.reload }),
+      ...(reload === undefined ? {} : { reload }),
     }),
   );
-  return report.attention.length > 0 ? 1 : 0;
+  return full.attention.length > 0 ? 1 : 0;
 }
 
 /**
@@ -441,7 +469,7 @@ async function addCommand(args: string[]): Promise<number> {
     : await addFromNpm(spec, { add, registry: { ignoreReleaseAge: values.now } });
   reportAdded(result, paths.config);
   console.log("");
-  return reinject();
+  return await reinject();
 }
 
 /** Where `add` puts a plugin, and the roots it must not take a name from (D56). */
@@ -504,7 +532,7 @@ function isPathSpec(spec: string): boolean {
 
 /**
  * Everything `update` does after the wrapper has moved the engine (D106): each plugin from npm to
- * what its tag resolves to, the companion wherever it is missing (D100), then one install (D98).
+ * what its tag resolves to, then one install (D98), which brings the companion with it (D143).
  *
  * The install runs whether or not anything moved here, since the wrapper may just have moved this
  * engine, and an install that changes nothing writes nothing (D75).
@@ -527,12 +555,10 @@ async function updateCommand(args: string[]): Promise<number> {
     },
   });
   console.log(formatUpdates(updates));
-  const additions = await companionAdditions({});
-  for (const line of additions.lines) console.log(line);
 
   console.log("");
-  const injected = reinject();
-  const failed = updates.some((u) => u.outcome === "failed") || additions.failed;
+  const injected = await reinject();
+  const failed = updates.some((u) => u.outcome === "failed");
   return failed || injected !== 0 ? 1 : 0;
 }
 
@@ -543,7 +569,7 @@ async function updateCommand(args: string[]): Promise<number> {
  * time, so nothing changes until the payload is rewritten, and a person who switched a plugin off
  * should not have to know about a second command before it goes.
  */
-function switchCommand(args: string[], enabled: boolean): number {
+async function switchCommand(args: string[], enabled: boolean): Promise<number> {
   const verb = enabled ? "enable" : "disable";
   const { positionals } = parseArgs({ args, options: {}, allowPositionals: true });
   if (positionals.length !== 1) throw new UserError(`${verb} needs exactly one plugin name`);
@@ -559,7 +585,7 @@ function switchCommand(args: string[], enabled: boolean): number {
       : `${result.name} was already ${enabled ? "enabled" : "switched off"} in ${result.configPath}`,
   );
   console.log("");
-  return reinject();
+  return await reinject();
 }
 
 /** Where a preset name is looked up: a person's own directory, then the shipped set (D131). */
@@ -594,7 +620,7 @@ function formatPresets(listings: readonly PresetListing[]): string {
  * `layout`, which prints, and `layout place`, `order` and `reset`, which edit `config.yaml` and
  * re-inject for the reason `enable` does (D56, D92).
  */
-function layoutCommand(args: string[]): number {
+async function layoutCommand(args: string[]): Promise<number> {
   const [verb, ...rest] = args;
   const paths = riglinePaths();
   const discovered = discoverPlugins(discoveryRoots(), {
@@ -714,7 +740,7 @@ function layoutCommand(args: string[]): number {
     );
   }
   console.log("");
-  return reinject({ companion: verb === "save" });
+  return await reinject({ companion: verb === "save" });
 }
 
 /**
@@ -750,7 +776,7 @@ function settingsOutcome(configPath: string, saved: SettingsSaved): string {
  * leaves it out, as `layout save`'s is. Nested under a command of its own although `save` is the
  * only verb, so the name survives a `settings` printer arriving later.
  */
-function settingsCommand(args: string[]): number {
+async function settingsCommand(args: string[]): Promise<number> {
   const [verb, ...rest] = args;
   if (verb !== "save") {
     throw new UserError(
@@ -784,10 +810,10 @@ function settingsCommand(args: string[]): number {
   }
   console.log(settingsOutcome(paths.config, saved));
   console.log("");
-  return reinject({ companion: true });
+  return await reinject({ companion: true });
 }
 
-function removeCommand(args: string[]): number {
+async function removeCommand(args: string[]): Promise<number> {
   const { positionals } = parseArgs({ args, options: {}, allowPositionals: true });
   if (positionals.length !== 1) throw new UserError("remove needs exactly one plugin name");
 
@@ -803,14 +829,14 @@ function removeCommand(args: string[]): number {
   if (!result.hadSource) console.log("  it had no source record, so it was placed here by hand");
   if (result.wasDisabled) console.log(`  and dropped from "disabled" in ${paths.config}`);
   console.log("");
-  return reinject();
+  return await reinject();
 }
 
 /**
- * The one write command: inject into every installed version, say what moved since the baseline,
- * record the new one. `check` is its read-only half. `update` means plugins, in phase 4 (D55).
+ * The one write command: the companion where a profile needs it, then inject into every installed
+ * version, say what moved since the baseline, record the new one. `check` is its read-only half.
  */
-function installCommand(args: string[]): number {
+async function installCommand(args: string[]): Promise<number> {
   const { values } = parseArgs({
     args,
     options: {
@@ -821,7 +847,7 @@ function installCommand(args: string[]): number {
     },
     allowPositionals: false,
   });
-  return reinject({
+  return await reinject({
     exts: extOption(values.ext),
     required: true,
     verbose: values.verbose,
@@ -874,70 +900,13 @@ function listCommand(args: string[]): number {
 }
 
 /**
- * `vscode-setup`: put the companion into every editor on PATH, from the VSIX we already carry.
- *
- * The engine's rather than the wrapper's, on two counts. It is the half that carries
- * `dist/bundled`, and the wrapper holds no verb list (D69), so this reaches a user through an
- * engine update with no wrapper release.
+ * `vscode-setup`, kept out of the usage: what a released 1.x wrapper and companion tell a person to
+ * run after crossing the major, in code nothing updates, so it is `install` (D143). They name it
+ * bare, so it takes no flags, and a 1.x `--remove` or `--profile` is refused rather than ignored.
  */
 async function vscodeSetupCommand(args: string[]): Promise<number> {
-  const { values } = parseArgs({
-    args,
-    options: {
-      remove: { type: "boolean", default: false },
-      profile: { type: "string" },
-    },
-    allowPositionals: false,
-  });
-  const profile = values.profile;
-  if (profile !== undefined && profile.trim() === "") {
-    // The CLI reads an empty name as none, so this would quietly act on the default profile.
-    throw new UserError("--profile needs a profile name");
-  }
-
-  const paths = riglinePaths();
-  const outcomes = await setupCompanion({
-    remove: values.remove,
-    ...(profile === undefined ? {} : { profile }),
-    settings: readCompanionSettings(paths.config),
-    run: (command, argv) => runEditor({ command, prefix: [] }, argv),
-  });
-
-  // A profile removed by name stays out of every later look, and one installed by name comes back in
-  // (D100).
-  const skipChanged =
-    profile !== undefined &&
-    editConfig(paths.config, (doc) =>
-      values.remove
-        ? addToList(doc, SKIP_PROFILES, profile)
-        : removeFromList(doc, SKIP_PROFILES, profile),
-    );
-  const note = !skipChanged
-    ? undefined
-    : values.remove
-      ? `added "${profile}" to companion.skipProfiles in ${paths.config}, so it is not added back`
-      : `took "${profile}" off companion.skipProfiles in ${paths.config}`;
-  console.log(
-    formatSetup(outcomes, values.remove, values.remove ? undefined : companionVsix(), note),
-  );
-  const results = outcomes.flatMap((o) => o.results);
-  const installed = results.some((r) => r.code === 0);
-  if (!values.remove && installed && checkoutPluginsDir() !== null) {
-    console.log(checkoutEngineNote(fileURLToPath(new URL("bin.js", import.meta.url))));
-  }
-  const failed = results.some((r) => r.code !== 0) ? 1 : 0;
-
-  // And inject, on `add`'s rule (D55, D56): a command that changes what is installed re-injects, so
-  // the user is one reload away rather than one reload and a command they have to know about.
-  //
-  // It matters more here than anywhere else. The companion injects on activation, but it activates
-  // only after the reload, by which time the panel may already have rendered from an unpatched
-  // bundle — so without this the first reload is the one that does not work, on the one path that
-  // exists so nobody has to think about reloading. `install` stays the verb; this is the same work
-  // done at the moment somebody would otherwise have to be told about it.
-  if (values.remove) return failed;
-  console.log("");
-  return reinject(installed ? { reload: COMPANION_RELOAD } : {}) === 0 ? failed : 1;
+  parseArgs({ args, options: {}, allowPositionals: false });
+  return await reinject({ required: true });
 }
 
 /** Runs one editor's CLI and collects everything it said. */
@@ -991,12 +960,11 @@ interface EditorNamed {
   "cli-script"?: string | undefined;
 }
 
-/** The companion added wherever it is missing, in the editor named, or with none every one on PATH. */
+/** The companion added wherever it is missing, in the editor named. */
 async function companionAdditions(values: EditorNamed): Promise<Additions> {
   try {
     return await addWhereMissing({
       contexts: additionContexts(values),
-      settings: readCompanionSettings(riglinePaths().config),
       carried: carriedCompanion(),
       run: runEditor,
     });
@@ -1013,14 +981,6 @@ function additionContexts(values: EditorNamed): EditorContext[] {
     "cli-node": node,
     "cli-script": script,
   } = values;
-  const none = [userData, extensionsDir, node, script].every((value) => value === undefined);
-  if (none) {
-    return findEditors().map((editor) => ({
-      label: editor.label,
-      ...editorDirs(editor),
-      cli: { command: editor.path, prefix: [] },
-    }));
-  }
   if (
     userData === undefined ||
     extensionsDir === undefined ||
@@ -1029,7 +989,7 @@ function additionContexts(values: EditorNamed): EditorContext[] {
   ) {
     throw new UserError(
       "companion-profiles takes all of --user-data-dir, --extensions-dir, --cli-node and " +
-        "--cli-script, or none",
+        "--cli-script",
     );
   }
   // What the `code` shim runs, pointed at the instance the companion is running in.
@@ -1282,13 +1242,20 @@ function checkCommand(args: string[]): number {
     args,
     options: { ext: { type: "string" }, verbose: { type: "boolean", default: false } },
   });
-  const report = check({
-    exts: extOption(values.ext),
-    plugins: pluginOptions(),
-    lock: lockWait,
-  });
-  console.log(formatFlow(report, { verbose: values.verbose }));
-  return report.attention.length > 0 ? 1 : 0;
+  const exts = extOption(values.ext);
+  const report = check({ exts, plugins: pluginOptions(), lock: lockWait });
+  // What install would do about the companion, unless a restore is holding Rigline out (D115, D143).
+  const look =
+    exts === undefined &&
+    report.versions.length > 0 &&
+    restoredSince(riglinePaths().restored) === null
+      ? lookAtCompanion(companionTargets())
+      : null;
+  for (const line of look?.lines ?? []) console.log(line);
+  if ((look?.lines.length ?? 0) > 0) console.log("");
+  const full = withNeeds(report, look?.needs ?? []);
+  console.log(formatFlow(full, { verbose: values.verbose }));
+  return full.attention.length > 0 ? 1 : 0;
 }
 
 /**
@@ -1354,6 +1321,12 @@ async function dev(args: string[]): Promise<number> {
 
   const exts = installedExtensions();
   if (exts.length === 0) throw new UserError(noExtension());
+  // Once, not at every rebuild, and before the mark goes (D143).
+  const ensured = await ensureStep();
+  if (ensured.needs.length > 0) {
+    console.log(["Needs you:", ...ensured.needs.map((line) => `  - ${line}`)].join("\n"));
+  }
+  if (ensured.installed.length > 0) console.log(COMPANION_RELOAD);
   putBack();
 
   // `install`, `check` and `watch` read `~/.rigline/anchors.json` through the flow, which owns user
@@ -1508,7 +1481,7 @@ async function main(argv: string[]): Promise<number> {
     case "build":
       return build(rest);
     case "install":
-      return installCommand(rest);
+      return await installCommand(rest);
     case "check":
       return checkCommand(rest);
     case "watch":
