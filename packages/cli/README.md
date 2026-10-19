@@ -21,55 +21,44 @@ puts every install back to Anthropic's own bytes and needs nothing but Node.
     rigline install
 
 The first command you run fetches the engine, [`@rigline/core`](https://www.npmjs.com/package/@rigline/core),
-into `~/.rigline/engine` and runs it from there. It takes a few seconds and needs the registry;
-after that nothing reaches the network unless you ask it to, or install the companion below, which
-asks the registry for a newer engine each time a window starts. If that directory is ever in a bad
-state, delete it and run any command again.
+into `~/.rigline/engine` and runs it from there. It takes a few seconds and needs the registry. If
+that directory is ever in a bad state, delete it and run any command again.
 
-`install` finds every installed version of the extension, harvests it, bakes the discovered plugins
-into a payload and injects the loader. It keeps a byte-faithful backup of each bundle it touches,
-and `rigline restore` puts everything back using nothing but Node and the backup.
+`install` puts Rigline's companion extension into every VS Code profile that has Claude Code, then
+finds every installed version of the extension, harvests it, bakes the discovered plugins into a
+payload and injects the loader. It keeps a byte-faithful backup of each bundle it touches, and
+`rigline restore` puts everything back using nothing but Node and the backup. Reload the window
+afterwards, which starts the companion.
 
-The extension updates about weekly and an update installs a fresh directory, which silently reverts
-the injection. Run `install` again afterwards; a window that is already open keeps running the old
-directory until *Developer: Reload Window*.
-
-**That is the whole of Rigline, and it needs nothing else.** Everything below is optional.
-
-**Where it works:** VS Code on Windows, Linux and macOS, in a local window, with Node 22.12 or
-newer. **Not supported yet:** remote windows, other editors built on VS Code, a portable VS Code, and
+**Where it works:** VS Code 1.90 or newer on Windows, Linux and macOS, in a local window, with Node
+22.12 or newer. **Not supported yet:** remote windows, other editors built on VS Code, a portable VS Code, and
 a custom extensions directory. In any of them, Claude Code's panel stays as it ships.
 [Where Rigline works](https://github.com/Rigline/Rigline/blob/main/docs/support.md) lists each, and
 how to ask for one.
 
-## Optional: let an extension do the remembering
+## The companion
 
-    rigline vscode-setup
+The companion is the part of Rigline that lives in VS Code. The extension updates about weekly, and
+an update installs a fresh directory, which reverts the injection; the companion re-injects behind
+it, so there is nothing to remember. It also saves what you change in the panel, and moves the
+engine once a newer one is a day old, asking npm's registry each time a window starts.
 
-If running `install` after every update is a chore, this installs a companion extension that does it
-for you — into VS Code, found on your `PATH`, from a VSIX that ships inside the engine. Nothing is
-downloaded, and the companion moves when the engine does. It injects as it goes, so it is a step
-*instead of* `install` rather than after it.
+`install` puts it in from a VSIX that ships inside the engine, so nothing is downloaded, through VS
+Code's `code` command on your `PATH`. On macOS, add that with *Shell Command: Install 'code' command
+in PATH* from the Command Palette. Every command that injects keeps the companion in every profile
+that has Claude Code, and current there.
 
-From then on it watches for the extension update and re-injects behind it, so there is nothing to
-remember after one. It goes into every VS Code profile that has Claude Code, and into any profile
-that gets Claude Code later; the `companion` settings in
-[`~/.rigline/config.yaml`](https://github.com/Rigline/Rigline/blob/main/docs/config.md) keep it out
-of the profiles you name.
-
-**Decline it and lose nothing.** `install` remains complete on its own, and is the right answer if
-you would rather not add an extension, cannot install one, or simply prefer running the thing
-yourself. `rigline vscode-setup --remove` goes back to that — it takes the companion out and leaves
-your injection alone, and `rigline restore` is what undoes the injection itself.
+`rigline uninstall` is how you leave: it restores every version, takes the companion out of every
+profile, and says what is left to you.
 
 ## Commands
 
-    rigline install    inject every version, bake plugins, report drift, record the baseline
+    rigline install    the companion where it is missing, then inject every version, bake plugins,
+                       report drift, record the baseline
     rigline check      the same report, writing nothing
-    rigline watch      install, and again whenever an extension update lands, until stopped
     rigline status     per version: vanilla or patched, by backup
     rigline restore    every version back to the extension's own bytes
-    rigline vscode-setup  install the companion into VS Code; --remove takes it out
+    rigline uninstall  restore, take the companion out of VS Code, and say what is left to you
 
     rigline add SPEC   install a plugin from a directory or npm, and re-inject
     rigline remove N   delete a plugin from ~/.rigline/plugins, and re-inject

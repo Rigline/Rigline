@@ -19,11 +19,20 @@ repairing one that breaks; read it when something stops resolving.
 Then **Developer: Reload Webviews**. The scaffolded plugin puts a small badge in the composer
 footer; replace its body and keep its shape.
 
+`add` injects with this workspace's own engine, and like every command that injects, it makes sure
+Rigline's companion extension is in each VS Code profile that has Claude Code. Where a profile has
+none it puts one in, which fetches its own engine the first time it starts; a companion already
+there it leaves alone, whatever version it is. Putting one in needs VS Code's `code` command on your
+`PATH`.
+
 While you work, `pnpm rigline dev plugins/my-plugin` rebuilds on every save, installs the build as
 `add` does, and re-injects, so when you stop it the last build is the one installed. Each change
 still needs a webview reload — nothing can avoid that. `dev` injects with this workspace's
-`@rigline/core`; the companion, if you have it, re-injects at each window start with the engine
-`rigline` installed, and from the same copy.
+`@rigline/core`; the companion re-injects at each window start with the engine it runs, from the
+same copy in `~/.rigline/plugins`. The two engines show only one way: where this workspace is on a
+newer release than the companion's engine, and your plugin uses something that release added, the
+next window start refuses it by name until the companion's engine moves — `rigline update --now`,
+or a day.
 
 ## The two files
 
@@ -399,9 +408,9 @@ Three things about it are worth knowing before you design around it.
 - **The section is Rigline's to decide, not yours.** You do not name it; the host stamps your own.
   There is a `section` prop for the writer that is allowed to name one, and today it refuses
   anything but your own name.
-- **A save is not always possible, and the component says so.** Without the companion extension,
-  without a token, or with a section larger than a link can carry, it renders your children with
-  no link and the reason as their tooltip.
+- **A save is not always possible, and the component says so.** Without a token, or with a section
+  larger than a link can carry, it renders your children with no link and the reason as their
+  tooltip.
 
 Nothing confirms instantly. The write goes through the companion and the engine, and Rigline shows
 its own notification; once the panel reads the file holding it, `ctx.onSettings` hands you the new

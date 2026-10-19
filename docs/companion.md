@@ -1,8 +1,9 @@
 # The companion extension
 
-The VS Code extension that puts Rigline back after Claude Code updates. The argument is D76 and D80
-to D85 in [decisions.md](decisions.md); what the milestone that built it turned on is
-[history-m8.md](history-m8.md). This is the shape, for somebody about to change it.
+The VS Code extension that puts Rigline back after Claude Code updates and saves what the panel
+changes. The argument is D76 and D80 to D85, D99, D100 and D143 in [decisions.md](decisions.md);
+what the milestone that built it turned on is [history-m8.md](history-m8.md). This is the shape, for
+somebody about to change it.
 
 ## What it is
 
@@ -13,14 +14,16 @@ the engine: one engine owns bytes, and everything else acquires it. So the compa
 with the CLI. New engines, anchor tables and plugins arrive underneath it, and the companion follows
 them itself, from the VSIX the engine carries (D99, below).
 
-It is optional. `rigline install` after each update is the whole of Rigline, and declining the
-companion must cost nothing (D80). It is sideloaded rather than listed (D76).
+It is part of Rigline, not an option on it (D143). `rigline install` puts it into every profile that
+has Claude Code, every injection a person runs keeps it there and current, and somebody who does not
+want it does not want Rigline: `rigline uninstall` is how they leave. It is sideloaded rather than
+listed (D76).
 
 ## The package
 
 `packages/vscode`, private, built to `rigline.vsix`, which `scripts/bundle-assets.mjs` copies into
-core's `dist/bundled`. `rigline vscode-setup` therefore installs the companion the engine was built
-with and fetches nothing.
+core's `dist/bundled`. `rigline install` therefore installs the companion the engine was built with
+and fetches nothing.
 
 - **`extension.ts` is the only module that imports `vscode`.** It adapts the editor to `Editor`
   (`editor.ts`) and calls into plain TypeScript with injected dependencies, which is how a package
@@ -61,12 +64,15 @@ status reads *Rigline: no Node*. Both messages name the setting, which is machin
 run, Show Plugins and Save, and never calls `updateEngine` or `ensureEngine` (D94). It is how a
 machine developing Rigline stops the companion re-injecting the released engine's payload over the
 checkout's on every extension-host start, and how engine work reached through the companion is tried
-before a release. Point it at `packages/core/dist/engine/bin.js`; `vscode-setup` run from a checkout
-prints the line. Then `pnpm build` and a reload is the whole loop.
+before a release. Point it at `packages/core/dist/engine/bin.js`; `pnpm rigline install` prints the
+line whenever it puts a companion into a profile. Then `pnpm build` and a reload is the whole loop.
+From a checkout the carried VSIX is the checkout's build, so `pnpm rigline install` is also how a
+change to the companion reaches this machine: it reinstalls the companion only when its source
+changed (D143).
 
 It is machine-scoped, so Settings Sync does not carry it, but a profile's settings are its own: it
 has to be set in every profile the companion is installed in, since each of those companions writes
-the same Claude Code directories. `vscode-setup` puts the companion in every profile that has Claude
+the same Claude Code directories. `install` puts the companion in every profile that has Claude
 Code, so that is each of those. A companion with the setting set adds itself to no other profile,
 because one it added would start without the setting (D100). A path that is not there is *Rigline:
 failed*, naming the setting, never a quiet fall back to the acquired engine.
@@ -139,8 +145,10 @@ names.
 
 ## Updating itself
 
-After every `start` or `moved` run, and after the reload offer so it never delays one, the companion
-runs `companion-status` with its own directory through the engine that run used (D99). The engine
+Self-update keeps the companion matching its engine between a person's runs, each of which installs
+the carried companion wherever a profile has another (D143). After every `start` or `moved` run, and
+after the reload offer so it never delays one, the companion runs `companion-status` with its own
+directory through the engine that run used (D99). The engine
 fingerprints that directory alone against `dist/bundled/rigline.vsix.json`, since every profile
 shares the extensions directory. When it is not the carried companion, the companion installs the
 carried VSIX with `workbench.extensions.installExtension`, which for a VSIX installs into this
@@ -156,14 +164,16 @@ What it will not do, each read in `selfupdate.ts`:
 - **Install a fingerprint twice.** The profile's `globalState` records what was installed, so the
   runs until a restart, and a second window of the profile, leave it.
 - **Run with `rigline.enginePath` set.** A checkout build carries the release's version, so every
-  build would be a same-version reinstall; `vscode-setup` is the developer's path (D94).
+  build would be a same-version reinstall; `pnpm rigline install` is the developer's path (D94).
+- **Install while a `restore` holds.** The engine answers `carried: null` under the mark, so a
+  companion still running after `rigline uninstall` does not put itself back (D111, D143).
 - **Complain twice.** A failed install is retried each run and logged with the *Install from VSIX…*
   path, and sets *needs you* once per carried fingerprint, only over a green status.
 
 The engine's answer is parsed from stdout alone, since an engine too old for the verb prints its
 usage on stderr, and a shape without `v: 1` is logged and ignored. A new major is a manual step: the
 wrapper refuses to move the engine across it, and the companion says *needs you*, naming
-`rigline vscode-setup`.
+`npm i -g rigline@latest`, then `rigline install`.
 
 ## Adding itself to other profiles
 
@@ -176,25 +186,27 @@ editor exactly (D100). Its arguments are:
 - `--cli-node` and `--cli-script`, which are `process.execPath` and `<appRoot>/out/cli.js`: what the
   `code` shim runs, with no `PATH` lookup.
 
-The engine reads `storage.json` and each profile's `extensions.json`. It adds the companion to every
-profile that has Claude Code and lacks the companion, unless `config.yaml`'s `companion` block says
-otherwise. It answers `{ v: 1, lines, failed }` on stdout, which is parsed as `companion-status`'s
-answer is. Each line goes to the output channel. A failure says *needs you* once per distinct
-failure, only over green, and is forgotten after a look that succeeds.
+The engine reads `storage.json` and each profile's `extensions.json`, and adds the companion to every
+profile that has Claude Code and lacks it, whether or not the companion is in that editor already
+(D143). While a `restore` holds it adds none, and says so. It answers `{ v: 1, lines, failed }` on
+stdout, which is parsed as `companion-status`'s answer is. Each line goes to the output channel. A
+failure says *needs you* once per distinct failure, only over green, and is forgotten after a look
+that succeeds.
 
 An open window of the profile added to starts the companion at once, with no restart, and its own
 `start` run finds nothing to add. The companion skips its look in a remote window, whose paths are
-the remote host's, and while `rigline.enginePath` is set. `rigline update` does the same work in
-the engine's own `update`, for every editor on `PATH` (D106).
+the remote host's, and while `rigline.enginePath` is set. Every injection a person runs does the
+same work, through the ensure step (below).
 
 A VSIX install re-extracts the shared directory every time, so adding the companion to one profile
 rewrites the directory another profile's running companion was loaded from. With identical bytes
-that is harmless: read live, the install succeeds on Windows and the running window does nothing. The
-engine refuses when the directory at the carried version holds a different build.
+that is harmless: read live, the install succeeds on Windows and the running window does nothing.
+With a different build at the same version it swaps the files under that window, which settles at
+its next extension-host restart; nothing refuses over it any more, since the companion is required.
 
 It fights an uninstall made through the Extensions view, which leaves no trace in `extensions.json`.
-Disable does not come back, since VS Code keeps the disabled list elsewhere. So a person who does
-not want the companion in a profile disables it there, or lists the profile in `skipProfiles`.
+Disable does not come back, since VS Code keeps the disabled list elsewhere, and a profile where the
+companion is disabled has no Save, no status and no re-inject of its own.
 
 ## The reload offer
 
@@ -230,10 +242,10 @@ The panel's Save is a link, `vscode://rigline.rigline/layout?p=…` or `…/sett
 hands a person's click on it to the companion's URI handler (D93, D140). The handler answers those
 two paths and hands the payload to the engine's `layout save` or `settings save` unread; any other
 path logs `ignored a link Rigline does not answer`, which is what an older companion does with a
-newer panel's link while the panel's save goes `unconfirmed`. `install` bakes only whether a
-companion answers at all, never which paths: companion versions are prereleases the repo's
-comparator ties, and a superseded directory lingers after an update, so a per-path bake would
-withhold the Save for as long as it does. The handler runs each save through the engine already on disk and never an
+newer panel's link while the panel's save goes `unconfirmed`. Nothing about the companion is baked:
+a person's install refuses without one, and in a profile that still lacks it a link finds nothing,
+because the id is held on the Marketplace, and the panel's *unconfirmed* note names `rigline
+install` (D93, D143). The handler runs each save through the engine already on disk and never an
 update, as Show Plugins does. Saves run one at a time, so a save never waits on its notification:
 one left standing in the notification centre would hold every later save, which then never runs and
 says nothing. The engine prints the outcome first, and that line is the notification: a warning when
@@ -241,19 +253,44 @@ it saved over a change or refused, since a person needs to know either. Everythi
 its query carries the token.
 
 `onUri` is among the activation events, so a click before startup finishes still reaches the
-handler, and `install` reads it from the manifest to decide that an installed companion answers.
+handler.
 
-## `rigline vscode-setup`
+## The ensure step
 
-An engine verb, forwarded by the wrapper. It installs the bundled VSIX into VS Code, whose CLI is
-`code` on `PATH`, and then injects, so the first reload after it already works. VS Code alone,
-because its extensions directory is the only one the engine injects; `EDITOR_CLIS` is a table so
-that other editors are an entry each once the engine takes a directory (plan.md).
+`ensureCompanion`, in `packages/core/src/companion/ensure.ts`, runs before every injection a person
+runs: in `reinject`, so `install`, `add`, `remove`, `enable`, `disable`, `update` and `layout`'s
+edits, and once at the start of `dev` (D143). It refuses only where a change is needed and cannot be
+made, and it comes before the `restore` mark is taken away, so a refusal injects nothing and leaves a
+restore holding. The companion's own runs and saves are exempt, since it updates and adds itself,
+and so is `install --ext` (D118). VS Code alone, because its extensions directory is the only one
+the engine injects; `EDITOR_CLIS` is a table so that other editors are an entry each once the engine
+takes a directory (plan.md).
 
-It installs into every profile that has Claude Code or the companion, less `skipProfiles`. It uses
-the default profile alone when no profile has either, or under `everyProfile: false`. It finds the
-directories from `EDITOR_CLIS`, in the order VS Code itself resolves them (`VSCODE_PORTABLE`, then
-`VSCODE_APPDATA` and `VSCODE_EXTENSIONS`, then the platform's default).
+1. **No Claude Code installed:** no step. CI, WSL and a remote host stop here.
+2. **Read the profiles** from VS Code's own files, found in the order VS Code itself resolves them
+   (`VSCODE_PORTABLE`, then `VSCODE_APPDATA` and `VSCODE_EXTENSIONS`, then the platform's default).
+   Each profile's companion is its `extensions.json` entry, with the directory `relativeLocation`
+   names. The targets are the profiles with Claude Code, or the default profile alone where none
+   lists it or the profiles cannot be read, which the report says.
+3. **Judge each target.** For the engine the companion runs, the acquired one, recognised by its own
+   path under `<RIGLINE_HOME>/engine`, or a checkout, a target is current when its companion is the
+   carried build by D99's fingerprint. For any other engine, such as a plugin author's workspace
+   `@rigline/core`, any companion is current, and it installs only where a profile has none:
+   replacing would match the companion to an engine it does not run, and self-update would put it
+   back. Every target current: inject, having started nothing.
+4. **Install where a target is not.** Only now is `code` looked for on `PATH`, and with none it
+   refuses, naming the fix: *Shell Command: Install 'code' command in PATH* on macOS, the installer's
+   option elsewhere, or *Install from VSIX…* with the path. The carried VSIX goes in with `--force`
+   where it replaces a companion, which a downgrade after an engine rollback needs, and without it
+   where the profile had none.
+5. **Read `extensions.json` again and decide from it**, never from the CLI's exit code: a different
+   editor answering to `code` exits 0 having installed somewhere else. Every target current: inject.
+   Some: inject, and name the rest under *Needs you*. None: refuse.
+
+What it installed comes before the injection report, and a new companion ends the report with the
+window reload it needs to start. From a checkout it also prints the `rigline.enginePath` line, since
+a profile it just added the companion to has none yet. `check` runs the first three steps and says
+under *Needs you* what the fourth would do, except while a `restore` holds Rigline out.
 
 **A companion somewhere the engine does not inject says so and does nothing else.** It compares its
 own extensions directory with `~/.vscode/extensions`, and anywhere else — another editor, a portable
@@ -268,22 +305,27 @@ run there, VS Code offers *Install in WSL*, and the copy that installs reads *no
 As a UI extension the local one would run in the remote window, find itself in `~/.vscode/extensions`,
 and report green over a remote panel it never touched.
 
-`--profile NAME` acts on that profile alone, and refuses a name no editor has, listing the ones
-there are. With `--remove` it also adds the name to `skipProfiles`; without it, it takes the name off.
-`--remove` alone uninstalls from every profile that holds the companion and leaves the injection
-alone, because `restore` is the verb for that.
+An install passes `--do-not-sync`, which the CLI accepts though its help omits it: Settings Sync
+would carry the id to other machines, where VS Code asks the Marketplace for `rigline.rigline`, which
+our publisher holds and lists nothing under (D93). A re-install moves an existing one to machine
+scope, and an update keeps the scope it finds. A batch-file CLI is spawned through `cmd.exe`, since
+Node refuses to spawn one directly. Nothing writes into `~/.vscode/extensions` itself: registering
+an extension by patching VS Code's own state is a worse act than the one Rigline already commits.
 
-It passes `--do-not-sync`, which the CLI accepts though its help omits it: Settings Sync would carry
-the id to other machines, where VS Code asks the Marketplace for `rigline.rigline`, which our
-publisher holds and lists nothing under (D93). A re-run moves an existing install to machine scope, and an update keeps the scope
-it finds. A re-run re-extracts the same bytes; `--force` is there so that it can also downgrade after
-an engine rollback. A batch-file CLI is spawned through `cmd.exe`, since Node refuses to spawn one
-directly.
+`vscode-setup` is `install`, kept out of the usage and taking no flags, because a released 1.x
+wrapper and companion name it to a person crossing the major, in code nothing updates.
 
-Where no CLI is found, it refuses, names the *Install from VSIX* palette command and prints the
-VSIX path. It does not write into `~/.vscode/extensions` itself: registering an extension by
-patching VS Code's own state is a worse act than the one Rigline already commits. Run from WSL,
-`code` installs into the WSL remote host, so the command works per environment, not per machine.
+## Leaving
+
+`rigline uninstall` runs `restore`, leaving the mark, then takes the companion out of every profile
+that lists it through `code --uninstall-extension`, deciding what went from `extensions.json` read
+again, as the ensure step does. With no CLI on `PATH` it names the profiles to clear from the
+Extensions view. It ends with what only the person can do: reload every window, `npm uninstall -g
+rigline`, and delete `~/.rigline`, in that order. Uninstalling from a profile stops a running
+companion only at its window's next extension-host restart, and until then its runs would undo the
+uninstall; the mark stops them, since under it `install --companion` injects nothing,
+`companion-status` offers nothing and `companion-profiles` adds nothing. Deleting `~/.rigline`
+deletes the mark, hence the order.
 
 ## The profile trap
 
@@ -296,11 +338,22 @@ it to its host. The tells are:
 - There is no **Rigline** output channel.
 - The extension host log never activates `rigline.rigline`.
 
-Rigline reads the profiles now (D100), so this is left only where they cannot be read: a portable
-install, a custom `--user-data-dir`, a fork whose entry in the table is wrong, or a remote window.
-`vscode-setup` then says it used the default profile, and `--profile NAME` is the repair. For
-extension commands the CLI refuses a name it does not know, with `Profile 'X' not found.`, and
-creates nothing; only opening a window with an unknown `--profile` creates one.
+Rigline reads the profiles (D100), and every person's verb and every companion start add the
+companion wherever a profile has Claude Code, so this is left where Rigline cannot see:
+
+- **Profiles it cannot read:** a portable install, a custom `--user-data-dir`, a fork whose entry in
+  the table is wrong, or a remote window. `install` then says it looked at the default profile alone,
+  and *Install from VSIX…* in the window's own profile is the repair.
+- **A companion disabled in a profile.** VS Code keeps the disabled list in the profile's
+  `state.vscdb`, which Rigline does not read.
+- **Which profile a panel is in.** Nothing tells the panel, and the injected bytes are the same for
+  every profile, so a Save in a profile without the companion makes VS Code look the id up on the
+  Marketplace and say it was not found, and the panel reads *unconfirmed*.
+- **Two writers at once.** A person's verb and a companion's look can install into one profile at
+  the same moment. Left until it bites.
+
+For extension commands the CLI refuses a profile name it does not know, with `Profile 'X' not
+found.`, and creates nothing; only opening a window with an unknown `--profile` creates one.
 
 ## Reading it live
 
@@ -337,8 +390,10 @@ and these reproduce the cases on demand:
   - Make profiles by writing `userDataProfiles` into the scratch `storage.json`.
   - Stand in for Claude Code with a VSIX holding only `extension/package.json`, with publisher
     `anthropic` and name `claude-code`, zipped by `tar --format zip`.
-  - Then run `vscode-setup` and `companion-profiles`, and read each profile's `extensions.json`
-    after each step.
+  - Then run `install` and `companion-profiles`, and read each profile's `extensions.json` after
+    each step. `install` stops after the ensure step with no Claude Code to inject, so give the
+    scratch home a fixture extension, and the scratch default profile's `extensions.json` an entry
+    for `anthropic.claude-code`.
 
   What a window adds is only whether an open window reacts, and that was read once, for D100.
 - **A panel that stops accepting prompts** after a write under a live window was seen twice and has

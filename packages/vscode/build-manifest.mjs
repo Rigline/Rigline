@@ -77,7 +77,7 @@ const manifest = {
           markdownDescription:
             "For developing Rigline. An engine entry to run in place of the one Rigline installs, " +
             "and never updated: `packages/core/dist/engine/bin.js` in a checkout, whose " +
-            "`rigline vscode-setup` prints the line to set. Leave blank to run the released engine.",
+            "`rigline install` prints the line to set. Leave blank to run the released engine.",
         },
       },
     },

@@ -378,8 +378,8 @@ what a plugin is written against.
   baseline per editor is the design, and the forks' directory names are unread. A remote window runs
   Claude Code on the remote host from `~/.vscode-server/extensions` ([companion.md](companion.md)).
   Short of supporting it, `rigline` run on a remote host could say that is where it is: today
-  `install` there reports no Claude Code installed, and `vscode-setup` installs a companion that can
-  only say *not in this editor*.
+  `install` there reports no Claude Code installed, and installs no companion, since the ensure step
+  runs only where Claude Code is (D143).
 - **The Open VSX ownership claim.** The `rigline` publisher holds the companion's id on the
   Marketplace. On Open VSX the namespace is made but has no owner, so it takes anyone's publish,
   marked unverified. Nothing of ours reaches it while 1.0 is VS Code alone: the Save link is
@@ -401,10 +401,7 @@ what a plugin is written against.
   `core` outgrows a screen. Ask for host state: that is a request for a capability, decided by name.
 - **`rigline corpus fetch <version>`**, a Marketplace VSIX into the corpus. Every version so far was
   snapshotted from a live install; the trigger is one that was missed.
-- **Line tags for a superseded major** ([ci.md](ci.md)): when a `2.x` branch opens.
-- **Removing the `config.json` migration** (D91), which carries a file only alphas wrote. It stays
-  for test machines not yet updated, and goes a few 1.x releases in; removing it breaks no 1.x
-  promise. Until then, `~/.rigline/config.json` is taken. config.md's paragraph on it goes with it.
+- **Line tags for a superseded major** ([ci.md](ci.md)): when a `3.x` branch opens.
 
 - **git as a plugin source.** No publish ceremony and no npm account: GitHub, GitLab and Codeberg
   serve `archive/<ref>.tar.gz`, which the tar reader already handles, with `{kind: "git", url, ref,
@@ -457,12 +454,12 @@ what a plugin is written against.
 
 ## Next session
 
-`1.0.0-alpha.13` is the newest on `latest`, and carries the 1.0 bar. Its reads are done, and what
-they did not reach is taken as working until somebody finds otherwise.
+`1.2.0` is the newest on `latest`. 2.0 is built on `main` and unreleased (D143): the live reads on
+this machine come first, then `pnpm release major`, then the crossing from 1.2.0 read on the Mac, as
+a user, since this machine's companion runs the checkout (D94). Before the release, look at the
+Mac's `~/.rigline/config.yaml` and delete any `companion` block by hand.
 
-Left before 1.0: [todo-1.0.md](todo-1.0.md), lists W on Windows and R the release, with what was
-decided for them at its head; and [todo-1.0-mac.md](todo-1.0-mac.md), list M, for an agent on the
-Mac. Both go when 1.0.0 ships.
+[todo-1.0.md](todo-1.0.md) and [todo-1.0-mac.md](todo-1.0-mac.md) are the closed 1.0 lists.
 
 ## Status log
 
@@ -700,3 +697,8 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   create, and *Reset to defaults* and `rigline layout reset` go back to it (D142, amending D122 and
   D125). Another plugin's elements stay at their author's defaults. Seen live by Leo, with
   `config.yaml` moved aside and after a Reset.
+- 2026-10-20: Rigline requires its companion (D143), for 2.0.0 on `main`: `install` and every
+  injection a person runs put it into each VS Code profile with Claude Code and keep it current,
+  `uninstall` is new, and a `restore` holds the companion back too. `vscode-setup` is a flagless
+  alias of `install`; `watch`, the `companion` block, the `config.json` split and Save's Copy
+  commands are gone; the 2.0 wrapper installs over a 1.x engine. Unreleased until the live reads.

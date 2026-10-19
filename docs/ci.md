@@ -15,9 +15,12 @@ input to any script — which is what keeps two release lines from costing anyth
 live line has a branch named for it (D62).
 
 - Routine work and maintenance releases happen on `main`, which is where you already are.
-- The next major lives on one long-lived branch — `2.x` — from the day it diverges until it ships.
-- When `2.0.0` ships, `2.x` *becomes* `main`. If the old line still needs support, cut `1.x` from
-  the last 1.x tag at that point.
+- The next major lives on one long-lived branch — `3.x` — from the day it diverges until it ships.
+- When `3.0.0` ships, `3.x` *becomes* `main`. If the old line still needs support, cut `2.x` from
+  the last 2.x tag at that point.
+
+2.0 is built on `main` instead, with no `2.x` branch and no maintained 1.x line, since nobody is on
+1.x (D143). The rule binds from the next major, which will have users.
 
 The second clause of the rule is doing work. Through a preview window `main` carries
 `1.3.0-beta.1`, which is on `next`, and `latest` sits several commits behind it — so an invariant

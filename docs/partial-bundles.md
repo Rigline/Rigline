@@ -34,8 +34,6 @@ Three properties make it worse than an ordinary bug.
 
 ## Who could hit it
 
-- **The CLI's watcher** (`update/watch.ts`), which polls every thirty seconds. Accidentally safe most
-  of the time because the window is small relative to the interval, not because anything checked.
 - **A person running `rigline install` or `rigline update`** while VS Code is updating the extension
   — the likeliest one in practice, because an update is exactly when somebody thinks to re-run it.
 - **Any future caller.** A guard living only in the companion would mean the next thing to drive an
@@ -85,11 +83,11 @@ the content check lacked.
 answers is a refusal, so a settle loop here would be the one branch that blocks for twenty seconds
 and then succeeds. One sample gap, then the same sentence as every other problem: an update is
 probably in progress, try again in a moment. The retry is the caller's — a person's next command, or
-the watcher's next poll, both of which already exist.
+the companion's next poll, both of which already exist.
 
 **The wait is `Atomics.wait`, and the alternative was an async `install`.** Settled with Leo,
 2026-09-22. A sleep needs either an `install` that can await — which ripples through `update`,
-`check`, `reinject`, the CLI's switch, `watch.ts`, `dev` and the harness — or a synchronous block.
+`check`, `reinject`, the CLI's switch, `dev` and the harness — or a synchronous block.
 `Atomics.wait` on a `SharedArrayBuffer` is the latter in three lines, and the objection to it is
 that blocking a thread is a thing one does not do. That objection is about a process with something
 else to do. The engine is spawned per command, does one job and exits; the companion only ever sees

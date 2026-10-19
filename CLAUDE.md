@@ -50,9 +50,10 @@ decisions.md, and each doc cites the decisions it rests on.
   kernel, the capability module contract, the manifest, the registry, diagnostics.
 - [docs/patches.md](docs/patches.md): byte substitutions in `extension.js` — why the capability
   exists, rebuild-from-backup, the three refusals, and how to write one.
-- [docs/companion.md](docs/companion.md): the VS Code extension that re-injects after an update — a
-  second retrieval layer (D80), finding Node, the home lock, what it watches, the reload offer, the
-  profile trap, and how to reproduce each case live.
+- [docs/companion.md](docs/companion.md): the VS Code extension that re-injects after an update and
+  is part of Rigline (D143) — a second retrieval layer (D80), finding Node, the home lock, what it
+  watches, the ensure step every injection runs, `uninstall`, the reload offer, what Rigline cannot
+  see about profiles, and how to reproduce each case live.
 - [docs/transcript.md](docs/transcript.md): the three-way join behind an entry, row identity through
   React, the sweep, and what a decoration must never do to a row.
 - [docs/verification.md](docs/verification.md): the four tiers, the corpus, the harness, the live panel,
@@ -184,7 +185,8 @@ Written for somebody else, so don't rewrite them for us:
 ## Working on the live extension
 
     pnpm build              # host, core, cli, the first-party plugins, then core's dist/bundled
-    pnpm rigline install    # inject every version, bake plugins, record the baseline; --verbose for detail
+    pnpm rigline install    # the companion where a profile needs it, then inject every version, bake
+                            # plugins, record the baseline; --verbose for detail
     pnpm rigline check      # the same report, writing nothing
     pnpm rigline add SPEC   # install a plugin from a directory or npm, name it, re-inject
     pnpm rigline remove N   # delete a plugin from ~/.rigline/plugins, and re-inject
@@ -198,7 +200,7 @@ Written for somebody else, so don't rewrite them for us:
     pnpm rigline layout undo             # the layout the last apply replaced, and re-inject
     pnpm rigline status     # per version: vanilla or patched, by backup
     pnpm rigline restore    # every version back to the extension's bytes
-    pnpm rigline vscode-setup  # install the companion into every VS Code on PATH (--remove undoes)
+    pnpm rigline uninstall  # restore, and the companion out of every VS Code profile
     pnpm rigline codegen    # regenerate plugin-api's generated.ts
     pnpm rigline diff A B   # identifier drift between two extension dirs
     pnpm rigline doctor     # install state per version, as a pasteable report
@@ -212,10 +214,10 @@ half: here `pnpm rigline update` moves plugins from npm and re-injects, and neve
 which is the wrapper's first half (D106).
 
 **An argument containing a space cannot go through `pnpm rigline`.** pnpm's shim loses the quoting
-and cmd.exe then splits the *Node interpreter path*, so `pnpm rigline vscode-setup --profile "Yarn
-PNP"` dies naming a directory that has nothing to do with what you typed and never reaches the
-engine — the missing `$ rigline-engine ...` echo is the tell. Call the bin directly:
-`node packages/core/dist/engine/bin.js vscode-setup --profile "Yarn PNP"`. Any bin through pnpm has
+and cmd.exe then splits the *Node interpreter path*, so `pnpm rigline layout apply "my
+preset.yaml"` dies naming a directory that has nothing to do with what you typed and never reaches
+the engine — the missing `$ rigline-engine ...` echo is the tell. Call the bin directly:
+`node packages/core/dist/engine/bin.js layout apply "my preset.yaml"`. Any bin through pnpm has
 it, so `pnpm vitest -t "two words"` fails the same way: filter on one word instead. Calling
 `node_modules/vitest/vitest.mjs` directly is no way round it for the harness, which resolves a
 second vitest copy and so finds no runner (`reading 'config'`). The detail is in
@@ -240,18 +242,20 @@ The first-party plugins are bundled inside `@rigline/core` and discovered in pla
 checkout's `plugins/` shadows them and `disable` is the only way to decline one (D71, D72). In a
 published install they are the only root that has them; here they are found twice, quietly.
 
-**Point the companion at this checkout's engine.** Install it from here with `pnpm rigline
-vscode-setup`, which prints the line to add to VS Code's user settings: `rigline.enginePath`, naming
-this checkout's `packages/core/dist/engine/bin.js` (D94). Set it in every profile the companion is
-in, which `vscode-setup` makes every profile with Claude Code, not only the one you work in, because
-every profile's companion writes the same Claude Code directories. Unset, every extension-host start — *Reload Window*, *Restart Extensions*, opening VS
+**Point the companion at this checkout's engine.** `pnpm rigline install` puts this checkout's
+build of the companion into every profile with Claude Code, and whenever it adds one it prints the
+line to add to VS Code's user settings: `rigline.enginePath`, naming this checkout's
+`packages/core/dist/engine/bin.js` (D94, D143). Set it in every profile the companion is in, which
+is every profile with Claude Code, not only the one you work in, because every profile's companion
+writes the same Claude Code directories. Unset, every extension-host start — *Reload Window*, *Restart Extensions*, opening VS
 Code — has the companion run `install` with the released engine, whose payload silently replaces
 this checkout's while every check passes, and everything it runs for the panel, Save included, is
 released code. Set, the status item reads *Rigline (dev)*. The tell that it is not working is a
 copied report without what you just built; compare the installed `post.js` with
-`packages/core/dist/bundled/post.js`. Re-run `vscode-setup` after changing the companion itself, or
-after giving another profile Claude Code: while `rigline.enginePath` is set, the companion neither
-updates itself nor adds itself to other profiles (D99, D100).
+`packages/core/dist/bundled/post.js`. `pnpm build` and `pnpm rigline install` again after changing
+the companion itself, or after giving another profile Claude Code: while `rigline.enginePath` is
+set, the companion neither updates itself nor adds itself to other profiles (D99, D100), so the
+checkout's `install` is what moves it.
 
 **From a worktree beside another session, stop at the harness.** There is one live extension: an
 `install` from the worktree and one from the main checkout overwrite each other's payload, and the

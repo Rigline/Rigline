@@ -41,7 +41,7 @@ cannot fix this one: the class is right there, and it is the identity that has g
 
 ## The file
 
-`~/.rigline/anchors.json`. It is read by `rigline install`, `check`, `watch`, `dev` and `doctor`,
+`~/.rigline/anchors.json`. It is read by `rigline install`, `check`, `dev` and `doctor`,
 and merged over the table Rigline ships. `rigline codegen` does not read it, and neither does the
 `generated.ts` that `install` rewrites for a repository that keeps one: that file is committed and
 read by everyone who clones, and a local repair belongs in none of their checkouts.

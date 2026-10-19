@@ -5,21 +5,41 @@ All four published packages — `rigline`, `@rigline/core`, `@rigline/plugin-api
 only where the change is specific to one.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
-[semantic versioning](https://semver.org/spec/v2.0.0.html). From 1.0.0, no 1.x release breaks what
-[docs/stability.md](docs/stability.md) keeps. Where one fixes a bug something relied on, closes a
-hole, or raises the Node or VS Code it needs, its entry says so.
+[semantic versioning](https://semver.org/spec/v2.0.0.html). From 1.0.0, no release breaks what
+[docs/stability.md](docs/stability.md) keeps for its major: no 1.x what 1.0 kept, and no 2.x what
+2.0 keeps. Where one fixes a bug something relied on, closes a hole, or raises the Node or VS Code
+it needs, its entry says so.
 
 ## Unreleased
 
-### Added
+Rigline's companion extension is part of Rigline now, not an option on it: `rigline install` puts it
+into VS Code, and `rigline uninstall` is how you leave. `rigline vscode-setup --remove` and
+`--profile`, `rigline watch` and the `companion` block in `config.yaml` are gone.
 
-- `rigline uninstall`, the whole of leaving Rigline: it restores every version, takes the companion
-  out of every VS Code profile, and says what is left to you — reloading every window,
-  `npm uninstall -g rigline`, and deleting `~/.rigline`. Until every window has reloaded, a
-  companion still running in one leaves Rigline out rather than putting it back.
+**Plugins are not affected.** A manifest is still `api: 1`, `ctx` and `@rigline/plugin-api` lost
+nothing, and every plugin that loads on 1.x loads on 2.0.
+
+Coming from 1.x, run `npm i -g rigline@latest`, then `rigline install`, and reload the window. A 1.x
+companion asks for the same, naming `rigline vscode-setup`, which is `install` now too.
 
 ### Changed
 
+- The companion is part of Rigline. `rigline install` puts it into every VS Code profile that has
+  Claude Code, or brings it up to date there, before it injects, and so does every command that
+  injects: `add`, `remove`, `enable`, `disable`, `update`, the layout commands and `dev`. Where a
+  profile already has the companion this engine carries, nothing is started and nothing is said. A
+  profile it could not install into is named under *Needs you*, and the command exits 1; where it
+  could install into none, nothing is injected. Installing needs VS Code's `code` command on
+  `PATH`, and only then. VS Code 1.90 is now Rigline's floor, where it was the companion's.
+- `rigline` installs its engine over one from an older major, as it would on a first run, so
+  `npm i -g rigline@latest` is all it takes to bring a 1.x machine's engine across. An engine from
+  a newer major is still refused, and the line says to run `npm i -g rigline@latest`. A companion
+  that cannot follow a new major says to run that, then `rigline install`.
+- `rigline check` names each profile `install` would give the companion or bring it up to date in.
+- Save in the panel is always a link to the companion. Where nothing can be saved, because
+  `~/.rigline/token` cannot be read or the layout is too large for a link, the layout's Save is off
+  and its tooltip says why, as the settings screen's already was. A save no companion answered
+  says so, and names `rigline install`.
 - A fresh install starts with a layout in two rows instead of one crowded one. The first row has
   model favourites, the session id, the worktree and the messaging address, with the Edit button at
   its right. The second has the context percentage and bar, with the session's cost and both limits
@@ -28,22 +48,13 @@ hole, or raises the Node or VS Code it needs, its entry says so.
 - *Reset to defaults* in the panel, and `rigline layout reset`, now put back that starting layout
   rather than every element where its plugin puts it. For that, write `layout: {}` in
   `config.yaml`, or use *Plugin default* on one element.
-- `rigline` installs its engine over one from an older major, as it would on a first run, so
-  `npm i -g rigline@latest` is all it takes to bring a 1.x machine's engine across. An engine from
-  a newer major is still refused, and the line says to run `npm i -g rigline@latest`. A companion
-  that cannot follow a new major says to run that, then `rigline install`.
-- The companion is part of Rigline. `rigline install` puts it into every VS Code profile that has
-  Claude Code, or brings it up to date there, before it injects, and so does every command that
-  injects: `add`, `remove`, `enable`, `disable`, `update`, the layout commands and `dev`. Where a
-  profile already has the companion this engine carries, nothing is started and nothing is said. A
-  profile it could not install into is named under *Needs you*, and the command exits 1; where it
-  could install into none, nothing is injected. Installing needs VS Code's `code` command on
-  `PATH`, and only then.
-- `rigline check` names each profile `install` would give the companion or bring it up to date in.
-- Save in the panel is always a link to the companion. Where nothing can be saved, because
-  `~/.rigline/token` cannot be read or the layout is too large for a link, the layout's Save is off
-  and its tooltip says why, as the settings screen's already was. A save no companion answered
-  says so, and names `rigline install`.
+
+### Added
+
+- `rigline uninstall`, the whole of leaving Rigline: it restores every version, takes the companion
+  out of every VS Code profile, and says what is left to you — reloading every window,
+  `npm uninstall -g rigline`, and deleting `~/.rigline`. Until every window has reloaded, a
+  companion still running in one leaves Rigline out rather than putting it back.
 
 ### Removed
 

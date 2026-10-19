@@ -5,8 +5,8 @@ Claude Code VS Code extension.
 
 Claude Code updates about weekly. Each update installs a fresh directory and deletes the old one,
 which silently reverts Rigline's injection — no `RIG` pill, no plugins, and no error to tell you.
-This extension is the thing that notices and puts it back, so an update stops being something you
-have to remember.
+This extension is the part of Rigline that notices and puts it back, so an update stops being
+something you have to remember, and it is what saves the changes you make in the panel.
 
 It does no work itself. It finds a Node, fetches or updates the Rigline engine
 (`@rigline/core`) under `~/.rigline/engine`, and runs that engine — the same one
@@ -21,11 +21,11 @@ until you run `rigline install` or another command that injects.
 ## Installing
 
     npm i -g rigline
-    rigline vscode-setup
+    rigline install
 
-`vscode-setup` installs this extension into every VS Code profile that has Claude Code, and keeps
-Settings Sync from carrying it to machines without Rigline. Then reload the window. `rigline
-vscode-setup --remove` takes it out again.
+`install` puts this extension into every VS Code profile that has Claude Code, and keeps Settings
+Sync from carrying it to machines without Rigline. Then reload the window. Every command that
+injects keeps it there, and `rigline uninstall` takes it out with the rest of Rigline.
 
 **Node 22.12 or newer has to be on the machine.** VS Code does not ship one, and this extension
 needs npm to fetch the engine. It runs the Node behind a version manager's shim, such as volta's or
@@ -49,8 +49,8 @@ how to ask for one.
   Worth setting where a GUI-launched VS Code does not inherit a login shell's `PATH`, which is
   common on macOS. It stays on the machine it was set on.
 - **`rigline.enginePath`** — for developing Rigline: an engine entry to run in place of the one
-  this extension installs, never updated. `rigline vscode-setup`, run from a checkout, prints the
-  line to set. Leave it blank.
+  this extension installs, never updated. `rigline install`, run from a checkout, prints the line to
+  set. Leave it blank.
 
 ## Commands
 

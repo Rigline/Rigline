@@ -49,5 +49,5 @@ hear about it.
 ## Which versions get fixes
 
 The newest release. All four packages release together, and `rigline update` moves to a fix in one
-command; where the companion is installed, it moves the engine by itself once the release is a day
-old. Older versions do not get fixes of their own.
+command; the companion moves the engine by itself once the release is a day old. Older versions do
+not get fixes of their own.

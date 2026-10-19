@@ -1,7 +1,7 @@
 # Where Rigline works
 
-Rigline works in VS Code on Windows, macOS and Linux, in a local window, with Node 22.12 or newer,
-and its companion extension in VS Code 1.90 or newer.
+Rigline works in VS Code 1.90 or newer on Windows, macOS and Linux, in a local window, with Node
+22.12 or newer. That VS Code floor is its companion extension's, which is part of Rigline.
 Where it does not work yet, it leaves Claude Code's panel as it ships, and the companion extension
 says *Rigline: not in this editor*.
 

@@ -1,15 +1,20 @@
-# What 1.x keeps stable
+# What 2.x keeps stable
 
 Rigline's four packages — `rigline`, `@rigline/core`, `@rigline/plugin-api` and
-`create-rigline-plugin` — release together, at one version, under semantic versioning. Within 1.x,
-everything this page lists as kept keeps working. A plugin written against 1.2 loads on 1.9. A file
-you wrote for 1.2 means the same thing on 1.9, and a command you scripted still runs. Only a 2.0 may
+`create-rigline-plugin` — release together, at one version, under semantic versioning. Within 2.x,
+everything this page lists as kept keeps working. A plugin written against 2.2 loads on 2.9. A file
+you wrote for 2.2 means the same thing on 2.9, and a command you scripted still runs. Only a 3.0 may
 break any of it.
 
+**2.0 broke nothing a plugin relies on.** A manifest is still `api: 1`, `ctx` and
+`@rigline/plugin-api` lost nothing, and every plugin that loaded on 1.x loads on 2.0. What changed
+is how Rigline is installed: its companion extension is part of it, and `rigline install` puts it
+into VS Code.
+
 Two kinds of change are not breaks, and the changelog names each. Fixing a bug is not, even where
-something relied on it: a check that was meant to refuse something and did not gets fixed in a 1.x
+something relied on it: a check that was meant to refuse something and did not gets fixed in a 2.x
 release. Nor is closing a hole: if a plugin can reach something `ctx` was never meant to give it, a
-1.x release may close it.
+2.x release may close it.
 
 What Rigline cannot promise is Claude Code. It updates about weekly and owes us nothing. What we
 promise instead is how Rigline behaves when it changes. A plugin that declared something Claude Code
@@ -20,18 +25,18 @@ Rigline out until you put it back.
 
 ## For a plugin
 
-**Kept within 1.x:**
+**Kept within 2.x:**
 
 - **The manifest.** `rigline.json` at `api: 1`, where every key keeps its meaning. A minor release
   may add a key, at any depth, or a value an existing key accepts. A plugin that uses one needs that
   release or later, and an older one refuses it by name, except for two things it names and does
   without: an anchor under `uses.optional` that it does not know, and a place for an element that it
   does not have.
-- **`ctx`.** Every member keeps working as it does for code written against an earlier 1.x. A minor
+- **`ctx`.** Every member keeps working as it does for code written against an earlier 2.x. A minor
   release may add a member, or let one accept more values for an argument it already takes; a new
   ability is always a new member. A plugin that reads a member an older release lacks is switched
   off by name, wherever it reads it, so test for one with `"name" in ctx`.
-- **`@rigline/plugin-api`**, including `@rigline/plugin-api/ui`. Code written against an earlier 1.x
+- **`@rigline/plugin-api`**, including `@rigline/plugin-api/ui`. Code written against an earlier 2.x
   keeps compiling and working, provided it handles a value it does not know. The types grow by a new
   export, a new member or union value in what Rigline hands you, and a parameter that accepts more.
   So a `switch` on `ctx.surface` wants a `default`: one that checks it has seen every surface stops
@@ -41,12 +46,12 @@ Rigline out until you put it back.
 - **React.** The panel serves plugins React 19, as four modules a built plugin imports by name:
   `react`, `react/jsx-runtime`, `react-dom` and `@rigline/plugin-api/ui`. Any other bare import
   fails at load. React's stable API stays at that major; its `unstable_*` exports and its internals
-  can change in any React release within it. Moving the major is `api: 2`, and so a Rigline 2.0.
+  can change in any React release within it. Moving the major is `api: 2`, and so a Rigline 3.0.
 - **Anchor names.** A curated name is never removed or renamed. When Claude Code removes what a name
   points at, the name stops resolving, and plugins that require it are refused by name until the
   anchor table catches up or `~/.rigline/anchors.json` repairs it ([anchors.md](anchors.md)).
-- **What gets a plugin refused.** No 1.x release adds a reason to refuse a plugin that an earlier
-  1.x loaded, other than Claude Code having changed. New checks arrive in a major.
+- **What gets a plugin refused.** No 2.x release adds a reason to refuse a plugin that an earlier
+  2.x loaded, other than Claude Code having changed. New checks arrive in a major.
 
 **Not kept, because they belong to Claude Code:**
 
@@ -69,9 +74,9 @@ Rigline out until you put it back.
 
 ## For your machine
 
-**Kept within 1.x:**
+**Kept within 2.x:**
 
-- **`~/.rigline/config.yaml`.** Every key keeps its meaning, and a later 1.x reads what an earlier one
+- **`~/.rigline/config.yaml`.** Every key keeps its meaning, and a later 2.x reads what an earlier one
   wrote, comments included ([config.md](config.md)). A minor release may add a setting, always as a
   new key; an existing key never takes a new kind of value. An older Rigline names a key, a
   layout place or a `requireChoice` it does not know under what needs you, and does without it. A layout place beside a piece of Claude Code's
@@ -88,7 +93,7 @@ Rigline out until you put it back.
   Rigline neither reads it nor promises anything about it. So the rule above is inverted one level
   down: a key Rigline does not know *inside* a section is kept and carried forward rather than
   reported, because it cannot tell a typo from a key a newer version of that plugin added. A later
-  1.x reads a section an earlier one wrote, and a plugin is asked to cope with whatever it finds
+  2.x reads a section an earlier one wrote, and a plugin is asked to cope with whatever it finds
   ([plugin-policy.md](plugin-policy.md)). Settings for a plugin that is switched off or removed
   stay in the file. What a plugin's own keys mean, and whether they survive its updates, is its
   author's promise rather than ours.
@@ -97,22 +102,21 @@ Rigline out until you put it back.
   `default`.
 - **`~/.rigline/anchors.json`**, in the format [anchors.md](anchors.md) describes.
 - **`~/.rigline/sources.json`**, where `rigline add` records each plugin's source. It is Rigline's
-  record rather than a setting, but a later 1.x reads what an earlier one wrote.
+  record rather than a setting, but a later 2.x reads what an earlier one wrote.
 - **A layout preset**, in the format [presets.md](presets.md) describes: the `layout` block
   `config.yaml` holds, under the same promises as the words above, and the `preset` block beside it.
-  A later 1.x only adds to it as new keys, and reads one an earlier wrote. It is a file people share,
+  A later 2.x only adds to it as new keys, and reads one an earlier wrote. It is a file people share,
   so a preset Rigline refuses is a refusal that names what it refused. `~/.rigline/presets/` and
   `~/.rigline/previous-layout.yaml` are where yours are kept, and `rigline layout export` writes one
-  a later 1.x can read.
+  a later 2.x can read.
 - **A plugin you put in `~/.rigline/plugins/` yourself**, under the plugin rules above.
 - **`$RIGLINE_HOME`**, which moves `~/.rigline` somewhere else. Set it where VS Code sees it too
   ([config.md](config.md)).
 - **The commands in the usage, `rigline --help`, with their flags, and `rigline --version`.** A later
-  1.x accepts every invocation an earlier one did, and an earlier one refuses a flag it does not know
+  2.x accepts every invocation an earlier one did, and an earlier one refuses a flag it does not know
   rather than ignoring it. The commands that change or check the install — `install`, `check`,
   `update`, `add`, `remove`, `enable`, `disable`, `layout`'s edits, `layout apply` and `undo`,
-  `restore` and `codegen --check`
-  — exit 1 when something needs you and 0 when nothing does; for `check`, a version not injected
+  `restore`, `uninstall` and `codegen --check` — exit 1 when something needs you and 0 when nothing does; for `check`, a version not injected
   needs you, unless `rigline restore` is holding Rigline out, which it says instead. The reports —
   `list`, `status`, `doctor`, `diff`, `layout presets`, `layout export` and a bare `layout` — exit 0
   whenever they produced their report. A command that cannot run at all exits 1.
@@ -128,14 +132,16 @@ Rigline out until you put it back.
 
   Fields may be added, never removed or renamed, and `origin` and `source.kind` may gain values.
   `can` and `why` are wording, like a report's.
+- **The companion, in every VS Code profile that has Claude Code.** `rigline install` and every
+  command that injects put it there and keep it current, and `rigline uninstall` takes it out.
 - **The companion's command and settings:** *Rigline: Show Plugins*, `rigline.nodePath` and
   `rigline.enginePath`.
 - **The backups beside Claude Code's bundles:** `webview/index.js.orig`, and `extension.js.orig` where
   a plugin patched the extension host. They are the undo when `rigline` itself will not run, as the
   [README](../README.md#if-the-panel-goes-blank) describes.
-- **Where it runs:** VS Code on Windows, Linux and macOS, in a local window, with Node 22.12 or
-  newer, and the companion in VS Code 1.90 or newer. A minor release may drop a Node version once it has reached end of life, or raise the
-  oldest VS Code the companion supports, and the changelog says so.
+- **Where it runs:** VS Code 1.90 or newer on Windows, Linux and macOS, in a local window, with
+  Node 22.12 or newer. A minor release may drop a Node version once it has reached end of life, or
+  raise the oldest VS Code Rigline supports, and the changelog says so.
 
 **Not supported yet:** remote windows, other editors built on VS Code, a portable VS Code, and a
 custom extensions directory ([support.md](support.md) lists each). In any of them, Claude Code's
@@ -149,26 +155,28 @@ panel stays as it ships. A minor release may add support for any of them.
   `engine/`. They are Rigline's own bookkeeping.
 - **Anything else Rigline puts inside Claude Code's directory**, and where it puts it.
 - **The commands and flags the usage leaves out**, such as `layout save`, `install --companion`,
-  `companion-status` and `companion-profiles`. They are how Rigline's own pieces talk to each other.
+  `companion-status` and `companion-profiles`, which are how Rigline's own pieces talk to each
+  other, and `vscode-setup`, which is `install` under the name 1.x gave the step.
 
 ## Between Rigline's own pieces
 
-A wrapper, a companion or an open panel from 1.0 meets every later 1.x, so what each relies on in
+A wrapper, a companion or an open panel from 2.0 meets every later 2.x, so what each relies on in
 the others is kept for the whole major. None of it is yours to use; [architecture.md](architecture.md)
 lists it.
 
 - **The wrapper** installs `@rigline/core` and runs its `rigline-engine` bin with your arguments.
   `rigline update` moves the engine and then hands everything else to it. That contract does not
-  change within 1.x, which is why a 1.0 wrapper runs every 1.x engine. When a newer wrapper is out,
+  change within 2.x, which is why a 2.0 wrapper runs every 2.x engine. When a newer wrapper is out,
   it says so.
 - **The companion** acquires the engine the same way, and updates itself from the engine it runs.
   What it asks of an engine holds for the major too, so a companion that has not updated itself yet
-  works with whichever 1.x engine it has just moved to.
+  works with whichever 2.x engine it has just moved to.
 - **The panel's Save link** keeps its address, so an older companion carries a newer panel's save.
   Its payload carries a version, so an engine reads, or refuses by name, a link from a panel an
   older one set up.
 
 ## A major version
 
-All four packages move together. The wrapper and the companion refuse an engine of another major,
-and each says what to run: `npm i -g rigline@latest`, then `rigline vscode-setup`.
+All four packages move together. The wrapper and the companion refuse an engine of a newer major,
+and each says what to run: `npm i -g rigline@latest`, then `rigline install`. A wrapper that finds
+an engine of an older major installs over it, as on a first run.

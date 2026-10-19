@@ -47,9 +47,8 @@ takes.
 A plugin with settings worth changing has a tab in the settings screen, and some can also save
 from a click on whatever they draw, such as a star on a row. Either way that writes only
 that plugin's block and leaves the rest of the file as you wrote it, comments included, the same as
-a `rigline layout` edit does. It goes through the companion extension, so without one installed the
-panel says so instead of offering it. A plugin can only ever write its own block, never another
-plugin's.
+a `rigline layout` edit does. It goes through the companion extension, which `rigline install` puts
+into VS Code. A plugin can only ever write its own block, never another plugin's.
 
 A key Rigline does not understand inside a plugin's block is **kept and passed on**, unlike one at
 the top level: Rigline never knows a plugin's own settings, so it cannot tell a typo from a key a
@@ -196,36 +195,11 @@ A layout you want to keep, swap between or hand to somebody else is a *preset*: 
 export` saves this block as a file, `rigline layout apply` puts one back, and Rigline ships a few.
 [presets.md](presets.md) is the whole of it.
 
-## Which VS Code profiles get the companion
-
-If you installed the companion extension with `rigline vscode-setup`, it goes into every VS Code
-profile that has Claude Code, and it adds itself to any profile that gets Claude Code later. The
-`companion` block changes that:
-
-    companion:
-      skipProfiles:
-        - Kokai
-      everyProfile: false
-
-- `skipProfiles` lists profiles, by the name VS Code's profile switcher shows, that are never given
-  the companion. The default profile is `Default`. Renaming a profile takes it off the list.
-- `everyProfile: false` keeps the companion to the default profile, or the one you name with
-  `vscode-setup --profile`, and it is never added anywhere by itself.
-
-The same from the command line:
-
-    rigline vscode-setup --remove --profile Kokai   # out of that profile, and onto skipProfiles
-    rigline vscode-setup --profile Kokai            # back in, and off skipProfiles
-
-Uninstalling the companion from a profile in VS Code's Extensions view does not last: it is put back
-the next time it looks. Disable it there instead, which VS Code keeps, or list the profile here.
-
 ## Mistakes
 
 A file that is not valid YAML stops every command that reads it, naming the file and the line, and
 changes nothing. So does a `disabled` that is not a list of names, a `layout` that is not places
-with lists under them, a `companion` block whose `everyProfile` is not true or false or whose
-`skipProfiles` is not a list, or a `model` block whose `default` names no model. A key with nothing
+with lists under them, or a `model` block whose `default` names no model. A key with nothing
 after it, like `disabled:`, is an empty list, not a mistake.
 
 A key Rigline does not know does nothing, and `rigline install` and `rigline check` name it under
@@ -262,10 +236,6 @@ first while an engine is being installed, the second while one is injecting. A c
 one waits for it, and says who holds it if it gives up. One left behind by a command that was
 killed is taken over once it is old.
 
-`~/.rigline/restored` is left by `rigline restore`, and keeps the companion from putting Rigline
-back. The next command you run that injects removes it: `install`, or any of the commands that
-change your plugins or layout.
-
-Before `sources.json` and `config.yaml` there was `~/.rigline/config.json`. The first command that needs it splits it
-into them and removes it. If one turns up again beside them, an older Rigline wrote it: it is not
-read, the commands say so, and it can be deleted.
+`~/.rigline/restored` is left by `rigline restore` and `rigline uninstall`, and keeps the companion
+from putting Rigline back. The next command you run that injects removes it: `install`, or any of
+the commands that change your plugins or layout.

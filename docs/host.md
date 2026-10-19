@@ -189,8 +189,9 @@ The kernel's `layout.ts` holds the saved layout the panel shows and a working co
 (D92, D93). The shell adds a Layout submenu after every plugin's entries while any element is
 declared, listing each by where the copy puts it, with its moves; every move keeps the menu open, so
 the panel behind it is the preview. Save is a real link, `vscode://rigline.rigline/layout?p=…`,
-carrying the copy, what it started from and the token, where `registry.js`'s `save` says a companion
-answers; elsewhere it is Copy commands, the `rigline layout` commands for the places that changed.
+carrying the copy, what it started from and the token. Where `registry.js`'s `save` holds no token,
+or the copy is too large for a link, Save is disabled with the reason as its title, the shape the
+settings screen's has; nothing about the companion is baked, since it is part of Rigline (D143).
 
 Node cannot push into a panel, so what it learns about the file it pulls, by re-importing
 `registry.js` under a fresh query: after a Save click, until the baked layout equals the copy; when
@@ -211,8 +212,7 @@ Picking one shows that layout in the working copy, so Save keeps it and *Revert 
 file that could not be read is a disabled row carrying its reason, and a preset naming elements this
 panel has not got says that a save here forgets where it puts them (D133). The list keeps its own
 open state rather than the overlay's `opened` slot, which is there to close a pop-over whose anchor
-has moved to or from off. While the copy is still a preset's, the no-companion fallback copies
-`rigline layout apply <name>` instead of the commands, which cannot write back an unresolved entry.
+has moved to or from off.
 
 Rigline's own elements, `rigline/edit` and `rigline/reload`, are bound once `shell.js` has loaded,
 from the components it exports as `riglineElements`, at a registry order after every plugin's (D97).
@@ -229,7 +229,7 @@ the rows from one, and the kernel publishes `places` again whenever the copy cha
 
 The shell's `edit.tsx` draws on the root's own layer, never in the app's DOM: a handle over each
 element with a box, measured every frame as a range over its `form`, and a bar above `composerBox`
-holding a tray of the elements without one, Reset to defaults, Save or Copy commands, Revert changes
+holding a tray of the elements without one, Reset to defaults, Save, Revert changes
 (Reload while nothing is unsaved) and Done. An element drawing nothing still has a box: while
 editing, its boundary renders `span.rigline-standin` with its title after its content, which CSS
 shows only as the form's only element child (D128). A
@@ -257,9 +257,8 @@ when the file has moved under it. Drafts outlive switching tabs and closing the 
 torn down takes its draft with it. Save merges every draft into one link: each plugin's under
 `sections`, stamped with its owner and checked with `maySaveSection`, and Rigline's under the
 payload's own `rigline` member, never as a section. `MAX_SETTINGS_PAYLOAD` is spent across all of
-them, and a Save that will not fit is disabled with the reason. Revert re-reads and drops every
-draft. There is no Copy commands: no command writes these, so without a companion Save gives the
-reason instead.
+them, and a Save that will not fit, or has no token to carry, is disabled with the reason. Revert
+re-reads and drops every draft.
 
 Every read of `registry.js`, whoever asked for it — either editor's confirmation, Reload, the menu
 opening, look-on-focus — feeds the settings editor, which publishes only what changed: a plugin's

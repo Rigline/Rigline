@@ -20,11 +20,19 @@ real install half-patched, and the panel renders blank when the static import is
 over throwaway copies (`mkdtempSync`) and over the corpus, which is read-only by convention and
 outside the repo.
 
-The same holds for the home. A test that drives `update`, `check` or `watch` sets `RIGLINE_HOME` to
+The same holds for the home. A test that drives `update` or `check` sets `RIGLINE_HOME` to
 a temporary directory, as `flow.test.ts` does, since every path the flow defaults to is under it:
 `anchors.json`, the baseline, and `inject.lock`. Without that, the suite writes the lock into the
 developer's own home, and resolves anchors against their `anchors.json`, so it passes or fails
 depending on the machine.
+
+And for VS Code. Every injection a person runs reads VS Code's profiles and may install the
+companion through `code` (D143), and those are found through `PATH`, `APPDATA`, `XDG_CONFIG_HOME`
+and the `VSCODE_*` variables, none of which a mocked `homedir` moves. A test that runs an injecting
+verb takes the editor-free environment in `packages/core/test/sandbox.ts` for the whole file, as
+`main.test.ts` does with `editorlessStubs` and the packed tests with `editorless`. The guard in
+`main.test.ts` runs `install` over a fixture and fails if a profile read or an editor search left
+the scratch home.
 
 ## A test whose pass is an absence must first prove the trigger fired
 

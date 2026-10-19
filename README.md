@@ -23,7 +23,7 @@ something new without touching the rigging itself.
 
 ## Status
 
-Rigline is stable. Within 1.x, a plugin, a file you wrote and a command you scripted keep working
+Rigline is stable. Within 2.x, a plugin, a file you wrote and a command you scripted keep working
 as [docs/stability.md](docs/stability.md) describes, and [docs/support.md](docs/support.md) says
 where Rigline runs. [docs/plan.md](docs/plan.md) has what comes next, and
 [docs/decisions.md](docs/decisions.md) the principles and decisions behind it.
@@ -40,12 +40,18 @@ vulnerability, or a plugin that breaks the plugin policy: [SECURITY.md](SECURITY
     rigline install
 
 The first `rigline` command you run fetches the engine, `@rigline/core`, into `~/.rigline/engine`
-and runs it from there; after that nothing reaches the network unless you ask it to, or add the
-companion below. `install` then finds every installed version of the extension itself, harvests the
-identifiers from it, and injects the loader — keeping a byte-faithful backup of every bundle it
-touches. Then reload the window from the Command Palette with *Developer: Reload Window*, which the
-report asks for: the first install also patches the extension host, and only a window reload starts
-it again.
+and runs it from there. `install` then puts Rigline's companion extension into every VS Code
+profile that has Claude Code, and injects the loader into every installed version of the extension:
+it harvests the identifiers from each, and keeps a byte-faithful backup of every bundle it touches.
+Then reload the window from the Command Palette with *Developer: Reload Window*, which the report
+asks for. That starts the companion, and the first install also patches the extension host, which
+only a window reload starts again.
+
+The companion is the part of Rigline that lives in VS Code. It re-injects after every extension
+update, saves what you change in the panel, and asks npm's registry for a newer engine each time a
+window starts, moving to one once it is a day old. Putting it in needs VS Code's `code` command on
+your `PATH`; on macOS, add it with *Shell Command: Install 'code' command in PATH* from the Command
+Palette.
 
 *Diagnostics*, in the menu behind the `RIG` pill, tells you whether all of it is working. These
 plugins come with it and are switched on: the **session-id** pill in the composer footer, **time
@@ -58,19 +64,13 @@ where each plugin's pills sit in the panel, and moves, orders or hides them. Eve
 file you can also edit by hand, described in [docs/config.md](docs/config.md). Writing your own
 plugin is [docs/authoring.md](docs/authoring.md).
 
-Run `rigline install` again after the extension updates — an update installs a fresh copy of the
-extension beside the old one, which quietly leaves the loader behind. `rigline update` is the other
-one: it brings the engine and every plugin you installed from npm up to date, and re-injects behind
-both.
-
-Or let an extension remember for you. `rigline vscode-setup` installs Rigline's companion into VS
-Code, and from then on it re-injects after every update. It also asks npm's registry for a newer
-engine each time a window starts, and moves to one once it is a day old.
+`rigline update` brings the engine and every plugin you installed from npm up to date, and
+re-injects behind both. Every command that injects also puts the companion into any profile with
+Claude Code that lacks it, and brings it up to date where it is behind.
 
 ## Where it works
 
-VS Code on Windows, Linux and macOS, in a local window, with Node 22.12 or newer. The companion
-needs VS Code 1.90 or newer.
+VS Code 1.90 or newer on Windows, Linux and macOS, in a local window, with Node 22.12 or newer.
 
 **Not supported yet:** remote windows, other editors built on VS Code, a portable VS Code, and a
 custom extensions directory. In any of them, Claude Code's panel stays as it ships.
@@ -87,13 +87,13 @@ you suspect with `rigline disable NAME`, which puts the rest back, or run `rigli
 of them.
 
 If `rigline` itself is gone or will not run, the undo is a file copy, because the backup of every
-bundle sits beside the bundle it came from. If you added the companion, uninstall it first — it is
-*Rigline* in the Extensions view — since a copy by hand leaves nothing telling it Rigline is meant
-to be out, and it would put Rigline back at the next window. Each installed version is a directory under
-`~/.vscode/extensions/` named `anthropic.claude-code-<version>-<platform>`, such as
-`anthropic.claude-code-2.1.283-win32-x64`, and there may be more than one — do all of them, then
-reload the window.
+bundle sits beside the bundle it came from. First make an empty file at `~/.rigline/restored`: it is
+what tells the companion Rigline is meant to be out, and without it the companion puts Rigline back
+at the next window. Each installed version is a directory under `~/.vscode/extensions/` named
+`anthropic.claude-code-<version>-<platform>`, such as `anthropic.claude-code-2.1.283-win32-x64`,
+and there may be more than one — do all of them, then reload the window.
 
+    touch ~/.rigline/restored
     cd ~/.vscode/extensions/anthropic.claude-code-<version>-<platform>
     cp webview/index.js.orig webview/index.js
     cp extension.js.orig extension.js          # only if this file is there
@@ -107,13 +107,13 @@ both files with the originals.
 
 ## Uninstalling
 
-    rigline vscode-setup --remove    # only if you added the companion
-    rigline restore
-    npm uninstall -g rigline
+    rigline uninstall
 
-In that order: the companion first, so it does not put Rigline back, and `restore` while there is
-still a `rigline` to run it. Then delete `~/.rigline`, which holds the engine, your settings and any
-plugin you added, and reload the window.
+It restores every installed version, takes the companion out of every VS Code profile, and then
+says what is left to you, in order: reload every VS Code window, `npm uninstall -g rigline`, and
+delete `~/.rigline`, which holds your settings, any plugin you added, and the engine. Reload before
+deleting: a companion still running in a window that has not reloaded is kept out by a file in
+`~/.rigline`.
 
 ## Layout
 
@@ -122,7 +122,8 @@ plugin you added, and reload the window.
                           plugins' half)
     packages/cli          rigline: the retrieval layer that installs the engine and runs it,
                           and moves it for `update`
-    packages/vscode       the companion extension, which re-injects after an update
+    packages/vscode       the companion extension, which re-injects after an update and saves
+                          what the panel changes
     packages/host         the injected loader, pre.js and post.js
     packages/plugin-api   @rigline/plugin-api: what a plugin is written against
     packages/create-plugin create-rigline-plugin: the scaffold a plugin author starts from

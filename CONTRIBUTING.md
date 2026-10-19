@@ -50,11 +50,13 @@ Then reload:
 - **Developer: Reload Window** if the install output says a host patch changed — this reloads the
   whole window.
 
-**If you use the companion, point it at this checkout.** `pnpm rigline vscode-setup` installs it
-from here and prints a line to add to VS Code's user settings, `rigline.enginePath`, naming this
-checkout's engine. Without it, every window start has the companion run the *released* engine's
-`install`, which puts the released payload over yours while every check passes. With it, the status
-bar reads *Rigline (dev)*.
+**Point the companion at this checkout.** `pnpm rigline install` puts this checkout's build of the
+companion into every VS Code profile that has Claude Code, and the first time it does, it prints a
+line to add to VS Code's user settings in each of them, `rigline.enginePath`, naming this checkout's
+engine. Without it, every window start has the companion run the *released* engine's `install`,
+which puts the released payload over yours while every check passes. With it, the status bar reads
+*Rigline (dev)*. After a change to `packages/vscode`, `pnpm build` and `pnpm rigline install` again
+put the new build in.
 
 Check what's currently patched at any time with:
 

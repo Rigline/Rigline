@@ -295,32 +295,32 @@ and the GitHub release.
 
 ### Two lines at once
 
-`main` carries 1.x and a long-lived branch carries the next major (D62). Cut the branch, and open
+`main` carries 2.x and a long-lived branch carries the next major (D62). Cut the branch, and open
 its line the same way:
 
-    git switch -c 2.x
-    pnpm release premajor --preid alpha    # 2.0.0-alpha.0
+    git switch -c 3.x
+    pnpm release premajor --preid alpha    # 3.0.0-alpha.0
 
-Nothing in the pipeline is told which line you are on. CI runs on `2.x` as it does on `main`, a
+Nothing in the pipeline is told which line you are on. CI runs on `3.x` as it does on `main`, a
 dispatch dry run can check the trusted publishers from it before the first release goes out, and
 `pnpm release` reads the version out of that branch's own `package.json`.
 
 Then, while both lines are live:
 
 - Maintenance releases happen on `main`, exactly as in steady state. Each stages under `latest`
-  and leaves `next` alone, because the preview on `2.x` is ahead of it.
-- Previews happen on `2.x` and stage under `next`.
-- Merge `main` into `2.x` after each maintenance release, and never the reverse. `CHANGELOG.md`
+  and leaves `next` alone, because the preview on `3.x` is ahead of it.
+- Previews happen on `3.x` and stage under `next`.
+- Merge `main` into `3.x` after each maintenance release, and never the reverse. `CHANGELOG.md`
   conflicts every time; resolve it by keeping both sides in version order.
 - Run `pnpm release:finish` from the line the tag was cut on — it refuses when the tag is not in the
-  checkout's history, and this is the case it refuses for: cut `2.0.0-alpha.1` on `2.x`, switch back
+  checkout's history, and this is the case it refuses for: cut `3.0.0-alpha.1` on `3.x`, switch back
   to `main` while CI runs, and approval would publish the right version while every tag below it
   pointed at `main`'s. Carrying on committing to that same line between the cut and the approval is
   fine and expected; nothing in the approval wants the tip.
 
-When `2.0.0` ships it is a promotion, from `2.x`, and it stages under `latest`. After that `2.x`
-*becomes* `main`, and `1.x` is cut from the last 1.x tag if the old line still needs support. A
-release on that line is then refused by name: it belongs under a line tag such as `1.x`, which
+When `3.0.0` ships it is a promotion, from `3.x`, and it stages under `latest`. After that `3.x`
+*becomes* `main`, and `2.x` is cut from the last 2.x tag if the old line still needs support. A
+release on that line is then refused by name: it belongs under a line tag such as `2.x`, which
 this pipeline does not set, and the two tags it does set would both be wrong.
 
 ## Traps, all already paid for

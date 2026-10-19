@@ -32,8 +32,9 @@ nothing can push into a panel; it can only read a file again, under a fresh quer
     webview/rigline/plugins/<name>/  each enabled plugin's directory
 
 One thing goes the other way: a link a person clicks, which VS Code routes to the companion's URI
-handler. That is the panel's Save, and it needs the companion; without one, the panel copies the
-`rigline layout` commands instead (D93). And one thing goes between panels: a saving panel tells the
+handler. That is the panel's Save, and it needs the companion, which is part of Rigline: where no
+token was baked, or the layout is too large for a link, Save is off and says why (D93, D143). And
+one thing goes between panels: a saving panel tells the
 other editor-tab panels what it saved, on a `BroadcastChannel` named in `registry.js`, a hint that
 shortens their wait for their own read and is never relied on in its place (D141).
 
@@ -53,7 +54,7 @@ each host patch is carried into `registry.js` rather than derived: nothing in a 
 | `packages/cli` | `rigline` | The retrieval layer (D69, D106). It installs the engine under `~/.rigline/engine` and runs it: `update` moves the engine and hands the rest to it, and every other verb is forwarded. Depends on no Rigline package. |
 | `packages/host` | `@rigline/host` (private) | The injected runtime: `pre.js`, `post.js`, and `runtime/` (D87). |
 | `packages/create-plugin` | `create-rigline-plugin` | The scaffold, as real files under `template/`. |
-| `packages/vscode` | `@rigline/vscode` (private) | The companion extension: a second retrieval layer that acquires the engine and spawns it when an extension update lands (D80). Built to `rigline.vsix`. |
+| `packages/vscode` | `@rigline/vscode` (private) | The companion extension: a second retrieval layer that acquires the engine and spawns it when an extension update lands (D80), and answers the panel's Save. Required: every injection a person runs puts it into each profile with Claude Code (D143). Built to `rigline.vsix`. |
 | `packages/harness` | (private) | Playwright over the real bundle. See [verification.md](verification.md). |
 | `plugins/*` | first-party plugins | `session-id`, `worktree`, `time-marks`, `context-meter`, `usage-meter`, `model-favourites`, `probe`. |
 
@@ -62,7 +63,7 @@ first-party plugin's `rigline.json` and built entry. `@rigline/host` is private 
 published, so without this nothing a person installs holds the thing that gets injected — which is
 what `rigline install` threw `payload is missing pre.js` over. Core rather than the wrapper, because
 core is what injects and what discovers. The companion's `rigline.vsix` ships there too, so
-`rigline vscode-setup` installs the companion the engine was built with and fetches nothing.
+`rigline install` installs the companion the engine was built with and fetches nothing.
 
 The copy is a workspace step, `scripts/bundle-assets.mjs`, run by the root `build` after `pnpm -r
 build`: the plugins are built by `rigline-engine build`, which is core's own bin, so a build-order
@@ -73,7 +74,7 @@ refuses a bundle older than the builds it was copied from.
 
 `plugin-api` is the load-bearing one, and the rule that keeps it honest is that it may import
 nothing from core or host and its root and `/internal` must run in both — which is why the React
-half is a subpath neither imports. The root is what a plugin is written against and 1.x keeps;
+half is a subpath neither imports. The root is what a plugin is written against and the major keeps;
 `/internal` is the root plus what host and core share, and is not kept (D108). A capability's
 *contract* lives there — the manifest shape, what it depends on, what it says about itself — and
 its *grant* lives in host. That is what lets `rigline install` and the kernel ask the same question
@@ -108,7 +109,10 @@ to a class.
 ## The install pipeline
 
 `rigline install` is the one write command about the injection, and `check` is the same report
-writing nothing (D55). The flow in `core/src/update/flow.ts` reads `config.yaml` once, before any
+writing nothing (D55). Before the flow, every injection a person runs makes sure of the companion:
+each VS Code profile with Claude Code gets the build this engine carries, and where one needs it and
+cannot have it, nothing is injected (D143, [companion.md](companion.md)). The flow in
+`core/src/update/flow.ts` reads `config.yaml` once, before any
 directory, so a file that does not hold stops the run with nothing written (D110). Then it runs over
 every installed extension directory; per directory, `inject.ts`'s `install()` does this, in this
 order, and the order is load-bearing at three points:
@@ -150,7 +154,9 @@ since the baseline goes to `~/.rigline/drift.txt`, since the next install moves 
 match, remove the payload directory. With no backup, or one that recorded the loader, the original
 is the bundle less Rigline's two lines, and the payload stays wherever the bundle still imports it.
 It leaves `restored` in `RIGLINE_HOME`, which keeps the companion from injecting until a person does
-(D111). It needs only Node and the engine — not VS Code, and not a working extension.
+(D111). It needs only Node and the engine — not VS Code, and not a working extension. `uninstall` is
+`restore`, then the companion out of every profile, and while the mark is there the engine offers a
+companion nothing to reinstall itself from (D143).
 
 ## The update pipeline
 
@@ -158,15 +164,15 @@ It leaves `restored` in `RIGLINE_HOME`, which keeps the companion from injecting
 placing and the injecting (D106). The wrapper's half:
 
 1. Resolve `@rigline/core`'s tag and install it into `<RIGLINE_HOME>/engine` only if the version
-   differs. The release-age gate applies unless no engine is installed yet (D48), and a failed
-   resolution is reported while the run carries on with the engine it has.
+   differs. The release-age gate applies unless no engine of this major is installed yet (D48,
+   D143), and a failed resolution is reported while the run carries on with the engine it has.
 2. Run that engine's `update` with every argument but `--tag`.
 
 The engine's half, which is all `pnpm rigline update` does in a checkout:
 
 3. Resolve each recorded plugin source, and fetch, vet and place the ones that moved (D70).
-4. Add the companion to every VS Code profile that has Claude Code without it (D100).
-5. Run one `install`, whether or not anything moved, so the payload on disk is this engine's (D75).
+4. Run one `install`, whether or not anything moved, so the payload on disk is this engine's (D75),
+   and so is the companion in every profile (D143).
 
 The companion does step 1 and then an `install` on every activation and every arriving Claude Code
 version. It then updates itself from the VSIX that engine carries (D99), and adds itself to its own
@@ -178,7 +184,7 @@ The wrapper, the companion and an open panel each meet engines of other ages. No
 wrapper, the companion carries its acquisition frozen in a VSIX until it next updates itself (D99),
 and a panel keeps running the `post.js` it loaded while the engine moves under it. So what each
 relies on in an engine holds for a whole major, and [stability.md](stability.md) promises it to a
-user; changing any of it is a 2.0 (D112). Everything else between them may change in any release.
+user; changing any of it is a new major (D112). Everything else between them may change in any release.
 
 **The wrapper** relies on:
 
@@ -189,8 +195,9 @@ user; changing any of it is a 2.0 (D112). Everything else between them may chang
 - `update` meaning the rest of an update once the engine has moved, taking every argument the
   wrapper's does but `--tag`.
 
-It reads nothing the engine prints and holds no verb list, so a verb an engine adds reaches a 1.0
-wrapper with no wrapper release.
+It reads nothing the engine prints and holds no verb list, so a verb an engine adds reaches a 2.0
+wrapper with no wrapper release. An installed engine of an older major it counts as none, and
+installs over (D143).
 
 **The companion** relies on the same acquisition, since it bundles the wrapper's `engine.ts` (D80),
 and on:
@@ -198,9 +205,11 @@ and on:
 - `install --companion`, whose exit code says only whether a person is wanted: what the window
   needs is decided from the bytes (D82). The flag keeps it out after a `restore` (D111);
 - `companion-status PATH`, whose answer never changes within a major, since it is how an old
-  companion becomes a new one (D99);
+  companion becomes a new one (D99). While a `restore` holds it offers nothing, `carried: null`
+  (D143);
 - `companion-profiles` and its four flags (D100). Its JSON carries `v: 1`, and a companion ignores a
-  `v` it does not know, so a new shape costs an old companion one look before it updates itself;
+  `v` it does not know, so a new shape costs an old companion one look before it updates itself.
+  While a `restore` holds it adds nothing;
 - `list`, piped to a person, and `layout save PAYLOAD`, whose first line is its outcome: it begins
   `rigline: ` when the save was refused, and says `over a change` when it overwrote one made since
   the panel loaded (D92, D93). The payload carries a version of its own, which the engine checks and
