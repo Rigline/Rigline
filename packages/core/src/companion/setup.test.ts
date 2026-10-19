@@ -166,6 +166,7 @@ describe("uninstallCompanion", () => {
         'removed the companion from profile "Work"',
       ],
       kept: [],
+      unknown: false,
     });
   });
 
@@ -203,7 +204,30 @@ describe("uninstallCompanion", () => {
       },
       run: cli(at).run,
     });
-    expect(done).toEqual({ lines: ["the companion is in no VS Code profile"], kept: [] });
+    expect(done).toEqual({
+      lines: ["the companion is in no VS Code profile"],
+      kept: [],
+      unknown: false,
+    });
+  });
+
+  // Saying "in no profile" over files it could not read would be a guess, and exit 0 on it.
+  it("says what it could not read, does what it can, and leaves the rest unknown", async () => {
+    const at = vscode({ Default: [ENTRY], Work: [ENTRY] });
+    writeFileSync(join(at.dirs.userData, "User", "globalStorage", "storage.json"), "{ not json");
+    const fake = cli(at);
+    const done = await uninstallCompanion({ dirs: at.dirs, findCli: () => [CODE], run: fake.run });
+    expect(fake.calls).toEqual([uninstallArgv(null)]);
+    expect(done.unknown).toBe(true);
+    expect(done.lines.at(0)).toMatch(/^VS Code's profiles could not be read, so this looked at/);
+    expect(done.lines.at(-1)).toBe(
+      "uninstall Rigline from the Extensions view in any other profile that has it",
+    );
+
+    writeFileSync(at.list("Default"), "{ not json");
+    const blind = await uninstallCompanion({ dirs: at.dirs, findCli: () => [CODE], run: fake.run });
+    expect(blind).toMatchObject({ kept: [], unknown: true });
+    expect(blind.lines[0]).toMatch(/in each that has it$/);
   });
 });
 

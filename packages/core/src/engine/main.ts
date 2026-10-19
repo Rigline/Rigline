@@ -1181,7 +1181,7 @@ async function uninstallCommand(args: string[]): Promise<number> {
       "     ran from. Until every window has reloaded, it also holds what keeps Rigline out.",
     ].join("\n"),
   );
-  return restored && companion.kept.length === 0 ? 0 : 1;
+  return restored && companion.kept.length === 0 && !companion.unknown ? 0 : 1;
 }
 
 /**

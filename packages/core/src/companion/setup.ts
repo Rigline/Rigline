@@ -133,21 +133,33 @@ export interface Uninstalled {
   readonly lines: readonly string[];
   /** The profiles that still list the companion. */
   readonly kept: readonly string[];
+  /** Whether some profile could not be read, so whether it still has the companion is unknown. */
+  readonly unknown: boolean;
+}
+
+interface Holding {
+  readonly profiles: readonly Profile[];
+  /** Why some profiles could not be read; the default profile alone was looked at, if it could be. */
+  readonly unread?: string;
+  /** Whether even the default profile could not be read. */
+  readonly blind?: boolean;
 }
 
 /** The profiles that list the companion, or the default profile alone where they cannot be read. */
-function holding(dirs: EditorDirs): { readonly profiles: readonly Profile[]; unread?: string } {
+function holding(dirs: EditorDirs): Holding {
   const read = readProfiles(dirs.userData, dirs.extensionsDir);
   if (read.kind === "read") {
     return { profiles: read.profiles.filter((p) => !p.sharesDefault && p.companion !== null) };
   }
   const found = readDefaultProfile(dirs.extensionsDir);
-  if ("why" in found) return { profiles: [], unread: found.why };
+  if ("why" in found) return { profiles: [], unread: found.why, blind: true };
   return {
     profiles: found.companion === null ? [] : [found],
     ...(read.kind === "unreadable" ? { unread: read.why } : {}),
   };
 }
+
+const BY_HAND = "uninstall Rigline from the Extensions view";
 
 /**
  * Take the companion out of every profile that lists it, for `uninstall` (D143). What is gone is
@@ -155,26 +167,40 @@ function holding(dirs: EditorDirs): { readonly profiles: readonly Profile[]; unr
  */
 export async function uninstallCompanion(options: UninstallOptions): Promise<Uninstalled> {
   const before = holding(options.dirs);
-  const unread =
-    before.unread === undefined
-      ? []
-      : [
-          `VS Code's profiles could not be read, so this looked at the default profile alone: ${before.unread}`,
-        ];
-  if (before.profiles.length === 0) {
-    return { lines: [...unread, "the companion is in no VS Code profile"], kept: [] };
+  if (before.blind) {
+    return {
+      lines: [
+        `VS Code's profiles could not be read: ${before.unread}; ${BY_HAND} in each that has it`,
+      ],
+      kept: [],
+      unknown: true,
+    };
   }
-  const byHand = "uninstall Rigline from the Extensions view";
+  const unknown = before.unread !== undefined;
+  const head = unknown
+    ? [
+        `VS Code's profiles could not be read, so this looked at the default profile alone: ${before.unread}`,
+      ]
+    : [];
+  const tail = unknown ? [`${BY_HAND} in any other profile that has it`] : [];
+  if (before.profiles.length === 0) {
+    const none = unknown
+      ? "the default profile has no companion"
+      : "the companion is in no VS Code profile";
+    return { lines: [...head, none, ...tail], kept: [], unknown };
+  }
   const [editor] = options.findCli();
   if (editor === undefined) {
     const where = before.profiles.length === 1 ? "there" : "in each";
     return {
       lines: [
-        ...unread,
+        ...head,
         `${profilesNamed(before.profiles)} still ${before.profiles.length === 1 ? "has" : "have"} ` +
-          `the companion, and no VS Code command-line tool was found on PATH to remove it: ${byHand} ${where}`,
+          `the companion, and no VS Code command-line tool was found on PATH to remove it: ${BY_HAND} ${where}`,
+        ...tail,
       ],
       kept: before.profiles.map((p) => p.name),
+      unknown,
     };
   }
 
@@ -184,7 +210,7 @@ export async function uninstallCompanion(options: UninstallOptions): Promise<Uni
     said.set(profile.name, await options.run(cli, uninstallArgv(cliProfile(profile))));
   }
   const left = new Set(holding(options.dirs).profiles.map((p) => p.name));
-  const lines = [...unread];
+  const lines = [...head];
   for (const profile of before.profiles) {
     if (!left.has(profile.name)) {
       lines.push(`removed the companion from profile "${profile.name}"`);
@@ -195,9 +221,13 @@ export async function uninstallCompanion(options: UninstallOptions): Promise<Uni
       run !== undefined && run.code !== 0
         ? run.output.trim().split(/\r?\n/).at(-1)?.replace(/\.$/, "") || `it exited ${run.code}`
         : `${editor.path} said it removed it, so that \`code\` is another editor`;
-    lines.push(`profile "${profile.name}" still has the companion: ${why}; ${byHand} there`);
+    lines.push(`profile "${profile.name}" still has the companion: ${why}; ${BY_HAND} there`);
   }
-  return { lines, kept: before.profiles.filter((p) => left.has(p.name)).map((p) => p.name) };
+  return {
+    lines: [...lines, ...tail],
+    kept: before.profiles.filter((p) => left.has(p.name)).map((p) => p.name),
+    unknown,
+  };
 }
 
 /** The reload a newly installed companion needs, since it starts only in a reloaded window. */
