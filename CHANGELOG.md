@@ -12,6 +12,8 @@ it needs, its entry says so.
 
 ## Unreleased
 
+## 2.0.0 — 2026-10-20
+
 Rigline's companion extension is part of Rigline now, not an option on it: `rigline install` puts it
 into VS Code, and `rigline uninstall` is how you leave. `rigline vscode-setup --remove` and
 `--profile`, `rigline watch` and the `companion` block in `config.yaml` are gone.

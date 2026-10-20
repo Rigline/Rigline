@@ -5,4 +5,4 @@
  * importing the barrel that re-exports that module — a cycle that resolves at runtime but reads as
  * an accident waiting to happen.
  */
-export const CORE_VERSION = "1.2.0";
+export const CORE_VERSION = "2.0.0";
