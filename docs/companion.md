@@ -173,7 +173,9 @@ What it will not do, each read in `selfupdate.ts`:
 The engine's answer is parsed from stdout alone, since an engine too old for the verb prints its
 usage on stderr, and a shape without `v: 1` is logged and ignored. A new major is a manual step: the
 wrapper refuses to move the engine across it, and the companion says *needs you*, naming
-`npm i -g rigline@latest`, then `rigline install`.
+`npm i -g rigline@latest`, then `rigline install`. Once a person has crossed, a companion of the old
+major still running in a window that has not reloaded refuses the new engine and reads *Rigline:
+failed*; it never puts an old engine back, and the reload the crossing asks for ends it.
 
 ## Adding itself to other profiles
 

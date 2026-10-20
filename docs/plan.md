@@ -454,10 +454,9 @@ what a plugin is written against.
 
 ## Next session
 
-`1.2.0` is the newest on `latest`. 2.0 is built on `main` and unreleased (D143): the live reads on
-this machine come first, then `pnpm release major`, then the crossing from 1.2.0 read on the Mac, as
-a user, since this machine's companion runs the checkout (D94). Before the release, look at the
-Mac's `~/.rigline/config.yaml` and delete any `companion` block by hand.
+`2.0.0` is the newest on `latest`, and its crossing from 1.2.0 has been read as a user. The Mac is
+still on 1.x: when it crosses, a `companion` block in its `~/.rigline/config.yaml` is named under
+*Needs you* as a key Rigline does not read, and is deleted by hand.
 
 [todo-1.0.md](todo-1.0.md) and [todo-1.0-mac.md](todo-1.0-mac.md) are the closed 1.0 lists.
 
@@ -701,4 +700,7 @@ One entry per piece of work completed, a sentence long, newest last. The reasoni
   injection a person runs put it into each VS Code profile with Claude Code and keep it current,
   `uninstall` is new, and a `restore` holds the companion back too. `vscode-setup` is a flagless
   alias of `install`; `watch`, the `companion` block, the `config.json` split and Save's Copy
-  commands are gone; the 2.0 wrapper installs over a 1.x engine. Unreleased until the live reads.
+  commands are gone; the 2.0 wrapper installs over a 1.x engine. Read live on this machine.
+- 2026-10-20: `2.0.0`, under `latest`. The crossing from 1.2.0, read as a user on the Surface Pro:
+  the 1.x companion's *needs you*, `npm i -g rigline@latest` and `vscode-setup` moving the engine
+  and every profile's companion, the reload, saves, and `uninstall` and back.

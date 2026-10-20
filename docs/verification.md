@@ -34,6 +34,11 @@ verb takes the editor-free environment in `packages/core/test/sandbox.ts` for th
 `main.test.ts` runs `install` over a fixture and fails if a profile read or an editor search left
 the scratch home.
 
+An `install` over an installed fixture, rather than `--ext`, also rewrites the `generated.ts` in the
+working directory, which under vitest is this checkout's root. Point `process.cwd` at the scratch
+home in any test that does it, or the committed harvest becomes the fixture's and every plugin's
+typecheck fails on the next run.
+
 ## A test whose pass is an absence must first prove the trigger fired
 
 Half the assertions worth making about this project are negative: no notification, no rewrite, no
