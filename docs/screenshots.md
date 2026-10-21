@@ -12,8 +12,10 @@ All of them live in `docs/media/`.
 Every image is captured at twice the size it is shown, and shown at half its pixel width, so the
 panel's text reads at the size it is in VS Code and a pill is the same size in every image. A
 *panel* shot is the panel's whole width, 1440 pixels, shown at 720. A *crop* is as wide as what it
-shows, and when it lands, the `width` in its doc is set to half its pixel width: the 600 there now
-is a placeholder.
+shows, and when it lands, the `width` in its doc is set to half its pixel width.
+
+An image not captured yet is commented out in its doc under `TODO screenshot`, which a search finds.
+Uncomment it when the file lands, and set a crop's `width` then.
 
 | File | Shown in | What it shows | Kind |
 | --- | --- | --- | --- |
@@ -25,7 +27,7 @@ is a placeholder.
 | `scaffold.png` | `docs/authoring.md` | The scaffolded plugin's badge in the composer footer | crop |
 | `context-meter.png` | `plugins/context-meter/README.md` | The percentage and bar | crop |
 | `usage-meter.png` | `plugins/usage-meter/README.md` | Cost and both limits, the five-hour tooltip open | crop |
-| `model-favourites.png` | `plugins/model-favourites/README.md` | The favourites pill with one favourite live | crop |
+| `model-favourites.png` | `plugins/model-favourites/README.md` | The favourites pill with one favourite live, and another's tooltip | crop |
 | `time-marks.png` | `plugins/time-marks/README.md` | Times on tool-call rows and a *later* divider | crop |
 | `worktree.png` | `plugins/worktree/README.md` | Session tabs prefixed with their worktrees | crop |
 | `session-id.png` | `plugins/session-id/README.md` | The pill, and *Session identifiers* open in the menu | crop |
@@ -79,9 +81,9 @@ last ones need a session that has been running a while.
        rigline layout reset
 
 3. **Set favourites and a default**, so the pills have something to show. In *Settings…* behind the
-   `RIG` pill, on the *Model favourites* tab, add Opus 5.5 at xhigh, Opus 5.5 at low and Sonnet 5.5
-   at medium, and on Rigline's tab set the default model to Opus 5.5 at xhigh. Save. If the models
-   on offer have moved on since this was written, use the current ones and change the alt text in
+   `RIG` pill, on the *Model favourites* tab, add Opus 5.5 at xhigh and Opus 5.5 at medium, and on
+   Rigline's tab set the default model to Opus 5.5 at xhigh. Save. If the models on offer have moved
+   on since this was written, use the current ones and change the alt text in
    `plugins/model-favourites/README.md`.
 4. **Open this repository in VS Code**, the main checkout and not a worktree, with the default *Dark
    Modern* theme. Close every other editor tab, so nothing personal is in the tab strip.
@@ -135,8 +137,9 @@ the second row with the tooltip in it.
 
 ### model-favourites.png
 
-Choose Opus 5.5 at xhigh in Claude Code's own model picker, so that favourite is lit. Crop the
-first row from its left edge to just past the favourites pill.
+Choose Opus 5.5 at xhigh in Claude Code's own model picker, so that favourite is lit. Hover
+*medium* until its tooltip offers to switch to it, then take a delayed snip of the first row from
+its left edge to just past the favourites pill, with the tooltip in it.
 
 ### session-id.png
 

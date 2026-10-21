@@ -4,7 +4,7 @@ A small pill showing which session this panel is hosting, with every identifier 
 Rigline's menu.
 
 <p align="center">
-  <img src="../../docs/media/session-id.png" width="600" alt="The session-id pill under the composer, and Rigline's menu open on Session identifiers, listing the messaging address, the full session id and its short form.">
+  <img src="../../docs/media/session-id.png" width="388" alt="The session-id pill under the composer, and Rigline's menu open on Session identifiers, listing the messaging address, the full session id and its short form.">
 </p>
 
 ## What it shows

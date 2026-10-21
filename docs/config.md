@@ -9,9 +9,11 @@ things in all survive. A change made by hand or by a command takes effect at the
 install` (the commands run one for you), and then a reload of the panel; one saved from the panel
 reaches the panel that saved it without a reload.
 
+<!-- TODO screenshot: media/settings.png, as screenshots.md describes; then uncomment.
 <p align="center">
   <img src="media/settings.png" width="720" alt="Rigline's settings screen over the panel: a rail of tabs, Rigline's first and then one per plugin, with the Rigline tab open on the default model and when to ask for one.">
 </p>
+-->
 
     # Rigline's settings. Edit freely: rigline's commands keep your comments.
     # https://github.com/Rigline/Rigline/blob/main/docs/config.md

@@ -35,9 +35,11 @@ Then **Developer: Reload Webviews**. The scaffolded plugin is a little more than
 badge in the composer footer counting the session's tool calls, with a store, a check in
 *Diagnostics* and a test. Replace its body and keep its shape.
 
+<!-- TODO screenshot: media/scaffold.png, as screenshots.md describes; then uncomment.
 <p align="center">
   <img src="media/scaffold.png" width="600" alt="The composer footer with the scaffolded plugin's badge reading 3 tool calls, beside Rigline's RIG pill.">
 </p>
+-->
 
 While you work, `pnpm rigline dev plugins/my-plugin` rebuilds on every save, installs the build as
 `add` does, and re-injects, so when you stop it the last build is the one installed. Each change

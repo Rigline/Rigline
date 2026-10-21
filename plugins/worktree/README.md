@@ -5,9 +5,11 @@ of the same repo are told apart at a glance:
 
     ABCD-123 › Refactor the bus
 
+<!-- TODO screenshot: docs/media/worktree.png, as docs/screenshots.md describes; then uncomment.
 <p align="center">
   <img src="../../docs/media/worktree.png" width="600" alt="Three Claude Code session tabs in VS Code's tab strip, two prefixed with ticket keys and one with a shortened worktree name.">
 </p>
+-->
 
 The prefix is a ticket key (e.g. `TD-1234`) when the worktree directory's name starts with one, and
 otherwise as much of the name as fits in eight characters as a reader counts them, cut at a word

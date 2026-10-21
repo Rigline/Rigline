@@ -93,9 +93,11 @@ While you [edit the layout in place](layout.md#in-the-panel), the bar above the 
 written until you press *Save*, and *Revert changes* puts your own layout back. That is the easy way
 to try one, and it costs nothing to change your mind.
 
+<!-- TODO screenshot: media/presets.png, as screenshots.md describes; then uncomment.
 <p align="center">
   <img src="media/presets.png" width="720" alt="The edit bar's Presets list open over the panel, a preset of your own above the three Rigline ships.">
 </p>
+-->
 
 Your own presets are listed above the ones Rigline ships. A file Rigline cannot read is listed too,
 greyed out, with the reason — so a preset you have just edited by hand says what is wrong with it

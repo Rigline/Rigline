@@ -3,9 +3,11 @@
 The clock time on every transcript entry, at the top right of the row where Claude Code puts its
 own stamp, and a divider wherever the conversation crossed a day or paused ten minutes or more.
 
+<!-- TODO screenshot: docs/media/time-marks.png, as docs/screenshots.md describes; then uncomment.
 <p align="center">
   <img src="../../docs/media/time-marks.png" width="600" alt="Transcript rows with a clock time at the right of each tool call, and a full-width divider reading 3h 12m later above the next prompt.">
 </p>
+-->
 
 There is one time per content block, the density the CLI actually writes at, not one per assistant
 turn. A divider takes the entry's place with a lead — "Today", "Yesterday", a weekday and date, or
