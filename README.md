@@ -6,11 +6,11 @@
 **Make Claude Code's VS Code panel your own.** Rigline builds on the panel Claude Code ships with
 rather than replacing it, and lets you add to it, rearrange it and switch off what you don't need.
 Out of the box it keeps your context size and your five-hour and weekly limits in view, puts your
-favourite model and effort one click away, stamps the time on every step, and more. To go further,
-[write your own plugin](docs/authoring.md) against an API that is limited on purpose.
+favourite model and effort one click away, stamps the time on every step, and more. Rigline can be extended with custom functionality -
+you can [write your own plugin](docs/authoring.md) against a limited API.
 
 <p align="center">
-  <img src="docs/media/hero.webp" width="800" alt="Claude Code's panel with Rigline's rows under the composer. The layout is edited in place: the session's cost is dragged onto a new row, the messaging address into the bar to switch it off, and the layout is saved.">
+  <img src="docs/media/hero.webp" width="720" alt="Claude Code's panel with Rigline's rows under the composer. The layout is edited in place: the session's cost is dragged onto a new row, the messaging address into the bar to switch it off, and the layout is saved.">
 </p>
 
     npm install -g rigline
@@ -28,7 +28,7 @@ weekly updates, and `rigline restore` returns the extension to the bytes it ship
 ## What you get
 
 <p align="center">
-  <img src="docs/media/composer.png" width="800" alt="The composer with Rigline's two rows under it: model favourites, the session id, the worktree and the messaging address on the first; the context meter, the session's cost and the five-hour and weekly limits on the second.">
+  <img src="docs/media/composer.png" width="720" alt="The composer with Rigline's two rows under it: model favourites, the session id, the worktree and the messaging address on the first; the context meter, the session's cost and the five-hour and weekly limits on the second.">
 </p>
 
 These plugins come with Rigline, switched on:
