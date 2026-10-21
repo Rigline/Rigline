@@ -12,6 +12,11 @@ it needs, its entry says so.
 
 ## Unreleased
 
+### Changed
+
+- `rigline`'s page on npm opens with what Rigline does, a recording of it at work, and how to
+  install it. Nothing about how any package behaves has changed.
+
 ## 2.0.0 — 2026-10-20
 
 Rigline's companion extension is part of Rigline now, not an option on it: `rigline install` puts it
