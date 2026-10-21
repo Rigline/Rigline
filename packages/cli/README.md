@@ -1,24 +1,29 @@
 # rigline
 
-The command for [Rigline](https://github.com/Rigline/Rigline), a plugin layer for the Claude Code
-VS Code extension.
+Claude Code's VS Code panel shows your context only once it's half gone, and your plan's limits
+only when you go looking. [Rigline](https://github.com/Rigline/Rigline) shows both under the
+composer from your first message, stamps the time on every step, keeps your usual model one click
+away — and lets you drag any of it wherever you like.
 
-Rigline injects a small loader into the installed extension's webview, gives plugins a
-capability-scoped context to write against, and harvests the identifiers those plugins depend on
-from whichever extension version you have installed — so an extension update is a diff to read
-rather than a breakage to chase.
-
-**This modifies files belonging to Anthropic's extension, on your machine, and that is your call to
-make.** [Anthropic compliance](https://github.com/Rigline/Rigline/blob/main/docs/anthropic-compliance.md)
-is a straight account of what Rigline does to that extension and what it does not — no credentials,
-no network calls from the panel, no rerouting of Claude usage, no redistribution — and how we read
-Anthropic's terms. `rigline restore`
-puts every install back to Anthropic's own bytes and needs nothing but Node.
-
-## Install
+<p align="center">
+  <img src="https://github.com/Rigline/Rigline/raw/main/docs/media/hero.webp" width="800" alt="Claude Code's panel with Rigline's rows under the composer. The layout is edited in place: the session's cost is dragged onto a new row, the messaging address into the bar to switch it off, and the layout is saved.">
+</p>
 
     npm install -g rigline
     rigline install
+
+Then *Developer: Reload Window* from the Command Palette. It puts itself back after each of Claude
+Code's weekly updates, and `rigline restore` returns the extension to the bytes it shipped with,
+needing nothing but Node.
+
+> Rigline modifies Anthropic's extension, on your machine.
+> [What it does and does not do](https://github.com/Rigline/Rigline/blob/main/docs/anthropic-compliance.md):
+> no credentials, no network calls from the panel, no rerouting of Claude usage.
+
+[The repository](https://github.com/Rigline/Rigline#what-you-get) has what comes with it, and how
+to make it yours.
+
+## What install does
 
 The first command you run fetches the engine, [`@rigline/core`](https://www.npmjs.com/package/@rigline/core),
 into `~/.rigline/engine` and runs it from there. It takes a few seconds and needs the registry. If
@@ -31,8 +36,8 @@ payload and injects the loader. It keeps a byte-faithful backup of each bundle i
 afterwards, which starts the companion.
 
 **Where it works:** VS Code 1.90 or newer on Windows, Linux and macOS, in a local window, with Node
-22.12 or newer. **Not supported yet:** remote windows, other editors built on VS Code, a portable VS Code, and
-a custom extensions directory. In any of them, Claude Code's panel stays as it ships.
+22.12 or newer. **Not supported yet:** remote windows, other editors built on VS Code, a portable
+VS Code, and a custom extensions directory. In any of them, Claude Code's panel stays as it ships.
 [Where Rigline works](https://github.com/Rigline/Rigline/blob/main/docs/support.md) lists each, and
 how to ask for one.
 
@@ -66,7 +71,8 @@ profile, and says what is left to you.
     rigline enable N   switch it back on, and re-inject
     rigline update     move the engine and every npm plugin to what its tag resolves to
     rigline list       every plugin, in load order: version, origin, source, switch, what it can do
-    rigline layout     where each plugin's elements are; place, order or reset them, and re-inject
+    rigline layout     where each plugin's elements are; place, order or reset them, or apply a
+                       preset, and re-inject
 
     rigline build      build a plugin to one browser ES module
     rigline dev        rebuild and re-inject as you edit

@@ -1,68 +1,117 @@
 # Rigline
 
 [![CI](https://github.com/Rigline/Rigline/actions/workflows/ci.yml/badge.svg)](https://github.com/Rigline/Rigline/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/rigline)](https://www.npmjs.com/package/rigline)
 
-A plugin layer for the Claude Code VS Code extension. Rigline injects a small loader into the
-installed extension's webview, gives plugins a capability-scoped context to write against, and
-harvests the identifiers plugins depend on from whichever extension version is installed, so an
-extension update is a diff to read rather than a breakage to chase.
+Claude Code's VS Code panel shows your context only once it's half gone, and your plan's limits
+only when you go looking. Rigline shows both under the composer from your first message, stamps
+the time on every step, keeps your usual model one click away — and lets you drag any of it
+wherever you like.
 
-Named for the line a rigger threads through gear that's already built and standing, to add
-something new without touching the rigging itself.
-
-> ### Anthropic compliance
->
-> Rigline modifies files belonging to Anthropic's Claude Code extension, on the machine of the
-> person who installed both. **[docs/anthropic-compliance.md](docs/anthropic-compliance.md)** is a
-> straight account of what it does to that extension, what it does not do — no credentials, no
-> network calls from the panel, no rerouting of Claude usage, no redistribution — and how we read
-> Anthropic's terms, including the clause that comes closest to biting.
->
-> **If you are from Anthropic, please get in touch.** We would like to discuss making Rigline
-> something you are comfortable with, and if you would rather it stopped, it will.
-
-## Status
-
-Rigline is stable. Within 2.x, a plugin, a file you wrote and a command you scripted keep working
-as [docs/stability.md](docs/stability.md) describes, and [docs/support.md](docs/support.md) says
-where Rigline runs. [docs/plan.md](docs/plan.md) has what comes next, and
-[docs/decisions.md](docs/decisions.md) the principles and decisions behind it.
-
-Writing a plugin: [docs/authoring.md](docs/authoring.md). Repairing one an extension update broke:
-[docs/anchors.md](docs/anchors.md). Working on Rigline itself:
-[docs/architecture.md](docs/architecture.md) is the map, and
-[CONTRIBUTING.md](CONTRIBUTING.md) is how to run it against your own editor. Reporting a
-vulnerability, or a plugin that breaks the plugin policy: [SECURITY.md](SECURITY.md).
-
-## Installing
+<p align="center">
+  <img src="docs/media/hero.webp" width="800" alt="Claude Code's panel with Rigline's rows under the composer. The layout is edited in place: the session's cost is dragged onto a new row, the messaging address into the bar to switch it off, and the layout is saved.">
+</p>
 
     npm install -g rigline
     rigline install
 
+Then *Developer: Reload Window* from the Command Palette. Rigline needs VS Code 1.90 or newer on
+Windows, macOS or Linux, and Node 22.12 or newer. It puts itself back after each of Claude Code's
+weekly updates, and `rigline restore` returns the extension to the bytes it shipped with.
+
+> Rigline modifies Anthropic's extension, on your machine.
+> [What it does and does not do](docs/anthropic-compliance.md): no credentials, no network calls
+> from the panel, no rerouting of Claude usage. **If you are from Anthropic, please get in touch** —
+> and if you would rather it stopped, it will.
+
+## What you get
+
+<p align="center">
+  <img src="docs/media/composer.png" width="800" alt="The composer with Rigline's two rows under it: model favourites, the session id, the worktree and the messaging address on the first; the context meter, the session's cost and the five-hour and weekly limits on the second.">
+</p>
+
+These plugins come with Rigline, switched on:
+
+- **[context-meter](plugins/context-meter/README.md)**: how full the context is, as a percentage and
+  a bar, from the moment a session opens, turning yellow and then red as it nears compaction.
+- **[usage-meter](plugins/usage-meter/README.md)**: what the session has cost, and your plan's
+  five-hour and weekly limits, coloured by where each is heading at this pace.
+- **[model-favourites](plugins/model-favourites/README.md)**: your usual model-and-effort
+  combinations as one pill, a click each.
+- **[time-marks](plugins/time-marks/README.md)**: the clock time on every tool call and thinking
+  block, and a divider wherever the conversation paused or crossed a day.
+- **[worktree](plugins/worktree/README.md)**: each session's tab prefixed with its worktree, so
+  `ABCD-123 › Refactor the bus` tells it from the others at a glance.
+- **[session-id](plugins/session-id/README.md)**: which session this panel is hosting, copied in
+  full with a click.
+- **[probe](plugins/probe/README.md)**: live self-tests of Rigline's plugin API.
+
+Rigline itself adds *Diagnostics*, in the menu behind the `RIG` pill, which says whether all of it
+is working. And it can
+[make a new session ask which model to use](docs/config.md#choosing-a-model-before-you-send) before
+it sends anything, since Claude Code keeps whichever model you last picked, in every session after.
+
+## Make it yours
+
+**Drag things around.** The move icon at the right of Rigline's row, or *Edit in place* under
+*Layout* in the RIG menu, puts a handle on everything Rigline has placed. Drag one to any place its
+plugin allows, onto *New row* to start another row, or onto the bar to switch it off; *Save* keeps
+it. [docs/layout.md](docs/layout.md) has the rest, and the same from a terminal.
+
+**Try a preset.** A preset is a whole layout in a file. *Presets* in the edit bar shows one before
+you keep it, and `rigline layout export` saves yours to hand to somebody else:
+[docs/presets.md](docs/presets.md).
+
+**Change the settings.** *Settings…* in the RIG menu has a tab for Rigline and one for each plugin
+with settings. All of it is one file, `~/.rigline/config.yaml`, which you can edit by hand and which
+keeps your comments: [docs/config.md](docs/config.md).
+
+**Add or drop plugins.** `rigline add` installs one from npm or a directory, `rigline disable NAME`
+switches one off, the ones Rigline ships included, and `rigline list` names everything you have.
+
+## Write your own
+
+A plugin is one ES module and a manifest saying where its elements may go. This puts a pill in the
+composer's footer:
+
+```tsx
+import { definePlugin } from "@rigline/plugin-api";
+import { Pill } from "@rigline/plugin-api/ui";
+
+export default definePlugin({
+  setup(ctx) {
+    return ctx.element("hello", () => <Pill>hello</Pill>);
+  },
+});
+```
+
+Claude Code updates about weekly, and its class names change with every build, so a plugin never
+names one. It names an *anchor* — `footerSpacer`, `modelPill`, `transcriptRow` — and Rigline
+resolves it against whichever version is installed. When an update moves something, the anchor is
+repaired once, for every plugin, and anybody can apply the repair through one file without waiting
+for a release ([docs/anchors.md](docs/anchors.md)). A plugin that needs something an update took
+away is refused by name, never left half-working.
+
+    npm create rigline-plugin my-plugin
+
+[docs/authoring.md](docs/authoring.md) is the guide. A plugin has no network, no filesystem and no
+code in the extension host, and [docs/plugin-policy.md](docs/plugin-policy.md) says what else is
+asked of its author.
+
+## What install does
+
 The first `rigline` command you run fetches the engine, `@rigline/core`, into `~/.rigline/engine`
 and runs it from there. `install` then puts Rigline's companion extension into every VS Code
-profile that has Claude Code, and injects the loader into every installed version of the extension:
-it harvests the identifiers from each, and keeps a byte-faithful backup of every bundle it touches.
-Then reload the window from the Command Palette with *Developer: Reload Window*, which the report
-asks for. That starts the companion, and the first install also patches the extension host, which
-only a window reload starts again.
+profile that has Claude Code, and injects a small loader into every installed version of the
+extension, keeping a byte-faithful backup of every bundle it touches. The reload starts the
+companion, and the first install also patches the extension host, which only a window reload starts
+again.
 
-The companion is the part of Rigline that lives in VS Code. It re-injects after every extension
+The companion is the part of Rigline that lives in VS Code. It re-injects after every Claude Code
 update, saves what you change in the panel, and asks npm's registry for a newer engine each time a
 window starts, moving to one once it is a day old. Putting it in needs VS Code's `code` command on
 your `PATH`; on macOS, add it with *Shell Command: Install 'code' command in PATH* from the Command
 Palette.
-
-*Diagnostics*, in the menu behind the `RIG` pill, tells you whether all of it is working. These
-plugins come with it and are switched on: the **session-id** pill in the composer footer, **time
-marks** on transcript rows, the **worktree prefix** on session tab labels, the **context meter**
-and the **usage meter**, for the session's cost and your plan's limits, under the composer, **model
-favourites**, your usual model and effort one click away, and the **probe**, which
-tests Rigline's plugin API live and adds its lines to *Diagnostics*. `rigline list` names them;
-`rigline disable NAME` switches one off. `rigline layout` shows
-where each plugin's pills sit in the panel, and moves, orders or hides them. Every setting is in one
-file you can also edit by hand, described in [docs/config.md](docs/config.md). Writing your own
-plugin is [docs/authoring.md](docs/authoring.md).
 
 `rigline update` brings the engine and every plugin you installed from npm up to date, and
 re-injects behind both. Every command that injects also puts the companion into any profile with
@@ -115,50 +164,18 @@ delete `~/.rigline`, which holds your settings, any plugin you added, and the en
 deleting: a companion still running in a window that has not reloaded is kept out by a file in
 `~/.rigline`.
 
-## Layout
+## More
 
-    packages/core         @rigline/core: the engine — harvest, codegen, inject, plugin
-                          discovery, the install flow, and every verb (of `update`, the
-                          plugins' half)
-    packages/cli          rigline: the retrieval layer that installs the engine and runs it,
-                          and moves it for `update`
-    packages/vscode       the companion extension, which re-injects after an update and saves
-                          what the panel changes
-    packages/host         the injected loader, pre.js and post.js
-    packages/plugin-api   @rigline/plugin-api: what a plugin is written against
-    packages/create-plugin create-rigline-plugin: the scaffold a plugin author starts from
-    packages/harness      Playwright tests over the real webview bundle, headless
-    plugins/              first-party plugins
-    docs/                 plan, decisions, topic docs, archive
+Rigline is stable: within 2.x, a plugin, a file you wrote and a command you scripted keep working,
+as [docs/stability.md](docs/stability.md) describes.
 
-## Developing
+- [docs/support.md](docs/support.md): where Rigline works, and asking for somewhere it does not yet.
+- [SECURITY.md](SECURITY.md): reporting a vulnerability, or a plugin breaking the plugin policy.
+- [CONTRIBUTING.md](CONTRIBUTING.md): building Rigline and running it against your own editor, with
+  [docs/architecture.md](docs/architecture.md) as the map.
+- [CHANGELOG.md](CHANGELOG.md): every release, for all four packages.
 
-pnpm 12, and Node 22.12 or newer; CI runs 22.12.0, 24 and 26, plus Windows and macOS at 22.12.0.
+Named for the line a rigger threads through gear that's already built and standing, to add
+something new without touching the rigging itself.
 
-    pnpm install
-    pnpm build
-    pnpm test
-    pnpm typecheck
-    pnpm lint
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for installing (and uninstalling) Rigline against your own
-copy of the extension.
-
-## Releasing
-
-Four packages go to npm: `rigline`, `@rigline/core`, `@rigline/plugin-api` and
-`create-rigline-plugin`. A pushed tag makes CI stage them over OIDC, so no npm token is stored
-anywhere, and a person approves afterwards with a second factor — a staged version is one nobody can
-install until they do.
-
-    pnpm release <increment>   # lint, typecheck, build, test; then changelog, manifests, tag, push
-    # approve the four staged packages at npmjs.com → your profile → Staged Packages
-    pnpm release:finish        # dist-tags, and the GitHub release
-
-Which dist-tag a version lands under is derived from the version and what the registry already
-holds, never chosen.
-
-[docs/releasing.md](docs/releasing.md) is the full runbook: the one-time npm setup, what to do when
-a step fails, and the traps that have already cost time here — `latest` staying pinned to the first
-version ever published, and both `pnpm dist-tag` and `pnpm stage approve` demanding a typed
-one-time password that a security key cannot give.
+MIT.

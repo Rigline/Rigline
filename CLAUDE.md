@@ -81,8 +81,16 @@ Written for somebody else, so don't rewrite them for us:
 - [SECURITY.md](SECURITY.md): reporting a vulnerability, or a plugin breaching plugin-policy.md,
   privately through GitHub. Written for a reporter. What it counts as a vulnerability is
   plugin-policy.md's walls, so the two change together.
+- [README.md](README.md): the front door, for somebody deciding from one screen whether Rigline is
+  worth their time. That screen is what they get, a picture, the install, and the compliance notice
+  D77 promises at the top; how it works comes after. [packages/cli/README.md](packages/cli/README.md)
+  is the same front door on npm, with absolute image URLs.
 - [docs/config.md](docs/config.md): `~/.rigline/config.yaml`, what it holds and how commands edit it,
   and the files beside it. Written for a user. The header every new `config.yaml` carries links it.
+- [docs/layout.md](docs/layout.md): arranging the panel, editing in place first, then the `layout`
+  key and `rigline layout`. Written for a user. config.md keeps only a pointer to it.
+- [docs/screenshots.md](docs/screenshots.md): every image the docs show, and a script for capturing
+  each by hand. Written for whoever redoes them. An image a doc gains goes in its list.
 - [docs/presets.md](docs/presets.md): a layout in a file — the four verbs, what a preset carries and
   what it refuses, the three that ship, and picking one in the panel. Written for a user. The
   foundation is D131: a preset is a layout, never a rig, so it installs nothing and switches nothing
@@ -94,9 +102,9 @@ Written for somebody else, so don't rewrite them for us:
 - [docs/support.md](docs/support.md): where Rigline works and what is not supported yet, as a
   matrix. Written for a user. What gets supported first goes by demand, not by who asked first, so
   it never gives a date and nothing here promises one.
-- [docs/stability.md](docs/stability.md): what 1.x keeps stable, for a plugin and for a person's
-  machine, and what it does not. Written for both. It is a promise: a change that would break
-  something on it waits for a major, and changing what it claims is a decision.
+- [docs/stability.md](docs/stability.md): what the current major keeps stable, for a plugin and for a
+  person's machine, and what it does not. Written for both. It is a promise: a change that would
+  break something on it waits for a major, and changing what it claims is a decision.
 - [docs/authoring.md](docs/authoring.md): writing, testing and shipping a plugin. Written for a
   plugin author; `packages/create-plugin/template/` is the scaffold it starts from.
 

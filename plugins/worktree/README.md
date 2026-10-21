@@ -1,29 +1,17 @@
 # worktree
 
-Prefixes a session's native VS Code tab label with the worktree it belongs to: a ticket key (e.g.
-`TD-1234`) when the worktree directory's name starts with one, and otherwise as much of the name as
-fits in eight characters as a reader counts them, cut at a word boundary. Tabs from several
-worktrees of the same repo are then told apart at a glance:
+Prefixes each session's VS Code tab with the worktree it belongs to, so tabs from several worktrees
+of the same repo are told apart at a glance:
 
     ABCD-123 › Refactor the bus
 
-The separator is a chevron rather than a hyphen because session titles routinely contain hyphens —
-a ticket key in the title is the common case — so `ABCD-123 - Refactor the bus` reads equally well
-as a session called that and not in a worktree, or a session called "Refactor the bus" inside
-worktree `ABCD-123`. Answering that at a glance is the whole point of the prefix. U+203A sits in
-the same Unicode block the rest of a title draws from, so it renders in the tab's own typeface
-rather than falling back to another font the way a box-drawing bar can, and it reads as containment,
-which is the actual relationship.
+<p align="center">
+  <img src="../../docs/media/worktree.png" width="600" alt="Three Claude Code session tabs in VS Code's tab strip, two prefixed with ticket keys and one with a shortened worktree name.">
+</p>
 
-A ticket key is never shortened, however long it is: `PLATFORM99-100001` comes through whole. The
-pattern is a letter, one to nine more letters or digits, a hyphen and one to six digits, which
-covers Jira's real bounds along with Linear and Shortcut; requiring a letter first is what keeps a
-dated name like `2026-09-14-spike` from reading as ticket `2026-09`.
-
-The word-boundary cut is not cosmetic. A blind eight-character slice turns `ABCD-1234` into
-`ABCD-123` — not a shortened name but a different, perfectly plausible ticket number, printed onto
-a real tab with nothing to tell a reader it is wrong. Cutting at the separator gives `ABCD`, which
-nobody will mistake for a key.
+The prefix is a ticket key (e.g. `TD-1234`) when the worktree directory's name starts with one, and
+otherwise as much of the name as fits in eight characters as a reader counts them, cut at a word
+boundary.
 
 ## The pills
 
@@ -35,6 +23,24 @@ name — `TD-1234…` for `TD-1234-close-the-write-leak` — and the whole name 
 Both show exactly when the tab has a prefix, and nothing otherwise: outside a worktree, and in a
 window opened on the worktree itself, whose title already says which one it is. Nothing rather than
 a placeholder such as `main`, which that second case would make wrong.
+
+## The label
+
+A ticket key is never shortened, however long it is: `PLATFORM99-100001` comes through whole. The
+pattern is a letter, one to nine more letters or digits, a hyphen and one to six digits, which
+covers Jira's real bounds along with Linear and Shortcut; requiring a letter first is what keeps a
+dated name like `2026-09-14-spike` from reading as ticket `2026-09`.
+
+The word-boundary cut is not cosmetic. A blind eight-character slice turns `ABCD-1234` into
+`ABCD-123` — not a shortened name but a different, perfectly plausible ticket number, printed onto
+a real tab with nothing to tell a reader it is wrong. Cutting at the separator gives `ABCD`, which
+nobody will mistake for a key.
+
+The separator is a chevron rather than a hyphen because session titles routinely contain hyphens —
+a ticket key in the title is the common case — so `ABCD-123 - Refactor the bus` reads equally well
+as a session called that and not in a worktree, or a session called "Refactor the bus" inside
+worktree `ABCD-123`. U+203A sits in the same Unicode block the rest of a title draws from, so it
+renders in the tab's own typeface, and it reads as containment, which is the actual relationship.
 
 ## How it works
 

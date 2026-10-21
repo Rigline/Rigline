@@ -8,6 +8,10 @@ Its lines appear under its name in *Diagnostics*, in Rigline's menu behind the `
 every other contributor's. *Diagnostics* is Rigline's own and is there with the probe switched off;
 switching it off takes away these lines and what they cost the panel, and nothing else.
 
+<p align="center">
+  <img src="../../docs/media/diagnostics.png" width="600" alt="Diagnostics open from Rigline's menu: Rigline's own checks, then each plugin's, the probe's among them, every one passing.">
+</p>
+
 ## What it checks
 
 The few things nothing else is placed to check, because they mean doing something to the bus and

@@ -51,7 +51,7 @@ Only a layout. A preset cannot switch a plugin off, and **applying one never ins
       off:
         - session-id/full-id
 
-`layout` is exactly what [config.md](config.md) describes, so everything you can write by hand you
+`layout` is exactly what [layout.md](layout.md) describes, so everything you can write by hand you
 can put in a preset, and the places and element names mean the same thing.
 
 `description` is the line `rigline layout presets` shows.
@@ -88,9 +88,14 @@ Rigline keeps your comments when it reads one.
 
 ## Applying one from the panel
 
-The Rigline row's Edit button has a **Presets** button beside *Reset to defaults*. Pick one and you
-are looking at it: nothing is written until you press *Save*, and *Revert changes* puts your own
-layout back. That is the easy way to try one, and it costs nothing to change your mind.
+While you [edit the layout in place](layout.md#in-the-panel), the bar above the composer has a
+**Presets** button beside *Reset to defaults*. Pick one and you are looking at it: nothing is
+written until you press *Save*, and *Revert changes* puts your own layout back. That is the easy way
+to try one, and it costs nothing to change your mind.
+
+<p align="center">
+  <img src="media/presets.png" width="800" alt="The edit bar's Presets list open over the panel, a preset of your own above the three Rigline ships.">
+</p>
 
 Your own presets are listed above the ones Rigline ships. A file Rigline cannot read is listed too,
 greyed out, with the reason — so a preset you have just edited by hand says what is wrong with it
@@ -129,7 +134,7 @@ An element whose plugin you have not got is *not* a refusal. That is the whole p
 `rigline layout presets` lists them with anything of your own. A preset of yours with the same name
 as a shipped one wins, and the listing says so. To get back to the layout Rigline starts with,
 there is no preset to apply: `rigline layout reset` is that, and so is *Reset to defaults* in the
-panel. [config.md](config.md) shows what that layout is.
+panel. [layout.md](layout.md) shows what that layout is.
 
 ## The files
 

@@ -3,6 +3,10 @@
 How full the session's context is, at all times: a percentage and a bar, in the row under the
 composer's controls.
 
+<p align="center">
+  <img src="../../docs/media/context-meter.png" width="600" alt="The context meter in Rigline's second row: 41% and a green bar a little under half full.">
+</p>
+
 ## What it shows
 
 - **The percentage the panel's own indicator shows**: tokens in context, against where Claude Code

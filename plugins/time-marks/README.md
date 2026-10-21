@@ -1,12 +1,16 @@
 # time-marks
 
-Puts the clock time on every transcript entry — one per content block, the density the CLI
-actually writes at, not one per assistant turn — at the top right of the row, where Claude Code
-puts its own stamp. Where the conversation jumped a calendar day or paused ten minutes or more,
-that entry gets a full-width divider instead: a lead ("Today", "Yesterday", a weekday and date, or
-"3h 12m later") plus its own time. **Time markers** in Rigline's menu, behind the RIG pill, toggles
-the whole feature; the choice persists in `localStorage`, and absence there means on — the feature
-is why the plugin is installed.
+The clock time on every transcript entry, at the top right of the row where Claude Code puts its
+own stamp, and a divider wherever the conversation crossed a day or paused ten minutes or more.
+
+<p align="center">
+  <img src="../../docs/media/time-marks.png" width="600" alt="Transcript rows with a clock time at the right of each tool call, and a full-width divider reading 3h 12m later above the next prompt.">
+</p>
+
+There is one time per content block, the density the CLI actually writes at, not one per assistant
+turn. A divider takes the entry's place with a lead — "Today", "Yesterday", a weekday and date, or
+"3h 12m later" — and its own time. **Time markers** in Rigline's menu, behind the RIG pill, switches
+the whole feature off and on; the panel's `localStorage` keeps the choice, and it starts on.
 
 Claude Code stamps user prompts and its own text replies itself, on by default
 (`claudeCode.showMessageTimestamps`). On those rows its stamp is the one that stays — same instant,

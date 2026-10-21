@@ -2,6 +2,10 @@
 
 Your usual model and effort combinations, one click each, and a pill for your default.
 
+<p align="center">
+  <img src="../../docs/media/model-favourites.png" width="600" alt="The favourites pill under the composer, reading Opus 5.5, xhigh, low, Sonnet 5.5, medium, with Opus 5.5 at xhigh highlighted as what is live.">
+</p>
+
 ## What it shows
 
 - **Your favourites as one pill**, in the row under the composer's controls. Favourites next to each

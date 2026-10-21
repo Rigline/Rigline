@@ -4,8 +4,23 @@ A plugin is one browser ES module and a `rigline.json` manifest. It runs inside 
 panel, in the app's own realm, and adds something to it: a decoration on a row, a badge in the
 footer, a change to a message on its way out.
 
-This is the guide to writing one. [anchors.md](anchors.md) covers the names you target UI by, and
-repairing one that breaks; read it when something stops resolving.
+This puts a pill in the composer's footer:
+
+```tsx
+import { definePlugin, type PluginContext } from "@rigline/plugin-api";
+import { Pill } from "@rigline/plugin-api/ui";
+
+export default definePlugin({
+  setup(ctx: PluginContext) {
+    return ctx.element("hello", () => <Pill>hello</Pill>);
+  },
+});
+```
+
+It never names one of the extension's class names, which change with every build of Claude Code,
+weekly. Where it needs a piece of the UI it names an anchor, and Rigline resolves it against
+whichever version is installed; [anchors.md](anchors.md) covers those, and repairing one that
+breaks.
 
 ## Start
 
@@ -16,23 +31,30 @@ repairing one that breaks; read it when something stops resolving.
     pnpm build
     pnpm rigline add plugins/my-plugin
 
-Then **Developer: Reload Webviews**. The scaffolded plugin puts a small badge in the composer
-footer; replace its body and keep its shape.
+Then **Developer: Reload Webviews**. The scaffolded plugin is a little more than the one above: a
+badge in the composer footer counting the session's tool calls, with a store, a check in
+*Diagnostics* and a test. Replace its body and keep its shape.
 
-`add` injects with this workspace's own engine, and like every command that injects, it makes sure
-Rigline's companion extension is in each VS Code profile that has Claude Code. Where a profile has
-none it puts one in, which fetches its own engine the first time it starts; a companion already
-there it leaves alone, whatever version it is. Putting one in needs VS Code's `code` command on your
-`PATH`.
+<p align="center">
+  <img src="media/scaffold.png" width="600" alt="The composer footer with the scaffolded plugin's badge reading 3 tool calls, beside Rigline's RIG pill.">
+</p>
 
 While you work, `pnpm rigline dev plugins/my-plugin` rebuilds on every save, installs the build as
 `add` does, and re-injects, so when you stop it the last build is the one installed. Each change
-still needs a webview reload — nothing can avoid that. `dev` injects with this workspace's
-`@rigline/core`; the companion re-injects at each window start with the engine it runs, from the
-same copy in `~/.rigline/plugins`. The two engines show only one way: where this workspace is on a
-newer release than the companion's engine, and your plugin uses something that release added, the
-next window start refuses it by name until the companion's engine moves — `rigline update --now`,
-or a day.
+still needs a webview reload — nothing can avoid that.
+
+### Your engine and the companion's
+
+`add` and `dev` inject with this workspace's own `@rigline/core`, and like every command that
+injects, they make sure Rigline's companion extension is in each VS Code profile that has Claude
+Code. Where a profile has none they put one in, which fetches its own engine the first time it
+starts; a companion already there they leave alone, whatever version it is. Putting one in needs VS
+Code's `code` command on your `PATH`.
+
+The companion re-injects at each window start with the engine it runs, from the same copy in
+`~/.rigline/plugins`. The two engines show only one way: where this workspace is on a newer release
+than the companion's engine, and your plugin uses something that release added, the next window
+start refuses it by name until the companion's engine moves — `rigline update --now`, or a day.
 
 ## The two files
 
@@ -56,24 +78,11 @@ or a day.
 }
 ```
 
-`src/index.tsx` is the module:
-
-```tsx
-import { definePlugin, type PluginContext } from "@rigline/plugin-api";
-import { Pill } from "@rigline/plugin-api/ui";
-
-export default definePlugin({
-  setup(ctx: PluginContext) {
-    return ctx.element("hello", () => <Pill>hello</Pill>);
-  },
-});
-```
-
-`setup` runs once per panel, and synchronously: register everything before it returns, since a
-`setup` that returns a promise switches the plugin off. What it returns is torn down when the plugin
-is disabled. Nothing runs when the panel closes, so keep nothing in a teardown that has to be saved.
-Everything `ctx` hands you returns its own teardown, and returning one that calls them all is the
-shape to keep.
+`src/index.tsx` is the module, as at the top of this page. `setup` runs once per panel, and
+synchronously: register everything before it returns, since a `setup` that returns a promise
+switches the plugin off. What it returns is torn down when the plugin is disabled. Nothing runs when
+the panel closes, so keep nothing in a teardown that has to be saved. Everything `ctx` hands you
+returns its own teardown, and returning one that calls them all is the shape to keep.
 
 To use a member a later Rigline added, test for it with `"selector" in ctx`. Reading one this
 Rigline lacks switches your plugin off, so `if (ctx.selector)` is not a test.

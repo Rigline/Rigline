@@ -9,6 +9,10 @@ things in all survive. A change made by hand or by a command takes effect at the
 install` (the commands run one for you), and then a reload of the panel; one saved from the panel
 reaches the panel that saved it without a reload.
 
+<p align="center">
+  <img src="media/settings.png" width="800" alt="Rigline's settings screen over the panel: a rail of tabs, Rigline's first and then one per plugin, with the Rigline tab open on the default model and when to ask for one.">
+</p>
+
     # Rigline's settings. Edit freely: rigline's commands keep your comments.
     # https://github.com/Rigline/Rigline/blob/main/docs/config.md
 
@@ -95,12 +99,8 @@ where a pinned version stays put — and it takes `effort` for a model with effo
 
 ## Where things go in the panel
 
-Some plugins put things in the panel: a pill in the composer's footer, a line in the row under the
-composer's controls. Each of those is an *element*. Its plugin decides where it goes, and whether it
-starts switched off. Rigline has two of its own, named like any other: `rigline/edit`, which starts
-editing the layout in place and starts in `rigRow`, and `rigline/reload`, which picks up the saved
-layout and starts off. A Ctrl-click on either, Cmd-click on a Mac, does what the other does, so you
-need only the one you prefer. `layout` is where you overrule that:
+`layout` says where each pill and meter goes, when you want it somewhere other than where its plugin
+puts it:
 
     layout:
       rigRow:
@@ -109,91 +109,9 @@ need only the one you prefer. `layout` is where you overrule that:
       off:
         - session-id/short-id
 
-Each key is a place, and under it are the elements you have put there, in the order you want them,
-each named `plugin/element`. A place is one of:
-
-- `rigRow`, Rigline's row at the foot of the composer box, and `rigRow 2`, `rigRow 3` and on, more
-  rows below it. A row is only there while something is in it.
-- `rigRow right`, `rigRow 2 right` and on, the right side of each row, for something you want at
-  its right edge with the space between empty. A row's own name is its left side.
-- `before`, `after` or `inside` one of the app's controls, by its anchor name: `before footerSpacer`
-  is the composer footer, beside Rigline's own pill.
-- `off`, for an element you do not want to see.
-
-An element can only go where its plugin allows, and one that can go in `rigRow` can go on either
-side of any row. A plugin that puts something in `rigRow` puts it on the left of the first. Rows show
-in number order, so `rigRow` and `rigRow 3` with nothing in `rigRow 2` are two rows; editing the
-layout in the panel numbers them from one again.
-
-    layout:
-      rigRow:
-        - session-id/address
-      rigRow right:
-        - rigline/edit
-      rigRow 2:
-        - context-meter/bar
-
-When a row is too narrow for both sides, its left side wraps first, and the right side moves to a
-line of its own only when there is no room for it beside the left, still at the right edge.
-
-`rigline layout` lists every element by place, marks those your layout put there, and says where
-else each may go: the other side of its row, the other rows on the side it is on, and a new row.
-
-    rigRow
-      session-id/address   Messaging address  yours; can also go in rigRow right or in rigRow 2
-      session-id/full-id   Full session id    yours; can also go in rigRow right or in rigRow 2
-    off
-      session-id/short-id  Session id         yours; can also go before footerSpacer, in rigRow or in rigRow 2
-
-Leave an element out and it stays where its plugin puts it, and so does everything a plugin you
-install later brings. In a place, the elements you list come first, in your order, and anything else
-that belongs there follows.
-
-Rigline starts you with a layout. Until a command first creates this file, Rigline reads it as if the
-layout were already there, and the new file starts with it:
-
-    layout:
-      rigRow:
-        - model-favourites/favourites
-        - session-id/short-id
-        - worktree/short-name
-        - session-id/address
-      rigRow right:
-        - rigline/edit
-      rigRow 2:
-        - context-meter/percent
-        - context-meter/bar
-      rigRow 2 right:
-        - usage-meter/cost
-        - usage-meter/five-hour
-        - usage-meter/seven-day
-
-It names only the plugins Rigline ships, so a plugin you add puts its elements where its author
-chose. `rigline layout reset`, or *Reset to defaults* in the panel, puts this layout back. For every
-element where its plugin puts it instead, write `layout: {}`.
-
-The same changes from the command line, each of which edits the file and re-injects:
-
-    rigline layout place session-id/address rigRow           # to the end of that place
-    rigline layout place session-id/full-id rigRow 2         # a second row
-    rigline layout place rigline/edit rigRow right           # at the first row's right edge
-    rigline layout place session-id/short-id off
-    rigline layout place session-id/short-id default         # back where its plugin puts it
-    rigline layout order rigRow session-id/full-id session-id/address
-    rigline layout reset                                     # the layout Rigline starts with
-
-A place of more than one word, like `before footerSpacer` or `rigRow 2 right`, needs no quotes.
-`order` replaces what you have listed in that place; an element you leave out of it goes back where
-its plugin puts it.
-
-An entry that does not work — a misspelt place, a plugin you have removed, a place its element cannot
-go — is named by `rigline install` and `rigline check`. The element stays where its plugin puts it,
-and the entry stays in the file, so a plugin you remove and add back finds its place waiting. An
-element listed under two places goes to the first, and the second is reported.
-
-A layout you want to keep, swap between or hand to somebody else is a *preset*: `rigline layout
-export` saves this block as a file, `rigline layout apply` puts one back, and Rigline ships a few.
-[presets.md](presets.md) is the whole of it.
+Dragging things in the panel writes this for you. [layout.md](layout.md) has every place an element
+can go, the layout Rigline starts with, and the `rigline layout` commands; a layout kept in a file of
+its own is a preset, which [presets.md](presets.md) covers.
 
 ## Mistakes
 

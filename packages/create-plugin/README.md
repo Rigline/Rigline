@@ -11,9 +11,7 @@ whether or not you ever publish it. One page, and the scaffolded README points a
 
 ## What you get
 
-A pnpm workspace with `plugins/*` and one plugin in it, rather than a single-plugin repository. The
-multi-plugin shape scaffolds correctly for one plugin and a second is then a directory copy, where a
-single-plugin template could not grow into a workspace without a restructure.
+A pnpm workspace with `plugins/*` and one plugin in it, so a second plugin is a directory copy.
 
     my-plugin/
       generated.ts              the harvested identifiers, shared by every plugin here

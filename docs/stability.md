@@ -6,11 +6,6 @@ everything this page lists as kept keeps working. A plugin written against 2.2 l
 you wrote for 2.2 means the same thing on 2.9, and a command you scripted still runs. Only a 3.0 may
 break any of it.
 
-**2.0 broke nothing a plugin relies on.** A manifest is still `api: 1`, `ctx` and
-`@rigline/plugin-api` lost nothing, and every plugin that loaded on 1.x loads on 2.0. What changed
-is how Rigline is installed: its companion extension is part of it, and `rigline install` puts it
-into VS Code.
-
 Two kinds of change are not breaks, and the changelog names each. Fixing a bug is not, even where
 something relied on it: a check that was meant to refuse something and did not gets fixed in a 2.x
 release. Nor is closing a hole: if a plugin can reach something `ctx` was never meant to give it, a

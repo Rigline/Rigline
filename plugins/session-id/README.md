@@ -3,6 +3,10 @@
 A small pill showing which session this panel is hosting, with every identifier it has in
 Rigline's menu.
 
+<p align="center">
+  <img src="../../docs/media/session-id.png" width="600" alt="The session-id pill under the composer, and Rigline's menu open on Session identifiers, listing the messaging address, the full session id and its short form.">
+</p>
+
 ## What it shows
 
 - **The first 8 characters of the session id.** Always — this is the pill's whole job.

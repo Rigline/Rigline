@@ -3,6 +3,10 @@
 What the session has cost and how much of your plan is used: three pills in the row under the
 composer's controls.
 
+<p align="center">
+  <img src="../../docs/media/usage-meter.png" width="600" alt="The session's cost and the five-hour and weekly limits under the composer, with the five-hour pill's tooltip open on its reset time and pace.">
+</p>
+
 ## What it shows
 
 - **Session cost**: Claude Code's own estimate of what this session has cost so far, the figure

@@ -13,6 +13,22 @@ indexed in [CLAUDE.md](CLAUDE.md).
 - The [Claude Code VS Code extension](https://marketplace.visualstudio.com/items?itemName=Anthropic.claude-code)
   installed, if you want to try Rigline against a real editor
 
+## The packages
+
+    packages/core          @rigline/core: the engine — harvest, codegen, inject, plugin
+                           discovery, the install flow, and every verb (of `update`, the
+                           plugins' half)
+    packages/cli           rigline: the retrieval layer that installs the engine and runs it,
+                           and moves it for `update`
+    packages/vscode        the companion extension, which re-injects after an update and saves
+                           what the panel changes
+    packages/host          the injected loader, pre.js and post.js
+    packages/plugin-api    @rigline/plugin-api: what a plugin is written against
+    packages/create-plugin create-rigline-plugin: the scaffold a plugin author starts from
+    packages/harness       Playwright tests over the real webview bundle, headless
+    plugins/               first-party plugins
+    docs/                  plan, decisions, topic docs, archive
+
 ## Build
 
     pnpm install
@@ -143,9 +159,8 @@ This puts every installed version back to the extension's own original bytes, by
 doesn't need VS Code or the extension to be working, so it's also the recovery path from a blank
 panel or a broken extension host. Reload afterwards (Developer: Reload Window is always safe).
 
-Note that installing an *update* to the Claude Code extension itself removes the old, patched
-directory and installs a fresh, unpatched one — so an extension update silently uninstalls Rigline
-for you. Run `install` again after updating.
+Rigline stays out until a command that injects puts it back, however often a window starts. To take
+the companion out of VS Code as well, `pnpm rigline uninstall`.
 
 ## Workflow
 
