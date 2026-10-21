@@ -12,6 +12,8 @@ it needs, its entry says so.
 
 ## Unreleased
 
+## 2.0.1 — 2026-10-21
+
 ### Changed
 
 - `rigline`'s page on npm opens with what Rigline does, a recording of it at work, and how to
