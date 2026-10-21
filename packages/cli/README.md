@@ -1,9 +1,10 @@
 # rigline
 
-Claude Code's VS Code panel shows your context only once it's half gone, and your plan's limits
-only when you go looking. [Rigline](https://github.com/Rigline/Rigline) shows both under the
-composer from your first message, stamps the time on every step, keeps your usual model one click
-away — and lets you drag any of it wherever you like.
+**Make Claude Code's VS Code panel your own.** [Rigline](https://github.com/Rigline/Rigline) builds
+on the panel Claude Code ships with rather than replacing it, and lets you add to it, rearrange it
+and switch off what you don't need. Out of the box it keeps your context size and your five-hour and
+weekly limits in view, puts your favourite model and effort one click away, stamps the time on every
+step, and more. What it doesn't do yet, a plugin can.
 
 <p align="center">
   <img src="https://github.com/Rigline/Rigline/raw/main/docs/media/hero.webp" width="800" alt="Claude Code's panel with Rigline's rows under the composer. The layout is edited in place: the session's cost is dragged onto a new row, the messaging address into the bar to switch it off, and the layout is saved.">
