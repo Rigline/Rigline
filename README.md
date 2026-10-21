@@ -6,8 +6,8 @@
 **Make Claude Code's VS Code panel your own.** Rigline builds on the panel Claude Code ships with
 rather than replacing it, and lets you add to it, rearrange it and switch off what you don't need.
 Out of the box it keeps your context size and your five-hour and weekly limits in view, puts your
-favourite model and effort one click away, stamps the time on every step, and more. What it doesn't
-do yet, a plugin can.
+favourite model and effort one click away, stamps the time on every step, and more. To go further,
+[write your own plugin](docs/authoring.md) against an API that is limited on purpose.
 
 <p align="center">
   <img src="docs/media/hero.webp" width="800" alt="Claude Code's panel with Rigline's rows under the composer. The layout is edited in place: the session's cost is dragged onto a new row, the messaging address into the bar to switch it off, and the layout is saved.">
