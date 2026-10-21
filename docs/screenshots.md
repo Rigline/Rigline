@@ -91,7 +91,9 @@ last ones need a session that has been running a while.
    tooltip, which Windows draws at its own scale, so the usage meter's tooltip would come out half
    the size of the pill it belongs to. A screen 3840 pixels wide becomes 1920 to work in, which is
    plenty for one panel.
-6. **Size the panel by its composer.** Claude Code never lets the composer grow past 680 CSS pixels,
+6. **Size the panel by its composer**, Claude Code's input box: the bordered box you type in, with
+   Claude Code's controls along its bottom and Rigline's rows at its foot, all inside the one
+   border. Claude Code never lets the composer grow past 680 CSS pixels,
    which at a scale of two is 1360 screen pixels, so it is a ruler that is always on screen. Open
    Claude Code in an editor tab, split the editor to the right, and drag the divider until the Claude
    Code panel is 1440 pixels wide by a screen ruler (PowerToys' *Screen Ruler* on Windows). Then
@@ -119,7 +121,7 @@ it is secret, but if you would rather not show something, crop it out rather tha
 ### composer.png
 
 Crop the panel's whole width, 1440 pixels, from a little above the composer's top border to a
-little below the bottom of Rigline's second row. Nothing open, nothing hovered.
+little below its bottom border, which is under Rigline's second row. Nothing open, nothing hovered.
 
 ### context-meter.png
 
@@ -168,7 +170,7 @@ Rehearse it twice before recording. Move the pointer slowly, and pause for half 
 after every drop, so somebody watching can follow it. Aim for 12 to 15 seconds.
 
 1. Start recording a region the panel's whole width, 1440 pixels, from a few transcript rows above
-   the composer to just below Rigline's second row: about 900 pixels tall, enough for the edit bar
+   the composer to just below its bottom border: about 900 pixels tall, enough for the edit bar
    above the composer and for a third row to appear.
 2. Hold for two seconds on the panel as it is.
 3. Click the move icon at the right of the first row. The handles and the bar appear.
