@@ -9,7 +9,7 @@ step, and more. To go further,
 API that is limited on purpose.
 
 <p align="center">
-  <img src="https://github.com/Rigline/Rigline/raw/main/docs/media/hero.webp" width="800" alt="Claude Code's panel with Rigline's rows under the composer. The layout is edited in place: the session's cost is dragged onto a new row, the messaging address into the bar to switch it off, and the layout is saved.">
+  <img src="https://github.com/Rigline/Rigline/raw/main/docs/media/hero.webp" width="720" alt="Claude Code's panel with Rigline's rows under the composer. The layout is edited in place: the session's cost is dragged onto a new row, the messaging address into the bar to switch it off, and the layout is saved.">
 </p>
 
     npm install -g rigline

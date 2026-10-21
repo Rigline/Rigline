@@ -9,24 +9,27 @@ All of them live in `docs/media/`.
 
 ## The list
 
-Width is what the doc displays it at. Capture at **twice** that, so it stays crisp on a high-density
-screen.
+Every image is captured at twice the size it is shown, and shown at half its pixel width, so the
+panel's text reads at the size it is in VS Code and a pill is the same size in every image. A
+*panel* shot is the panel's whole width, 1440 pixels, shown at 720. A *crop* is as wide as what it
+shows, and when it lands, the `width` in its doc is set to half its pixel width: the 600 there now
+is a placeholder.
 
-| File | Shown in | What it shows | Width |
+| File | Shown in | What it shows | Kind |
 | --- | --- | --- | --- |
-| `hero.webp` | README, `packages/cli/README.md` | The panel with both rows; edit in place; the cost dragged to a new row, the address into the bar; Save | 800 |
-| `composer.png` | README | The composer with the starting layout's two rows | 800 |
-| `layout-edit.webp` | `docs/layout.md` | A longer edit: the right of a row, *New row*, the bar, the tray, a row handle, Save | 800 |
-| `settings.png` | `docs/config.md` | The settings screen on Rigline's tab | 800 |
-| `presets.png` | `docs/presets.md` | The edit bar's *Presets* list open | 800 |
-| `scaffold.png` | `docs/authoring.md` | The scaffolded plugin's badge in the composer footer | 600 |
-| `context-meter.png` | `plugins/context-meter/README.md` | The percentage and bar | 600 |
-| `usage-meter.png` | `plugins/usage-meter/README.md` | Cost and both limits, the five-hour tooltip open | 600 |
-| `model-favourites.png` | `plugins/model-favourites/README.md` | The favourites pill with one favourite live | 600 |
-| `time-marks.png` | `plugins/time-marks/README.md` | Times on tool-call rows and a *later* divider | 600 |
-| `worktree.png` | `plugins/worktree/README.md` | Session tabs prefixed with their worktrees | 600 |
-| `session-id.png` | `plugins/session-id/README.md` | The pill, and *Session identifiers* open in the menu | 600 |
-| `diagnostics.png` | `plugins/probe/README.md` | *Diagnostics* open, every check passing | 600 |
+| `hero.webp` | README, `packages/cli/README.md` | The panel with both rows; edit in place; the cost dragged to a new row, the address into the bar; Save | panel |
+| `composer.png` | README | The composer with the starting layout's two rows | panel |
+| `layout-edit.webp` | `docs/layout.md` | A longer edit: the right of a row, *New row*, the bar, the tray, a row handle, Save | panel |
+| `settings.png` | `docs/config.md` | The settings screen on Rigline's tab | panel |
+| `presets.png` | `docs/presets.md` | The edit bar's *Presets* list open | panel |
+| `scaffold.png` | `docs/authoring.md` | The scaffolded plugin's badge in the composer footer | crop |
+| `context-meter.png` | `plugins/context-meter/README.md` | The percentage and bar | crop |
+| `usage-meter.png` | `plugins/usage-meter/README.md` | Cost and both limits, the five-hour tooltip open | crop |
+| `model-favourites.png` | `plugins/model-favourites/README.md` | The favourites pill with one favourite live | crop |
+| `time-marks.png` | `plugins/time-marks/README.md` | Times on tool-call rows and a *later* divider | crop |
+| `worktree.png` | `plugins/worktree/README.md` | Session tabs prefixed with their worktrees | crop |
+| `session-id.png` | `plugins/session-id/README.md` | The pill, and *Session identifiers* open in the menu | crop |
+| `diagnostics.png` | `plugins/probe/README.md` | *Diagnostics* open, every check passing | crop |
 | `social-preview.png` | GitHub's repository settings only | A still of the panel at 1280×640 | — |
 
 Each doc's `alt` text says exactly what its image shows. If a capture shows something different,
@@ -82,12 +85,27 @@ last ones need a session that has been running a while.
    `plugins/model-favourites/README.md`.
 4. **Open this repository in VS Code**, the main checkout and not a worktree, with the default *Dark
    Modern* theme. Close every other editor tab, so nothing personal is in the tab strip.
-5. **Make the panel the right size.** Open Claude Code in an editor tab. Make it wide enough that
-   each of Rigline's rows fits on one line, and no wider: about half of a laptop's screen. On a
-   display at 100% scaling, set VS Code's zoom to make up for it (`window.zoomLevel` at 3 or 4) so
-   that the crops below come out at twice their width in the table. On a 200% or Retina display,
-   leave the zoom alone.
-6. **Start a session in a worktree.** In a new Claude Code session, ask Claude to enter a worktree
+5. **Scale the screen by exactly two.** On Windows, set *Settings → System → Display → Scale* to
+   200%, and put VS Code's zoom back to its default with *View: Reset Zoom*. A Mac's Retina screen
+   is already two. Do not get the two from VS Code's zoom instead: it scales the panel but not a
+   tooltip, which Windows draws at its own scale, so the usage meter's tooltip would come out half
+   the size of the pill it belongs to. A screen 3840 pixels wide becomes 1920 to work in, which is
+   plenty for one panel.
+6. **Size the panel by its composer.** Claude Code never lets the composer grow past 680 CSS pixels,
+   which at a scale of two is 1360 screen pixels, so it is a ruler that is always on screen. Open
+   Claude Code in an editor tab, split the editor to the right, and drag the divider until the Claude
+   Code panel is 1440 pixels wide by a screen ruler (PowerToys' *Screen Ruler* on Windows). Then
+   measure the composer's box from border to border:
+   - **1360**: the scale is two, and the composer is as wide as it goes. Rigline's rows have all the
+     room they can have, and the panel's edges sit about 40 pixels outside the composer's.
+   - **Less, with the panel at 1440**: the scale is not two. Check step 5, including that VS Code's
+     zoom is at its default.
+   - **1360, but the panel is wider than 1440**: harmless for a crop, but drag the panel back, since
+     every panel shot is the panel's whole width.
+
+   If one of Rigline's rows wraps at this width, it wraps for everybody whose panel is this wide or
+   wider, so capture it as it is.
+7. **Start a session in a worktree.** In a new Claude Code session, ask Claude to enter a worktree
    named `RIG-101-launch-docs`. That makes `.claude/worktrees/RIG-101-launch-docs`, and the tab
    reads `RIG-101 › ...`. Then give it a few small tasks that use tools: read a file, grep for
    something, run `pnpm lint`. That gives the transcript rows with times, the context meter a
@@ -100,8 +118,8 @@ it is secret, but if you would rather not show something, crop it out rather tha
 
 ### composer.png
 
-Crop the composer box from its top border to the bottom of Rigline's second row, across the full
-width of the panel. Nothing open, nothing hovered.
+Crop the panel's whole width, 1440 pixels, from a little above the composer's top border to a
+little below the bottom of Rigline's second row. Nothing open, nothing hovered.
 
 ### context-meter.png
 
@@ -130,8 +148,8 @@ one does not, that is a bug to look at before this is a picture.
 
 ### settings.png
 
-Open *Settings…* from the menu behind the `RIG` pill, on Rigline's tab, and snip the screen with its
-rail of tabs.
+Open *Settings…* from the menu behind the `RIG` pill, on Rigline's tab, and snip the panel's whole
+width with the screen and its rail of tabs in it.
 
 ### presets.png
 
@@ -141,15 +159,17 @@ Give yourself a preset of your own first, so the list shows both kinds:
 
 Then in the panel, *Reload* from the `RIG` menu's *Layout* so the new preset is listed. Start
 editing with the move icon at the right of the first row, open *Presets* in the bar, and take a
-delayed snip of the bar with the list open and the rows below it. Press *Done*.
+delayed snip of the panel's whole width, with the bar, the open list and the rows below it. Press
+*Done*.
 
 ### hero.webp
 
 Rehearse it twice before recording. Move the pointer slowly, and pause for half a second before and
 after every drop, so somebody watching can follow it. Aim for 12 to 15 seconds.
 
-1. Start recording a region covering the last few transcript rows and the whole composer, with room
-   above it for the edit bar.
+1. Start recording a region the panel's whole width, 1440 pixels, from a few transcript rows above
+   the composer to just below Rigline's second row: about 900 pixels tall, enough for the edit bar
+   above the composer and for a third row to appear.
 2. Hold for two seconds on the panel as it is.
 3. Click the move icon at the right of the first row. The handles and the bar appear.
 4. Drag *Session cost*, on the right of the second row, onto *New row*.
@@ -159,12 +179,12 @@ after every drop, so somebody watching can follow it. Aim for 12 to 15 seconds.
 
 Convert it, from where the recording landed:
 
-    ffmpeg -i hero.mp4 -vf "fps=15,scale=1600:-1:flags=lanczos" -c:v libwebp_anim -q:v 75 -loop 0 -an docs/media/hero.webp
+    ffmpeg -i hero.mp4 -vf "fps=15" -c:v libwebp_anim -q:v 75 -loop 0 -an docs/media/hero.webp
 
-`libwebp_anim` stores only what changes between frames, which suits a panel where little moves; if
-your ffmpeg lacks it (`ffmpeg -hide_banner -encoders` lists what it has), use `libwebp`. Keep the
-result under about 5 MB, for the page's sake: lower `fps` to 12, then `-q:v` to 60, before cutting
-the width.
+It keeps the recording's size, which is already twice the size it is shown at. `libwebp_anim`
+stores only what changes between frames, which suits a panel where little moves; if your ffmpeg
+lacks it (`ffmpeg -hide_banner -encoders` lists what it has), use `libwebp`. Keep the result under
+about 5 MB, for the page's sake: lower `fps` to 12, then `-q:v` to 60.
 
 Then put the layout back for the shots after it:
 
@@ -238,12 +258,17 @@ the next person can start from it, and no doc shows it.
        git worktree remove .claude/worktrees/RIG-205-anchor-repair
        git worktree remove .claude/worktrees/presets-gallery
 
-   and your own favourites and default in *Settings…*, if you had others.
-2. **Check every file** is in `docs/media/` under the name in the list, and at twice its width.
+   and your own favourites and default in *Settings…*, if you had others, and the display's scale
+   to what it was.
+2. **Check every file** is in `docs/media/` under the name in the list, every panel shot is 1440
+   pixels wide, and every crop's `width` in its doc is half its pixel width.
 3. **Make the stills smaller** if you have [oxipng](https://github.com/shssoichiro/oxipng):
    `oxipng -o 4 --strip safe docs/media/*.png`. It changes no pixel.
 4. **Look at them on GitHub** before announcing anything: push a branch other than `main` and open
    the README there. If `hero.webp` does not move, make GIFs instead, and change `.webp` to `.gif`
    in the README and `packages/cli/README.md`:
 
-       ffmpeg -i hero.mp4 -vf "fps=12,scale=800:-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse" -loop 0 docs/media/hero.gif
+       ffmpeg -i hero.mp4 -vf "fps=12,scale=720:-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse" -loop 0 docs/media/hero.gif
+
+   That GIF is at the size it is shown rather than twice it, which keeps its size down at the cost
+   of some sharpness.

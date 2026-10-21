@@ -6,7 +6,7 @@ write it in `~/.rigline/config.yaml`, or move it with `rigline layout`: all thre
 file.
 
 <p align="center">
-  <img src="media/layout-edit.webp" width="800" alt="Editing the layout in place: handles appear over each element, one is dragged to the right of a row, another onto New row, a third into the bar to switch it off, and the result is saved.">
+  <img src="media/layout-edit.webp" width="720" alt="Editing the layout in place: handles appear over each element, one is dragged to the right of a row, another onto New row, a third into the bar to switch it off, and the result is saved.">
 </p>
 
 ## In the panel

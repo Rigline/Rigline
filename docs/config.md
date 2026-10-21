@@ -10,7 +10,7 @@ install` (the commands run one for you), and then a reload of the panel; one sav
 reaches the panel that saved it without a reload.
 
 <p align="center">
-  <img src="media/settings.png" width="800" alt="Rigline's settings screen over the panel: a rail of tabs, Rigline's first and then one per plugin, with the Rigline tab open on the default model and when to ask for one.">
+  <img src="media/settings.png" width="720" alt="Rigline's settings screen over the panel: a rail of tabs, Rigline's first and then one per plugin, with the Rigline tab open on the default model and when to ask for one.">
 </p>
 
     # Rigline's settings. Edit freely: rigline's commands keep your comments.
