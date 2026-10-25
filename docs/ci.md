@@ -217,5 +217,5 @@ per package, so `next` stays unset while no stable line exists (D61).
 move `latest` on every package afterwards, which is the one arrangement where a partial approval
 never reaches a user. It costs an authenticated retag per package every release on top of the
 approvals, and it undoes D61's *publish to the tag rather than move it*, to cover a route that
-`release:finish` has made the fallback and `registry.yml` watches. Worth weighing again if one
-authentication turns out to cover several writes (D146).
+`release:finish` has made the fallback and `registry.yml` watches (D146). One authentication does
+not cover several writes — 2.1.0 asked once per approval — so that cost would be paid in full.

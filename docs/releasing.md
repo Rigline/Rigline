@@ -205,17 +205,21 @@ tier, so the local run is the stronger one.
 
    After the push it carries straight on into `release:finish`, below. Ctrl-C there loses
    nothing.
-2. **The wait.** `release:finish` polls `npm stage list` until every package has a stage at the
-   version and none is still `validating`, printing a line as each one changes, and approves nothing
-   before that. The slowest of npm's checks sets when it asks for you, so it is safe to walk away.
-   A failed release run stops the wait, since it would never stage the rest. Nothing
+2. **The wait.** `release:finish` polls `npm stage list` until every package's stage reads
+   `staged`, printing a line as each one changes — not staged, `validating`, `staged` — and approves
+   nothing before that. The slowest of npm's checks sets when it asks for you, so it is safe to walk
+   away; for 2.1.0 the checks took about two minutes. Any other status is npm's verdict on a stage,
+   and stops it with nothing approved, naming the package. So does a failed release run, which
+   would never stage the rest. Nothing
    notifies you that a stage is waiting, which is why the command waits instead. The run's summary
    names each package and version staged. `npm stage list --json` showing `"actorType": "trusted
    automation"` on each is the proof every OIDC exchange worked.
 3. **Approval, in order.** `npm stage approve` for each package: plugin-api, then core, then the
-   two that reach it at runtime. Each asks for your second factor — *Press ENTER to open in the
-   browser* for a security key — and the first refusal stops it, so nothing is published ahead of
-   what it needs. Run it again to carry on.
+   two that reach it at runtime. Each is its own authentication — *Press ENTER to open in the
+   browser* for a security key, once per package, since one does not carry to the next — and the
+   first refusal stops it, so nothing is published ahead of what it needs. Run it again to carry
+   on. Each also prints npm's notice about tokens that bypass 2FA, which is about tokens this
+   release does not use.
 
    **Approving on the website is the fallback**, at
    `https://www.npmjs.com/settings/<user>/staged-packages`, for when the browser step will not

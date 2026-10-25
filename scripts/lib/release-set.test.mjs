@@ -66,26 +66,32 @@ describe("stageReadiness", () => {
   });
 
   it("waits for a package with no stage yet", () => {
-    const { rows, ready } = stageReadiness([stage("a", "ready")], ["a", "b"], "2.0.1");
-    expect(ready).toBe(false);
+    const { rows, verdict } = stageReadiness([stage("a", "staged")], ["a", "b"], "2.0.1");
+    expect(verdict).toBe("wait");
     expect(rows[1]).toEqual({ name: "b", id: null, status: "not staged" });
   });
 
   it("waits while any stage is still validating", () => {
-    const stages = [stage("a", "ready"), stage("b", "validating")];
-    expect(stageReadiness(stages, ["a", "b"], "2.0.1").ready).toBe(false);
+    const stages = [stage("a", "staged"), stage("b", "validating")];
+    expect(stageReadiness(stages, ["a", "b"], "2.0.1").verdict).toBe("wait");
   });
 
-  it("is ready when every stage is past validating, whatever npm calls that", () => {
-    const stages = [stage("a", "ready"), stage("b", "something new")];
-    const { rows, ready } = stageReadiness(stages, ["a", "b"], "2.0.1");
-    expect(ready).toBe(true);
+  it("is ready when every stage reads staged", () => {
+    const stages = [stage("a", "staged"), stage("b", "staged")];
+    const { rows, verdict } = stageReadiness(stages, ["a", "b"], "2.0.1");
+    expect(verdict).toBe("ready");
     expect(rows.map((row) => row.id)).toEqual(["a-id", "b-id"]);
   });
 
+  it("is stuck on any other status, even while another is still validating", () => {
+    // Waiting out the rest would only delay hearing that this release cannot be approved whole.
+    const stages = [stage("a", "rejected"), stage("b", "validating")];
+    expect(stageReadiness(stages, ["a", "b"], "2.0.1").verdict).toBe("stuck");
+  });
+
   it("ignores a stage at another version", () => {
-    const stages = [stage("a", "ready", "2.0.0")];
-    expect(stageReadiness(stages, ["a"], "2.0.1").ready).toBe(false);
+    const stages = [stage("a", "staged", "2.0.0")];
+    expect(stageReadiness(stages, ["a"], "2.0.1").verdict).toBe("wait");
   });
 });
 

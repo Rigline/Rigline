@@ -120,13 +120,22 @@ async function waitForStages(names) {
       continue;
     }
     unreadable = false;
-    const { rows, ready } = stageReadiness(stages, names, version);
+    const { rows, verdict } = stageReadiness(stages, names, version);
     for (const row of rows) {
       if (shown.get(row.name) === row.status) continue;
       shown.set(row.name, row.status);
       say(`  ${clock()}  ${row.name}  ${row.status}`);
     }
-    if (ready) return rows;
+    if (verdict === "ready") return rows;
+    if (verdict === "stuck") {
+      const odd = rows.filter(
+        (row) => row.id !== null && !["staged", "validating"].includes(row.status),
+      );
+      fail(
+        `npm has not passed ${odd.map((row) => `${row.name} (${row.status})`).join(", ")}, so ` +
+          `nothing was approved. \`npm stage view ${odd[0].id}\` says why`,
+      );
+    }
     // A failed run stages nothing, and nothing else would end the wait.
     if (rows.some((row) => row.id === null) && runVerdict("release.yml", sha) === "failure") {
       fail(

@@ -4233,7 +4233,8 @@ moves that package's `latest`, so a release reaches users package by package. Ap
 website in whatever order the checks finished, 2.0.1 put a core on `latest` that pinned a
 plugin-api the registry did not have, for 43 hours, and nothing said so: the release run ends
 before approval, and `release:finish` was the only thing that read the set and was optional once
-the website had done the approving.
+the website had done the approving. 2.0.0 had done the same for about fourteen minutes, `rigline`
+published before its core (`npm view <package> time`).
 
 So `release:finish` approves all of the packages or none. It waits until each package still to
 publish has a stage npm has finished checking, then approves through `npm stage approve`, which

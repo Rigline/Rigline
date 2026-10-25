@@ -43,11 +43,10 @@ export function approvalOrder(manifests) {
 }
 
 /**
- * Each package's stage at a version, and whether all of them can be approved now.
- *
- * Ready when every one has a stage and none is still `validating`. Any other status counts as
- * ready: the registry refuses an approval it will not take, and approving in `approvalOrder` makes
- * that refusal leave a set that resolves.
+ * Each package's stage at a version, and what to do about all of them: `ready` when every one reads
+ * `staged`, `wait` while one is missing or `validating`, and `stuck` on any other status, which is
+ * npm's verdict on a stage rather than a step on the way, so a person reads it before anything is
+ * approved.
  */
 export function stageReadiness(stages, names, version) {
   const rows = names.map((name) => {
@@ -56,8 +55,13 @@ export function stageReadiness(stages, names, version) {
       ? { name, id: null, status: "not staged" }
       : { name, id: stage.id, status: String(stage.status ?? "no status") };
   });
-  const ready = rows.every((row) => row.id !== null && row.status !== "validating");
-  return { rows, ready };
+  const pending = (row) => row.id === null || row.status === "validating";
+  const verdict = rows.every((row) => row.status === "staged")
+    ? "ready"
+    : rows.some((row) => !pending(row) && row.status !== "staged")
+      ? "stuck"
+      : "wait";
+  return { rows, verdict };
 }
 
 /**
