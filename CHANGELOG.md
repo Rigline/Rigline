@@ -12,6 +12,8 @@ it needs, its entry says so.
 
 ## Unreleased
 
+## 2.1.0 — 2026-10-25
+
 ### Fixed
 
 - After moving from 1.x, every VS Code profile but the one `rigline install` ran in could keep its
