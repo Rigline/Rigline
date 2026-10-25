@@ -42,14 +42,18 @@ layout`. All three also fit in the composer footer.
 - **The cost moves when a turn finishes**, so a long turn shows the last one's figure until it
   ends. It falls on `/clear`, and a resumed session continues from what Claude Code saved for it.
 - **The limits move when Claude Code next hears from Anthropic**, which is after each request in
-  any panel, and a window resets on time.
+  any panel signed in to the same account, in this window or another, and a window resets on time.
+  Claude Code's own *Account & usage* bars follow only their own window, so the pills can be ahead
+  of them.
+- **A sidebar panel hears other sidebars, and an editor tab other tabs.** A window holding both
+  passes readings between them.
 
 ## What it depends on
 
 - **`cost: true`** (required): `ctx.onSessionCost`, which the host reads from each turn's result.
 - **`limits: true`** (optional): `ctx.onUsageLimits`, which the host reads from the usage windows
-  the extension sends every panel. Without it the limit pills stay dimmed, and the cost pill still
-  works.
+  the extension sends every panel and the readings other panels share. Without it the limit pills
+  stay dimmed, and the cost pill still works.
 
-How both are derived is D129 in `docs/decisions.md`. Rigline asks Claude Code for none of it: both
-are messages the panel already receives.
+How both are derived is D129 and D147 in `docs/decisions.md`. Rigline asks Claude Code for none of
+it: both are messages the panels already receive.

@@ -4261,3 +4261,48 @@ nothing for the packages that reach core at runtime.
 
 **Amends D46:** approval is npm's, one package at a time in the derived order, rather than pnpm's
 single batch, and that order replaces checking `rigline` beside core by hand.
+
+**D147. Every panel shows the newest usage reading on the machine for its account (2026-10-26,
+Leo).** The 5h and 7d windows reached a panel only from its own window's extension host, which
+merges them and pushes them to that window's panels. A window's copy moved on its own turns and a
+few `get_usage` reads, so one idle since lunch showed lunch while another spent the quota, and
+usage-meter's pace, `used / elapsed`, drifted the frozen figure towards green. D129's "every panel
+sees the same" held per window, not per account.
+
+So the limits service shares readings on D141's channel, which reaches every editor-tab panel in
+every window, and should reach every profile, since VS Code keeps the origin in application scope.
+
+- **A reading carries when it was observed.** A session's `rate_limit_event`, read from the
+  `io_message` carrying it, is stamped with the envelope's `hostForwardedAt`. The extension's
+  `panel_usage_update` carries no time and is sometimes its hours-old seed for a new panel, so it
+  counts as observed no later than it arrived.
+- **The newest observation stands.** Where the times settle it, the newer reading stands whichever
+  way the figure moves. Where they do not, a reading stands only by raising it: a later reset, or
+  within one period more used. Resets an hour apart or nearer are one period, since the extension
+  rounds one of its sources to the second. A stale seed cannot lower a fresher figure, and the next
+  stamped reading corrects a wrong one.
+- **Epoch time, with its one inaccuracy accepted (Leo).** Stamps are milliseconds since the epoch on
+  one machine's clock, so time zones and DST do not move them. A clock corrected by hand or by NTP
+  can let an older reading stand until the next turn.
+- **Readings are keyed by account: the email address and the organisation's name, from
+  `config.account`.** One address can hold a personal plan and a Team seat with separate limits. A
+  panel that knows neither takes nothing and posts nothing. The key is a plain string, since a plugin
+  already reads every message on the bus (authoring.md). A reading names no account, so the key is
+  what the panel believes, and a tool swapping credentials under a running CLI can make it wrong
+  until the next stamped reading.
+- **A panel posts what its own sources changed, and never what it heard.** On learning its account
+  it asks, and each panel holding a reading for that account answers. A window with both a sidebar
+  and a tab bridges the two origins through its extension, which pushes to both.
+
+Unchanged: `ctx.onUsageLimits` and its shape, and the `limits` contract's one message. The new taps
+fall back to the old behaviour when absent, D129's exception for the auth messages. Claude Code's
+own usage bars keep their window's copy, and Rigline sends nothing to bring them level.
+
+Rejected: dating `panel_usage_update` with a host patch, a window reload and an anchor per version
+for a message first-hand readings make a fallback. Keeping readings in the origin's `localStorage`,
+which covers nothing: with no panel open nothing newer exists, and the sidebar's storage is its own.
+A view across accounts, which is a rotation aid and a question for D77's document, not a feature.
+
+**Amends D141:** the channel carries the host's messages about limits as well as saves, one
+envelope with a body each type reads. **Amends D129:** the limits come from every panel on the
+machine signed in to the account.

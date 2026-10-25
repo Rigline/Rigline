@@ -1,9 +1,9 @@
 /**
  * How much of the account's plan is used, read off the windows the extension pushes to every panel
- * (decisions.md, D129).
+ * (decisions.md, D129) and the readings other panels share (D147).
  *
- * Pure: the panel's own merge of `panel_usage_update`, what the merged windows read as at a given
- * time, and who is signed in. The host's limits service holds the state and the reset timer.
+ * Pure: which of two readings stands, what the held windows read as at a given time, and who is
+ * signed in. The host's limits service holds the state and the reset timer.
  */
 
 /** One plan window, as the panel's own usage bars read it. */
@@ -38,7 +38,22 @@ export interface RawWindow {
 
 export type RawWindows = Readonly<{ five_hour?: RawWindow; seven_day?: RawWindow }>;
 
-const NAMES = ["five_hour", "seven_day"] as const;
+export const WINDOW_KEYS = ["five_hour", "seven_day"] as const;
+export type WindowKey = (typeof WINDOW_KEYS)[number];
+
+/**
+ * A window and when it was observed, in milliseconds since the epoch: exactly where the reading was
+ * stamped, and no later than `at` where it was not (D147).
+ */
+export interface Reading extends RawWindow {
+  readonly at: number;
+  readonly exact: boolean;
+}
+
+export type Readings = Readonly<{ five_hour?: Reading; seven_day?: Reading }>;
+
+/** The windows one message states: a reading each, or null for one the extension deletes. */
+export type Stated = Readonly<{ five_hour?: Reading | null; seven_day?: Reading | null }>;
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -56,29 +71,70 @@ function rawWindow(value: unknown): RawWindow | null {
   return utilization === null ? null : { utilization, resetsAt: count(w?.resetsAt) };
 }
 
-/**
- * `current` after one `panel_usage_update`, merged as the panel merges it: a window sent as null is
- * deleted, one left out is kept, and one without a reset time never replaces one with. `current`
- * itself when nothing changed.
- */
-export function mergeWindows(current: RawWindows, update: unknown): RawWindows {
-  const windows = asRecord(asRecord(update)?.unifiedWindows);
-  if (windows === null) return current;
-  let next: { five_hour?: RawWindow; seven_day?: RawWindow } | null = null;
-  for (const name of NAMES) {
+/** What a `unifiedWindows` states, each window it sends a reading observed at `at`. */
+export function statedAt(unifiedWindows: unknown, at: number, exact: boolean): Stated {
+  const windows = asRecord(unifiedWindows);
+  const stated: { five_hour?: Reading | null; seven_day?: Reading | null } = {};
+  if (windows === null) return stated;
+  for (const name of WINDOW_KEYS) {
     if (windows[name] === null) {
-      if (current[name] === undefined) continue;
-      next ??= { ...current };
-      delete next[name];
+      stated[name] = null;
       continue;
     }
     const window = rawWindow(windows[name]);
-    if (window === null) continue;
-    if (window.resetsAt === null && current[name]?.resetsAt != null) continue;
-    next ??= { ...current };
-    next[name] = window;
+    if (window !== null) stated[name] = { ...window, at, exact };
   }
-  return next ?? current;
+  return stated;
+}
+
+/** A reading as another panel sent it, or null where it does not hold. */
+export function readingFrom(value: unknown): Reading | null {
+  const window = rawWindow(value);
+  const r = asRecord(value);
+  const at = count(r?.at);
+  if (window === null || at === null || typeof r?.exact !== "boolean") return null;
+  return { ...window, at, exact: r.exact };
+}
+
+/**
+ * Resets nearer than this, in seconds, are one period's: the extension rounds the usage endpoint's
+ * to the second, and periods are hours apart.
+ */
+const SAME_PERIOD = 3600;
+
+/**
+ * Whether `next` stands over `held` (D147). Where the times settle it the newer stands, whichever
+ * way the figure moves; where they do not, `next` stands only by raising it. One without a reset
+ * time never stands over one with, as the panel merges.
+ */
+export function supersedes(held: Reading | undefined, next: Reading): boolean {
+  if (held === undefined) return true;
+  if (next.resetsAt === null && held.resetsAt !== null) return false;
+  if (next.exact && next.at > held.at) return true;
+  if (held.exact && next.at <= held.at) return false;
+  const [was, now] = [held.resetsAt ?? 0, next.resetsAt ?? 0];
+  return Math.abs(now - was) < SAME_PERIOD ? next.utilization > held.utilization : now > was;
+}
+
+/**
+ * `held` after `stated`: each reading that supersedes what is held, and each window stated as null
+ * deleted. `held` itself when nothing changed.
+ */
+export function mergeReadings(held: Readings, stated: Stated): Readings {
+  let next: { five_hour?: Reading; seven_day?: Reading } | null = null;
+  for (const name of WINDOW_KEYS) {
+    const reading = stated[name];
+    if (reading === undefined) continue;
+    if (reading === null) {
+      if (held[name] === undefined) continue;
+      next ??= { ...held };
+      delete next[name];
+    } else if (supersedes(held[name], reading)) {
+      next ??= { ...held };
+      next[name] = reading;
+    }
+  }
+  return next ?? held;
 }
 
 function windowAt(raw: RawWindow | undefined, now: number): LimitWindow | null {
@@ -95,7 +151,7 @@ export function limitsAt(raw: RawWindows, now: number): UsageLimits {
 
 /** The earliest reset still to come, in milliseconds since the epoch, or null. */
 export function nextReset(raw: RawWindows, now: number): number | null {
-  const times = NAMES.map((name) => raw[name]?.resetsAt)
+  const times = WINDOW_KEYS.map((name) => raw[name]?.resetsAt)
     .filter((s): s is number => typeof s === "number")
     .map((s) => s * 1000)
     .filter((ms) => ms > now);

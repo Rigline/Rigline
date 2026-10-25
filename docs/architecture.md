@@ -34,9 +34,10 @@ nothing can push into a panel; it can only read a file again, under a fresh quer
 One thing goes the other way: a link a person clicks, which VS Code routes to the companion's URI
 handler. That is the panel's Save, and it needs the companion, which is part of Rigline: where no
 token was baked, or the layout is too large for a link, Save is off and says why (D93, D143). And
-one thing goes between panels: a saving panel tells the
-other editor-tab panels what it saved, on a `BroadcastChannel` named in `registry.js`, a hint that
-shortens their wait for their own read and is never relied on in its place (D141).
+one channel runs between panels, a `BroadcastChannel` named in `registry.js` that reaches every
+editor-tab panel. A saving panel tells the others what it saved, a hint that shortens their wait for
+their own read and is never relied on in its place (D141), and each panel shares the usage readings
+its sessions see, so every panel on an account shows the newest (D147).
 
 Two consequences run through everything. **The payload is version-independent** (P7): `pre.js` and
 `post.js` name no harvested identifier, so one build of them serves every installed version, and

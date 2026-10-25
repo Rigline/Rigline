@@ -1,21 +1,16 @@
 /**
- * Telling the other panels a save happened (D141): a `BroadcastChannel` every editor-tab panel on
- * this machine shares, under a name `install` derives from the token. A hint that shortens the wait
- * for the look-on-focus read and is never relied on in its place, so whatever arrives that this
- * version does not understand is dropped and counted, and the read covers it.
+ * Telling the other panels a save happened (D141), on the channel they share. A hint that shortens
+ * the wait for the look-on-focus read and is never relied on in its place.
  */
 import {
   type Layout,
-  RIGLINE,
   type RiglineSettings,
   readLayout,
   readModelSettings,
   sameValue,
 } from "@rigline/plugin-api/internal";
-import type { Diagnostics } from "./bridge.ts";
+import type { Peers } from "./peers.ts";
 import { type Announcer, CONFIRM_FOR_MS, type Changed, type SavedState } from "./saving.ts";
-
-export const BROADCAST_VERSION = 1;
 
 type Type = "saving" | "saved";
 type Section = Readonly<Record<string, unknown>>;
@@ -31,14 +26,10 @@ export interface Broadcast extends Announcer {
   seen<T extends Held>(read: T): T;
   /** Starts hearing other panels' saves, which `apply` takes as a read of the keys they name. */
   listen(current: () => Held, apply: (changed: Changed) => void): void;
-  close(): void;
 }
 
 export interface BroadcastOptions {
-  /** The channel's name from `registry.js`, or null where there is no token and so no save. */
-  readonly name: string | null;
-  readonly counts: Diagnostics["broadcast"];
-  readonly fail: (reason: string) => void;
+  readonly peers: Peers;
   /** Milliseconds, injected so a test can step past an optimistic value's life. */
   readonly now?: () => number;
 }
@@ -58,10 +49,6 @@ const EMPTY: Section = Object.freeze({});
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function message(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
 }
 
 function placesOf(changed: Changed): [Place, unknown][] {
@@ -124,52 +111,13 @@ function readChanged(body: unknown): Changed | string {
   return changed;
 }
 
-/** The envelope's type and what it says changed, or why it was dropped. */
-function readMessage(data: unknown, self: string): { type: Type; changed: Changed } | string {
-  if (!isRecord(data)) return "a message that is not an object";
-  if (data.v !== BROADCAST_VERSION) return "an unknown version";
-  if (typeof data.from !== "string") return "no sender";
-  if (data.from === self) return "its own message";
-  if (data.ns !== RIGLINE) return "an unknown namespace";
-  if (data.type !== "saving" && data.type !== "saved") return "an unknown type";
-  const changed = readChanged(data.body);
-  return typeof changed === "string" ? changed : { type: data.type, changed };
-}
-
-/** Random per panel and never kept: a panel only has to know itself within its own life. */
-function senderId(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(16));
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-}
-
 export function createBroadcast(options: BroadcastOptions): Broadcast {
-  const { name, counts, fail } = options;
+  const { peers } = options;
   const now = options.now ?? (() => performance.now());
-  const from = senderId();
   const optimistic = new Map<string, Optimistic>();
-  let channel: BroadcastChannel | null = null;
-  if (name !== null) {
-    try {
-      channel = new BroadcastChannel(name);
-      counts.open = true;
-    } catch (e) {
-      fail(`the channel did not open: ${message(e)}`);
-    }
-  }
-
-  function drop(reason: string): void {
-    counts.dropped += 1;
-    counts.lastDrop = reason;
-  }
 
   function post(type: Type, changed: Changed): void {
-    if (channel === null || placesOf(changed).length === 0) return;
-    try {
-      channel.postMessage({ v: BROADCAST_VERSION, from, ns: RIGLINE, type, body: changed });
-      counts.posted += 1;
-    } catch (e) {
-      fail(`a save could not be told to the other panels: ${message(e)}`);
-    }
+    if (placesOf(changed).length > 0) peers.post(type, changed);
   }
 
   return {
@@ -189,34 +137,20 @@ export function createBroadcast(options: BroadcastOptions): Broadcast {
       return seen;
     },
     listen(current, apply) {
-      if (channel === null) return;
-      channel.onmessage = (event: MessageEvent) => {
-        const read = readMessage(event.data, from);
-        if (typeof read === "string") {
-          drop(read);
-          return;
-        }
-        counts.heard += 1;
+      const take = (type: Type) => (changed: Changed) => {
         const held = current();
-        for (const [place, value] of placesOf(read.changed)) {
+        for (const [place, value] of placesOf(changed)) {
           const key = JSON.stringify(place);
-          if (read.type === "saved") optimistic.delete(key);
+          if (type === "saved") optimistic.delete(key);
           else {
             const before = valueAt(held, place);
             optimistic.set(key, { place, value, before, until: now() + CONFIRM_FOR_MS });
           }
         }
-        try {
-          apply(read.changed);
-        } catch (e) {
-          fail(`a save from another panel: ${message(e)}`);
-        }
+        apply(changed);
       };
-      channel.onmessageerror = () => drop("a message that could not be read");
-    },
-    close() {
-      channel?.close();
-      channel = null;
+      peers.on("saving", readChanged, take("saving"));
+      peers.on("saved", readChanged, take("saved"));
     },
   };
 }

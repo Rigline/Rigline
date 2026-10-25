@@ -268,23 +268,33 @@ state and the poll that ends in `unconfirmed`; the layout editor adds only the c
 
 ### Telling the other panels
 
-`kernel/broadcast.ts` opens a `BroadcastChannel` under `registry.js`'s `broadcast`, which `install`
+`kernel/peers.ts` opens a `BroadcastChannel` under `registry.js`'s `broadcast`, which `install`
 derives from the token, and opens none where that is null (D141). Every editor-tab panel shares one
-origin, so the channel reaches the others in every window; the sidebar's origin is its own.
+origin, so the channel reaches the others in every window; the sidebar's origin is its own. It owns
+the envelope, `{ v, from, ns: "rigline", type, body }`, and hands each body to the reader its type
+registered. Two kinds of message use it: saves, in `broadcast.ts`, and usage readings, in the limits
+service.
 
-`saving.ts` is the poster, so either editor's save is told the same way: `saving` as `confirm`
-starts, with what the save writes, and `saved` as it ends, with what the last read found of the same
-keys, landed or not. The envelope is `{ v, from, ns: "rigline", type, body }`, and a body names only
-the layout, plugins' sections and blocks of Rigline's own that the save wrote.
+`saving.ts` is the poster of saves, so either editor's save is told the same way: `saving` as
+`confirm` starts, with what the save writes, and `saved` as it ends, with what the last read found
+of the same keys, landed or not. A body names only the layout, plugins' sections and blocks of
+Rigline's own that the save wrote.
 
 A receiver takes a body as a read of the keys it names: into the settings editor's saved state, and
 to the layout editor's `observe`, which shows it or says it is newer as a read does. A `saving`
 value is also held per key, over every read, while the file still holds what the panel had before it
 was told; a read finding anything else, a `saved` for the key, or `CONFIRM_FOR_MS` passing ends it.
-That hold is `broadcast.seen`, applied in the one `readSaved` every consumer goes through. A message
-whose version, sender, namespace or type the panel does not know, or whose body does not hold, is
-dropped, and `diagnostics.broadcast` counts it with the reason, beside what the panel posted and
-heard; the copied report carries that line.
+That hold is `broadcast.seen`, applied in the one `readSaved` every consumer goes through.
+
+The limits service posts `limits`, `{ who, readings }`, when a reading from its own panel's sources
+changes what it holds, and `limits-ask`, `{ who }`, when it learns its account; a panel holding a
+reading for that `who` answers with what it holds. `who` is the account's email address and
+organisation's name, and a panel takes only its own. Each reading carries when it was observed and
+whether that is exact, and `supersedes` in plugin-api decides which stands (D147).
+
+A message whose version, sender, namespace or type the panel does not know, or whose body does not
+hold, is dropped, and `diagnostics.broadcast` counts it with the reason, beside what the panel
+posted and heard, in total and by type; the copied report carries that line.
 
 The kernel knows no capability by name. It owns the plugin lifecycle, the per-React-commit pass
 that re-places mounts and re-anchors watches (D52), the mount arbitration (host-placed nodes ordered

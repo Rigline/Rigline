@@ -12,6 +12,13 @@ it needs, its entry says so.
 
 ## Unreleased
 
+### Changed
+
+- The five-hour and weekly limits in `usage-meter`, and in any plugin reading `ctx.onUsageLimits`,
+  now follow requests made in other VS Code windows and profiles signed in to the same account, not
+  only the panel's own window. A window left idle no longer shows the figure from when it was last
+  used.
+
 ## 2.1.0 — 2026-10-25
 
 ### Fixed

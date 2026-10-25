@@ -253,11 +253,19 @@ reopened panel's history carries no cost. `metered` is read from the auth status
 `plugin-api/src/cost.ts`.
 
 **Limits** (`ctx.onUsageLimits`). How much of the plan's five-hour and weekly windows is used
-(D129). The source is `panel_usage_update`, an inbound request on channel `""` that the extension
-pushes to every panel. It is merged as the panel merges it: a window sent as `null` is deleted, one
-left out is kept, and one without `resetsAt` never replaces one with. A window past its reset reads
-as used 0, on a timer of the service's own. A change of signed-in identity clears the windows,
-because the panel clears its own then. The pure half is `plugin-api/src/limits.ts`.
+(D129), as the newest reading any panel on the machine has for the account (D147). Three sources:
+
+- A session's `rate_limit_event`, in an `io_message` on the panel's own channels, observed at the
+  envelope's `hostForwardedAt`.
+- `panel_usage_update`, an inbound request on channel `""` that the extension pushes to every panel
+  in its window, with no time of its own. A window sent as `null` is deleted, and one without
+  `resetsAt` never replaces one with, as the panel merges.
+- Other panels' readings, on the channel host.md describes, keyed by the account `config.account`
+  names on `update_state` and the `get_claude_state` reply.
+
+`supersedes` decides which reading stands. A window past its reset reads as used 0, on a timer of
+the service's own. A change of signed-in identity clears the windows, because the panel clears its
+own then. The pure half is `plugin-api/src/limits.ts`.
 
 **Models** (`ctx.onModelState`, `ctx.applyChoice`). Which models the install offers, which model and
 effort are live, the person's default, and whether this session still needs a choice (D120 as

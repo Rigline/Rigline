@@ -109,7 +109,7 @@ describe("formatReport", () => {
       to: Date.parse("2026-09-14T06:26:41Z"),
       entries: [{ at: Date.parse("2026-09-14T06:26:41Z"), outbound: 900, lost: 0, peaks: {} }],
     },
-    broadcast: { open: true, posted: 2, heard: 5, dropped: 0, lastDrop: null },
+    broadcast: { open: true, posted: 2, heard: 5, types: {}, dropped: 0, lastDrop: null },
     errors: [],
   };
   const groups = [group("rigline", line("tables loaded", "pass", "2.1.270"))];
@@ -200,6 +200,14 @@ describe("formatReport", () => {
     };
     expect(formatReport(dropped, groups)).toContain(
       "broadcast  2 posted / 5 heard, 1 dropped, last an unknown version",
+    );
+    const types = {
+      saved: { posted: 1, heard: 0 },
+      limits: { posted: 1, heard: 5 },
+    };
+    const kinds = { ...facts, broadcast: { ...facts.broadcast, types } };
+    expect(formatReport(kinds, groups)).toContain(
+      "broadcast  2 posted / 5 heard (saved 1/0, limits 1/5)\n",
     );
     const closed = { ...facts, broadcast: { ...facts.broadcast, open: false } };
     expect(formatReport(closed, groups)).toContain("broadcast  not open");

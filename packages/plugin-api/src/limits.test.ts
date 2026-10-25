@@ -1,6 +1,7 @@
 /**
- * The plan's usage windows, merged and read as the panel does. `panel_usage_update`'s type is
- * harvested and its body is not, so these tests are what pins the body.
+ * The plan's usage windows, merged and read as the panel does, and readings from other panels
+ * weighed by when they were observed (D147). `panel_usage_update`'s type is harvested and its body
+ * is not, so these tests are what pins the body.
  */
 
 import { describe, expect, it } from "vitest";
@@ -8,64 +9,133 @@ import {
   identityChanged,
   identityOf,
   limitsAt,
-  mergeWindows,
+  mergeReadings,
   nextReset,
   type RawWindows,
+  type Reading,
+  type Readings,
+  readingFrom,
+  statedAt,
+  supersedes,
 } from "./limits.ts";
-
-const update = (unifiedWindows: unknown) => ({ type: "panel_usage_update", unifiedWindows });
 
 const NOW = 1_800_000_000_000;
 const IN_AN_HOUR = NOW / 1000 + 3600;
 const IN_A_DAY = NOW / 1000 + 86_400;
+const MINUTE = 60_000;
 
-describe("mergeWindows", () => {
-  it("takes the windows an update states", () => {
-    const merged = mergeWindows(
-      {},
-      update({
-        five_hour: { utilization: 0.42, resetsAt: IN_AN_HOUR },
-        seven_day: { utilization: 0.18, resetsAt: IN_A_DAY },
-      }),
-    );
-    expect(merged).toEqual({
-      five_hour: { utilization: 0.42, resetsAt: IN_AN_HOUR },
-      seven_day: { utilization: 0.18, resetsAt: IN_A_DAY },
+/** What a `panel_usage_update` states, as arriving now with no time of its own. */
+const update = (unifiedWindows: unknown) => statedAt(unifiedWindows, NOW, false);
+
+function reading(utilization: number, at: number, exact: boolean, resetsAt = IN_AN_HOUR): Reading {
+  return { utilization, resetsAt, at, exact };
+}
+
+describe("statedAt", () => {
+  it("reads each window a message sends, observed when it says", () => {
+    expect(
+      statedAt(
+        {
+          five_hour: { utilization: 0.42, resetsAt: IN_AN_HOUR },
+          seven_day: { utilization: 0.18, resetsAt: IN_A_DAY },
+        },
+        NOW,
+        true,
+      ),
+    ).toEqual({
+      five_hour: reading(0.42, NOW, true),
+      seven_day: reading(0.18, NOW, true, IN_A_DAY),
     });
   });
 
-  it("keeps a window the update leaves out, and deletes one it sends as null", () => {
-    const current: RawWindows = {
-      five_hour: { utilization: 0.42, resetsAt: IN_AN_HOUR },
-      seven_day: { utilization: 0.18, resetsAt: IN_A_DAY },
-    };
-    expect(mergeWindows(current, update({ five_hour: null }))).toEqual({
-      seven_day: { utilization: 0.18, resetsAt: IN_A_DAY },
+  it("states a window sent as null as deleted, and leaves out one it cannot read", () => {
+    expect(update({ five_hour: null, seven_day: { utilization: "lots" } })).toEqual({
+      five_hour: null,
     });
-  });
-
-  it("never replaces a window that has a reset time with one that has none", () => {
-    const current: RawWindows = { five_hour: { utilization: 0.42, resetsAt: IN_AN_HOUR } };
-    expect(mergeWindows(current, update({ five_hour: { utilization: 0.5 } }))).toBe(current);
-    expect(mergeWindows({}, update({ five_hour: { utilization: 0.5 } }))).toEqual({
-      five_hour: { utilization: 0.5, resetsAt: null },
-    });
-  });
-
-  it("returns the same windows for an update that changes nothing", () => {
-    const current: RawWindows = { five_hour: { utilization: 0.42, resetsAt: IN_AN_HOUR } };
-    expect(mergeWindows(current, update({}))).toBe(current);
-    expect(mergeWindows(current, update({ seven_day: null }))).toBe(current);
-    expect(mergeWindows(current, update(null))).toBe(current);
-    expect(mergeWindows(current, update({ five_hour: { utilization: "lots" } }))).toBe(current);
+    expect(update(null)).toEqual({});
   });
 
   it("ignores the window it does not expose", () => {
-    const merged = mergeWindows(
-      {},
+    expect(
       update({ seven_day_overage_included: { utilization: 0.9, resetsAt: IN_A_DAY } }),
-    );
-    expect(merged).toEqual({});
+    ).toEqual({});
+  });
+});
+
+describe("readingFrom", () => {
+  it("takes a reading another panel sent, and nothing without its time", () => {
+    expect(readingFrom(reading(0.42, NOW, true))).toEqual(reading(0.42, NOW, true));
+    expect(readingFrom({ utilization: 0.42, resetsAt: IN_AN_HOUR, at: NOW })).toBeNull();
+    expect(readingFrom({ utilization: 0.42, resetsAt: IN_AN_HOUR, exact: true })).toBeNull();
+    expect(readingFrom({ utilization: 0.42, at: -1, exact: true })).toBeNull();
+    expect(readingFrom([])).toBeNull();
+  });
+});
+
+describe("supersedes", () => {
+  it("takes the newer of two stamped readings, whichever way the figure moves", () => {
+    expect(supersedes(reading(0.6, NOW, true), reading(0.4, NOW + MINUTE, true))).toBe(true);
+    expect(supersedes(reading(0.4, NOW + MINUTE, true), reading(0.6, NOW, true))).toBe(false);
+    expect(supersedes(reading(0.4, NOW, true), reading(0.6, NOW, true))).toBe(false);
+  });
+
+  it("takes a stamped reading newer than an unstamped one could be, lower or not", () => {
+    expect(supersedes(reading(0.6, NOW, false), reading(0.4, NOW + MINUTE, true))).toBe(true);
+  });
+
+  it("lets a reading of unknown age raise a figure and never lower it", () => {
+    const held = reading(0.4, NOW, true);
+    expect(supersedes(held, reading(0.6, NOW + MINUTE, false))).toBe(true);
+    expect(supersedes(held, reading(0.2, NOW + MINUTE, false))).toBe(false);
+  });
+
+  it("lets a stamped reading no newer than an unstamped one only raise it", () => {
+    const seed = reading(0.4, NOW, false);
+    expect(supersedes(seed, reading(0.6, NOW - MINUTE, true))).toBe(true);
+    expect(supersedes(seed, reading(0.2, NOW - MINUTE, true))).toBe(false);
+  });
+
+  it("orders by reset before use where it can only raise, so a new period stands", () => {
+    const held = reading(0.9, NOW, false);
+    expect(supersedes(held, reading(0.1, NOW, false, IN_AN_HOUR + 18_000))).toBe(true);
+    expect(supersedes(held, reading(0.95, NOW, false, IN_AN_HOUR - 18_000))).toBe(false);
+  });
+
+  it("takes resets a second apart as one period, as two of the extension's sources round", () => {
+    const held = reading(0.6, NOW, false);
+    expect(supersedes(held, reading(0.4, NOW, false, IN_AN_HOUR + 1))).toBe(false);
+    expect(supersedes(held, reading(0.7, NOW, false, IN_AN_HOUR - 1))).toBe(true);
+  });
+
+  it("never lets a window without a reset time stand over one with", () => {
+    const held = reading(0.42, NOW, false);
+    const none: Reading = { utilization: 0.5, resetsAt: null, at: NOW + MINUTE, exact: true };
+    expect(supersedes(held, none)).toBe(false);
+    expect(supersedes(undefined, none)).toBe(true);
+  });
+});
+
+describe("mergeReadings", () => {
+  it("takes what supersedes, keeps a window left out, and deletes one stated as null", () => {
+    const held: Readings = {
+      five_hour: reading(0.42, NOW, false),
+      seven_day: reading(0.18, NOW, false, IN_A_DAY),
+    };
+    expect(
+      mergeReadings(held, update({ five_hour: { utilization: 0.5, resetsAt: IN_AN_HOUR } })),
+    ).toEqual({ ...held, five_hour: reading(0.5, NOW, false) });
+    expect(mergeReadings(held, update({ five_hour: null }))).toEqual({
+      seven_day: held.seven_day,
+    });
+  });
+
+  it("returns what it held for a message that changes nothing", () => {
+    const held: Readings = { five_hour: reading(0.42, NOW, false) };
+    expect(mergeReadings(held, update({}))).toBe(held);
+    expect(mergeReadings(held, update({ seven_day: null }))).toBe(held);
+    expect(
+      mergeReadings(held, update({ five_hour: { utilization: 0.3, resetsAt: IN_AN_HOUR } })),
+    ).toBe(held);
   });
 });
 

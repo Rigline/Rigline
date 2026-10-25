@@ -48,6 +48,7 @@ import { settingsSaver } from "./kernel/save.ts";
 import type { SavedState } from "./kernel/saving.ts";
 import { createSettingsEditor, type SettingsEditor } from "./kernel/settings.ts";
 import { createMountService } from "./kernel/mounts.ts";
+import { createPeers } from "./kernel/peers.ts";
 import { createRecorder } from "./kernel/record.ts";
 import { createSessionService } from "./kernel/session.ts";
 import { createShellService } from "./kernel/shell.ts";
@@ -468,7 +469,7 @@ async function main(): Promise<void> {
   }
 
   const mounts = createMountService(message, react, diagnostics.mounts, meter);
-  const broadcast = createBroadcast({
+  const peers = createPeers({
     name: channel,
     counts: diagnostics.broadcast,
     fail: (reason) => {
@@ -476,6 +477,7 @@ async function main(): Promise<void> {
       console.error(`[rigline] broadcast: ${reason}`);
     },
   });
+  const broadcast = createBroadcast({ peers });
   // Every read of the file, whoever asked for it, is a source for what is saved, once another
   // panel's save the file has not caught up with is put back over it (D141).
   const readSaved = async (): Promise<SavedState | null> => {
@@ -564,7 +566,7 @@ async function main(): Promise<void> {
     tools: createToolService(bus),
     context: createContextService(bus, tables.messageTypes),
     cost: createCostService(bus),
-    limits: createLimitsService(bus),
+    limits: createLimitsService(bus, peers),
     models,
     gate,
     transcript: createTranscriptService(

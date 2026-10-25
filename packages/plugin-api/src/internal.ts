@@ -63,14 +63,18 @@ export {
   withOrder,
   withRigline,
 } from "./layout.ts";
-export type { RawWindow, RawWindows } from "./limits.ts";
+export type { RawWindow, RawWindows, Reading, Readings, Stated, WindowKey } from "./limits.ts";
 export {
   identityChanged,
   identityOf,
   limitsAt,
-  mergeWindows,
+  mergeReadings,
   nextReset,
+  readingFrom,
+  statedAt,
+  supersedes,
   UNKNOWN_LIMITS,
+  WINDOW_KEYS,
 } from "./limits.ts";
 export type {
   AppliedChoice,

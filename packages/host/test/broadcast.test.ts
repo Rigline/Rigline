@@ -1,25 +1,27 @@
 /**
- * The panels telling each other about a save (D141), between two of them in one process: Node's own
- * `BroadcastChannel` is the browser's, so what one posts and what the other does with it is the real
- * protocol. Whether a message crosses webviews is the live panel's question, not this file's.
+ * The panels telling each other about a save (D141), between two of them in one process, and the
+ * envelope every kind of message shares: Node's own `BroadcastChannel` is the browser's, so what one
+ * posts and what the other does with it is the real protocol. Whether a message crosses webviews is
+ * the live panel's question, not this file's.
  */
 import { type Layout, NO_MODEL_SETTINGS } from "@rigline/plugin-api/internal";
 import { afterEach, describe, expect, it } from "vitest";
 import type { Diagnostics } from "../src/kernel/bridge.ts";
-import { type Broadcast, createBroadcast, type Held } from "../src/kernel/broadcast.ts";
+import { createBroadcast, type Held } from "../src/kernel/broadcast.ts";
+import { createPeers, type Peers } from "../src/kernel/peers.ts";
 import type { Changed } from "../src/kernel/saving.ts";
 
 const NAME = "rigline-test";
-const open: Broadcast[] = [];
+const open: Peers[] = [];
 const channels: BroadcastChannel[] = [];
 
 afterEach(() => {
-  for (const b of open.splice(0)) b.close();
+  for (const p of open.splice(0)) p.close();
   for (const c of channels.splice(0)) c.close();
 });
 
 function counts(): Diagnostics["broadcast"] {
-  return { open: false, posted: 0, heard: 0, dropped: 0, lastDrop: null };
+  return { open: false, posted: 0, heard: 0, types: {}, dropped: 0, lastDrop: null };
 }
 
 /** One panel: what it holds, what it was handed, and a clock a test moves. */
@@ -28,17 +30,13 @@ function panel(held: Held = { layout: {}, settings: {}, rigline: { model: NO_MOD
   const applied: Changed[] = [];
   const failed: string[] = [];
   const clock = { t: 0 };
-  const b = createBroadcast({
-    name: NAME,
-    counts: c,
-    fail: (r) => failed.push(r),
-    now: () => clock.t,
-  });
+  const peers = createPeers({ name: NAME, counts: c, fail: (r) => failed.push(r) });
+  const b = createBroadcast({ peers, now: () => clock.t });
   b.listen(
     () => held,
     (changed) => applied.push(changed),
   );
-  open.push(b);
+  open.push(peers);
   return { b, counts: c, applied, failed, clock, held };
 }
 
@@ -65,12 +63,16 @@ describe("a save", () => {
     expect(a.applied).toEqual([]);
     expect(a.counts).toMatchObject({ open: true, posted: 2, heard: 0 });
     expect(b.counts).toMatchObject({ heard: 2, dropped: 0 });
+    expect(b.counts.types).toEqual({
+      saving: { posted: 0, heard: 1 },
+      saved: { posted: 0, heard: 1 },
+    });
   });
 
   it("posts nothing, and opens nothing, with no name", () => {
     const c = counts();
-    const b = createBroadcast({ name: null, counts: c, fail: () => {} });
-    b.saving({ layout: {} });
+    const peers = createPeers({ name: null, counts: c, fail: () => {} });
+    createBroadcast({ peers }).saving({ layout: {} });
     expect(c).toEqual(counts());
   });
 

@@ -111,6 +111,7 @@ export interface ReportFacts {
     readonly open: boolean;
     readonly posted: number;
     readonly heard: number;
+    readonly types: Readonly<Record<string, { readonly posted: number; readonly heard: number }>>;
     readonly dropped: number;
     readonly lastDrop: string | null;
   };
@@ -231,8 +232,12 @@ export function formatReport(facts: ReportFacts, groups: readonly CheckGroup[]):
   const { broadcast } = facts;
   const dropped =
     broadcast.dropped > 0 ? `, ${broadcast.dropped} dropped, last ${broadcast.lastDrop}` : "";
+  const types = Object.entries(broadcast.types)
+    .map(([type, n]) => `${type} ${n.posted}/${n.heard}`)
+    .join(", ");
+  const byType = types === "" ? "" : ` (${types})`;
   out.push(
-    `  broadcast  ${broadcast.open ? `${broadcast.posted} posted / ${broadcast.heard} heard${dropped}` : "not open"}`,
+    `  broadcast  ${broadcast.open ? `${broadcast.posted} posted / ${broadcast.heard} heard${byType}${dropped}` : "not open"}`,
   );
 
   const busy = Object.entries(facts.meters)
