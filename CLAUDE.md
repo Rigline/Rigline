@@ -120,6 +120,10 @@ Written for somebody else, so don't rewrite them for us:
   verb — a plugin persisting state of its own does not — and what proves the person differs by case,
   so read D120 rather than assuming one mechanism covers it. `navigator.userActivation` is not that
   mechanism: it reads active during `setup`, before anything has been clicked.
+- **Build no secrecy from plugins inside the webview.** A plugin runs in the app's realm and reads
+  every message on the bus ([authoring.md](docs/authoring.md)), so hashing, hiding or gating a value
+  there guards nothing and costs code. The walls are D79's — no network, no files, no Node — and a
+  threat model that needs another wall is a decision, not a helper function.
 - **A decision's number is only safe at merge time.** `decisions.md` hands out the next free number,
   which is a race whenever another session or branch is also appending: check it when you write the
   entry *and* again before you merge, because the number you took may have been claimed in between.
