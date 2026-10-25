@@ -25,7 +25,6 @@ import { PROBE_ARGS, PROBE_TIMEOUT_MS } from "./node.ts";
 import { addToProfiles } from "./profiles.ts";
 import { type ReloadOffer, reloadOffer } from "./reload.ts";
 import { injectedDir, injectsHere } from "./scope.ts";
-import { selfUpdate } from "./selfupdate.ts";
 import { type Stamps, startingReason, type WatchReason, watchExtension } from "./watch.ts";
 
 /** Not contributed to the palette: VS Code already has one, and this one clears our status. */
@@ -105,12 +104,6 @@ export function activate(context: vscode.ExtensionContext): void {
     reloadWindow: async () => {
       await vscode.commands.executeCommand("workbench.action.reloadWindow");
     },
-    installExtension: async (vsix) => {
-      await vscode.commands.executeCommand(
-        "workbench.extensions.installExtension",
-        vscode.Uri.file(vsix),
-      );
-    },
     remembered: (key) => context.globalState.get(key),
     remember: async (key, value) => {
       await context.globalState.update(key, value);
@@ -150,7 +143,7 @@ export function activate(context: vscode.ExtensionContext): void {
     installed: installedIn(dirname(own)),
     stamps,
     react: async (reason) => {
-      await run(editor, version, nodeFloor, reason, offer, own, here);
+      await run(editor, version, nodeFloor, reason, offer, here);
     },
   });
   context.subscriptions.push(watcher);
@@ -212,11 +205,11 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Deliberately not awaited: activation must return promptly, and every failure inside is already
   // a result rather than a rejection, so there is nothing here for a `catch` to add.
-  void run(editor, version, nodeFloor, startingReason(editor, CLAUDE_CODE), offer, own, here);
+  void run(editor, version, nodeFloor, startingReason(editor, CLAUDE_CODE), offer, here);
 }
 
 /**
- * `companion-profiles`' arguments for the editor this window runs in (D100), or why there are none.
+ * `companion-profiles`' arguments for the editor this window runs in (D144), or why there are none.
  * `globalStorageUri` is the default profile's in every profile, so it names the user-data directory;
  * the CLI is what the `code` shim runs.
  */
@@ -244,7 +237,6 @@ async function run(
   nodeFloor: string | undefined,
   reason: WatchReason,
   offer: ReloadOffer,
-  own: string,
   here: () => readonly string[] | string,
 ): Promise<void> {
   const wrapper = await import("rigline/engine");
@@ -270,26 +262,18 @@ async function run(
   if (result.kind === "attention") void offer.settle(result.reload, "", true);
 
   // After the offer, which it must not delay, and never with a named engine: a checkout is never
-  // updated, and a companion it added would run the released engine (D94, D99, D100).
+  // updated, and a companion it added would run the released engine (D94, D100, D144).
   if (!("runner" in result) || editor.setting(ENGINE_SETTING) !== undefined) return;
   const { runner } = result;
-  const green = result.kind === "injected" && reason.kind === "start" && result.reload === null;
-  const updated = await selfUpdate({
-    editor,
-    version,
-    ask: () => captureEngine(runner.nodePath, runner.entry, ["companion-status", own]),
-    green,
-  });
-
   const args = here();
   if (typeof args === "string") {
-    editor.log(`did not look for profiles without the companion: ${args}`);
+    editor.log(`did not look at the profiles' companions: ${args}`);
     return;
   }
   await addToProfiles({
     editor,
     ask: () => captureEngine(runner.nodePath, runner.entry, args),
-    green: green && updated !== "failed",
+    green: result.kind === "injected" && reason.kind === "start" && result.reload === null,
   });
 }
 

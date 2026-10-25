@@ -200,7 +200,8 @@ D91), `sources.json` (the source each installed plugin came from — both the en
 curated anchor table), `baseline.json` (the last harvest), `drift.txt` (what moved at the last
 install that found drift, D98), `engine/`, the npm prefix `rigline`
 installs `@rigline/core` into (D73), `.lock`, held while an engine installs so the CLI and the
-companion cannot install over each other, and `inject.lock`, held while an engine injects (D105). A
+companion cannot install over each other, `inject.lock`, held while an engine injects (D105), and
+`companion.lock`, held while an engine installs or removes a companion (D144). A
 clone of this repo is for developing Rigline, not for using it.
 
 ### Distribution

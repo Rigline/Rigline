@@ -151,8 +151,9 @@ the panel, so a save made from the panel can show it came from one of your own. 
 it is deleted, the next `install` makes a new one, and a panel still open from before needs
 reloading before it can save.
 
-`~/.rigline/.lock` and `~/.rigline/inject.lock` are there only while a command is running: the
-first while an engine is being installed, the second while one is injecting. A command that finds
+`~/.rigline/.lock`, `~/.rigline/inject.lock` and `~/.rigline/companion.lock` are there only while a
+command is running: the first while an engine is being installed, the second while one is
+injecting, the third while the companion is being installed into or removed from a VS Code profile. A command that finds
 one waits for it, and says who holds it if it gives up. One left behind by a command that was
 killed is taken over once it is old.
 

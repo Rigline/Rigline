@@ -1,5 +1,5 @@
 /**
- * VS Code's profiles, read from its own files, and adding the companion where it is missing (D100).
+ * VS Code's profiles, read from its own files, and the CLI arguments that change them (D100).
  *
  * Nothing lists profiles, so the names come from `storage.json` and each profile's extensions from
  * its `extensions.json`. Every write goes through the editor's CLI, which refuses a profile name it
@@ -9,7 +9,6 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { CarriedCompanion } from "./fingerprint.ts";
 
 export const COMPANION_ID = "rigline.rigline";
 const CLAUDE_CODE_ID = "anthropic.claude-code";
@@ -207,11 +206,6 @@ export function editorDirs(product: ProductDirs, options: DirsOptions = {}): Edi
   };
 }
 
-/** Where a look adds the companion: a profile with Claude Code and without the companion (D143). */
-export function missingFrom(profiles: readonly Profile[]): readonly Profile[] {
-  return profiles.filter((p) => !p.sharesDefault && p.claudeCode && p.companion === null);
-}
-
 /** `profile "A"`, `profiles "A" and "B"`, for a line about them. */
 export function profilesNamed(profiles: readonly Profile[]): string {
   const names = profiles.map((p) => `"${p.name}"`);
@@ -254,69 +248,7 @@ export interface EditorCli {
   readonly env?: Readonly<Record<string, string>>;
 }
 
-export interface EditorContext extends EditorDirs {
-  /** The editor's name in a line; empty for the companion's own editor, which needs none. */
-  readonly label: string;
-  readonly cli: EditorCli;
-}
-
 export type RunCli = (
   cli: EditorCli,
   argv: readonly string[],
 ) => Promise<{ readonly code: number; readonly output: string }>;
-
-/** What `companion-profiles` prints. `v`, as `companion-status` has, for whoever parses it. */
-export interface Additions {
-  readonly v: 1;
-  /** One sentence each, for a person: what was added, and anything that stopped it. */
-  readonly lines: readonly string[];
-  /** Whether an install failed, which a person may have to see to. */
-  readonly failed: boolean;
-}
-
-export interface AddOptions {
-  readonly contexts: readonly EditorContext[];
-  readonly carried: CarriedCompanion | null;
-  readonly run: RunCli;
-}
-
-/** Adds the companion to every profile `missingFrom` names, in each editor. */
-export async function addWhereMissing(options: AddOptions): Promise<Additions> {
-  const lines: string[] = [];
-  let failed = false;
-  for (const context of options.contexts) {
-    const where = context.label === "" ? "" : ` in ${context.label}`;
-    const read = readProfiles(context.userData, context.extensionsDir);
-    if (read.kind === "none") continue;
-    if (read.kind === "unreadable") {
-      lines.push(
-        `could not read the profiles${where}, so the companion was added to none: ${read.why}`,
-      );
-      continue;
-    }
-    const missing = missingFrom(read.profiles);
-    if (missing.length === 0) continue;
-    const names = missing.map((p) => `"${p.name}"`).join(", ");
-    const { carried } = options;
-    if (carried === null) {
-      lines.push(`${names}${where} lack the companion, and this engine carries none to add`);
-      continue;
-    }
-    for (const profile of missing) {
-      const { code, output } = await options.run(
-        context.cli,
-        installArgv(carried.vsix, cliProfile(profile), false),
-      );
-      if (code === 0) {
-        lines.push(
-          `added the companion to profile "${profile.name}"${where}, which has Claude Code`,
-        );
-      } else {
-        failed = true;
-        const said = output.trim().split(/\r?\n/).at(-1) || `the CLI exited ${code}`;
-        lines.push(`could not add the companion to profile "${profile.name}"${where}: ${said}`);
-      }
-    }
-  }
-  return { v: 1, lines, failed };
-}

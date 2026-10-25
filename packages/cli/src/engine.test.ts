@@ -324,9 +324,23 @@ describe("updateEngine", () => {
 
     // Reported rather than thrown, which is `update`'s existing contract and the right one here:
     // the companion runs this unattended, and a contended lock is a thing to say, not to crash on.
-    expect(update).toMatchObject({ outcome: "failed" });
+    // `by`, so the companion does not count the contention as an update that keeps failing (D145).
+    expect(update).toMatchObject({ outcome: "failed", to: "1.0.0-alpha.7", by: "lock" });
     expect((update as { reason: string }).reason).toMatch(/rigline update \(pid \d+\)/);
     expect(existsSync(lockPath(prefix))).toBe(true);
+  });
+
+  it("reports an npm install that fails with the version, and no `by`", async () => {
+    const prefix = temp();
+    writeEngine(engineDir(prefix), core("1.0.0-alpha.6"));
+    const update = await updateEngine({
+      home: prefix,
+      version: "1.0.0-alpha.6",
+      registry: npm("1.0.0-alpha.7"),
+      spawnImpl: () => fakeChild(1),
+    });
+    expect(update).toMatchObject({ outcome: "failed", to: "1.0.0-alpha.7" });
+    expect(update).not.toHaveProperty("by");
   });
 
   it("leaves an engine already on what its tag resolves to, and spawns nothing", async () => {

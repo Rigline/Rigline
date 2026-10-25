@@ -175,13 +175,13 @@ The engine's half, which is all `pnpm rigline update` does in a checkout:
    and so is the companion in every profile (D143).
 
 The companion does step 1 and then an `install` on every activation and every arriving Claude Code
-version. It then updates itself from the VSIX that engine carries (D99), and adds itself to its own
-editor's profiles that lack it (D100) ([companion.md](companion.md)).
+version. It then makes every profile of its own editor hold the companion that engine carries, its
+own profile included (D144) ([companion.md](companion.md)).
 
 ## What the pieces rely on across versions
 
 The wrapper, the companion and an open panel each meet engines of other ages. Nothing updates the
-wrapper, the companion carries its acquisition frozen in a VSIX until it next updates itself (D99),
+wrapper, the companion carries its acquisition frozen in a VSIX until the next is installed (D144),
 and a panel keeps running the `post.js` it loaded while the engine moves under it. So what each
 relies on in an engine holds for a whole major, and [stability.md](stability.md) promises it to a
 user; changing any of it is a new major (D112). Everything else between them may change in any release.
@@ -204,12 +204,13 @@ and on:
 
 - `install --companion`, whose exit code says only whether a person is wanted: what the window
   needs is decided from the bytes (D82). The flag keeps it out after a `restore` (D111);
-- `companion-status PATH`, whose answer never changes within a major, since it is how an old
-  companion becomes a new one (D99). While a `restore` holds it offers nothing, `carried: null`
-  (D143);
-- `companion-profiles` and its four flags (D100). Its JSON carries `v: 1`, and a companion ignores a
-  `v` it does not know, so a new shape costs an old companion one look before it updates itself.
-  While a `restore` holds it adds nothing;
+- `companion-status PATH`, whose answer never changes within a major, since it is how a companion
+  released before D144 becomes a new one (D99). While a `restore` holds it offers nothing,
+  `carried: null` (D143);
+- `companion-profiles` and its four flags (D100, D144), which is how every later companion is
+  replaced. Its JSON carries `v: 1`, and a companion ignores a `v` it does not know, so a new shape
+  costs an old companion one look's report while the install still happens. While a `restore` holds
+  it installs nothing;
 - `list`, piped to a person, and `layout save PAYLOAD`, whose first line is its outcome: it begins
   `rigline: ` when the save was refused, and says `over a change` when it overwrote one made since
   the panel loaded (D92, D93). The payload carries a version of its own, which the engine checks and
@@ -287,7 +288,8 @@ the anchor table), `baseline.json` (the last harvest), `drift.txt` (what moved a
 that found drift, since the next moves the baseline, D98), and `engine/` (the npm prefix the wrapper
 installs `@rigline/core` into, D73 — the one directory here that `rm -rf` is the documented repair
 for), `.lock`, held while an engine installs so the CLI and the companion cannot install over
-each other, `inject.lock`, held while an engine injects, checks or restores (D105), and `restored`,
+each other, `inject.lock`, held while an engine injects, checks or restores (D105),
+`companion.lock`, held while an engine installs or removes a companion (D144), and `restored`,
 left by `restore` until a person injects again (D111). A clone of
 this repo is for developing Rigline, not for using it.
 

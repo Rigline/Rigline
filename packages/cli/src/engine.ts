@@ -13,7 +13,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { UserError } from "./errors.ts";
 import { belowFloor } from "./floor.ts";
-import { type LockOptions, withHomeLock } from "./lock.ts";
+import { HomeLockedError, type LockOptions, withHomeLock } from "./lock.ts";
 import { type RegistryOptions, releaseAgeProblem, resolveVersion } from "./registry.ts";
 
 // For the companion, which reaches the wrapper only through this module (D80).
@@ -402,6 +402,8 @@ export type EngineUpdate =
       readonly from?: string;
       readonly to?: string;
       readonly reason: string;
+      /** Another process held the home lock, which the next run finds already done (D145). */
+      readonly by?: "lock";
     };
 
 /**
@@ -472,6 +474,7 @@ export async function updateEngine(options: EngineOptions = {}): Promise<EngineU
       ...(installed === null ? {} : { from: installed }),
       to: resolved.version,
       reason: error instanceof Error ? error.message : String(error),
+      ...(error instanceof HomeLockedError ? { by: "lock" as const } : {}),
     };
   }
   return installed === null

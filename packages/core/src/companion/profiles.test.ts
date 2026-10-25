@@ -1,23 +1,13 @@
 /**
- * Reading VS Code's profiles from its own files, and adding the companion where it is missing (D100).
- * The files are laid out as VS Code 1.139 writes them; the CLI is a fake that records its calls.
+ * Reading VS Code's profiles from its own files, and the CLI arguments that change them (D100). The
+ * files are laid out as VS Code 1.139 writes them.
  */
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
-import { type CarriedCompanion, companionFingerprint } from "./fingerprint.ts";
-import {
-  addWhereMissing,
-  type EditorContext,
-  editorDirs,
-  installArgv,
-  missingFrom,
-  type Profile,
-  readProfiles,
-  uninstallArgv,
-} from "./profiles.ts";
+import { editorDirs, installArgv, type Profile, readProfiles, uninstallArgv } from "./profiles.ts";
 
 const made: string[] = [];
 
@@ -210,26 +200,6 @@ describe("editorDirs", () => {
   });
 });
 
-describe("missingFrom", () => {
-  const holding = profile("Default", { claudeCode: true, companion: HELD });
-
-  it("names each profile with Claude Code and without the companion", () => {
-    const lacking = profile("B", { claudeCode: true });
-    expect(missingFrom([holding, lacking, profile("C")])).toEqual([lacking]);
-  });
-
-  // The companion is required, so nothing has to say a person wanted it (D143).
-  it("names one in an editor the companion is in nowhere", () => {
-    const lacking = profile("Default", { claudeCode: true });
-    expect(missingFrom([lacking])).toEqual([lacking]);
-  });
-
-  it("leaves out a profile that shares the default's extensions", () => {
-    const shared = profile("S", { claudeCode: true, sharesDefault: true });
-    expect(missingFrom([holding, shared])).toEqual([]);
-  });
-});
-
 describe("installArgv and uninstallArgv", () => {
   it("keeps the install out of Settings Sync, and forces only when asked (D93)", () => {
     expect(installArgv("r.vsix", null, true)).toEqual([
@@ -250,130 +220,5 @@ describe("installArgv and uninstallArgv", () => {
   it("uninstalls by id, naming no profile for the default", () => {
     expect(uninstallArgv(null)).toEqual(["--uninstall-extension", COMPANION]);
     expect(uninstallArgv("B")).toEqual(["--uninstall-extension", COMPANION, "--profile", "B"]);
-  });
-});
-
-describe("addWhereMissing", () => {
-  const CODE = '"use strict";\n';
-  const MANIFEST = { name: "rigline" };
-  const carried: CarriedCompanion = {
-    version: "1.0.0",
-    fingerprint: companionFingerprint(CODE, MANIFEST),
-    vsix: "r.vsix",
-  };
-
-  function context(dirs: { userData: string; extensionsDir: string }, label = ""): EditorContext {
-    return { label, ...dirs, cli: { command: "code", prefix: [] } };
-  }
-
-  /** The companion extracted at `carried.version`, as this build or another. */
-  function extracted(extensionsDir: string, code = CODE): void {
-    const dir = join(extensionsDir, `${COMPANION}-${carried.version}`);
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, "extension.cjs"), code);
-    writeFileSync(join(dir, "package.json"), JSON.stringify(MANIFEST));
-  }
-
-  function recorder(code = 0) {
-    const calls: (readonly string[])[] = [];
-    return {
-      calls,
-      run: async (_cli: unknown, argv: readonly string[]) => {
-        calls.push(argv);
-        return { code, output: code === 0 ? "" : "Profile 'B' not found." };
-      },
-    };
-  }
-
-  it("adds the companion to each profile that has Claude Code without it, and says so", async () => {
-    const dirs = editor(
-      [CLAUDE, COMPANION],
-      [
-        { name: "B", location: "pb", ids: [CLAUDE] },
-        { name: "C", location: "pc", ids: [] },
-      ],
-    );
-    extracted(dirs.extensionsDir);
-    const { calls, run } = recorder();
-    const answer = await addWhereMissing({
-      contexts: [context(dirs, "VS Code")],
-      carried,
-      run,
-    });
-    expect(calls).toEqual([installArgv("r.vsix", "B", false)]);
-    expect(answer).toEqual({
-      v: 1,
-      lines: ['added the companion to profile "B" in VS Code, which has Claude Code'],
-      failed: false,
-    });
-  });
-
-  it("does nothing, silently, where nothing is missing or no profiles exist to read", async () => {
-    const { calls, run } = recorder();
-    const answer = await addWhereMissing({
-      contexts: [
-        context(editor([CLAUDE, COMPANION])),
-        context({ userData: join(temp(), "none"), extensionsDir: temp() }),
-      ],
-      carried,
-      run,
-    });
-    expect(calls).toEqual([]);
-    expect(answer).toEqual({ v: 1, lines: [], failed: false });
-  });
-
-  it("reports a failed install as failed, with what the CLI said", async () => {
-    const dirs = editor([COMPANION], [{ name: "B", location: "pb", ids: [CLAUDE] }]);
-    const { run } = recorder(1);
-    const answer = await addWhereMissing({
-      contexts: [context(dirs)],
-      carried,
-      run,
-    });
-    expect(answer.failed).toBe(true);
-    expect(answer.lines).toEqual([
-      `could not add the companion to profile "B": Profile 'B' not found.`,
-    ]);
-  });
-
-  // The companion is required, so a profile without one gets it whatever build is beside it (D143).
-  it("adds even where a different build is installed at the carried version", async () => {
-    const dirs = editor([COMPANION], [{ name: "B", location: "pb", ids: [CLAUDE] }]);
-    extracted(dirs.extensionsDir, `${CODE};`);
-    const { calls, run } = recorder();
-    await addWhereMissing({ contexts: [context(dirs)], carried, run });
-    expect(calls).toEqual([installArgv("r.vsix", "B", false)]);
-  });
-
-  it("adds in an editor the companion is in nowhere", async () => {
-    const dirs = editor([CLAUDE]);
-    const { calls, run } = recorder();
-    await addWhereMissing({ contexts: [context(dirs)], carried, run });
-    expect(calls).toEqual([installArgv("r.vsix", null, false)]);
-  });
-
-  it("says so when this engine carries no companion to add", async () => {
-    const dirs = editor([COMPANION], [{ name: "B", location: "pb", ids: [CLAUDE] }]);
-    const { calls, run } = recorder();
-    const answer = await addWhereMissing({
-      contexts: [context(dirs)],
-      carried: null,
-      run,
-    });
-    expect(calls).toEqual([]);
-    expect(answer.lines[0]).toMatch(/carries none/);
-  });
-
-  it("says when profiles could not be read, and adds nothing there", async () => {
-    const dirs = editor([COMPANION]);
-    writeFileSync(join(dirs.userData, "User", "globalStorage", "storage.json"), "{ not json");
-    const { calls, run } = recorder();
-    const answer = await addWhereMissing({
-      contexts: [context(dirs)],
-      carried,
-      run,
-    });
-    expect(calls).toEqual([]);
-    expect(answer.lines[0]).toMatch(/could not read the profiles/);
   });
 });

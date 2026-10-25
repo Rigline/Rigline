@@ -81,6 +81,9 @@ export const LABEL = "the Rigline companion extension";
 /** An engine entry spawned in place of the acquired one, for developing Rigline (D94). */
 export const ENGINE_SETTING = "enginePath";
 
+/** The engine version this profile's last update failed to install, so a repeat is told (D145). */
+export const ENGINE_FAILURE_KEY = "rigline.engineFailure";
+
 type Runnable = { readonly version: string; readonly entry: string };
 
 /**
@@ -114,7 +117,7 @@ export function marked(
   };
 }
 
-/** The Node and the engine a run used, which the self-update after it asks again (D99). */
+/** The Node and the engine a run used, which the look at the profiles after it runs (D144). */
 export interface Runner {
   readonly nodePath: string;
   readonly entry: string;
@@ -175,7 +178,7 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
   const nodePath = node.path;
   try {
     const named = namedEngine(editor, exists);
-    const { engine, majorAhead, belowFloor } =
+    const { engine, majorAhead, belowFloor, stuck } =
       named === undefined
         ? await acquired(editor, acquisition, {
             nodePath,
@@ -183,7 +186,7 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
             label: LABEL,
             version,
           })
-        : { engine: named, majorAhead: null, belowFloor: null };
+        : { engine: named, majorAhead: null, belowFloor: null, stuck: null };
     const runner: Runner = { nodePath, entry: engine.entry };
     editor.status("working", "Rigline: injecting", `Running ${engine.version}`);
     const before = stamps(editor.extensionPath(CLAUDE_CODE));
@@ -249,6 +252,13 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
       return { kind: "attention", message, reload, runner };
     }
 
+    if (stuck !== null) {
+      // Green here would be this engine staying where it is for good, unseen (D145).
+      editor.status("attention", "Rigline: needs you", stuck);
+      editor.log(stuck);
+      return { kind: "attention", message: stuck, reload, runner };
+    }
+
     // A version patched behind this window must not look like steady state (D85).
     if (reason.kind === "moved") {
       editor.status(
@@ -271,8 +281,8 @@ export async function acquireAndInject(options: AcquireOptions): Promise<Acquire
 
 /**
  * The acquired engine, moved first if its tag has, and why it was not moved where a person has to
- * do something about it: the version of a newer major the wrapper refused, or the Node floor it was
- * withheld by.
+ * do something about it: the version of a newer major the wrapper refused, the Node floor it was
+ * withheld by, or one version failing to install on two runs.
  */
 async function acquired(
   editor: Editor,
@@ -282,12 +292,14 @@ async function acquired(
   readonly engine: Runnable;
   readonly majorAhead: string | null;
   readonly belowFloor: string | null;
+  readonly stuck: string | null;
 }> {
   editor.status("working", "Rigline: updating", "Checking for a newer Rigline engine");
   const update = await acquisition.updateEngine(options);
   editor.log(`engine: ${update.outcome}${update.to === undefined ? "" : ` ${update.to}`}`);
   let majorAhead: string | null = null;
   let belowFloor: string | null = null;
+  let stuck: string | null = null;
   if (update.outcome === "withheld") {
     editor.log(`engine update withheld: ${update.reason ?? "no reason given"}`);
     if (update.by === "node") belowFloor = update.reason ?? null;
@@ -298,8 +310,24 @@ async function acquired(
     editor.log(`engine update did not happen: ${update.reason ?? "no reason given"}`);
     const theirs = update.to === undefined ? null : majorOf(update.to);
     if (theirs !== null && theirs !== majorOf(options.version)) majorAhead = update.to ?? null;
+    // No `to` is a registry not reached, and a held lock is another run doing this one (D145).
+    else if (update.to !== undefined && update.by !== "lock") {
+      if (editor.remembered(ENGINE_FAILURE_KEY) === update.to) {
+        const first = (update.reason ?? "").split(/\r?\n/)[0]?.replace(/\.$/, "");
+        stuck =
+          `Rigline's engine has failed to move to ${update.to} twice` +
+          `${first ? `: ${first}` : ""}. The Rigline output has the rest.`;
+      } else {
+        await editor.remember(ENGINE_FAILURE_KEY, update.to);
+      }
+    }
   }
-  return { engine: await acquisition.ensureEngine(options), majorAhead, belowFloor };
+  if (["moved", "installed", "current"].includes(update.outcome)) {
+    if (editor.remembered(ENGINE_FAILURE_KEY) !== undefined) {
+      await editor.remember(ENGINE_FAILURE_KEY, undefined);
+    }
+  }
+  return { engine: await acquisition.ensureEngine(options), majorAhead, belowFloor, stuck };
 }
 
 export interface ShowPluginsOptions {

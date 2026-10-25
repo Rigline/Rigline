@@ -59,14 +59,18 @@ describe("companionFingerprint", () => {
     expect(companionFingerprint(withMap(CODE).replace(/\n/g, "\r\n"), MANIFEST)).toBe(base);
   });
 
-  it("ignores the version, VS Code's __metadata and key order", () => {
+  it("ignores the version below its major, VS Code's __metadata and key order", () => {
     const installed = {
       activationEvents: ["onUri"],
-      version: "1.0.0-alpha.12",
+      version: "1.2.0",
       name: "rigline",
       __metadata: { installedTimestamp: 1 },
     };
     expect(companionFingerprint(CODE, installed)).toBe(base);
+  });
+
+  it("differs across a major, since the companion's major gate reads its version (D144)", () => {
+    expect(companionFingerprint(CODE, { ...MANIFEST, version: "2.0.0" })).not.toBe(base);
   });
 
   it("differs when the code or the rest of the manifest does", () => {

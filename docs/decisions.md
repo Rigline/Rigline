@@ -1700,6 +1700,8 @@ and the live preview are the same either way, so nothing is reachable only throu
 **Superseded by D143:** the companion is required, and `install` puts it in. The retrieval layer and
 the lock stand.
 
+**Amended by D145:** one version failing to install on two runs wants a person.
+
 **D81. Nothing reacts to an extension directory that is still being written (2026-09-21).**
 `settleWebviewBackup` makes the live bytes the pristine backup in two of its branches: when there is
 no backup yet, and when live and backup share no relation. Both are right about a real new version
@@ -2550,6 +2552,9 @@ Rejected:
 installs the carried companion wherever a profile has another, so the rejection of `rigline update`
 installing the VSIX no longer holds.
 
+**Amended by D144:** the fingerprint carries the version's major, and self-update no longer
+installs: the companion's look makes every profile current, the running one included.
+
 **D100. The companion goes into every profile that has Claude Code, and is added wherever it is
 missing (2026-09-25, Leo).** Each profile carries its own extensions, so a companion installed into
 one is absent from a window bound to another. That window has no Save and no status, and a Claude
@@ -2636,6 +2641,9 @@ Rejected:
 **Amended by D143:** no `skipProfiles` or `everyProfile`, no refusal to add over a different build,
 and no gate on the companion being in the editor already: a person's verb and the companion's look
 both add it wherever a profile has Claude Code.
+
+**Amended by D144:** the companion's look replaces a companion that is not the carried build as well
+as adding one, never at the carried version, under `companion.lock`.
 
 **D101. Every harvest pattern reads a string in any of the three quotes (2026-09-25, Leo).** Which
 quote a string is written in is the minifier's choice, not the extension's. Claude Code's bundler
@@ -2835,6 +2843,9 @@ Rejected:
   `webview/index.js`, the two whose half-written state D81 exists to catch.
 - Electing one companion to react. That is a lock by another name, at a layer that covers only
   companions.
+
+**Amended by D144:** a second lock, `companion.lock`, async and never held across an injection, for
+every writer of a companion.
 
 **D106. The wrapper installs the engine and hands everything else to it (2026-09-26, Leo).** D70 put
 the remote half of `add` and all of `update` in the wrapper on D49's premise that "the wrapper is
@@ -4125,3 +4136,93 @@ D93:** Save loses its gate on an installed companion, and the token stays. **Ame
 from a checkout is the developer's path `vscode-setup` was. **Amends D73:** an installed engine of an
 older major is no engine. **Amends D62:** this major is built on `main`; the branch rule stands for
 the next one, which will have users.
+
+**D144. One look makes every profile's companion current, bounded by what it knows (2026-10-25,
+Leo).** A profile with Claude Code holds the companion the engine carries, judged by D99's
+fingerprint, and both looks apply that one rule: the ensure step before a person's injection
+(D143), and the companion's look, `companion-profiles`, at every companion start. The companion's
+look used to add a companion only where a profile had none, and self-update moved only the running
+profile's, so a profile whose companion fell behind stayed behind until a person ran a verb there.
+
+**The fingerprint carries the version's major.** D99 left `version` out so that a release which
+leaves the companion alone reinstalls nothing, but the companion's behaviour depends on its version:
+it hands its manifest's version to the wrapper's major gate. Read live on 2026-10-23: the companion's
+bytes had not changed since 1.2.0, so 1.2.0, 2.0.0 and the carried 2.0.0 shared one fingerprint, two
+profiles held 1.2.0, `install` and `check` called them current, and every start there failed the
+major gate before self-update or the look could run. So D143's crossing left every profile but the
+one a person's verb touched broken for good. Now the manifest is hashed with `version` cut to its
+major: one reinstall per major, which is when the companion's behaviour changes, and none for a
+patch or minor that leaves it alone.
+
+**The companion's look replaces, but never at the carried version.** It can tell which engine its
+own profile runs and not which engine another profile's companion runs, since `rigline.enginePath`
+is per profile and a checkout build carries the release's version (D99). Replacing at the carried
+version would re-extract the shared directory under a developer's running windows and fight their
+checkout's `install`. A person's verb still replaces at the same version (D143). A checkout build at
+an older version than a release's carried one is replaced, and the checkout's next `install` puts it
+back, once per release. Targets are the ensure step's, so where `storage.json` is absent or
+unreadable the look falls back to the default profile, which is usually the running one.
+
+**Self-update no longer installs; the look is the companion's only way of installing a companion.**
+It used VS Code's `workbench.extensions.installExtension` because, when it was built, profiles could
+not be read and the API was the only way to name the profile the companion lives in. With the look
+covering every profile, the running one included, the two would write one profile through two
+mechanisms. What self-update did beyond installing falls out: once an install lands,
+`extensions.json` lists the carried build and the next look skips it, so the `globalState` guard is
+not needed; its same-version refusal is the look's; its *needs you* is the look's, once per distinct
+failure. The engine keeps answering `companion-status` for companions released before this, which
+self-update beside the look until their next restart; that skew settles and nothing is built for it.
+
+**Every writer of a companion holds `<RIGLINE_HOME>/companion.lock`**: the look's install pass, the
+ensure step's install pass, and `uninstall`'s removal. Under it the holder reads the profiles again,
+and the look reads the `restore` mark again, so a second window that waited finds nothing to do and a
+look that waited behind `uninstall` puts nothing back. It is not `inject.lock`, which is synchronous,
+sized to a fifteen-second injection with a thirty-second wait, and taken by `restore`, the
+blank-panel recovery, which must never refuse behind a VSIX install (D105). It has the home lock's
+rules and is async, and it is never held across an injection, so nothing waits on both and nothing
+nests. The steady state takes no lock: a look that finds every profile current from a first read
+returns.
+
+Read live in a scratch instance of VS Code with its own `--user-data-dir` and `--extensions-dir`: a
+CLI `--install-extension` takes about 0.3 s with or without `--force`, and with or without a window
+open on the profile. Installing where a profile had no companion starts it in that profile's open
+window at once (D100). Replacing 1.2.0 with 2.0.0 under an open window extracts
+`rigline.rigline-2.0.0` beside `rigline.rigline-1.2.0`, moves the profile's `extensions.json`, logs
+"Extensions added from another source" in the shared process, and activates nothing: the running
+companion runs on until an extension-host restart, so a replacement starts no burst of runs.
+
+Rejected:
+
+- Reading each profile's `settings.json` for `rigline.enginePath` and treating those profiles as
+  running another engine. Exact, and it parses a JSONC file per profile at every start for a case
+  only Rigline's own developers have, which the same-version bound already covers.
+- Sharing `inject.lock`, for the reasons above.
+- Keeping self-update beside the replacing look and covering the race with the lock. The lock
+  cannot reach VS Code's API, so the race would stay.
+
+**Amends D99:** the fingerprint carries the major, and self-update no longer installs; its
+rejection of "a companion version that moves only when its bytes do" stands, since the version
+still tracks releases. **Amends D100 and D143:** the companion's look replaces as well as adds,
+never at the carried version, and under a lock. **Amends D105:** a second engine-side lock, for
+companion writers.
+
+**D145. An engine update that keeps failing wants a person (2026-10-25, Leo).** The companion logs a
+failed engine update and stays green, carrying on with the engine it has, which is right for a
+registry it cannot reach or a lock another run holds (D80 as D143 keeps it). It is wrong for a
+version that cannot be installed: 2.0.1 reached `latest` depending on a `@rigline/plugin-api` that
+was not yet published, and every 2.0.0 install failed at every start with `ETARGET`, green, with
+nothing anywhere to say so. With the companion keeping everything current unattended (D144), staying
+green there is staying behind unseen.
+
+So the same version failing to install on two runs, with it still not installed, is *needs you*,
+naming the version and the first line of the failure, and only where the status would otherwise be
+green. The version is kept in the profile's `globalState` and cleared by an update that succeeds or
+finds the engine current. Not counted: a failure with no version, which is a registry not reached,
+and a held home lock, which `updateEngine` now marks `by: "lock"` and which several windows of one
+profile starting together produce on first contact. Runs happen at a start or a new Claude Code
+directory, so with one window open for days the second failure can be days after the first.
+
+Rejected: counting failures across separate starts only, which needs a record of starts for what the
+lock mark answers directly.
+
+**Amends D80** as D143 keeps it: a repeated failure to install one version is not carried on from.

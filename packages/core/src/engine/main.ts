@@ -32,7 +32,6 @@ import {
   type AddResult,
   addFromNpm,
   addPlugin,
-  addWhereMissing,
   applyPreset,
   bundledDir,
   bundledPluginsDir,
@@ -53,7 +52,7 @@ import {
   discoverPlugins,
   EDITOR_CLIS,
   type EditorCli,
-  type EditorContext,
+  type EditorDirs,
   type Ensured,
   EXTENSIONS_DIR,
   editorDirs,
@@ -85,6 +84,7 @@ import {
   listPlugins,
   listPresets,
   lookAtCompanion,
+  makeProfilesCurrent,
   markRestored,
   orderInLayout,
   type Placement,
@@ -121,16 +121,17 @@ import {
   updatePlugins,
   verdict,
   viewLayout,
+  withCompanionLock,
   withInjectionLock,
   workspaceRoot,
   writePreset,
 } from "../index.ts";
 import { buildPlugin } from "./build.ts";
 
-/** A wait on the injection lock goes to stderr, so stdout stays the report (D105). */
-const lockWait: InjectionLockOptions = {
-  onWait: (line) => console.error(`rigline: ${line}`),
-};
+/** A wait on a lock goes to stderr, so stdout stays the report (D105). */
+const lockWait = {
+  onWait: (line: string) => console.error(`rigline: ${line}`),
+} satisfies InjectionLockOptions;
 
 const USAGE = `rigline ${CORE_VERSION}
 
@@ -384,6 +385,7 @@ async function ensureStep(): Promise<Ensured> {
     ...companionTargets(),
     findCli: () => findEditors(),
     run: runEditor,
+    lock: lockWait,
   });
   for (const line of ensured.lines) console.log(line);
   if (ensured.installed.length > 0 && checkoutPluginsDir() !== null) {
@@ -937,8 +939,8 @@ async function runEditor(
 }
 
 /**
- * `companion-profiles`: adds the companion wherever it is missing, as JSON on stdout (D100). Hidden,
- * like `companion-status`. The companion names its own editor exactly.
+ * `companion-profiles`: the companion's look, making every profile's companion current, as JSON on
+ * stdout (D144). Hidden, like `companion-status`. The companion names its own editor exactly.
  */
 async function companionProfilesCommand(args: string[]): Promise<number> {
   const { values } = parseArgs({
@@ -951,16 +953,7 @@ async function companionProfilesCommand(args: string[]): Promise<number> {
     },
     allowPositionals: false,
   });
-  // A companion still running after `uninstall` would otherwise put itself back (D111, D143).
-  const additions: Additions =
-    restoredSince(riglinePaths().restored) === null
-      ? await companionAdditions(values)
-      : {
-          v: 1,
-          lines: ["added the companion to no profile: Rigline is out since `rigline restore`"],
-          failed: false,
-        };
-  console.log(JSON.stringify(additions));
+  console.log(JSON.stringify(await companionLook(values)));
   return 0;
 }
 
@@ -971,21 +964,23 @@ interface EditorNamed {
   "cli-script"?: string | undefined;
 }
 
-/** The companion added wherever it is missing, in the editor named. */
-async function companionAdditions(values: EditorNamed): Promise<Additions> {
+async function companionLook(values: EditorNamed): Promise<Additions> {
   try {
-    return await addWhereMissing({
-      contexts: additionContexts(values),
+    return await makeProfilesCurrent({
+      ...namedEditor(values),
       carried: carriedCompanion(),
       run: runEditor,
+      // A companion still running after `uninstall` would otherwise put itself back (D111, D143).
+      restored: () => restoredSince(riglinePaths().restored) !== null,
+      lock: lockWait,
     });
   } catch (error) {
     if (!(error instanceof UserError)) throw error;
-    return { v: 1, lines: [`added the companion to no profile: ${error.message}`], failed: true };
+    return { v: 1, lines: [`changed no profile's companion: ${error.message}`], failed: true };
   }
 }
 
-function additionContexts(values: EditorNamed): EditorContext[] {
+function namedEditor(values: EditorNamed): { dirs: EditorDirs; cli: EditorCli } {
   const {
     "user-data-dir": userData,
     "extensions-dir": extensionsDir,
@@ -1004,18 +999,14 @@ function additionContexts(values: EditorNamed): EditorContext[] {
     );
   }
   // What the `code` shim runs, pointed at the instance the companion is running in.
-  return [
-    {
-      label: "",
-      userData,
-      extensionsDir,
-      cli: {
-        command: node,
-        prefix: [script, "--user-data-dir", userData, "--extensions-dir", extensionsDir],
-        env: { ELECTRON_RUN_AS_NODE: "1" },
-      },
+  return {
+    dirs: { userData, extensionsDir },
+    cli: {
+      command: node,
+      prefix: [script, "--user-data-dir", userData, "--extensions-dir", extensionsDir],
+      env: { ELECTRON_RUN_AS_NODE: "1" },
     },
-  ];
+  };
 }
 
 /**
@@ -1164,11 +1155,10 @@ async function uninstallCommand(args: string[]): Promise<number> {
   const restored = restoreEverything();
   console.log("");
   const [vscode] = EDITOR_CLIS;
-  const companion = await uninstallCompanion({
-    dirs: editorDirs(vscode),
-    findCli: () => findEditors(),
-    run: runEditor,
-  });
+  // After the mark, so a companion's look that waited on this finds it (D144).
+  const companion = await withCompanionLock({ ...lockWait, what: "rigline uninstall" }, () =>
+    uninstallCompanion({ dirs: editorDirs(vscode), findCli: () => findEditors(), run: runEditor }),
+  );
   for (const line of companion.lines) console.log(line);
   const home = riglinePaths().home;
   console.log(

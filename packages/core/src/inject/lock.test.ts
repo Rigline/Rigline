@@ -1,5 +1,5 @@
 /**
- * One engine injects at a time (D105).
+ * One engine injects at a time (D105), and one writes companions at a time (D144).
  *
  * The clock, the liveness check and the sleep are injected, so a contended lock costs nothing here.
  * The filesystem is real, because `wx` is the primitive the lock rests on. The race between two
@@ -9,7 +9,13 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { InjectionLockedError, isStale, type LockHolder, withInjectionLock } from "./lock.ts";
+import {
+  isStale,
+  LockedError,
+  type LockHolder,
+  withCompanionLock,
+  withInjectionLock,
+} from "./lock.ts";
 
 const made: string[] = [];
 
@@ -69,8 +75,8 @@ describe("withInjectionLock", () => {
         return error;
       }
     });
-    expect(inner).toBeInstanceOf(InjectionLockedError);
-    expect((inner as InjectionLockedError).holder).toMatchObject({
+    expect(inner).toBeInstanceOf(LockedError);
+    expect((inner as LockedError).holder).toMatchObject({
       pid: process.pid,
       what: "rigline install",
     });
@@ -148,7 +154,7 @@ describe("withInjectionLock", () => {
       failure = error;
     }
     expect(lines).toEqual(["waiting for rigline install (pid 424242) to finish"]);
-    expect(failure).toBeInstanceOf(InjectionLockedError);
+    expect(failure).toBeInstanceOf(LockedError);
     expect((failure as Error).message).toMatch(/^rigline install \(pid 424242\) has held /);
     expect(existsSync(path)).toBe(true);
   });
@@ -162,8 +168,8 @@ describe("withInjectionLock", () => {
     } catch (error) {
       failure = error;
     }
-    expect(failure).toBeInstanceOf(InjectionLockedError);
-    expect((failure as InjectionLockedError).holder).toBeNull();
+    expect(failure).toBeInstanceOf(LockedError);
+    expect((failure as LockedError).holder).toBeNull();
   });
 
   it("takes an unreadable lock once it is old", () => {
@@ -178,6 +184,39 @@ describe("withInjectionLock", () => {
   it("creates the directory it lives in", () => {
     const path = join(lockIn(), "..", "not", "there", "inject.lock");
     expect(withInjectionLock({ path }, () => "made")).toBe("made");
+  });
+});
+
+describe("withCompanionLock", () => {
+  it("holds across awaited work, and a second holder waits for it to finish", async () => {
+    const path = lockIn();
+    const order: string[] = [];
+    let release = () => {};
+    const first = withCompanionLock({ path, what: "first" }, async () => {
+      order.push("first in");
+      await new Promise<void>((done) => (release = done));
+      order.push("first out");
+    });
+    const second = withCompanionLock({ path, what: "second", pollMs: 1 }, async () => {
+      order.push("second in");
+    });
+    await new Promise((done) => setTimeout(done, 20));
+    expect(JSON.parse(readFileSync(path, "utf8"))).toMatchObject({ what: "first" });
+    release();
+    await Promise.all([first, second]);
+    expect(order).toEqual(["first in", "first out", "second in"]);
+    expect(existsSync(path)).toBe(false);
+  });
+
+  it("refuses a live holder past the wait, naming it", async () => {
+    const path = lockIn();
+    hold(path, { since: new Date().toISOString() });
+    const attempt = withCompanionLock(
+      { path, isAlive: always, waitMs: 0, sleep: async () => {} },
+      async () => "unreached",
+    );
+    await expect(attempt).rejects.toBeInstanceOf(LockedError);
+    await expect(attempt).rejects.toThrow(/^rigline install \(pid 424242\) has held /);
   });
 });
 

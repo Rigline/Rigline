@@ -1,5 +1,6 @@
 /**
- * The companion into this editor's other profiles, wherever Claude Code is and it is not (D100).
+ * Every profile with Claude Code holding the companion the engine carries, this one included
+ * (D144). The only way the companion installs a companion.
  *
  * The engine reads the profiles and installs; this hands it the editor and says what came back. It
  * never throws, since it follows a run that has already reported.
@@ -58,7 +59,7 @@ export async function addToProfiles(options: AddOptions): Promise<AddOutcome> {
     answer = { problem: error instanceof Error ? error.message : String(error) };
   }
   if ("problem" in answer) {
-    editor.log(`did not look for profiles without the companion: ${answer.problem}`);
+    editor.log(`did not look at the profiles' companions: ${answer.problem}`);
     return "skipped";
   }
 

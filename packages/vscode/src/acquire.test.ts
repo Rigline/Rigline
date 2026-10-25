@@ -219,6 +219,65 @@ describe("acquireAndInject", () => {
     expect(e.lines.join("\n")).toMatch(/pid 4/);
   });
 
+  describe("an engine update that keeps failing (D145)", () => {
+    const NPM =
+      "installing @rigline/core@2.0.1 into ~/.rigline/engine failed (npm exited 1).\n" +
+      "npm error notarget No matching version found for @rigline/plugin-api@2.0.1.";
+
+    /** The runs, in order, each answered by the update given, on one profile's state. */
+    async function runs(
+      ...updates: Awaited<ReturnType<AcquireOptions["acquisition"]["updateEngine"]>>[]
+    ) {
+      const e = editor();
+      const results = [];
+      for (const update of updates) {
+        const a = acquisition({ updateEngine: async () => update });
+        results.push(
+          await acquireAndInject({
+            editor: e.editor,
+            acquisition: a.acquisition,
+            ...runner(a),
+            ...QUIET,
+            version: "2.0.0",
+            exists: (p) => p === NODE,
+            env: { PATH: NODE_DIR },
+          }),
+        );
+      }
+      return { e, kinds: results.map((r) => r.kind) };
+    }
+
+    const failed = { outcome: "failed", to: "2.0.1", reason: NPM } as const;
+
+    it("stays green the first time, and wants a person when the same version fails again", async () => {
+      const { e, kinds } = await runs(failed, failed);
+      expect(kinds).toEqual(["injected", "attention"]);
+      expect(e.statuses.at(-1)).toMatchObject({ health: "attention", text: "Rigline: needs you" });
+      expect(e.statuses.at(-1)?.tooltip).toBe(
+        "Rigline's engine has failed to move to 2.0.1 twice: installing @rigline/core@2.0.1 into " +
+          "~/.rigline/engine failed (npm exited 1). The Rigline output has the rest.",
+      );
+    });
+
+    it("counts neither a held lock nor a registry it could not reach", async () => {
+      const locked = { ...failed, by: "lock" } as const;
+      const unreached = { outcome: "failed", reason: "getaddrinfo ENOTFOUND" } as const;
+      expect((await runs(locked, locked)).kinds).toEqual(["injected", "injected"]);
+      expect((await runs(unreached, unreached)).kinds).toEqual(["injected", "injected"]);
+    });
+
+    it("forgets a failure once an update succeeds, and starts counting again", async () => {
+      const { e, kinds } = await runs(failed, { outcome: "current" }, failed);
+      expect(kinds).toEqual(["injected", "injected", "injected"]);
+      expect(e.statuses.at(-1)).toMatchObject({ health: "ok" });
+    });
+
+    it("counts a different version as a first failure", async () => {
+      const next = { ...failed, to: "2.0.2" } as const;
+      expect((await runs(failed, next)).kinds).toEqual(["injected", "injected"]);
+    });
+  });
+
   it("wants a person when the new engine needs a newer Node, and runs the one it has (D116)", async () => {
     const reason =
       "@rigline/core 1.3.0 needs Node 24.0.0 or newer, and /usr/bin/node is Node 22.12.0. " +

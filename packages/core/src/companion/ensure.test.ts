@@ -1,14 +1,19 @@
 /**
- * The ensure step (D143), over VS Code's files laid out in a scratch directory. The CLI is a fake
+ * Both looks (D143, D144), over VS Code's files laid out in a scratch directory. The CLI is a fake
  * that does what VS Code's does to them: it extracts the companion into the shared extensions
  * directory and lists it in the profile's `extensions.json`.
  */
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { UserError } from "../errors.ts";
-import { ensureCompanion, isAcquiredEngine, lookAtCompanion } from "./ensure.ts";
+import {
+  ensureCompanion,
+  isAcquiredEngine,
+  lookAtCompanion,
+  makeProfilesCurrent,
+} from "./ensure.ts";
 import { type CarriedCompanion, companionFingerprint } from "./fingerprint.ts";
 import { COMPANION_ID, type EditorDirs, installArgv } from "./profiles.ts";
 import type { FoundEditor } from "./setup.ts";
@@ -24,7 +29,7 @@ const CODE = '"use strict";\nexports.activate = () => {};\n';
 const MANIFEST = { name: "rigline", publisher: "rigline" };
 const carried: CarriedCompanion = {
   version: "2.0.0",
-  fingerprint: companionFingerprint(CODE, MANIFEST),
+  fingerprint: companionFingerprint(CODE, { ...MANIFEST, version: "2.0.0" }),
   vsix: "rigline.vsix",
 };
 
@@ -48,6 +53,8 @@ interface Spec {
 interface Machine extends EditorDirs {
   /** Where a profile's `extensions.json` is. */
   list(name: string): string;
+  /** The companion lock, beside VS Code's files rather than in anybody's home. */
+  readonly lock: string;
 }
 
 /** VS Code's files for `specs`, the default profile under its own name and the rest by location. */
@@ -83,7 +90,7 @@ function machine(specs: Record<string, Spec>, storage = true): Machine {
     mkdirSync(join(list(name), ".."), { recursive: true });
     writeFileSync(list(name), JSON.stringify(entries));
   }
-  return { userData, extensionsDir, list };
+  return { userData, extensionsDir, list, lock: join(root, "companion.lock") };
 }
 
 /** Extracts a companion, as VS Code does, and answers its `extensions.json` entry. */
@@ -131,7 +138,18 @@ function cli(at: Machine, outcome: Record<string, "lands" | "nowhere" | number> 
 }
 
 function options(at: Machine, fake: ReturnType<typeof cli>, own = true) {
-  return { dirs: at, carried, own, findCli: fake.findCli, run: fake.run };
+  return { dirs: at, carried, own, findCli: fake.findCli, run: fake.run, lock: { path: at.lock } };
+}
+
+function looking(at: Machine, fake: ReturnType<typeof cli>, restored = () => false) {
+  return {
+    dirs: at,
+    cli: { command: "code", prefix: [] },
+    carried,
+    run: fake.run,
+    restored,
+    lock: { path: at.lock },
+  };
 }
 
 describe("ensureCompanion", () => {
@@ -173,6 +191,18 @@ describe("ensureCompanion", () => {
       `installed the companion, 2.0.0, into profile "Work", which had none`,
       `replaced profile "Same"'s companion, 2.0.0 of another build, with this engine's, 2.0.0`,
     ]);
+  });
+
+  // The same bytes from another major refuse this engine at every start (D144).
+  it("replaces the same build from another major", async () => {
+    const at = machine({
+      Default: { claudeCode: true, companion: { version: "1.2.0", code: CODE } },
+    });
+    const fake = cli(at);
+    const ensured = await ensureCompanion(options(at, fake));
+    expect(fake.calls).toEqual([installArgv(carried.vsix, null, true)]);
+    expect(ensured.installed).toEqual(["Default"]);
+    expect(existsSync(at.lock)).toBe(false);
   });
 
   it("leaves a profile sharing the default's extensions to the default", async () => {
@@ -312,6 +342,104 @@ describe("lookAtCompanion", () => {
       ],
     });
     expect(lists()).toEqual(before);
+  });
+});
+
+describe("makeProfilesCurrent", () => {
+  it("installs where a profile has none and replaces another version, leaving the carried build", async () => {
+    const at = machine({
+      Default: { claudeCode: true, companion: "carried" },
+      React: { claudeCode: true, companion: { version: "1.2.0", code: CODE } },
+      Work: { claudeCode: true },
+      Plain: {},
+    });
+    const fake = cli(at);
+    expect(await makeProfilesCurrent(looking(at, fake))).toEqual({
+      v: 1,
+      lines: [
+        `replaced profile "React"'s companion, 1.2.0, with this engine's, 2.0.0`,
+        `installed the companion, 2.0.0, into profile "Work", which had none`,
+      ],
+      failed: false,
+    });
+    expect(fake.calls).toEqual([
+      installArgv(carried.vsix, "React", true),
+      installArgv(carried.vsix, "Work", false),
+    ]);
+    expect(existsSync(at.lock)).toBe(false);
+  });
+
+  // A checkout's build carries the release's version, and that profile may run the checkout (D144).
+  it("leaves another build at the carried version, which only a person's verb replaces", async () => {
+    const at = machine({
+      Default: { claudeCode: true, companion: { version: "2.0.0", code: `${CODE}//checkout` } },
+    });
+    const fake = cli(at);
+    expect(await makeProfilesCurrent(looking(at, fake))).toEqual({
+      v: 1,
+      lines: [],
+      failed: false,
+    });
+    expect(fake.calls).toEqual([]);
+  });
+
+  it("changes nothing while a restore holds, asking again under the lock (D111)", async () => {
+    const at = machine({ Default: { claudeCode: true } });
+    const fake = cli(at);
+    const before = await makeProfilesCurrent(looking(at, fake, () => true));
+    let asked = 0;
+    const during = await makeProfilesCurrent(looking(at, fake, () => asked++ > 0));
+    expect(before.lines).toEqual([
+      "changed no profile's companion: Rigline is out since `rigline restore`",
+    ]);
+    expect(during).toEqual(before);
+    expect(fake.calls).toEqual([]);
+  });
+
+  it("reads the profiles again once a holder lets go, and installs only what is still stale", async () => {
+    const at = machine({ Default: { claudeCode: true }, Work: { claudeCode: true } });
+    const fake = cli(at);
+    const since = new Date().toISOString();
+    writeFileSync(at.lock, JSON.stringify({ pid: process.pid, since, what: "another window" }));
+    const answer = await makeProfilesCurrent({
+      ...looking(at, fake),
+      lock: {
+        path: at.lock,
+        // The holder finishes Default, then lets go.
+        sleep: async () => {
+          if (!existsSync(at.lock)) return;
+          await fake.run(null, installArgv(carried.vsix, null, false));
+          rmSync(at.lock);
+        },
+      },
+    });
+    expect(fake.calls).toEqual([
+      installArgv(carried.vsix, null, false),
+      installArgv(carried.vsix, "Work", false),
+    ]);
+    expect(answer.lines).toEqual([
+      `installed the companion, 2.0.0, into profile "Work", which had none`,
+    ]);
+  });
+
+  it("reports an install that failed, with what the CLI said and the way round it", async () => {
+    const at = machine({ Default: { claudeCode: true } });
+    const answer = await makeProfilesCurrent(looking(at, cli(at, { Default: 1 })));
+    expect(answer.failed).toBe(true);
+    expect(answer.lines).toEqual([
+      `the companion could not be installed into profile "Default": Profile 'Default' broke. ` +
+        `Extensions: Install from VSIX… in that profile, with ${carried.vsix}, does it by hand`,
+    ]);
+  });
+
+  it("says so where this engine carries no companion, and installs nothing", async () => {
+    const at = machine({ Default: { claudeCode: true }, Work: { claudeCode: true } });
+    const fake = cli(at);
+    const answer = await makeProfilesCurrent({ ...looking(at, fake), carried: null });
+    expect(fake.calls).toEqual([]);
+    expect(answer.lines).toEqual([
+      'profiles "Default" and "Work" lack the companion, and this engine carries none to add',
+    ]);
   });
 });
 

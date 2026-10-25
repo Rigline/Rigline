@@ -262,8 +262,9 @@ released code. Set, the status item reads *Rigline (dev)*. The tell that it is n
 copied report without what you just built; compare the installed `post.js` with
 `packages/core/dist/bundled/post.js`. `pnpm build` and `pnpm rigline install` again after changing
 the companion itself, or after giving another profile Claude Code: while `rigline.enginePath` is
-set, the companion neither updates itself nor adds itself to other profiles (D99, D100), so the
-checkout's `install` is what moves it. Switching the machine between the checkout and the release
+set, the companion installs no companion anywhere (D144), so the checkout's `install` is what moves
+it. A profile without the setting still replaces a checkout build at an older version than the
+release's, and `install` puts it back. Switching the machine between the checkout and the release
 is CONTRIBUTING.md's *The checkout or the release*.
 
 **From a worktree beside another session, stop at the harness.** There is one live extension: an

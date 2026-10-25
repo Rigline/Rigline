@@ -93,7 +93,9 @@ file.
   (`packages/cli/src/index.ts:15-18`, now `main.ts`, and `commands.ts:85`). Nothing updates the wrapper, so a 1.0
   wrapper lives for the major, and a later one that refused `rigline --version foo` would refuse an
   invocation 1.0 accepted: strict now or never, as the engine's verbs already are.
-- [ ] **M13.** *Optional.* **A stranded companion updates itself.** In the *not in this editor*
+- [ ] **M13.** *Withdrawn: D144 removed self-update, and a companion in an editor the engine does
+  not inject is replaced by that editor's look once one is supported.* **A stranded companion
+  updates itself.** In the *not in this editor*
   branch (`extension.ts:92-102`), with `enginePath` unset: find Node quietly, read the engine
   already on disk (`readEngineState(engineDir())`, no npm, no network), and if it is ready and of
   this major, `selfUpdate` with `green: false`, logging only. Without it, a later `rigline

@@ -15,8 +15,6 @@ export interface StubEditor {
   readonly asked: { level: Level; message: string; actions: string[] }[];
   /** Every reload actually taken. The list this project cares most about staying short. */
   readonly reloads: ("webviews" | "window")[];
-  /** Every VSIX installed, in order. */
-  readonly installs: string[];
   /** The profile's state, as `remember` left it. */
   readonly memory: Map<string, unknown>;
 }
@@ -31,7 +29,6 @@ export function stubEditor(over: StubOptions = {}): StubEditor {
   const lines: string[] = [];
   const asked: StubEditor["asked"] = [];
   const reloads: StubEditor["reloads"] = [];
-  const installs: string[] = [];
   const memory = new Map<string, unknown>();
   const { answers = [], ...overrides } = over;
   let answered = 0;
@@ -57,9 +54,6 @@ export function stubEditor(over: StubOptions = {}): StubEditor {
     reloadWindow: async () => {
       reloads.push("window");
     },
-    installExtension: async (vsix) => {
-      installs.push(vsix);
-    },
     remembered: (key) => memory.get(key),
     remember: async (key, value) => {
       memory.set(key, value);
@@ -67,5 +61,5 @@ export function stubEditor(over: StubOptions = {}): StubEditor {
     ...overrides,
   };
 
-  return { editor, statuses, lines, asked, reloads, installs, memory };
+  return { editor, statuses, lines, asked, reloads, memory };
 }

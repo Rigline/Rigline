@@ -26,8 +26,19 @@ export {
 } from "./assets.ts";
 export type { Generated } from "./codegen/generate.ts";
 export { generate, sameSource } from "./codegen/generate.ts";
-export type { Ensured, EnsureOptions, LookOptions } from "./companion/ensure.ts";
-export { ensureCompanion, isAcquiredEngine, lookAtCompanion } from "./companion/ensure.ts";
+export type {
+  Additions,
+  Ensured,
+  EnsureOptions,
+  LookOptions,
+  ProfilesOptions,
+} from "./companion/ensure.ts";
+export {
+  ensureCompanion,
+  isAcquiredEngine,
+  lookAtCompanion,
+  makeProfilesCurrent,
+} from "./companion/ensure.ts";
 export type { CarriedCompanion, CompanionStatus } from "./companion/fingerprint.ts";
 export {
   COMPANION_SIDECAR,
@@ -37,22 +48,13 @@ export {
   installedFingerprint,
 } from "./companion/fingerprint.ts";
 export type {
-  Additions,
   EditorCli,
-  EditorContext,
   EditorDirs,
   InstalledCompanion,
   Profile,
   ProfilesRead,
 } from "./companion/profiles.ts";
-export {
-  addWhereMissing,
-  editorDirs,
-  installArgv,
-  missingFrom,
-  readProfiles,
-  uninstallArgv,
-} from "./companion/profiles.ts";
+export { editorDirs, installArgv, readProfiles, uninstallArgv } from "./companion/profiles.ts";
 export type { FoundEditor, Uninstalled, UninstallOptions } from "./companion/setup.ts";
 export {
   COMPANION_RELOAD,
@@ -117,8 +119,8 @@ export {
   restoreAll,
   verdict,
 } from "./inject/inject.ts";
-export type { InjectionLockOptions, LockHolder } from "./inject/lock.ts";
-export { InjectionLockedError, withInjectionLock } from "./inject/lock.ts";
+export type { CompanionLockOptions, InjectionLockOptions, LockHolder } from "./inject/lock.ts";
+export { LockedError, withCompanionLock, withInjectionLock } from "./inject/lock.ts";
 export { clearRestored, markRestored, restoredAt, restoredSince } from "./inject/restored.ts";
 export type { Harvest } from "./layers/index.ts";
 export * from "./layers/index.ts";

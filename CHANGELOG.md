@@ -12,6 +12,20 @@ it needs, its entry says so.
 
 ## Unreleased
 
+### Fixed
+
+- After moving from 1.x, every VS Code profile but the one `rigline install` ran in could keep its
+  1.x companion, which reads *Rigline: failed* at every start. `rigline install` now replaces it,
+  and so does the companion in any other profile when it starts.
+
+### Changed
+
+- The companion keeps every profile's companion current when it starts, not only its own, so a
+  profile you rarely open no longer falls behind.
+- An engine update that fails to install the same version twice now reads *Rigline: needs you*,
+  naming the version, instead of staying green on the engine you have. A registry that cannot be
+  reached still stays quiet.
+
 ## 2.0.1 — 2026-10-21
 
 ### Changed

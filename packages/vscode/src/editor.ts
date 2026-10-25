@@ -58,8 +58,6 @@ export interface Editor {
   reloadWebviews(): Promise<void>;
   /** The whole window. The only thing that picks up a changed `extension.js`. */
   reloadWindow(): Promise<void>;
-  /** Install a VSIX into this window's profile; it runs once extensions next restart (D99). */
-  installExtension(vsix: string): Promise<void>;
   /** A value kept in this profile's state for the companion, shared by the profile's windows. */
   remembered(key: string): unknown;
   remember(key: string, value: unknown): Promise<void>;

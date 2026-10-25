@@ -31,7 +31,8 @@ const SOURCE_MAP = "//# sourceMappingURL=";
 
 /**
  * One build's identity: its code without the inline source map, which embeds the sources with the
- * checkout's line endings, and its manifest without `version` or VS Code's `__metadata`.
+ * checkout's line endings, and its manifest without VS Code's `__metadata` and with `version` cut to
+ * its major, which the wrapper's major gate reads (D144).
  */
 export function companionFingerprint(code: string, manifest: unknown): string {
   const body = code
@@ -42,7 +43,12 @@ export function companionFingerprint(code: string, manifest: unknown): string {
   const fields =
     manifest !== null && typeof manifest === "object"
       ? Object.fromEntries(
-          Object.entries(manifest).filter(([key]) => key !== "version" && key !== "__metadata"),
+          Object.entries(manifest).flatMap(([key, value]): [string, unknown][] => {
+            if (key === "__metadata") return [];
+            if (key !== "version") return [[key, value]];
+            const major = typeof value === "string" ? /^\d+/.exec(value)?.[0] : undefined;
+            return major === undefined ? [] : [[key, major]];
+          }),
         )
       : {};
   return createHash("sha256")

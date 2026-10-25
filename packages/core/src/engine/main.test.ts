@@ -73,7 +73,10 @@ vi.mock("../companion/fingerprint.ts", async (importOriginal) => {
     ...actual,
     carriedCompanion: () => ({
       version: COMPANION.version,
-      fingerprint: actual.companionFingerprint(COMPANION.code, COMPANION.manifest),
+      fingerprint: actual.companionFingerprint(COMPANION.code, {
+        ...COMPANION.manifest,
+        version: COMPANION.version,
+      }),
       vsix: "rigline.vsix",
     }),
   };
@@ -230,7 +233,7 @@ describe("the companion (D143)", () => {
     await runEngine(look);
     expect(answer()).toEqual({
       v: 1,
-      lines: ["added the companion to no profile: Rigline is out since `rigline restore`"],
+      lines: ["changed no profile's companion: Rigline is out since `rigline restore`"],
       failed: false,
     });
     companionInstalled();

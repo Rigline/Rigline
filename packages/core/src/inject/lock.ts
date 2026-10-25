@@ -1,10 +1,11 @@
 /**
- * One engine injects at a time (D105).
+ * One engine injects at a time (D105), and one writes companions at a time (D144).
  *
  * The stability sample (D83) cannot tell another engine's writes from VS Code's, so two engines
  * injecting together refuse each other as "still being written". These are the wrapper's home-lock
- * rules (`packages/cli/src/lock.ts`), copied because the wrapper does not depend on core, and
- * synchronous because `install` is.
+ * rules (`packages/cli/src/lock.ts`), copied because the wrapper does not depend on core. The
+ * injection lock is synchronous because `install` is; the companion lock is async because the
+ * editor's CLI is, and is never held across an injection, so neither waits on the other.
  */
 import {
   closeSync,
@@ -45,10 +46,16 @@ export interface InjectionLockOptions {
   readonly onWait?: (line: string) => void;
 }
 
+export type CompanionLockOptions = Omit<InjectionLockOptions, "sleep"> & {
+  readonly sleep?: (ms: number) => Promise<void>;
+};
+
 /** Past the slowest run measured, six corpus versions from vanilla; the wait is twice it (D105). */
 const STALE_MS = 15_000;
 const WAIT_MS = 30_000;
 const POLL_MS = 100;
+/** The home lock's: a CLI install takes a third of a second, so this is room, not a measurement. */
+const COMPANION_STALE_MS = 60_000;
 /** Past any real hold, so a pid Windows has handed to another process pins the lock no longer. */
 const HELD_MAX_MS = 10 * 60_000;
 
@@ -102,7 +109,7 @@ export function isStale(
   return age >= HELD_MAX_MS || (age >= staleMs && (holder === null || !isAlive(holder.pid)));
 }
 
-export class InjectionLockedError extends UserError {
+export class LockedError extends UserError {
   readonly holder: LockHolder | null;
 
   constructor(path: string, holder: LockHolder | null) {
@@ -114,6 +121,43 @@ export class InjectionLockedError extends UserError {
     );
     this.holder = holder;
   }
+}
+
+/** Take the lock, answering null, or answer who holds it. A stale holder is cleared first. */
+function attempt(
+  path: string,
+  what: string,
+  now: () => number,
+  staleMs: number,
+  isAlive: (pid: number) => boolean,
+): { readonly held: LockHolder | null } | null {
+  for (;;) {
+    const holder: LockHolder = { pid: process.pid, since: new Date(now()).toISOString(), what };
+    try {
+      const fd = openSync(path, "wx");
+      try {
+        writeFileSync(fd, JSON.stringify(holder, null, 2));
+      } finally {
+        closeSync(fd);
+      }
+      return null;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      const held = readHolder(path);
+      if (isStale(held, writtenAt(path), now(), staleMs, isAlive)) {
+        // `wx` settles a tie, so two stealers reaching this line still produce one winner.
+        rmSync(path, { force: true });
+        continue;
+      }
+      return { held };
+    }
+  }
+}
+
+function waiting(path: string, held: LockHolder | null): string {
+  return held === null
+    ? `waiting for another Rigline process to release ${path}`
+    : `waiting for ${held.what} (pid ${held.pid}) to finish`;
 }
 
 /** Run `work` holding the injection lock, and release it whatever happens. */
@@ -133,40 +177,55 @@ export function withInjectionLock<T>(options: InjectionLockOptions, work: () => 
   mkdirSync(dirname(path), { recursive: true });
   const deadline = now() + waitMs;
   let told = false;
-
-  for (;;) {
-    const holder: LockHolder = { pid: process.pid, since: new Date(now()).toISOString(), what };
-    try {
-      const fd = openSync(path, "wx");
-      try {
-        writeFileSync(fd, JSON.stringify(holder, null, 2));
-      } finally {
-        closeSync(fd);
-      }
-      break;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-      const held = readHolder(path);
-      if (isStale(held, writtenAt(path), now(), staleMs, isAlive)) {
-        // `wx` settles a tie, so two stealers reaching this line still produce one winner.
-        rmSync(path, { force: true });
-        continue;
-      }
-      if (now() >= deadline) throw new InjectionLockedError(path, held);
-      if (!told) {
-        told = true;
-        onWait?.(
-          held === null
-            ? `waiting for another Rigline process to release ${path}`
-            : `waiting for ${held.what} (pid ${held.pid}) to finish`,
-        );
-      }
-      sleep(pollMs);
+  for (let busy = attempt(path, what, now, staleMs, isAlive); busy !== null;) {
+    if (now() >= deadline) throw new LockedError(path, busy.held);
+    if (!told) {
+      told = true;
+      onWait?.(waiting(path, busy.held));
     }
+    sleep(pollMs);
+    busy = attempt(path, what, now, staleMs, isAlive);
   }
 
   try {
     return work();
+  } finally {
+    rmSync(path, { force: true });
+  }
+}
+
+/** Run `work` holding the companion lock, and release it whatever happens (D144). */
+export async function withCompanionLock<T>(
+  options: CompanionLockOptions,
+  work: () => Promise<T>,
+): Promise<T> {
+  const {
+    path = riglinePaths().companionLock,
+    what = "rigline",
+    waitMs = WAIT_MS,
+    staleMs = COMPANION_STALE_MS,
+    pollMs = POLL_MS,
+    now = Date.now,
+    isAlive = alive,
+    sleep = (ms: number) => new Promise<void>((done) => setTimeout(done, ms)),
+    onWait,
+  } = options;
+
+  mkdirSync(dirname(path), { recursive: true });
+  const deadline = now() + waitMs;
+  let told = false;
+  for (let busy = attempt(path, what, now, staleMs, isAlive); busy !== null;) {
+    if (now() >= deadline) throw new LockedError(path, busy.held);
+    if (!told) {
+      told = true;
+      onWait?.(waiting(path, busy.held));
+    }
+    await sleep(pollMs);
+    busy = attempt(path, what, now, staleMs, isAlive);
+  }
+
+  try {
+    return await work();
   } finally {
     rmSync(path, { force: true });
   }
