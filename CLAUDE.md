@@ -61,7 +61,7 @@ decisions.md, and each doc cites the decisions it rests on.
 - [docs/ci.md](docs/ci.md): the delivery model. The branching rule, why versions and both dist-tags
   are derived rather than chosen, the release commands, the workflows, and what is still
   outstanding.
-- [docs/releasing.md](docs/releasing.md): the four published packages, the stage-then-approve split,
+- [docs/releasing.md](docs/releasing.md): the published packages, the stage-then-approve split,
   the one-time setup on npm and the extension registries and why each step of it is a person's, and cutting a release.
 
 Written for somebody else, so don't rewrite them for us:
@@ -311,9 +311,12 @@ User-visible means somebody installing a package would notice: behaviour, the CL
 plugin can do, what the scaffolder emits, a dependency floor. Refactors, docs and tests are not,
 and padding the file with them makes the real entries harder to find. It is written for somebody
 reading it on npm, not for us — say what changed for them, not which function moved.
-`pnpm release <increment>` cuts and pushes a version — changelog, manifests, commit, tag — and
-`pnpm release:finish` approves it; the release refuses a version the changelog has no section for.
-[docs/releasing.md](docs/releasing.md) is the runbook.
+`pnpm release <increment>` cuts and pushes a version — changelog, manifests, commit, tag — then
+waits for npm and approves every package in order (D146); `pnpm release:finish` resumes one that
+was stopped. The release refuses a version the changelog has no section for.
+[docs/releasing.md](docs/releasing.md) is the runbook. **Both publish, so they are Leo's to run.**
+Check a change to the release scripts with their tests under `scripts/lib/` and `pnpm release
+<increment> --dry-run`, which loads every module and exits before writing anything.
 
 **Panel text states; the docs explain (D130).** A first-party pill, tooltip or menu item says what
 is there, for a person who reads it daily. Keep a short hint at how to use it, and a distinction
