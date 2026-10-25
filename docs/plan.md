@@ -3,7 +3,7 @@
 The working document: what is being built, in what order, and where it stands. Durable rules live
 in [decisions.md](decisions.md); this file is about getting to 1.0. Phases 0 to 4b and 6 and
 milestones 7 and 8 are done; what is next is in **Next session**. Delivery has its own document, [ci.md](ci.md) — the branching rule, the release commands and the
-two workflows.
+workflows.
 
 ## What Rigline is
 
@@ -275,7 +275,7 @@ siblings. Our own release pipeline, first proven on `1.0.0-alpha.1` (D46,
 
 ### Phase 4b: the changelog, and the release pipeline — done 2026-09-20
 
-Delivery outgrew a phase entry. The model, the branching rule, the two workflows and what is still
+Delivery outgrew a phase entry. The model, the branching rule, the workflows and what is still
 outstanding live in [ci.md](ci.md); [releasing.md](releasing.md) is the runbook.
 
 ### Phase 5: companion VS Code extension — promoted to milestone 8

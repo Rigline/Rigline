@@ -1,15 +1,17 @@
 #!/usr/bin/env node
 /**
- * Cut and ship a version: roll the changelog, bump every manifest, commit, tag and push (D60).
+ * Cut and ship a version: roll the changelog, bump every manifest, commit, tag and push (D60), then
+ * run `release:finish` to approve it (D146).
  *
- * The pushed tag is what starts the release — the workflow triggers on it — so this is the whole of
- * the local half, and `pnpm release:finish` is the other one. Nothing here talks to the registry
- * except to show you which dist-tag the release will land under, and it carries on without that.
+ * The pushed tag is what starts the release — the workflow triggers on it. Nothing before the push
+ * talks to the registry except to show you which dist-tag the release will land under, and it
+ * carries on without that.
  *
  * Usage: pnpm release <patch|minor|major|prepatch|preminor|premajor|prerelease> [--preid <id>]
  *                     [--dry-run] [--skip-checks]
  */
 import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import semver from "semver";
 import { nextAction, registryStateOrNull, stageTag } from "./lib/tags.mjs";
 import {
@@ -20,7 +22,9 @@ import {
   manifestPaths,
   npmAccountOrNull,
   publishedPackages,
+  ROOT,
   run,
+  runVerdict,
   say,
   UNRELEASED,
   VERSION_TS,
@@ -182,7 +186,7 @@ if (!skipChecks) {
  */
 if (!skipChecks && !dryRun) {
   const sha = capture("git", ["rev-parse", "HEAD"]);
-  const verdict = ciVerdict(sha);
+  const verdict = runVerdict("ci.yml", sha);
   if (verdict === "failure") {
     fail(
       `CI failed on ${sha.slice(0, 8)}, the commit this would tag. A version cut on a red tree is ` +
@@ -195,29 +199,6 @@ if (!skipChecks && !dryRun) {
       : `  ci           no verdict yet (${verdict}) — the local four are all this run has`,
   );
   say("");
-}
-
-/** GitHub's verdict on one commit: `success`, `failure`, or why there is no answer. */
-function ciVerdict(sha) {
-  try {
-    const raw = capture("gh", [
-      "run",
-      "list",
-      "--workflow=ci.yml",
-      "--commit",
-      sha,
-      "--limit",
-      "1",
-      "--json",
-      "conclusion,status",
-    ]);
-    const runs = JSON.parse(raw);
-    if (runs.length === 0) return "no run";
-    const [{ conclusion, status }] = runs;
-    return status === "completed" ? conclusion : status;
-  } catch {
-    return "gh unavailable";
-  }
 }
 
 const body = notes.replace(/^(\r?\n)+/, eol);
@@ -280,10 +261,18 @@ try {
   );
 }
 
+// Here, rather than left to a second command somebody has to remember (D146).
 say("");
-say(`Pushed ${tagName}. The release workflow is staging it; when that run is green:`);
+say(`Pushed ${tagName}. Finishing it: once the workflow has staged it and npm has checked it,`);
+say(
+  "this asks for your second factor once per package. Ctrl-C leaves it for `pnpm release:finish`.",
+);
 say("");
-say("    pnpm release:finish");
+try {
+  run(process.execPath, [join(ROOT, "scripts", "release-finish.mjs")]);
+} catch {
+  process.exitCode = 1;
+}
 
 /** Today where the person running this is, not where the runtime thinks UTC is. */
 function today() {

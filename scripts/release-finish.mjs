@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * The half of a release that needs a person: approve what CI staged, reconcile `next`, and put the
- * notes on a GitHub release (D61).
+ * notes on a GitHub release (D61, D146).
  *
  * All three belong after approval rather than in the workflow. npm's OIDC exchange authenticates
  * `publish` and `stage publish` and nothing else, and `otplease` — the wrapper every 2FA'd npm
@@ -14,7 +14,9 @@
  *
  * Usage: pnpm release:finish [--no-github-release]
  */
+import { setTimeout as sleep } from "node:timers/promises";
 import semver from "semver";
+import { approvalOrder, stageReadiness } from "./lib/release-set.mjs";
 import { nextAction } from "./lib/tags.mjs";
 import {
   capture,
@@ -23,11 +25,15 @@ import {
   distTags,
   fail,
   npmAccountOrNull,
+  publishedManifests,
   publishedPackages,
   publishedVersions,
   run,
+  runVerdict,
   say,
 } from "./lib/workspace.mjs";
+
+const POLL_MS = 30_000;
 
 const args = process.argv.slice(2);
 const version = currentVersion();
@@ -54,46 +60,14 @@ if (capture("git", ["tag", "--list", tagName]) === "") {
  *
  * The version comes from the tree and approval takes whatever is staged, so a checkout on a
  * *different line* makes those two different things. That is the maintenance case this exists for:
- * cut 1.2.4 on a `1.x` branch, switch back to main while CI runs, and `stage approve` would
- * correctly publish 1.2.4 while everything below it pointed tags at main's version instead. A tag
- * cut on another line is not an ancestor of this HEAD, so that still refuses.
+ * cut 1.2.4 on a `1.x` branch, switch back to main while CI runs, and approval would correctly
+ * publish 1.2.4 while everything below it pointed tags at main's version instead. A tag cut on
+ * another line is not an ancestor of this HEAD, so that still refuses.
  *
- * Requiring HEAD to *be* the tagged commit also refused the ordinary case, which is the one that
- * actually happens: cut a release, carry on working while the run goes green, come back and approve.
  * Nothing here needs the tip — approval acts on a stage the workflow already built from the tagged
  * commit, `dist-tag` names a published version, and the GitHub release is created at `tagName`
- * rather than at HEAD. Only the notes are read from the tree, and a commit that changed them would
- * have to have changed this version's own section to matter.
+ * rather than at HEAD — so carrying on working while the run goes green is fine.
  */
-/**
- * Where a person approves a stage by hand, which is the only route that works for every account.
- *
- * npm's own page for it, under the signed-in user's settings. It does exactly what `stage approve`
- * does — the stages live on the registry, not in a client — and it is the answer for an account
- * whose second factor cannot produce a typed code.
- */
-/**
- * The stage ids waiting at this version, newest first.
- *
- * Through npm rather than pnpm, for the reason the retag is: a stage belongs to the registry, not
- * to the client that made it. Anything unreadable is no ids rather than a throw — the caller's next
- * move is the website either way, and a parse error should not be dressed up as an empty queue.
- */
-function stagedIds(wanted) {
-  let staged;
-  try {
-    staged = JSON.parse(capture("npm", ["stage", "list", "--json"]));
-  } catch {
-    return [];
-  }
-  if (!Array.isArray(staged)) return [];
-  return staged.filter((entry) => entry?.version === wanted).map((entry) => entry.id);
-}
-
-function stagedPackagesUrl(user) {
-  return `https://www.npmjs.com/settings/${user ?? "<your-npm-user>"}/staged-packages`;
-}
-
 function tagIsInHistory(tag) {
   try {
     run("git", ["merge-base", "--is-ancestor", tag, "HEAD"], { stdio: "ignore" });
@@ -111,57 +85,121 @@ if (!tagIsInHistory(tagName)) {
   );
 }
 
+/** npm's page for approving by hand: the fallback for when the browser step here cannot complete. */
+function stagedPackagesUrl(user) {
+  return `https://www.npmjs.com/settings/${user ?? "<your-npm-user>"}/staged-packages`;
+}
+
+/**
+ * Everything staged on the account, or null when npm would not say. Through npm rather than pnpm:
+ * a stage belongs to the registry, not to the client that made it.
+ */
+function stagedItems() {
+  try {
+    const staged = JSON.parse(capture("npm", ["stage", "list", "--json"]));
+    return Array.isArray(staged) ? staged : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Wait until every package still to publish has a stage that npm has finished checking, saying
+ * what changes as it changes. No timeout: Ctrl-C and a second run pick up where this was.
+ */
+async function waitForStages(names) {
+  const sha = capture("git", ["rev-parse", `${tagName}^{commit}`]);
+  const shown = new Map();
+  let unreadable = false;
+  for (;;) {
+    const stages = stagedItems();
+    if (stages === null) {
+      if (!unreadable) say("  `npm stage list` did not answer; asking again");
+      unreadable = true;
+      await sleep(POLL_MS);
+      continue;
+    }
+    unreadable = false;
+    const { rows, ready } = stageReadiness(stages, names, version);
+    for (const row of rows) {
+      if (shown.get(row.name) === row.status) continue;
+      shown.set(row.name, row.status);
+      say(`  ${clock()}  ${row.name}  ${row.status}`);
+    }
+    if (ready) return rows;
+    // A failed run stages nothing, and nothing else would end the wait.
+    if (rows.some((row) => row.id === null) && runVerdict("release.yml", sha) === "failure") {
+      fail(
+        `the release run for ${tagName} failed, so what it did not stage never will be. Read that ` +
+          "run; the version is spent, and the fix is the next one (docs/releasing.md, *If something " +
+          "goes wrong*)",
+      );
+    }
+    await sleep(POLL_MS);
+  }
+}
+
+function clock() {
+  return new Date().toTimeString().slice(0, 5);
+}
+
+/** Every package at the version, asked a few times, since a version just approved can lag a read. */
+async function missingFromRegistry() {
+  let missing = [];
+  for (let attempt = 0; attempt < 6; attempt++) {
+    missing = packages.filter((name) => !publishedVersions(name).includes(version));
+    if (missing.length === 0) return missing;
+    await sleep(10_000);
+  }
+  return missing;
+}
+
 // Read `versions` here and `dist-tags` only after the approval, never both at once: approval is
 // what sets `next` when the stage went up under it, so a single pre-approval snapshot sees the old
 // value and spends four authenticated writes where it should spend none.
-//
-// Three answers, not two. Partial approval is real — `stage approve` skips a package whose
-// workspace dependency did not make it — and a binary published-or-not check answers it wrongly
-// and strands the stragglers for good, because the next release stages a different version.
 const already = packages.filter((name) => publishedVersions(name).includes(version));
 
 if (already.length === packages.length) {
   say(`All ${packages.length} packages are on the registry at ${version} already.`);
 } else {
-  if (already.length > 0) {
-    say(`${already.join(", ")} already published. Approving again for the rest.`);
-    say("");
-  }
-  say(`Approving ${version} as ${account}. This needs your second factor.`);
-  say(`If it asks for a one-time password, approve them here instead and run this again:`);
-  say(`  ${stagedPackagesUrl(account)}`);
+  const order = approvalOrder(publishedManifests()).filter((name) => !already.includes(name));
+  if (already.length > 0) say(`${already.join(", ")} already published at ${version}.`);
+  say(`Waiting for ${version} to be staged and checked, then approving in this order:`);
+  say(`  ${order.join(", ")}`);
   say("");
-  try {
-    // Approval goes through pnpm: it takes the whole batch under one authentication and approves
-    // in dependency order, skipping any package whose workspace dependency did not make it rather
-    // than publishing against a dependency the registry never received.
-    //
-    // The ids are read and passed rather than left to pnpm: bare `stage approve` picks them from a
-    // prompt, so with no TTY it exits `ERR_PNPM_STAGE_ID_REQUIRED` before a second factor is ever
-    // the question — an argument error wearing the costume of the 2FA wall below.
-    //
-    // Past that, it only works for an account that can produce a typed code. `pnpm stage approve`
-    // asks for an OTP rather than opening a browser, so a security key has nothing to give it —
-    // the same wall `pnpm dist-tag` hits, and the reason the retag below goes through npm. The
-    // website is the route that always works, and it does the same thing: the stages live on the
-    // registry and do not care what approved them.
-    const ids = stagedIds(version);
-    if (ids.length === 0) {
+  const rows = await waitForStages(order);
+
+  // One at a time, in order, all through npm: its `stage approve` opens the browser for a security
+  // key and asks for a typed code otherwise, where pnpm's only asks for the code. Stopping at the
+  // first refusal leaves published only packages whose dependencies are (D146).
+  say("");
+  say(`Approving as ${account}. Each package asks for your second factor.`);
+  const approved = [];
+  for (const row of rows) {
+    say("");
+    say(`${row.name}@${version}`);
+    try {
+      run("npm", ["stage", "approve", row.id]);
+      approved.push(row.name);
+    } catch {
       fail(
-        `nothing is staged at ${version}. The release workflow may still be running; ` +
-          "`npm stage list` shows what is waiting, and running this again costs nothing",
+        `${row.name} was not approved` +
+          (approved.length > 0 ? `, after ${approved.join(", ")}. ` : ". ") +
+          "Nothing that needs it was approved either. `npm stage view " +
+          `${row.id}\` says what npm thinks of the stage. Run this again to carry on from it, or ` +
+          `approve the rest at ${stagedPackagesUrl(account)} in the order above and then run this ` +
+          "again for the retag and the GitHub release",
       );
     }
-    run("pnpm", ["stage", "approve", ...ids]);
-  } catch {
-    fail(
-      `approval did not complete. If it asked for a one-time password and you have none to give — ` +
-        `a security key cannot produce one — approve the four at ${stagedPackagesUrl(account)} and ` +
-        "run this again: it skips what is published and does the rest. If nothing is staged yet " +
-        "the release workflow may still be running; `npm stage list` shows what is waiting, and " +
-        "running this twice costs nothing",
-    );
   }
+}
+
+const missing = await missingFromRegistry();
+if (missing.length > 0) {
+  fail(
+    `the registry does not show ${version} for ${missing.join(", ")}, so the release is not whole. ` +
+      "Run this again; `npm stage list` shows what is still waiting",
+  );
 }
 
 // Retagging goes through npm, not pnpm: `pnpm dist-tag` takes a typed one-time password and

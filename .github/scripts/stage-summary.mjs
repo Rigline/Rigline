@@ -61,8 +61,8 @@ if (mode === "dry-run") {
 }
 
 write(
-  "**Nobody can install these yet.** Approve them on npmjs.com, under Staged Packages in your " +
-    "profile, then finish from the checkout the release was cut in:",
+  "**Nobody can install these yet.** `pnpm release` is waiting to approve them once npm has " +
+    "checked them. If it was stopped, finish from the checkout the release was cut in:",
 );
 write("");
 write("```");
@@ -70,9 +70,10 @@ write("pnpm release:finish");
 write("```");
 write("");
 write(
-  "It skips what is already approved and approves anything left, then sets or removes `next` " +
-    "where a preview line opens or closes, and puts the changelog section on a GitHub release. " +
-    "docs/releasing.md has step 3 in full.",
+  "It approves all of them in dependency order, or none, then sets or removes `next` where a " +
+    "preview line opens or closes, and puts the changelog section on a GitHub release. Approving " +
+    "on npmjs.com instead is the fallback, and only safe for the whole set in that order: " +
+    "docs/releasing.md, step 3.",
 );
 write("");
 write("A staged version you would rather not ship needs no action. Do not approve it; it expires.");

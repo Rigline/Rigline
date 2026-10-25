@@ -1,6 +1,6 @@
 # CI and releasing: the model
 
-Two workflows, three commands, and one rule about branches that the other two derive from. This is
+Three workflows, three commands, and one rule about branches that the rest derive from. This is
 the shape and the argument; [releasing.md](releasing.md) is the runbook for actually cutting one,
 and [decisions.md](decisions.md) holds the decisions cited here by number.
 
@@ -84,12 +84,12 @@ invisible until somebody installs the wrong thing.
 
 ## The three commands
 
-    pnpm release <increment>   # local: changelog, manifests, commit, tag, push
+    pnpm release <increment>   # local: changelog, manifests, commit, tag, push, then finish
     pnpm release:check         # CI: verify, and emit the dist-tag
-    pnpm release:finish        # local: approve with 2FA, reconcile `next`, GitHub release
+    pnpm release:finish        # local: wait, approve with 2FA, reconcile `next`, GitHub release
 
-`release` writes the tag that triggers the release workflow, so a release never leaves the terminal
-it started in. It refuses a dirty tree, an empty `## Unreleased`, a version that is not above what
+`release` writes the tag that triggers the release workflow and then runs `release:finish`, so a
+release never leaves the terminal it started in and ends when it is published (D146). It refuses a dirty tree, an empty `## Unreleased`, a version that is not above what
 the registry holds, and — when the registry has just answered, so the question is about the
 session and not the weather — a machine with no npm login, because that one is otherwise found by
 `release:finish` after a whole cycle has been spent. `--dry-run` shows the whole plan and writes
@@ -122,19 +122,27 @@ HEAD's history: approval takes whatever is staged while the version comes from t
 checkout on another line makes those different things. The tip is free to have moved on, since
 nothing it does acts on HEAD.
 
-Every step of it repeats, because a half-finished release is the likeliest way to arrive here
-twice. It reads each package's `versions` before approving and decides three ways rather than two
-— none published, approve; all published, skip to the retag; **some** published, approve again,
-since `stage approve` skips a package whose workspace dependency did not make it and a straggler
-left behind can never be caught up, the next release staging a different version. Then it moves
-`next` one package at a time, each one caught and named, since `npm dist-tag add` is idempotent
-and the recovery for a cancelled authentication partway through is the whole command again rather
-than resume state somebody has to understand. The two registry reads stay apart for a reason:
-`versions` before the approval and `dist-tags` after it, because approval is what sets `next` when
-the stage went up under `next`, and a single pre-approval snapshot spends four authenticated
-writes where it should spend none.
+**It owns the verdict that the set is whole** (D146). Staging is consistent, but each approval
+publishes one package and moves its `latest`, so a release reaches users package by package. So it
+approves all of them or none: it waits until every package still unpublished has a stage that npm
+has finished checking, then approves through `npm stage approve` in an order derived from the
+manifests — each package after what it declares, and a package that declares nothing in the set
+last, since it can only reach the set at runtime (D69). The first refusal stops it, which leaves
+only packages whose dependencies are published. It reads the registry back before it calls the
+release published.
 
-## The two workflows
+Every step of it repeats, because a half-finished release is the likeliest way to arrive here
+twice. It reads each package's `versions` first and approves only what is missing, so a second run
+after an interruption, or after approving some by hand, carries on rather than starting again. A
+straggler left behind could never be caught up, since the next release stages a different version.
+Then it moves `next` one package at a time, each one caught and named, since `npm dist-tag add` is
+idempotent and the recovery for a cancelled authentication partway through is the whole command
+again rather than resume state somebody has to understand. The two registry reads stay apart for a
+reason: `versions` before the approval and `dist-tags` after it, because approval is what sets
+`next` when the stage went up under `next`, and a single pre-approval snapshot spends four
+authenticated writes where it should spend none.
+
+## The three workflows
 
 **`ci.yml`** runs `lint`, `typecheck`, `build` and `test` on every push to a release line — `main`
 or a `<major>.x` branch — and every pull request, over Node 22.12.0, 24 and 26 on Linux plus
@@ -162,6 +170,19 @@ dispatch back as a speed bump.
 in full and the corpus-backed half of tier 1 skips with it. A green release run is therefore weaker
 than a local one. See [verification.md](verification.md).
 
+**`registry.yml`** looks at what npm holds, every three hours and on dispatch, because nothing in a
+release run can: approval comes after it (D146). From public data only, it goes red when a dist-tag
+disagrees across the packages, when the most recently published version is missing from any of
+them, or when the set at any dist-tag fails `npm install --dry-run`, which resolves the whole tree
+without downloading it and is where `ETARGET` comes from. It never goes red over a stage nobody
+approved, which is how an unwanted one is abandoned, and it cannot see stages at all.
+`node .github/scripts/registry-check.mjs` runs it from a checkout.
+
+It covers what `release:finish` cannot: a release approved on the website part of the way, or a
+set that breaks after it shipped. Two things about scheduled workflows to know rather than
+discover: they run only from the default branch, and in a public repository GitHub disables one
+after sixty days without activity. The Actions tab re-enables it.
+
 ## Outstanding
 
 The model above is implemented and has shipped every release since `1.0.0-alpha.4`. What is left
@@ -187,6 +208,14 @@ already cover (D59).
 
 The two questions only a real release could answer are answered, and [releasing.md](releasing.md)
 is written around them. Which stages a bare `stage approve` takes no longer matters, because
-`release:finish` passes the ids it reads from `npm stage list`, and approval is on the website in
-practice because a security key cannot take the pnpm path. Reconciling `next` cost an authentication
+`release:finish` passes the ids it reads from `npm stage list`. Approval goes through npm, because
+a security key cannot take the pnpm path, and the website is the fallback rather than the route,
+because it enforces no order and no completeness (D146). Reconciling `next` cost an authentication
 per package, so `next` stays unset while no stable line exists (D61).
+
+**`latest` is not held back until the set is whole.** That would stage under a holding tag and
+move `latest` on every package afterwards, which is the one arrangement where a partial approval
+never reaches a user. It costs an authenticated retag per package every release on top of the
+approvals, and it undoes D61's *publish to the tag rather than move it*, to cover a route that
+`release:finish` has made the fallback and `registry.yml` watches. Worth weighing again if one
+authentication turns out to cover several writes (D146).

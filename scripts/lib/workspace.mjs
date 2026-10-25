@@ -62,13 +62,17 @@ export function currentVersion() {
   return JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).version;
 }
 
-/** The names npm knows, in no particular order; `-r` decides the order a release goes in. */
-export function publishedPackages() {
+/** The manifests of the packages npm knows, in no particular order. */
+export function publishedManifests() {
   return manifestPaths()
     .slice(1)
     .map((path) => JSON.parse(readFileSync(path, "utf8")))
-    .filter((json) => json.private !== true)
-    .map((json) => json.name);
+    .filter((json) => json.private !== true);
+}
+
+/** The names npm knows, in no particular order; `approvalOrder` decides the order a release goes in. */
+export function publishedPackages() {
+  return publishedManifests().map((json) => json.name);
 }
 
 /**
@@ -141,6 +145,33 @@ function view(name, field, absent) {
     throw new Error(`npm view ${name} ${field} failed: ${String(error.stderr ?? error).trim()}`, {
       cause: error,
     });
+  }
+}
+
+/**
+ * GitHub's verdict on one workflow at one commit: `success`, `failure`, or why there is no answer.
+ * Advisory to every caller, so no `gh`, no run and a run in progress are all answers rather than
+ * throws.
+ */
+export function runVerdict(workflow, sha) {
+  try {
+    const raw = capture("gh", [
+      "run",
+      "list",
+      `--workflow=${workflow}`,
+      "--commit",
+      sha,
+      "--limit",
+      "1",
+      "--json",
+      "conclusion,status",
+    ]);
+    const runs = JSON.parse(raw);
+    if (runs.length === 0) return "no run";
+    const [{ conclusion, status }] = runs;
+    return status === "completed" ? conclusion : status;
+  } catch {
+    return "gh unavailable";
   }
 }
 

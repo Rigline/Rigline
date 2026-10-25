@@ -3,17 +3,18 @@
 Four packages go to npm: `rigline`, `@rigline/core`, `@rigline/plugin-api` and
 `create-rigline-plugin`. `@rigline/host` and `@rigline/harness` are `private` and never do.
 
-A release is two commands and one click, cut from a commit `ci.yml` has already been green on:
+A release is one command, cut from a commit `ci.yml` has already been green on:
 
-    pnpm release patch        # cut it: changelog, manifests, commit, tag, push
-    # then approve the four staged packages on npmjs.com — see step 3
-    pnpm release:finish       # reconcile `next`, and the GitHub release
+    pnpm release patch        # cut, push, wait for the stages, approve them all, retag, GitHub release
+
+It ends when every package is published, or says why not. `pnpm release:finish` is its second half,
+for when that was stopped: run again, it picks up where the last run was.
 
 `patch`, `minor` or `major` for a release to `latest`. From a stable version, `prerelease` is a
 different release rather than a smaller one: it cuts `1.0.1-alpha.0` and opens a preview line under
 `next`, and the cut does not pause to ask.
 
-Between them, the pushed tag triggers `.github/workflows/release.yml`, which **stages**: GitHub
+In between, the pushed tag triggers `.github/workflows/release.yml`, which **stages**: GitHub
 Actions authenticates to npm over OIDC, so no npm credential sits in this repository, and a staged
 version is one nobody can install. `release:finish` then **approves** with 2FA, from your own
 machine. An approved stage says the owner meant to ship, and nothing more than that (D46).
@@ -22,16 +23,18 @@ The split is the point, and it is also what makes a tag safe to trigger on: a ta
 produces a stage nobody approves, which expires. Nothing here asks which dist-tag to use — that is
 derived from the version and what the registry already holds (D61), and reconciled after approval.
 
-`stage publish -r` stages every publishable package whose version is not already on the registry, in
-dependency order, replacing each `workspace:*` with the exact version. So running it twice stages
-nothing the second time, and the four are either internally consistent or they are not published at
-all. Approval takes the whole batch under a single authentication.
+`stage publish -r` stages every publishable package whose version is not already on the registry,
+replacing each `workspace:*` with the exact version, so running it twice stages nothing the second
+time. All of them go up in one run, so npm's checks on them start together and run side by side.
 
-**`rigline` is outside that guarantee**, and it is the one package where being outside it hurts. The
-consistency above is a property of the dependency graph, and the wrapper declares no Rigline package
-(D69) — but it installs `@rigline/core@<its own version>` at runtime, so a `rigline` that goes up
-without its engine is broken on the first command anybody runs. The two are checked together by eye
-at step 3.
+**Staging is consistent; approval is where a set comes apart** (D146). Each approval publishes one
+package and moves its `latest`, so the set reaches users package by package. Core pins plugin-api
+exactly, and `rigline` and the scaffolder reach core at runtime rather than through their manifests:
+the wrapper installs whatever `@rigline/core@latest` is, within its own major (D69, D73). So a core
+approved before its plugin-api installs nothing, and a `rigline` approved before its core runs the
+old engine or refuses. `release:finish` therefore approves all of them or none, and in order:
+plugin-api, then core, then the two that reach it at runtime. The order is derived from the
+manifests, so a new package is placed without anybody editing a list.
 
 **The workflow filename is load-bearing.** Each npm trusted publisher names `release.yml` by path,
 so renaming the file breaks the OIDC exchange for all four packages until every entry is edited to
@@ -170,14 +173,15 @@ ID the template gives.
 login` prints `Login at:` and one URL, then goes quiet while it polls; it does not open a browser
 for you, and the silence reads as a hang.
 
-**`npm` itself, not only `pnpm`.** The retag goes through `npm dist-tag`, because `pnpm dist-tag`
-takes a typed one-time password and nothing else — which an account with a security key cannot
-give it. The `pnpm dist-tag` trap below argues this at length; it is listed here because it is a
-requirement, and the argument is no use to somebody who has not installed the thing.
+**`npm` itself, not only `pnpm`.** Approval goes through `npm stage approve` and the retag through
+`npm dist-tag`, because pnpm's versions of both take a typed one-time password and nothing else —
+which an account with a security key cannot give them. The traps below argue this at length; it is
+listed here because it is a requirement, and the argument is no use to somebody who has not
+installed the thing.
 
-**`gh`, authenticated**, for the GitHub release at the end. Without it you get a message naming
-the command to run by hand, and the release is otherwise finished; `--no-github-release` skips the
-step deliberately.
+**`gh`, authenticated**, for the GitHub release at the end, and so the wait for the stages can see
+a failed release run and stop. Without it the wait goes on until Ctrl-C, and the GitHub release
+step prints the command to run by hand; `--no-github-release` skips that step deliberately.
 
 **The corpus**, for the local test run. The release workflow cannot reach it and skips the harness
 tier, so the local run is the stronger one.
@@ -198,28 +202,30 @@ tier, so the local run is the stronger one.
    `## Unreleased` and nothing else, so an entry written under an already-released heading ships
    unlisted while that heading claims work it never carried; `git diff v<previous> -- CHANGELOG.md`
    is the check, and should be purely additive.
-2. Watch the run the tag triggered. Its summary names each package and version staged, because
-   nothing notifies you that a stage is waiting. A green tick is not the check. `npm stage list
-   --json` is: all four at the new version, each with `"actorType": "trusted automation"`, which only
-   a successful OIDC exchange leaves. Reading the log for the absence of `[WARN] Skipped OIDC` says
-   the same thing less directly.
-3. **Approve the four** at `https://www.npmjs.com/settings/<user>/staged-packages`. `pnpm
-   release:finish` will try to do it for you, and can only succeed for an account that can type a
-   one-time password; a security key has none to give, and the website is the route that always
-   works. **This is the step to expect to do by hand**, not the exception — every release so far has
-   ended up here.
 
-   **Check `rigline` and `@rigline/core` by eye, together.** The dependency-order skip in step 4
-   protects every package whose dependency did not make it — and `rigline` no longer declares one
-   (D69), so it is the only package that can go up alone. A `rigline` published without the
-   `@rigline/core` beside it installs an engine version the registry has not got, on the first
-   command anybody runs, and nothing before a user's terminal would say so.
-4. `pnpm release:finish`. It approves the batch if it can — in dependency order, so a package whose
-   workspace dependency could not be approved is skipped rather than published against a dependency
-   the registry never received — then points `next` at this version if the release is ahead of it,
-   and creates the GitHub release from the changelog section. Run it again if anything goes wrong
-   partway through: every step of it skips what is already done and retries only the rest, so
-   running it after approving on the website does exactly the half that is left.
+   After the push it carries straight on into `release:finish`, below. Ctrl-C there loses
+   nothing.
+2. **The wait.** `release:finish` polls `npm stage list` until every package has a stage at the
+   version and none is still `validating`, printing a line as each one changes, and approves nothing
+   before that. The slowest of npm's checks sets when it asks for you, so it is safe to walk away.
+   A failed release run stops the wait, since it would never stage the rest. Nothing
+   notifies you that a stage is waiting, which is why the command waits instead. The run's summary
+   names each package and version staged. `npm stage list --json` showing `"actorType": "trusted
+   automation"` on each is the proof every OIDC exchange worked.
+3. **Approval, in order.** `npm stage approve` for each package: plugin-api, then core, then the
+   two that reach it at runtime. Each asks for your second factor — *Press ENTER to open in the
+   browser* for a security key — and the first refusal stops it, so nothing is published ahead of
+   what it needs. Run it again to carry on.
+
+   **Approving on the website is the fallback**, at
+   `https://www.npmjs.com/settings/<user>/staged-packages`, for when the browser step will not
+   complete. It enforces no order and no completeness, so approve **every** package, **in the
+   order** `release:finish` printed, and then run `release:finish` for the rest. Approving some and
+   leaving the others for later is the one way left to put a broken set on `latest`.
+4. **The rest.** It reads the registry back and refuses to call the release published until every
+   package has the version, then points `next` at it if the release is ahead of it, and creates the
+   GitHub release from the changelog section. Every step skips what is already done, so a second
+   run does exactly the part that is left.
 
 **The version is an increment, not a number you type.** `semver.inc` computes it from what is in the
 tree, so there is no second place to get it right. Read what the command prints before it writes:
@@ -253,9 +259,7 @@ version means, and there are only three answers.
 `main` is the line `latest` points at, nothing is in preview, and a release is one increment.
 
     git push                  # and wait for ci.yml to go green on that commit
-    pnpm release patch        # or minor; runs lint, typecheck, build and test first
-    # watch the run, approve the four on npmjs.com, then
-    pnpm release:finish
+    pnpm release patch        # or minor; checks, cuts, then waits for npm and approves
 
 The version stages under `latest`, and `next` follows it after approval once a stable line exists —
 before then it is left unset and there is nothing to authenticate. Nothing else moves, and there is
@@ -368,13 +372,11 @@ key `pnpm config set` accepts. **Use `npm dist-tag` instead**, which does — fo
 above gives. This is the whole of the difference: the operation is fine, one client cannot
 authenticate it.
 
-**`pnpm stage approve` cannot either, and the website is the answer.** This was written down the
-other way round — that approval was the one pnpm path a key *could* take — and the first real
-release proved it false: it prompts for a one-time password like `dist-tag` does. Approve at
-`https://www.npmjs.com/settings/<user>/staged-packages` instead, which lists what is waiting and
-publishes it on a click. A stage lives on the registry and does not care what approved it, so this
-is the same operation by another door, and `pnpm release:finish` run afterwards skips the approval
-and does the rest.
+**`pnpm stage approve` cannot either; `npm stage approve` can.** It prompts for a one-time password
+like `pnpm dist-tag` does, and the fix is the same: npm's `stage approve` goes through `otplease`
+and takes the browser flow. `release:finish` approves through it for that reason. A stage lives on
+the registry and does not care what approved it, so the website is the same operation by another
+door, and the fallback when the browser step will not complete. Step 3 says what it costs.
 
 Publishing to the tag you want is still the better path where there is a choice, because it leaves a
 version behind it rather than a pointer with nothing new under it. Moving a tag is for the case that
@@ -387,8 +389,14 @@ a release, cut with an increment, and the runbook above walks it.
 
 ## If something goes wrong
 
-**A staged version you do not want to ship**: do not approve it. It expires. Fix the code, bump
-again, stage again.
+**A staged version you do not want to ship**: do not approve it — Ctrl-C the waiting `pnpm
+release` before it gets to approval. It expires. Fix the code, bump again, stage again.
+
+**The Registry workflow is red.** The set on npm does not resolve or does not agree with itself,
+and somebody installing Rigline may be getting it now; the run's summary names what is wrong. The
+usual cause is a release approved on the website part of the way. `pnpm release:finish` from the
+checkout it was cut in approves the rest in order. `node .github/scripts/registry-check.mjs` runs
+the same check from here.
 
 Do not leave it unwatched, though. The staged-packages page lists everything waiting on the
 account, so an unwanted stage sits beside the next release's and can be approved with it by a

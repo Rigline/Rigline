@@ -4226,3 +4226,37 @@ Rejected: counting failures across separate starts only, which needs a record of
 lock mark answers directly.
 
 **Amends D80** as D143 keeps it: a repeated failure to install one version is not carried on from.
+
+**D146. `release:finish` owns the verdict that a release is whole, and a scheduled check watches
+the registry (2026-10-25, Leo).** Staging is consistent, but approval is per package and each one
+moves that package's `latest`, so a release reaches users package by package. Approved on the
+website in whatever order the checks finished, 2.0.1 put a core on `latest` that pinned a
+plugin-api the registry did not have, for 43 hours, and nothing said so: the release run ends
+before approval, and `release:finish` was the only thing that read the set and was optional once
+the website had done the approving.
+
+So `release:finish` approves all of the packages or none. It waits until each package still to
+publish has a stage npm has finished checking, then approves through `npm stage approve`, which
+takes the browser flow a security key can complete where pnpm's takes only a typed code. It
+approves in an order derived from the manifests: each package after what it declares, and a
+package that declares nothing in the set last, since it can only reach the set at runtime (D69).
+The first refusal stops it, and it reads the registry back before it calls the release published.
+`pnpm release` runs it after the push, so a release is one command that ends published. All the
+packages still stage in one run, so npm's checks run side by side and the person is needed once,
+when the slowest finishes. The website becomes the fallback.
+
+And `registry.yml`, every three hours, reads the public registry: every dist-tag agreeing across
+the packages, the most recently published version on all of them, and each dist-tag's set passing
+`npm install --dry-run`. It never goes red over an unapproved stage. It catches what
+`release:finish` cannot — a website approval left part-done, a set that breaks after shipping —
+before D48's day lets companions move to it, though not before a first install does.
+
+Rejected: holding `latest` back until the set is whole, the one arrangement where a partial
+approval never reaches a user. It costs an authenticated retag per package every release, and it
+reverses D61's *publish to the tag rather than move it*, for a route this makes the fallback.
+Staging in waves, plugin-api first, which delays npm's slowest checks and adds an approval to
+forget. Loosening the exact pins to `^`, which turns `ETARGET` into a pairing nobody tested and does
+nothing for the packages that reach core at runtime.
+
+**Amends D46:** approval is npm's, one package at a time in the derived order, rather than pnpm's
+single batch, and that order replaces checking `rigline` beside core by hand.
