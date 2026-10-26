@@ -113,8 +113,9 @@ Two sources of bundle text, and the difference matters:
   guard against a regex drifting away from real minified output. A test that needs a version it does
   not have **skips with a reason** rather than failing, so a fresh clone is not blocked on a
   download — but a machine that develops Rigline should have it. The ground-truth tests sweep every
-  version in `CORPUS_VERSIONS` (`packages/core/test/corpus.ts`); the harness drives one of them,
-  `HARNESS_VERSION`, which moves with the installed extension and the committed `generated.ts`.
+  version in `packages/core/test/corpus.json`, the committed record of the corpus; the harness
+  drives the newest of them, `HARNESS_VERSION`, which the committed `generated.ts` is harvested
+  from (D148).
 
 Both are also read a second way: rewritten by Rolldown, whose minifier quotes differently from
 Claude Code's bundler, and held to the same harvest (`minifier.test.ts`, D101). That covers a change
@@ -122,17 +123,25 @@ of bundler, which neither source shows on its own.
 
 ### Adding a version to the corpus
 
-Snapshot from the installed directory's **backups**, never its live files, because an installed
-version is injected, and a patched bundle in the corpus would be harvested as if Claude Code shipped
-it. Copy `webview/index.js.orig` to `webview/index.js`, and `extension.js.orig` to `extension.js`
-where it exists (it only does once a host patch has applied). `webview/index.css` and `package.json`
-are never patched, so copy those as they are. Check that neither copied bundle contains `rigline`.
+    pnpm build
+    pnpm corpus:add [version]    # the newest installed by default
+    pnpm typecheck
+    pnpm test
 
-Then add the version to `CORPUS_VERSIONS`, read `pnpm rigline diff <previous> <new>` for what moved,
-and run `pnpm rigline codegen <the new corpus directory>`. Pass the directory: `codegen` with no
-argument harvests the newest *installed* version, which may be one the corpus does not have. Move
-`HARNESS_VERSION` to it, and run the whole suite. Codegen reports any anchor the new version leaves
-missing or ambiguous. A new version also adds its corpus tests to the Linux checkout's skip count
+then read what moved and commit `corpus.json` and `generated.ts` (D148). The command:
+
+- Copies the extension's own bytes, never its injected ones: the bundles a harvest would read, which
+  is the backup where one is current. It holds the injection lock while it does, so the companion
+  cannot patch the directory mid-copy, and refuses a directory still being installed (D81) or a
+  webview bundle that contains `rigline`. A host patch leaves no marker to look for, so that half
+  rests on the backup and the lock.
+- Adds the version to `corpus.json` and prints `rigline diff` against the version below it.
+- When the version is now the newest, runs `codegen` on the new corpus directory, which rewrites
+  `generated.ts` and so moves the harness, and reports any anchor the version leaves ambiguous. A
+  missing one shows in the counts and fails `resolve.test.ts`. An older version, fetched as a VSIX
+  and installed, joins the sweep and moves nothing.
+
+A new version also adds its corpus tests to the Linux checkout's skip count
 ([releasing.md](releasing.md)).
 
 The injector's fixtures deliberately carry CRLF line endings and non-ASCII bytes, because

@@ -19,10 +19,10 @@ describe("the fake host's reply table", () => {
   const messages = new Set(scan.views["protocol.messages"] ?? []);
 
   it("checks against the same extension the rest of the harness drives", () => {
-    // Both are this checkout's answer to "what is installed", so they move together — but nothing
-    // makes them, and a check against a different version's identifiers would pass or fail for
-    // reasons that have nothing to do with the table.
-    expect(scan.version).toBe(HARNESS_VERSION);
+    expect(
+      scan.version,
+      "generated.ts is not the corpus's newest: `git checkout -- generated.ts`, or `pnpm corpus:add`",
+    ).toBe(HARNESS_VERSION);
   });
 
   it("keys the table on message types the protocol has", () => {

@@ -241,8 +241,9 @@ only Node and this checkout.
 
 `install` from this checkout also rewrites the root `generated.ts` from the newest Claude Code
 installed, and says it needs you. When that is newer than the harness's `HARNESS_VERSION`, `git
-checkout -- generated.ts` unless you are moving the harness: `page.test.ts` holds the two together,
-and [verification.md](docs/verification.md)'s *Adding a version to the corpus* is the whole move.
+checkout -- generated.ts` unless you are moving the harness, which is `pnpm corpus:add`
+([verification.md](docs/verification.md), *Adding a version to the corpus*): `page.test.ts` holds
+the two together.
 
 `install` is the one write command about the injection, and `check` is its read-only half. `add`,
 `remove`, `disable` and `enable` change the plugin set and re-inject afterwards, so a plugin is one

@@ -24,7 +24,7 @@ import {
   type Page,
 } from "playwright";
 import { afterAll, beforeAll } from "vitest";
-import { missing, versionDir } from "../../core/test/corpus.ts";
+import { CORPUS_VERSIONS, missing, versionDir } from "../../core/test/corpus.ts";
 import { type FixturePlugin, preparePayload, type RemovedIdentifiers } from "./payload.ts";
 import type { AppModels } from "./page.ts";
 import { type Harness, startHarness } from "./server.ts";
@@ -186,13 +186,10 @@ async function chromiumLaunchFailure(): Promise<string | null> {
 }
 
 /**
- * The corpus version every harness file drives. One constant rather than the same literal in each,
- * because `test/page.test.ts` checks the committed `generated.ts` against this and the check is
- * only exact while they are the same extension. Moving it is maintenance, not a decision: the
- * corpus keeps every version, so an old pin costs reproducibility nothing and buys testing a bundle
- * nobody runs.
+ * The corpus version every harness file drives: the newest in the record, which `pnpm corpus:add`
+ * moves together with `generated.ts` (D148).
  */
-export const HARNESS_VERSION = "2.1.301";
+export const HARNESS_VERSION = CORPUS_VERSIONS.at(-1) ?? "";
 
 /** Rigline's own elements switched off, for a case about what `rigRow` holds or whether it is there. */
 export const RIGLINE_OFF: Layout = { off: ["rigline/edit", "rigline/reload"] };

@@ -17,6 +17,7 @@
     "build": "pnpm -r build && node scripts/bundle-assets.mjs",
     "rigline": "rigline-engine",
     "codegen": "rigline-engine codegen",
+    "corpus:add": "node scripts/corpus-add.mjs",
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run",
     "release": "node scripts/release.mjs",

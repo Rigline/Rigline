@@ -4306,3 +4306,18 @@ A view across accounts, which is a rotation aid and a question for D77's documen
 **Amends D141:** the channel carries the host's messages about limits as well as saves, one
 envelope with a body each type reads. **Amends D129:** the limits come from every panel on the
 machine signed in to the account.
+
+**D148. The corpus has a committed record, `packages/core/test/corpus.json`, which `pnpm corpus:add`
+writes; the harness drives its newest version (2026-10-26).** The corpus directory is on one
+machine and is not committed, so what CI can check about the harness's pin has to come from
+committed files. `corpus:add` snapshots an installed version, adds it to the record and, when it is
+the newest, runs `codegen` on it — so the record's newest and `generated.ts` move in one command,
+and `page.test.ts` holds them together everywhere, CI included. The snapshot holds the injection
+lock while it copies (D105), because the companion may be backing up and patching the same
+directory, and a host patch leaves no marker a check of the copy could find.
+
+Rejected: deriving the list from the corpus directory and the pin from `generated.ts`. CI cannot see
+the directory, so it loses sight of skew, and every consequence then needs its own repair — a
+release refusing to run without the corpus, a stand-in list where the corpus is absent, and the
+whole harness tier skipping whenever an `install` has rewritten `generated.ts`. Having a script
+rewrite the list and the pin in TypeScript source, which a data file makes unnecessary.

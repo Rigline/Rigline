@@ -83,6 +83,7 @@ export {
   WEBVIEW_BACKUP,
   WEBVIEW_BUNDLE,
   WEBVIEW_CSS,
+  wholenessProblem,
 } from "./extension/bundles.ts";
 export {
   EXTENSION_NAME_PREFIX,
