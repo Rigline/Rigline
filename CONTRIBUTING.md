@@ -2,7 +2,7 @@
 
 This covers building the project and trying it against your own installed copy of the Claude Code
 VS Code extension. For how the system is put together, start with
-[docs/architecture.md](docs/architecture.md); [docs/plan.md](docs/plan.md) says where the work is
+[docs/architecture.md](docs/architecture.md); [docs/plan.md](docs/plan.md) says what is still open
 and [docs/decisions.md](docs/decisions.md) why the shape is this shape. The remaining topic docs are
 indexed in [CLAUDE.md](CLAUDE.md).
 

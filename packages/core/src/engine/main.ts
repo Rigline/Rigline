@@ -1498,7 +1498,7 @@ async function main(argv: string[]): Promise<number> {
  * Run one command and answer with its exit code, never by exiting the process.
  *
  * The entry point both bins call, and the one a consumer that is not a terminal would call too —
- * the companion extension in plan.md phase 5 drives this surface without being able to exit.
+ * the companion extension drives this surface without being able to exit.
  * A `UserError` is a problem a person must fix, so it is printed and becomes a 1, as is an argument
  * `parseArgs` refused; anything else is a bug and keeps its stack.
  */

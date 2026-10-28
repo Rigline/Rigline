@@ -46,7 +46,7 @@ problem with no owner. Read live on 2026-09-23.
 
 **`ready`** (D85): a patched arrival used to land back on the same `ok` as steady state, so nothing
 said whether it was safe yet to accept VS Code's restart prompt. Found by accepting it too early.
-Its live read waits for the next Claude Code update ([plan.md](plan.md)).
+Read live on the 2.1.282 update, which closed the milestone.
 
 ## What the live reads found that no test could
 

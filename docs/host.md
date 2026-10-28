@@ -1,7 +1,6 @@
 # The host: loader, kernel, capabilities, manifest
 
-The design for phase 2 of [plan.md](plan.md), and afterwards the reference for how the injected
-runtime works. Decisions it rests on are in [decisions.md](decisions.md); this document is the
+The reference for how the injected runtime works. Decisions it rests on are in [decisions.md](decisions.md); this document is the
 shape, not the argument.
 
 ## What the injector leaves on disk

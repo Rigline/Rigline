@@ -5,11 +5,11 @@ extension's webview bundle, a capability-scoped context plugins are written agai
 tooling that keeps it working across the extension's roughly weekly updates. Built to be
 community-maintained.
 
-**Start with [docs/plan.md](docs/plan.md)** for where the work is and what comes next, and
-[docs/decisions.md](docs/decisions.md) for the principles and decisions the architecture is derived
-from. **New work is planned in `.local/plans/<topic>.md`**, which is gitignored: a plan is a working
-document, and whatever should outlive it goes into `docs/` as the work lands. `docs/plan.md` takes
-no new plans. Update the plan before writing code; log status there, not here.
+**Start with [docs/architecture.md](docs/architecture.md)** for what Rigline is and how it fits
+together, [docs/decisions.md](docs/decisions.md) for the principles and decisions the architecture
+is derived from, and [docs/plan.md](docs/plan.md) for what is still open. **New work is planned in
+`.local/plans/<topic>.md`**, which is gitignored: a plan is a working document, and whatever should
+outlive it goes into `docs/` as the work lands. `docs/plan.md` takes no new plans. Update the plan before writing code; log status there, not here.
 
 **Before deleting a landed plan, check its promises against `docs/`.** What a plan settled while
 building, deferred, or said a doc would gain often never reaches one, and deleting the plan loses it.
@@ -22,11 +22,11 @@ build in. The directory is per working tree, so a worktree's plans are not in th
 
 ## Knowledge base
 
-- [docs/plan.md](docs/plan.md): what Rigline is, the physics that shape it, the architecture,
-  the phases and milestones, the open questions that are the next work, what is deferred, the next
-  session, and the status log.
-- [history-m6.md](docs/history-m6.md), [history-m7.md](docs/history-m7.md) and
-  [history-m8.md](docs/history-m8.md): archaeology for closed work — what each turned on and what
+- [docs/plan.md](docs/plan.md): the open questions that are the next work, and what is deferred
+  with its trigger. Nothing about where the work stands, which is git and the CHANGELOG.
+- [history-1.0.md](docs/history-1.0.md), [history-m6.md](docs/history-m6.md),
+  [history-m7.md](docs/history-m7.md) and [history-m8.md](docs/history-m8.md): archaeology for
+  closed work — what each turned on and what
   its live reads found. Nothing in them is load-bearing.
 - [docs/partial-bundles.md](docs/partial-bundles.md): why `install` refuses an unfinished extension
   directory — recording a half-written bundle as the pristine backup is silent and destroys

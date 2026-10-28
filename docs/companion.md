@@ -259,7 +259,7 @@ restore holding. The companion's own runs and saves are exempt, since its look d
 and so is `install --ext` (D118). Its installs happen under `companion.lock`, deciding again under
 it; the steady state reads files and takes no lock. VS Code alone, because its extensions directory is the only one
 the engine injects; `EDITOR_CLIS` is a table so that other editors are an entry each once the engine
-takes a directory (plan.md).
+takes a directory ([plan.md](plan.md)'s *Deferred*).
 
 1. **No Claude Code installed:** no step. CI, WSL and a remote host stop here.
 2. **Read the profiles** from VS Code's own files, found in the order VS Code itself resolves them

@@ -1,11 +1,30 @@
 # Architecture: what runs where, and the seams between
 
-The map of the system, for somebody about to change part of it. [plan.md](plan.md) says what is
-being built and in what order; [decisions.md](decisions.md) says why the shape is this shape; this
-says where things are and what may talk to what. The five other topic docs go a level down:
+The map of the system, for somebody about to change part of it. [decisions.md](decisions.md) says
+why the shape is this shape; this says what Rigline is, where things are and what may talk to what;
+[plan.md](plan.md) holds what is still open. The five other topic docs go a level down:
 [identifiers.md](identifiers.md), [bus.md](bus.md), [patches.md](patches.md),
 [transcript.md](transcript.md), [verification.md](verification.md). [host.md](host.md) is the
 injected runtime in detail, and [companion.md](companion.md) the VS Code extension.
+
+## What Rigline is
+
+A plugin layer for the Claude Code VS Code extension. A small loader is injected into the installed
+extension's webview bundle; plugins are written against a capability-scoped context the loader
+provides; and a toolchain harvests the identifiers plugins depend on from whichever extension
+version is installed, so an extension update is a diff to read rather than a breakage to chase.
+
+The ambition is a community-maintained system in the spirit of Forge for Minecraft: a
+stable-enough API over a host that changes weekly by design, with the fragile parts owned in one
+place and the extension points curated. The anchor table is Rigline's mappings file in that sense.
+The user's story is short and the design answers to it: find a plugin, install it, keep it updated
+without thinking about it.
+
+**session-id, time-marks and worktree are why Rigline exists.** They are the gaps that motivated
+building a plugin layer at all, not demonstrations of one, and a Rigline installed without them is a
+loader with nothing in it. Read anything about their distribution, their versioning or what ships by
+default in that light: they are the product, and the probe is the instrument that says whether the
+product is working.
 
 ## Two machines, one channel
 
@@ -13,6 +32,18 @@ Everything here happens in one of two places, and the split is not organisationa
 The webview's CSP is `default-src 'none'` with no `connect-src`, so nothing running in the panel can
 read a file, fetch, or ask anybody a question. Whatever the panel needs to know, some Node process
 has to have written down beforehand.
+
+Three more facts about the host force the rest of the shape:
+
+- The app calls `acquireVsCodeApi` exactly once, at boot, and every outbound message goes through
+  the object it returns. A wrapper installed before boot is the single egress and the only place a
+  tap or a rewrite can live ([bus.md](bus.md)).
+- The extension host has required `extension.js` before any webview code runs, so a change to it can
+  only happen at install time, and only takes effect after a window reload
+  ([patches.md](patches.md)).
+- A throw in a statically imported module fails the whole module graph, and the panel renders blank
+  with no attribution. Only Rigline's own pre hook may be static; everything else loads dynamically,
+  each in its own try/catch (*The boot pipeline*, D2).
 
 **Node, at install time.** Locate the installed extension directories, read their bundles, harvest
 the identifiers, resolve the anchor table against them, discover plugins, apply host patches, and
@@ -272,6 +303,27 @@ promise:
 - The **injection** is reversible from the backups, without VS Code.
 - A **host patch** that does not locate cleanly is refused rather than guessed at, and only a
   *required* one refuses its plugin.
+
+## Surviving an extension update
+
+The extension updates roughly weekly and users take it almost immediately, so the failure that
+matters is not a spread of old versions to support: it is the window between an update landing and a
+plugin's maintainer catching up. Four mechanisms shorten that window, ranked by what they buy.
+
+- **The anchor table and its local override** (D7, D44). The only repair that works without the
+  plugin's author: one curated entry, fixed once, repairs every plugin that used the name, and
+  `~/.rigline/anchors.json` lets that fix reach users the day it is found rather than the day it is
+  published. This is the argument for curating aggressively, and for counting a plugin's raw `cls()`
+  calls at install, since those are the dependencies no table fix can reach.
+- **Optional declarations** (D41). The loss of one decoration costs one decoration, rather than the
+  whole plugin.
+- **The install-time check** (D43). The user learns what broke, by identifier, at install; the
+  maintainer gets that name in the bug report.
+- **Successor suggestions in the diff** (D45). When the maintainer or the curator does sit down, the
+  diff already names the likely replacement.
+
+Backward compatibility is deliberately absent from that list (D42): a plugin ships one build, and
+per-version variants ask an author to predict a release that does not exist yet.
 
 ## Where state lives
 

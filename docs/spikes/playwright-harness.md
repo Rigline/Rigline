@@ -1,6 +1,6 @@
 # Spike: booting the real webview bundle headlessly for Playwright
 
-Time-boxed spike for the phase 2 acceptance line in [plan.md](../plan.md): can
+Time-boxed spike for the phase 2 acceptance line ([history-1.0.md](../history-1.0.md)): can
 `webview/index.js` from the installed extension be booted outside VS Code, well enough that
 host and plugin DOM tests could run against it in CI. Scratch work is under
 `.local/spike/` (gitignored); this document is the record.
