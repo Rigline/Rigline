@@ -1,6 +1,6 @@
 {
   "name": "@rigline/core",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "The engine behind Rigline: harvest, codegen, injection and the update flow",
   "keywords": [
     "rigline",

@@ -12,6 +12,8 @@ it needs, its entry says so.
 
 ## Unreleased
 
+## 2.2.0 — 2026-10-28
+
 ### Changed
 
 - The five-hour and weekly limits in `usage-meter`, and in any plugin reading `ctx.onUsageLimits`,
