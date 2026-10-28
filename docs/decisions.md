@@ -4321,3 +4321,15 @@ the directory, so it loses sight of skew, and every consequence then needs its o
 release refusing to run without the corpus, a stand-in list where the corpus is absent, and the
 whole harness tier skipping whenever an `install` has rewritten `generated.ts`. Having a script
 rewrite the list and the pin in TypeScript source, which a data file makes unnecessary.
+
+**D149. A release is cut only from a commit CI has been green on (2026-10-28, Leo).** `pnpm
+release` asks for `ci.yml`'s verdict on the commit it would tag, after the local checks. Green
+carries on, and a run still going is waited for. Anything else refuses: a failure, a cancelled or
+timed-out run, no `gh`, and no run at all. `ci.yml` runs on every push to `main` and `*.x` with no
+path filter, so no run means the commit was never pushed. `--skip-checks` is the one way past, as
+it is for the local four.
+
+Replaces a gate that refused only a known failure and carried on otherwise, so as to spare a
+contributor without the GitHub CLI. That contributor does not exist: `gh` is already a release
+requirement, and publishing takes the maintainer's npm second factor. The advisory gate passed over
+exactly the case it exists for, a commit the matrix has never seen.

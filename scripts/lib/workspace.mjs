@@ -149,9 +149,9 @@ function view(name, field, absent) {
 }
 
 /**
- * GitHub's verdict on one workflow at one commit: `success`, `failure`, or why there is no answer.
- * Advisory to every caller, so no `gh`, no run and a run in progress are all answers rather than
- * throws.
+ * GitHub's verdict on one workflow at one commit: its conclusion, its status while it runs, or why
+ * there is no answer. No `gh` and no run are answers rather than throws; each caller decides what
+ * they mean.
  */
 export function runVerdict(workflow, sha) {
   try {

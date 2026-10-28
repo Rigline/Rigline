@@ -12,7 +12,9 @@
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 import semver from "semver";
+import { ciGate } from "./lib/ci.mjs";
 import { nextAction, registryStateOrNull, stageTag } from "./lib/tags.mjs";
 import {
   CHANGELOG,
@@ -29,6 +31,9 @@ import {
   UNRELEASED,
   VERSION_TS,
 } from "./lib/workspace.mjs";
+
+/** CI takes a couple of minutes, so a poll every fifteen seconds is plenty. */
+const CI_POLL_MS = 15_000;
 
 const INCREMENTS = ["patch", "minor", "major", "prepatch", "preminor", "premajor", "prerelease"];
 
@@ -172,32 +177,25 @@ if (!skipChecks) {
 }
 
 /**
- * And one check the local four cannot make: has CI been green on these exact bytes?
- *
- * The four above run on one machine, so a platform assumption passes them by construction — which
- * is how `1.0.0-alpha.7` was spent, green on Windows and failed on Linux in the run its own tag
- * triggered. CI is the only check that sees what the release run will see: the Node matrix, both
- * operating systems, and a `--frozen-lockfile` install.
- *
- * Advisory rather than absolute. `gh` may not be installed, a fork may have no runs, and a first
- * push races its own workflow — so a missing answer says so and proceeds, and only a *known
- * failure* stops the cut. `--skip-checks` covers it too, on the same terms as the rest: for a red
- * one you have already understood, never for one you have not read.
+ * And one check the local four cannot make: has CI been green on these exact bytes? The four run on
+ * one machine, so a platform assumption passes them by construction, which is how `1.0.0-alpha.7`
+ * was spent. A hard gate (D149): it waits for a run still going and refuses anything but green,
+ * no run included. `--skip-checks` is the way past, for a red one you have already understood.
  */
 if (!skipChecks && !dryRun) {
   const sha = capture("git", ["rev-parse", "HEAD"]);
-  const verdict = runVerdict("ci.yml", sha);
-  if (verdict === "failure") {
-    fail(
-      `CI failed on ${sha.slice(0, 8)}, the commit this would tag. A version cut on a red tree is ` +
-        "spent, and this one is not yet — read that run, fix it, push, and cut from the green commit",
-    );
+  let verdict = runVerdict("ci.yml", sha);
+  let gate = ciGate(verdict, sha);
+  for (let shown = null; gate.action === "wait";) {
+    if (verdict !== shown)
+      say(`  ci           ${verdict.replace("_", " ")} on this commit, waiting`);
+    shown = verdict;
+    await sleep(CI_POLL_MS);
+    verdict = runVerdict("ci.yml", sha);
+    gate = ciGate(verdict, sha);
   }
-  say(
-    verdict === "success"
-      ? "  ci           green on this commit"
-      : `  ci           no verdict yet (${verdict}) — the local four are all this run has`,
-  );
+  if (gate.action === "refuse") fail(gate.reason);
+  say("  ci           green on this commit");
   say("");
 }
 

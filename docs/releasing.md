@@ -58,16 +58,14 @@ directory. The production code was right — it reads `delimiter` and `isAbsolut
 platform — so only the tests believed in Windows, and they asserted real behaviour here and nothing
 at all in CI.
 
-**So cut from a commit CI has already been green on.** Push, watch `ci.yml` go green across its
-matrix, and only then run `pnpm release`. That costs one CI run and closes the whole class, not just
-the platform half — it is the only check that sees what the release run will see. Finish any tidying
-before that push: the cut refuses a dirty tree, an untracked file included, and `ci.yml` cancels an in-progress run when a newer
-push arrives, so a fix made while waiting starts the wait again.
-
-`pnpm release` now asks GitHub for that verdict on the exact commit it would tag, and refuses on a
-known failure. It is advisory in the other direction on purpose: no `gh`, no run yet, or a push
-still racing its own workflow all say so and carry on, because a check that blocks a contributor
-without the GitHub CLI would be a worse gate than none. Only a *failure* stops the cut.
+**So a release is cut only from a commit CI has been green on** (D149). Push, then run `pnpm
+release`: after the local four it asks GitHub for `ci.yml`'s verdict on the exact commit it would
+tag. Green carries on; a run still going is waited for; anything else refuses — a failure, a
+cancelled run, no `gh`, and no run at all, which means the commit was never pushed. That costs one
+CI run and closes the whole class, not just the platform half, since it is the only check that sees
+what the release run will see. Finish any tidying before that push: the cut refuses a dirty tree, an
+untracked file included, and `ci.yml` cancels an in-progress run when a newer push arrives, so a fix
+made while waiting starts the wait again.
 
 **A Linux loop, for this machine.** WSL Ubuntu carries a second checkout at `~/rigline-linux`, with
 its own `node_modules`, because a shared one cannot hold both platforms' native binaries:
@@ -189,12 +187,13 @@ tier, so the local run is the stronger one.
 ## Cutting a release
 
 1. `pnpm release <increment>` — `patch`, `minor`, `major`, `prerelease`, or one of `prepatch`,
-   `preminor` and `premajor`. It runs lint, typecheck, build and test first and refuses to cut if any
-   of them fails; then it computes the version, rolls `## Unreleased` into a section headed by it,
-   writes it into every manifest **and into core's own `CORE_VERSION`**, commits, tags `v<version>`
-   and pushes. Add `--dry-run` to see the version and the changelog section without writing
+   `preminor` and `premajor`. It runs lint, typecheck, build and test first, then waits for CI's
+   verdict on the commit, and refuses to cut unless all five are green; then it computes the
+   version, rolls `## Unreleased` into a section headed by it, writes it into every manifest **and
+   into core's own `CORE_VERSION`**, commits, tags `v<version>` and pushes. Add `--dry-run` to see the version and the changelog section without writing
    anything; it stops before the checks, so a clean dry run says nothing about them. Add
-   `--skip-checks` when you have just run them by hand.
+   `--skip-checks` when you have just run them by hand; it skips CI's verdict too, so use it only past
+   a red run you have already read.
 
    Two things its messages do not spell out. A second run against a version already cut refuses
    with `` `## Unreleased` is empty ``, because the first run rolled it — so read that as "already
