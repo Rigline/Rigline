@@ -58,7 +58,7 @@ jobs:
 
       # Pinned exactly rather than to the major: `v6` resolves to the last release before pnpm
       # v12 support, and `v4` runs on the node20 runner GitHub has deprecated (D59).
-      - uses: pnpm/action-setup@v6.1.0
+      - uses: pnpm/action-setup@v6.1.1
 
       - uses: actions/setup-node@v7
         with:
