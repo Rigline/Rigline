@@ -12,6 +12,8 @@ it needs, its entry says so.
 
 ## Unreleased
 
+## 2.2.1 — 2026-11-11
+
 ### Fixed
 
 - On Windows, several VS Code windows starting together could leave some of them showing *Rigline:
