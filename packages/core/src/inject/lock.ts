@@ -123,6 +123,12 @@ export class LockedError extends UserError {
   }
 }
 
+interface Busy {
+  readonly held: LockHolder | null;
+  /** The create's own refusal, thrown at the deadline in place of a `LockedError`. */
+  readonly refused?: NodeJS.ErrnoException;
+}
+
 /** Take the lock, answering null, or answer who holds it. A stale holder is cleared first. */
 function attempt(
   path: string,
@@ -130,7 +136,7 @@ function attempt(
   now: () => number,
   staleMs: number,
   isAlive: (pid: number) => boolean,
-): { readonly held: LockHolder | null } | null {
+): Busy | null {
   for (;;) {
     const holder: LockHolder = { pid: process.pid, since: new Date(now()).toISOString(), what };
     try {
@@ -142,7 +148,11 @@ function attempt(
       }
       return null;
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      const code = (error as NodeJS.ErrnoException).code;
+      // A lock deleted while something has it open lingers until that closes, and Windows refuses
+      // to create it meanwhile, so this is a release in progress.
+      if (code === "EPERM") return { held: null, refused: error as NodeJS.ErrnoException };
+      if (code !== "EEXIST") throw error;
       const held = readHolder(path);
       if (isStale(held, writtenAt(path), now(), staleMs, isAlive)) {
         // `wx` settles a tie, so two stealers reaching this line still produce one winner.
@@ -178,7 +188,7 @@ export function withInjectionLock<T>(options: InjectionLockOptions, work: () => 
   const deadline = now() + waitMs;
   let told = false;
   for (let busy = attempt(path, what, now, staleMs, isAlive); busy !== null;) {
-    if (now() >= deadline) throw new LockedError(path, busy.held);
+    if (now() >= deadline) throw busy.refused ?? new LockedError(path, busy.held);
     if (!told) {
       told = true;
       onWait?.(waiting(path, busy.held));
@@ -215,7 +225,7 @@ export async function withCompanionLock<T>(
   const deadline = now() + waitMs;
   let told = false;
   for (let busy = attempt(path, what, now, staleMs, isAlive); busy !== null;) {
-    if (now() >= deadline) throw new LockedError(path, busy.held);
+    if (now() >= deadline) throw busy.refused ?? new LockedError(path, busy.held);
     if (!told) {
       told = true;
       onWait?.(waiting(path, busy.held));

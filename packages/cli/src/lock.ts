@@ -168,7 +168,16 @@ export async function withHomeLock<T>(options: LockOptions, work: () => Promise<
       }
       break;
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      const code = (error as NodeJS.ErrnoException).code;
+      // A lock deleted while something has it open lingers until that closes, and Windows refuses
+      // to create it meanwhile, so this is a release in progress. Still refused at the deadline,
+      // it is a real fault and reported as one.
+      if (code === "EPERM") {
+        if (now() >= deadline) throw error;
+        await sleep(pollMs);
+        continue;
+      }
+      if (code !== "EEXIST") throw error;
       const held = readHolder(path);
       if (isStale(held, writtenAt(path), now(), staleMs, isAlive)) {
         // Unlink and go round again rather than writing over it: `wx` is what settles a tie, and

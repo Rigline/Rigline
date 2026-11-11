@@ -2,13 +2,14 @@
  * One engine injects at a time (D105), and one writes companions at a time (D144).
  *
  * The clock, the liveness check and the sleep are injected, so a contended lock costs nothing here.
- * The filesystem is real, because `wx` is the primitive the lock rests on. The race between two
- * processes is in `flow.test.ts`, where the flow is what waits.
+ * The filesystem is real, because `wx` is the primitive the lock rests on, except for the `EPERM`
+ * Windows gives while a deleted lock lingers, which no test can make on every platform. The race
+ * between two processes is in `flow.test.ts`, where the flow is what waits.
  */
 import { existsSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   isStale,
   LockedError,
@@ -16,6 +17,27 @@ import {
   withCompanionLock,
   withInjectionLock,
 } from "./lock.ts";
+
+/** How many creates of `path` Windows refuses, as it does while a deleted lock lingers. */
+const lingering = vi.hoisted(() => ({ path: "", creates: 0 }));
+
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  const openSync = (...args: Parameters<typeof actual.openSync>): number => {
+    const { path } = lingering;
+    if (args[0] === path && lingering.creates > 0) {
+      lingering.creates--;
+      throw Object.assign(new Error(`EPERM: operation not permitted, open '${path}'`), {
+        code: "EPERM",
+        errno: -4048,
+        syscall: "open",
+        path,
+      });
+    }
+    return actual.openSync(...args);
+  };
+  return { ...actual, openSync };
+});
 
 const made: string[] = [];
 
@@ -26,8 +48,14 @@ function lockIn(): string {
 }
 
 afterEach(() => {
+  lingering.creates = 0;
   for (const dir of made.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
+
+function linger(path: string, creates: number): void {
+  lingering.path = path;
+  lingering.creates = creates;
+}
 
 function hold(path: string, holder: Partial<LockHolder> = {}): void {
   writeFileSync(
@@ -185,6 +213,34 @@ describe("withInjectionLock", () => {
     const path = join(lockIn(), "..", "not", "there", "inject.lock");
     expect(withInjectionLock({ path }, () => "made")).toBe("made");
   });
+
+  it("waits while a released lock lingers undeletable, and takes it when it goes", () => {
+    const path = lockIn();
+    linger(path, 3);
+    const lines: string[] = [];
+    let polls = 0;
+    const answer = withInjectionLock(
+      { path, sleep: () => polls++, onWait: (line) => lines.push(line) },
+      () => "taken",
+    );
+    expect(answer).toBe("taken");
+    expect(polls).toBe(3);
+    expect(lines).toEqual([`waiting for another Rigline process to release ${path}`]);
+  });
+
+  it("reports a refusal that outlasts the wait as itself, not as a holder", () => {
+    const path = lockIn();
+    linger(path, Number.POSITIVE_INFINITY);
+    const { now, sleep } = clock();
+    let failure: unknown = null;
+    try {
+      withInjectionLock({ path, now, sleep }, () => "unreached");
+    } catch (error) {
+      failure = error;
+    }
+    expect(failure).not.toBeInstanceOf(LockedError);
+    expect(failure).toMatchObject({ code: "EPERM", path });
+  });
 });
 
 describe("withCompanionLock", () => {
@@ -217,6 +273,16 @@ describe("withCompanionLock", () => {
     );
     await expect(attempt).rejects.toBeInstanceOf(LockedError);
     await expect(attempt).rejects.toThrow(/^rigline install \(pid 424242\) has held /);
+  });
+
+  it("reports a refusal that outlasts the wait as itself, not as a holder", async () => {
+    const path = lockIn();
+    linger(path, Number.POSITIVE_INFINITY);
+    const attempt = withCompanionLock(
+      { path, waitMs: 0, sleep: async () => {} },
+      async () => "unreached",
+    );
+    await expect(attempt).rejects.toMatchObject({ code: "EPERM", path });
   });
 });
 

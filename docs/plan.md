@@ -48,6 +48,11 @@ what a plugin is written against.
   `stampOf`, or reading the bytes twice and handing those to the backup and the harvest. First read
   which call libuv makes for a by-path stat on Windows, and whether a handle held during another
   process's write, rename or delete is harmless to it.
+- **A lock's release refused.** A create refused while a released lock lingers is waited out; the
+  release itself is not guarded. Something holding a lock file open *without* share-delete would
+  make the holder's `rmSync` throw from its `finally`, hiding the work's result and leaving the lock
+  to the stale rule. Nothing has shown it. Triggered by a holder's own exit naming `EBUSY` or
+  `EPERM` on a lock file; the bounded retry in `writeFileAtomic` (D114) is the shape.
 - **What [support.md](support.md) lists as not supported yet.** Taken by demand, not by who asked
   first, and none gets a date. Another editor, a portable VS Code or a custom extensions directory
   starts with the engine taking a directory, which the companion already knows for itself; a

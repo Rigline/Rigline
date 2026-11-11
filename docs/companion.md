@@ -90,9 +90,11 @@ The CLI and the companion both write `<RIGLINE_HOME>/engine`, so `withHomeLock`
 ([lock.ts](../packages/cli/src/lock.ts)) takes `<RIGLINE_HOME>/.lock` by exclusive create, writing
 the holder's pid, start time and name into it. A lock is stolen only when its process is gone *and*
 it is old, or once it has been held ten minutes whatever its pid says, since Windows reuses pids
-(D105); one whose file cannot be read is judged by the file's age. It wraps `installEngine`
-rather than any command, held across the npm run, because a first run installs an engine whatever
-verb was typed. A contended lock is a reported outcome, and the companion carries on with the
+(D105); one whose file cannot be read is judged by the file's age. A create refused with `EPERM` is
+a released lock Windows has not finished deleting, because something still has it open, and is
+waited for like a holder; still refused at the deadline, it is reported as itself. It wraps
+`installEngine` rather than any command, held across the npm run, because a first run installs an
+engine whatever verb was typed. A contended lock is a reported outcome, and the companion carries on with the
 engine already there.
 
 Injection has a lock of its own, `<RIGLINE_HOME>/inject.lock`, which the engine holds across every

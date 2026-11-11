@@ -12,6 +12,12 @@ it needs, its entry says so.
 
 ## Unreleased
 
+### Fixed
+
+- On Windows, several VS Code windows starting together could leave some of them showing *Rigline:
+  needs you*, with `EPERM` on `inject.lock` in the Rigline output, where they should have waited
+  their turn.
+
 ## 2.2.0 — 2026-10-28
 
 ### Changed

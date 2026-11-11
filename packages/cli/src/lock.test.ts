@@ -4,12 +4,35 @@
  * The clock, the liveness check and the sleep are all injected, so a contended lock is a few
  * microseconds here rather than a real wait. What is not faked is the filesystem: `wx` is the
  * primitive the whole thing rests on, and a test that stubbed it would be asserting its own mock.
+ * The one exception is the `EPERM` Windows gives while a deleted lock lingers, which no test can
+ * make on every platform.
  */
 import { existsSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { HomeLockedError, isStale, type LockHolder, lockPath, withHomeLock } from "./lock.ts";
+
+/** How many creates of `path` Windows refuses, as it does while a deleted lock lingers. */
+const lingering = vi.hoisted(() => ({ path: "", creates: 0 }));
+
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  const openSync = (...args: Parameters<typeof actual.openSync>): number => {
+    const { path } = lingering;
+    if (args[0] === path && lingering.creates > 0) {
+      lingering.creates--;
+      throw Object.assign(new Error(`EPERM: operation not permitted, open '${path}'`), {
+        code: "EPERM",
+        errno: -4048,
+        syscall: "open",
+        path,
+      });
+    }
+    return actual.openSync(...args);
+  };
+  return { ...actual, openSync };
+});
 
 const made: string[] = [];
 
@@ -20,8 +43,14 @@ function temp(): string {
 }
 
 afterEach(() => {
+  lingering.creates = 0;
   for (const dir of made.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
+
+function linger(home: string, creates: number): void {
+  lingering.path = lockPath(home);
+  lingering.creates = creates;
+}
 
 function hold(home: string, holder: Partial<LockHolder> = {}): void {
   writeFileSync(
@@ -148,6 +177,29 @@ describe("withHomeLock", () => {
     ).catch((error: unknown) => error);
     expect(failure).toBeInstanceOf(HomeLockedError);
     expect((failure as HomeLockedError).holder).toMatchObject({ what: "rigline update" });
+  });
+
+  it("waits while a released lock lingers undeletable, and takes it when it goes", async () => {
+    const home = temp();
+    linger(home, 3);
+    let polls = 0;
+    const answer = await withHomeLock(
+      { home, what: "test", sleep: async () => void polls++ },
+      async () => "taken",
+    );
+    expect(answer).toBe("taken");
+    expect(polls).toBe(3);
+  });
+
+  it("reports a refusal that outlasts the wait as itself, not as a holder", async () => {
+    const home = temp();
+    linger(home, Number.POSITIVE_INFINITY);
+    const failure = await withHomeLock(
+      { home, what: "test", waitMs: 0, sleep: nosleep },
+      async () => "unreached",
+    ).catch((error: unknown) => error);
+    expect(failure).not.toBeInstanceOf(HomeLockedError);
+    expect(failure).toMatchObject({ code: "EPERM", path: lockPath(home) });
   });
 });
 
