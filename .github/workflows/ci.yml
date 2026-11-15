@@ -42,7 +42,7 @@ jobs:
       - uses: actions/checkout@v7
 
       # Not `@v6`: that tag still resolves to the release before pnpm v12 support (D59).
-      - uses: pnpm/action-setup@v6.1.0
+      - uses: pnpm/action-setup@v6.1.1
 
       # After pnpm, never before: `cache: pnpm` asks pnpm where its store is.
       - uses: actions/setup-node@v7
