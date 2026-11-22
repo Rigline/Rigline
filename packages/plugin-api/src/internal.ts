@@ -21,6 +21,16 @@ export {
 } from "./capabilities/index.ts";
 export type { CostReading } from "./cost.ts";
 export { AUTH_TYPES, authStatusOf, costReading, meteredOf, UNKNOWN_COST } from "./cost.ts";
+export type { Attachable, EditorAttach, EditorContextState, EditorSettings } from "./editor.ts";
+export {
+  attachableOf,
+  DEFAULT_EDITOR_SETTINGS,
+  EDITOR_ATTACH,
+  fileName,
+  NO_EDITOR_CONTEXT,
+  readEditorSettings,
+  sameEditorContext,
+} from "./editor.ts";
 export type { AnchorSlot, ElementSpec, Elements, Placement, ZoneSpec } from "./elements.ts";
 export {
   ELEMENT_ID_PATTERN,
@@ -151,7 +161,8 @@ export { nextSessionId } from "./session.ts";
 export { PENDING_TOOL_LIMIT, toolResults, toolUses } from "./stream.ts";
 export type { StylesheetNames } from "./stylesheet.ts";
 export { stylesheetNames } from "./stylesheet.ts";
-export type { IdentifierTables, ReactGap } from "./tables.ts";
+export type { IdentifierTables, ReactGap, SessionFeature, SessionGap } from "./tables.ts";
+export { sessionGaps } from "./tables.ts";
 export type { FiberLike } from "./transcript.ts";
 export { entriesDiffer, messageTimes, onScreen, rowIdentity } from "./transcript.ts";
 export type { ContextAnswer, ContextReading, MessageTokens, ModelWindow } from "./usage.ts";

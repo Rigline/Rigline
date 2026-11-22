@@ -72,6 +72,14 @@ prompt until a model has been chosen for that session, and offers to send with w
 stops the keystroke before the panel acts on it, so it sends nothing and changes no message, typing
 is never blocked, and no plugin can do it.
 
+Rigline also holds back the editor's state by default: the open file's path or the selected lines,
+which the panel adds to every prompt, go only with a message the person has ticked them for, and a
+setting restores Claude Code's own behaviour. The hold is the panel's own control for leaving that
+context out, the X on Claude Code's chip, and a tick puts it back as the panel would, so the panel
+composes every message itself and Rigline never adds to one or reaches into it. It only ever
+withholds what the person did not choose to send, which is why it is on without being asked for
+where the model gate is not. No plugin can do it either.
+
 Rigline can also act for a plugin towards Claude Code, reading or changing something. The rule is
 the same for both: **Rigline goes no further than the panel itself does.** It asks for what the
 panel asks for, it changes only what the panel offers the person to change, it does so on that
@@ -133,7 +141,9 @@ how any model behaves, or change a request on its way off the machine or a reply
 Nothing Rigline does reaches into a request in flight. Choosing a model is the one thing that
 changes what a later request names, and it is the person's own choice made through the panel's own
 picker controls, with the same effect as using the picker: the choice is theirs, the mechanism is Claude
-Code's, and what it then sends is unchanged by us. What passes between the panel and the extension
+Code's, and what it then sends is unchanged by us. Holding back the editor's state changes what a
+later message carries only by leaving out what the person did not tick, through the panel's own
+control, and the panel composes the message as it always does. What passes between the panel and the extension
 on the machine, a plugin may change, in the ways above, and that is the line: the panel and the
 extension are the user's to arrange between themselves; what reaches Anthropic is not ours to
 touch.

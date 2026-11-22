@@ -121,6 +121,19 @@ describe("a settings Save link's payload", () => {
     expect(to({ model: { default: { effort: "high" } } })).toMatchObject({
       problem: expect.stringContaining("must name a model"),
     });
+    expect(to({ editor: { attach: "sometimes" } })).toMatchObject({
+      problem: expect.stringContaining("editor.attach: sometimes"),
+    });
+  });
+
+  it("reads the editor block beside the model's", () => {
+    const rigline = {
+      from: { editor: { attach: "ask" } },
+      to: { editor: { attach: "always" } },
+    } as const;
+    expect(decodeSettingsPayload(encodeJson({ ...settings, rigline }))).toEqual({
+      payload: { ...settings, rigline },
+    });
   });
 
   it("refuses sides that name different blocks", () => {

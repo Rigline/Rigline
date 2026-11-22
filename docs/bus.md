@@ -303,6 +303,33 @@ Whether this session has chosen is read off the bus: the panel's own `set_model`
 `apply_settings` carrying `effortLevel`, which a choice applied here now sends too, and reset by
 each `launch_claude` that does not resume. The pure half is `plugin-api/src/models.ts`.
 
+**Editor context** (Rigline's own, no `ctx` member). Whether the open file or the selected lines go
+with a message (D150). Not derived from the bus either: the panel's session decides what its `send`
+attaches, so the hold is on the session. Read in the 2.1.310 bundle and driven in the harness; none
+of it is documented.
+
+- **`selection` is a signal on the same session the model capabilities read**, holding what the
+  host's `selection_changed` last gave the session on screen: `{ filePath, sourceUri, startLine,
+  endLine, startColumn?, endColumn?, selectedText? }`. With `selectedText` the send adds
+  `<ide_selection>` carrying the text; without it, `<ide_opened_file>` carrying only the path. Lines
+  are the block's own numbers, from `startLine` to `endLine`.
+- **Claude Code's chip renders while `selection.value` is set**, with a divider before it, and its X
+  is `dismissSelection()`: the value moves to `dismissedSelection` and the signal empties.
+  `applySelectionUpdate(sel)`, what `selection_changed` calls, keeps a dismissal while the new
+  selection is the same one, or the same file with nothing selected, and otherwise clears it and sets
+  the signal. Given nothing, it clears `dismissedSelection` without moving the signal, since the
+  signal is empty already, which is why the chip re-reads after each `selection_changed`.
+- **`send` reads the selection synchronously, before any `await`**, and attaches it only where it
+  differs from `lastSentSelection`, which it then sets to what it attached. A send with nothing
+  attached resets it to nothing, but two sends in a row on unchanged lines attach only the first, so
+  a tick clears `lastSentSelection`.
+- **A new session paints Claude Code's chip for at least one frame** before anything can find it:
+  the panel seeds a new or activated session's selection as it makes it, and the footer element is
+  replaced with the session. A subscriber that dismisses synchronously, found on the next commit,
+  keeps the selection out of every send; the frame is what the stylesheet is for.
+- **An initial prompt only fills the composer.** `initialPrompt` is read into the editor, never
+  sent, so a session activated with one carries no selection past the hold.
+
 ## Rates
 
 `outbound`, `inbound`, `tapClone`, `resend` and `ask` each carry a per-second peak and when it happened, as

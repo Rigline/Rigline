@@ -4,7 +4,11 @@
  * posts and what the other does with it is the real protocol. Whether a message crosses webviews is
  * the live panel's question, not this file's.
  */
-import { type Layout, NO_MODEL_SETTINGS } from "@rigline/plugin-api/internal";
+import {
+  DEFAULT_EDITOR_SETTINGS,
+  type Layout,
+  NO_MODEL_SETTINGS,
+} from "@rigline/plugin-api/internal";
 import { afterEach, describe, expect, it } from "vitest";
 import type { Diagnostics } from "../src/kernel/bridge.ts";
 import { createBroadcast, type Held } from "../src/kernel/broadcast.ts";
@@ -25,7 +29,13 @@ function counts(): Diagnostics["broadcast"] {
 }
 
 /** One panel: what it holds, what it was handed, and a clock a test moves. */
-function panel(held: Held = { layout: {}, settings: {}, rigline: { model: NO_MODEL_SETTINGS } }) {
+function panel(
+  held: Held = {
+    layout: {},
+    settings: {},
+    rigline: { model: NO_MODEL_SETTINGS, editor: DEFAULT_EDITOR_SETTINGS },
+  },
+) {
   const c = counts();
   const applied: Changed[] = [];
   const failed: string[] = [];
@@ -133,7 +143,11 @@ describe("what a panel will not take", () => {
 describe("a value another panel is saving", () => {
   const was: Layout = { rigRow: ["clock/face"] };
   const now: Layout = { off: ["clock/face"] };
-  const before: Held = { layout: was, settings: {}, rigline: { model: NO_MODEL_SETTINGS } };
+  const before: Held = {
+    layout: was,
+    settings: {},
+    rigline: { model: NO_MODEL_SETTINGS, editor: DEFAULT_EDITOR_SETTINGS },
+  };
 
   async function told() {
     const a = panel();
@@ -183,7 +197,7 @@ describe("a value another panel is saving", () => {
     const held: Held = {
       layout: {},
       settings: { clock: { seconds: false }, other: { x: 1 } },
-      rigline: { model: NO_MODEL_SETTINGS },
+      rigline: { model: NO_MODEL_SETTINGS, editor: DEFAULT_EDITOR_SETTINGS },
     };
     const b = panel(held);
     const always = { requireChoice: "always" as const, default: null };

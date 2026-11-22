@@ -54,7 +54,7 @@ describe.skipIf(skip !== null)(
 import { Pill } from "@rigline/plugin-api/ui";
 export default { setup(ctx) { ctx.element("badge", () => jsx(Pill, { children: "badge" })); } };`,
       };
-      const booted = await boot({ plugins: [slotted] });
+      const booted = await boot({ plugins: [slotted], layout: RIGLINE_OFF });
       const { page } = booted;
       try {
         await page.waitForSelector('[data-rigline-slot="slotted/badge"] .rigline-ui-pill');
@@ -503,7 +503,7 @@ export default { setup(ctx) { ${["a", "b", "c", "d", "g"].map(item).join(" ")} }
         layout: {
           rigRow: ["laid/c", "laid/a"],
           "before footerSpacer": ["laid/g"],
-          off: ["laid/d"],
+          off: ["laid/d", "rigline/editor"],
         },
       });
       const { page } = booted;

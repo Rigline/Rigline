@@ -1,11 +1,15 @@
 /**
- * Rigline's own settings tab: the gate's mode and the default model (D139). Drawn from the kit and
- * added through the path a plugin's tab takes, so the screen has one mechanism and this is its first
- * user. The draft is `{ model }`, which the screen's Save carries beside the plugins' sections.
+ * Rigline's own settings tab: the gate's mode and the default model (D139), and whether the editor
+ * context waits for a tick (D150). Drawn from the kit and added through the path a plugin's tab
+ * takes, so the screen has one mechanism and this is its first user. The draft is `{ model, editor }`,
+ * which the screen's Save carries beside the plugins' sections.
  */
 import {
   comboLabel,
+  DEFAULT_EDITOR_SETTINGS,
   type DefaultChoice,
+  type EditorAttach,
+  type EditorSettings,
   type ModelSettings,
   NO_MODEL_SETTINGS,
   type RequireChoice,
@@ -32,11 +36,17 @@ const MODES: readonly { readonly value: RequireChoice; readonly label: string; h
   { value: "always", label: "Every new session" },
 ];
 
+const ATTACH: readonly { readonly value: EditorAttach; readonly label: string }[] = [
+  { value: "ask", label: "When ticked" },
+  { value: "always", label: "Always" },
+];
+
 export const riglineTab: RiglineTab = (models) =>
   function RiglineSettings(): ReactNode {
     const [draft, setDraft] = useSettingsDraft();
     const state = useStore(models);
     const model = (draft.model as ModelSettings | undefined) ?? NO_MODEL_SETTINGS;
+    const editor = (draft.editor as EditorSettings | undefined) ?? DEFAULT_EDITOR_SETTINGS;
     const update = (next: Partial<ModelSettings>): void =>
       setDraft({ ...draft, model: { ...model, ...next } });
     const live: DefaultChoice | null =
@@ -81,6 +91,23 @@ export const riglineTab: RiglineTab = (models) =>
               ? "Use current model"
               : `Use current model (${comboLabel(state.current, state.effort)})`}
           </Button>
+        </SettingRow>
+        <SettingRow
+          label="Send the open file or selection"
+          hint={
+            editor.attach === "ask"
+              ? "Tick it under the composer to send it with one message."
+              : "With every message, as Claude Code does."
+          }
+        >
+          <Choice
+            options={ATTACH}
+            inline
+            value={editor.attach}
+            onChange={(attach) =>
+              setDraft({ ...draft, editor: { attach: attach as EditorAttach } })
+            }
+          />
         </SettingRow>
       </>
     );

@@ -70,6 +70,8 @@ describe("viewLayout", () => {
       "  session-id/address   Messaging address  yours; can also go in rigRow right or in rigRow 2",
       "  clock/face           Clock              can also go in rigRow right or in rigRow 2",
       "  rigline/edit         Edit button        can also go in rigRow right, in rigRow 2 or before footerSpacer",
+      "before footerSpacer",
+      "  rigline/editor       Editor context     can also go in rigRow or in rigRow 2",
       "off",
       "  session-id/short-id  Session id         yours; can also go before footerSpacer, in rigRow or in rigRow 2",
       "  session-id/full-id   Full session id    can also go in rigRow or in rigRow 2",

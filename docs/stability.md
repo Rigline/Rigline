@@ -80,9 +80,10 @@ Rigline out until you put it back.
 - **The words in that file that Rigline owns:** the layout's places — `rigRow` and the rows after it,
   `rigRow 2` and on, each row's right side, `rigRow right` and `rigRow 2 right` and on, `off`, and
   `before`, `after` or `inside` an anchor's name — the `model` block's `default` and
-  `requireChoice`, with its modes `off`, `unlessDefault` and `always`, and the names of the bundled
-  plugins, their elements, and Rigline's own elements, `rigline/edit` and `rigline/reload`. A
-  third-party plugin's names are its author's.
+  `requireChoice`, with its modes `off`, `unlessDefault` and `always`, the `editor` block's `attach`,
+  with its values `ask` and `always`, and the names of the bundled plugins, their elements, and
+  Rigline's own elements, `rigline/edit`, `rigline/reload` and `rigline/editor`. A third-party
+  plugin's names are its author's.
 - **The `settings` block in that file**, keyed by plugin name. Rigline keeps the block, the keying
   and the passing-through; **what is inside a plugin's section belongs to that plugin**, and
   Rigline neither reads it nor promises anything about it. So the rule above is inverted one level

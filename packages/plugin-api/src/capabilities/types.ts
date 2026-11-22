@@ -6,7 +6,7 @@
  * The runtime half, which builds a plugin's slice of `ctx`, lives in the host package and is
  * joined to this by `key`.
  */
-import type { IdentifierTables } from "../tables.ts";
+import { type IdentifierTables, sessionGaps } from "../tables.ts";
 
 /**
  * Everything a plugin may declare about one capability, with every key present. Declared twice per
@@ -107,7 +107,7 @@ export function booleanShape(value: unknown): string | null {
 /**
  * A contract for a switch that expands to fixed message types and anchors the host taps for it,
  * with `react`, to what react-dom must still have, and with `panelSession`, to what the panel's
- * session object must.
+ * session object must for the model capabilities.
  */
 export function switchContract<
   K extends
@@ -150,7 +150,7 @@ export function switchContract<
         }
       }
       if (spec.panelSession) {
-        for (const { needs, breaks } of tables.panelSession.missing) {
+        for (const { needs, breaks } of sessionGaps(tables, "models")) {
           gaps.push(`"${spec.key}" needs the panel session's ${needs}, which is gone: ${breaks}`);
         }
       }

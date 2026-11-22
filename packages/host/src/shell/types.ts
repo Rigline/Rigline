@@ -11,6 +11,7 @@ import type {
   Surface,
 } from "@rigline/plugin-api/internal";
 import type { SettingsSaver } from "@rigline/plugin-api/ui/internal";
+import type { AttachView } from "../kernel/attach.ts";
 import type { Diagnostics } from "../kernel/bridge.ts";
 import type { CheckGroup } from "../kernel/checks.ts";
 import type { LayoutEditor } from "../kernel/layout.ts";
@@ -111,7 +112,10 @@ export interface ShellOptions {
 export type StartShell = (options: ShellOptions) => () => void;
 
 /** Rigline's own elements' components, by id, for the kernel to bind (D97). */
-export type RiglineElements = (editor: LayoutEditor) => Readonly<Record<string, ElementComponent>>;
+export type RiglineElements = (
+  editor: LayoutEditor,
+  attach: AttachView,
+) => Readonly<Record<string, ElementComponent>>;
 
 /** Rigline's own settings tab, for the kernel to add through the same path as a plugin's. */
 export type RiglineTab = (models: Store<ModelState>) => SettingsTabComponent;

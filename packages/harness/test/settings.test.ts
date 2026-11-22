@@ -138,9 +138,10 @@ describe.skipIf(skip !== null)(`the settings screen${skip ? ` (${skip})` : ""}`,
         token: COMPANION.token,
         sections: {},
         rigline: {
-          from: { model: OFF },
+          from: { model: OFF, editor: { attach: "ask" } },
           to: {
             model: { requireChoice: "always", default: { model: "opus", effort: "high" } },
+            editor: { attach: "ask" },
           },
         },
       });
@@ -195,7 +196,10 @@ describe.skipIf(skip !== null)(`the settings screen${skip ? ` (${skip})` : ""}`,
           to: { seconds: true, kept: "by hand" },
         },
       });
-      expect(payload.rigline?.to).toEqual({ model: { requireChoice: "always", default: null } });
+      expect(payload.rigline?.to).toEqual({
+        model: { requireChoice: "always", default: null },
+        editor: { attach: "ask" },
+      });
 
       // A press in the margin closes it, as one outside the diff view does; the drafts stay, and
       // the menu says so.

@@ -92,9 +92,12 @@ Leave an element out and it stays where its plugin puts it, and so does everythi
 install later brings. In a place, the elements you list come first, in your order, and anything else
 that belongs there follows.
 
-Rigline's own two elements are named like any other: `rigline/edit`, the move icon, which starts
+Rigline's own elements are named like any other: `rigline/edit`, the move icon, which starts
 editing in place, and `rigline/reload`, which picks up the saved layout and starts off. A
 Ctrl-click or Cmd-click on either does what the other does, so you need only the one you prefer.
+`rigline/editor` is the chip you tick to send the open file or your selection with a message, which
+starts in the footer where Claude Code's own chip was; [config.md](config.md) has what switching it
+off means.
 
 Rigline starts you with a layout. Until a command first creates this file, Rigline reads it as if the
 layout were already there, and the new file starts with it:

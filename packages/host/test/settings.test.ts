@@ -4,6 +4,7 @@
  * and the wait are injected, so a confirmation costs nothing here.
  */
 import {
+  DEFAULT_EDITOR_SETTINGS,
   decodeSettingsPayload,
   MAX_SETTINGS_PAYLOAD,
   NO_MODEL_SETTINGS,
@@ -17,8 +18,11 @@ import { createSettingsEditor } from "../src/kernel/settings.ts";
 type Sections = Record<string, Record<string, unknown>>;
 
 const save: SaveRecord = { token: "a".repeat(32), scheme: "vscode" };
-const OFF: RiglineSettings = { model: NO_MODEL_SETTINGS };
-const ALWAYS: RiglineSettings = { model: { requireChoice: "always", default: null } };
+const OFF: RiglineSettings = { model: NO_MODEL_SETTINGS, editor: DEFAULT_EDITOR_SETTINGS };
+const ALWAYS: RiglineSettings = {
+  model: { requireChoice: "always", default: null },
+  editor: DEFAULT_EDITOR_SETTINGS,
+};
 
 /** An editor over `sections` and `rigline`, whose re-read finds whatever `file` holds then. */
 function editor(sections: Sections = {}, rigline: RiglineSettings = OFF, record = save) {

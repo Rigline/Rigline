@@ -15,7 +15,13 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { BakedPreset, Layout, ModelSettings, SaveRecord } from "@rigline/plugin-api/internal";
+import type {
+  BakedPreset,
+  EditorSettings,
+  Layout,
+  ModelSettings,
+  SaveRecord,
+} from "@rigline/plugin-api/internal";
 import {
   type Browser,
   type BrowserContext,
@@ -146,6 +152,8 @@ export interface BootOptions {
   readonly settings?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   /** Rigline's own model settings, as `install` would bake them (D139). */
   readonly model?: ModelSettings;
+  /** Rigline's own editor settings, as `install` would bake them (D150). Absent is `ask`. */
+  readonly editor?: EditorSettings;
   /** The channel the panels tell each other about a save on, as `install` would bake it (D141). */
   readonly broadcast?: string;
   /** Selectors written over the resolved ones, as a refinement in `anchors.json` would be. */
@@ -191,8 +199,11 @@ async function chromiumLaunchFailure(): Promise<string | null> {
  */
 export const HARNESS_VERSION = CORPUS_VERSIONS.at(-1) ?? "";
 
-/** Rigline's own elements switched off, for a case about what `rigRow` holds or whether it is there. */
-export const RIGLINE_OFF: Layout = { off: ["rigline/edit", "rigline/reload"] };
+/**
+ * Rigline's own elements switched off, for a case about what `rigRow` or the footer holds, or
+ * whether a row is there.
+ */
+export const RIGLINE_OFF: Layout = { off: ["rigline/edit", "rigline/reload", "rigline/editor"] };
 
 /**
  * Why this file's tests cannot run, or null. Read at module scope so a `describe.skipIf` can use
@@ -285,6 +296,7 @@ export function register(version: string): (options?: BootOptions) => Promise<Bo
       presetsOmitted: options.presetsOmitted,
       settings: options.settings,
       model: options.model,
+      editor: options.editor,
       broadcast: options.broadcast,
       selectors: options.selectors,
     });

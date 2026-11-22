@@ -517,6 +517,28 @@ export function gateVerdict(gate: GateLike): CheckVerdict {
   return { verdict: "pass", detail: `${gate.mode}: ${counts}` };
 }
 
+/** What the editor-context check needs: the mode, why it holds nothing if it does not, and counts. */
+export interface AttachLike {
+  readonly mode: string;
+  readonly idle: string | null;
+  readonly stats: { readonly sessions: number; readonly ticked: number; readonly sent: number };
+}
+
+/**
+ * The editor context is held as `config.yaml` asks (D150). `fail` where it asks and this extension,
+ * or a fault, has left Claude Code's own chip in place.
+ */
+export function attachVerdict(attach: AttachLike): CheckVerdict {
+  if (attach.mode === "always") return { verdict: "n/a", detail: "always: Claude Code's own chip" };
+  if (attach.idle !== null) return { verdict: "fail", detail: attach.idle };
+  const { sessions, ticked, sent } = attach.stats;
+  if (sessions === 0) return { verdict: "n/a", detail: "no session held here yet" };
+  return {
+    verdict: "pass",
+    detail: `${attach.mode}: ${String(sessions)} session(s) held, ${String(ticked)} ticked, ${String(sent)} sent`,
+  };
+}
+
 /** A session id has arrived, once some plugin on this surface is following one. */
 export function sessionIdVerdict(used: boolean, id: string | null): CheckVerdict {
   if (!used) return { verdict: "n/a", detail: "no plugin here follows the session" };

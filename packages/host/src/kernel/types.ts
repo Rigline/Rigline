@@ -17,6 +17,7 @@ import type {
   Uses,
   UsesKey,
 } from "@rigline/plugin-api/internal";
+import type { AttachService } from "./attach.ts";
 import type { Bus, Diagnostics, ReactBridge } from "./bridge.ts";
 import type { Check, CheckService } from "./checks.ts";
 import type { ContextService } from "./context.ts";
@@ -58,6 +59,7 @@ export interface Kernel {
   readonly limits: LimitsService;
   readonly models: ModelsService;
   readonly gate: GateService;
+  readonly attach: AttachService;
   readonly transcript: TranscriptService;
   readonly checks: CheckService;
   readonly shell: ShellService;

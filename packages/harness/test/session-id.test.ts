@@ -9,7 +9,12 @@ import { fileURLToPath } from "node:url";
 import type { Page } from "playwright";
 import { describe, expect, it } from "vitest";
 import type { FixturePlugin } from "../src/payload.ts";
-import { harnessSkipReason, register, HARNESS_VERSION as VERSION } from "../src/suite.ts";
+import {
+  harnessSkipReason,
+  RIGLINE_OFF,
+  register,
+  HARNESS_VERSION as VERSION,
+} from "../src/suite.ts";
 
 const PLUGIN_DIR = new URL("../../../plugins/session-id/", import.meta.url);
 
@@ -124,7 +129,10 @@ describe.skipIf(skip !== null)(
     const boot = register(VERSION);
 
     it("places the short id before the real footer spacer and Rigline's pill, with the rest off", async () => {
-      const booted = await boot({ plugins: [sessionIdPlugin as FixturePlugin] });
+      const booted = await boot({
+        plugins: [sessionIdPlugin as FixturePlugin],
+        layout: RIGLINE_OFF,
+      });
       try {
         await booted.page.waitForSelector(SHORT_ID);
 

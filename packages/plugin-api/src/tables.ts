@@ -43,10 +43,13 @@ export interface IdentifierTables {
     /** What the transcript capability needs and this version lacks, which refuses only it (D102). */
     readonly missing: readonly ReactGap[];
   };
-  /** The panel's own session object, which the model capabilities read and drive (D120). */
+  /**
+   * The panel's own session object, which the model capabilities read and drive (D120) and the
+   * editor context holds.
+   */
   readonly panelSession: {
-    /** What the model capabilities need and this version lacks, which refuses only them. */
-    readonly missing: readonly ReactGap[];
+    /** What this version lacks, each gap refusing only the features it names. */
+    readonly missing: readonly SessionGap[];
   };
 }
 
@@ -54,4 +57,17 @@ export interface IdentifierTables {
 export interface ReactGap {
   readonly needs: string;
   readonly breaks: string;
+}
+
+/** What rests on the panel's session: both model capabilities, and Rigline's editor context. */
+export type SessionFeature = "models" | "editorContext";
+
+/** A member the panel's session lacks, and the features that takes down. */
+export interface SessionGap extends ReactGap {
+  readonly refuses: readonly SessionFeature[];
+}
+
+/** The gaps in the panel's session that refuse `feature`. */
+export function sessionGaps(tables: IdentifierTables, feature: SessionFeature): SessionGap[] {
+  return tables.panelSession.missing.filter((gap) => gap.refuses.includes(feature));
 }

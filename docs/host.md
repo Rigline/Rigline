@@ -83,8 +83,8 @@ Dynamically imported after boot. In order:
 2. Import `./generated.js`. If that fails, load nothing and say why: empty tables would refuse
    every plugin naming an identifier that has not gone.
 3. Import `./registry.js`. Publish the recorded patch outcomes to diagnostics, and build the layout
-   editor from its `layout` and `save` and the settings editor from its `settings` and `model`
-   (below). Subscribe to the models service, which finds the panel's own session above the footer
+   editor from its `layout` and `save` and the settings editor from its `settings`, `model` and
+   `editor` (below). Subscribe to the models service, which finds the panel's own session above the footer
    spacer on each commit (D120 as amended), so its taps on the panel's model requests are in before
    the buffer seals.
 4. Install the model gate where `registry.js`'s `model` asks for one (D139): capture listeners for
@@ -95,6 +95,16 @@ Dynamically imported after boot. In order:
    buffer seals. Off, nothing is installed. A read of `registry.js` that finds the mode changed puts
    the interception in or takes it out; the send key's setting is read from boot whatever the mode,
    since a gate switched on after the seal could not learn it.
+   Install the editor-context hold where `registry.js`'s `editor` asks for one, which by default it
+   does (D150), unless `attachGaps` finds a panel-session member or an anchor it rests on gone, in
+   which case it says so and Claude Code's chip stays. `kernel/attach.ts` finds every session above
+   the footer spacer on each commit, as the models service does, and subscribes to each one's
+   `selection`, calling the panel's own `dismissSelection` from inside the setter so the selection
+   never reaches a send unticked. A stylesheet hides Claude Code's chip and the divider before it,
+   since a new session paints them for a frame before anything can find it; if that chip stays past
+   half a second with nothing ticked, the hold has missed a session, so the service stops and gives
+   the panel back. `always`, or a read that switches to it, takes everything out and puts back what
+   was held.
 5. If the app has made its one call to `acquireVsCodeApi`, replace the global with one that throws,
    as VS Code's own does on a second call (D79). Never before, or a plugin could get there first.
 6. For each registry entry, in registry order:
@@ -213,12 +223,15 @@ panel has not got says that a save here forgets where it puts them (D133). The l
 open state rather than the overlay's `opened` slot, which is there to close a pop-over whose anchor
 has moved to or from off.
 
-Rigline's own elements, `rigline/edit` and `rigline/reload`, are bound once `shell.js` has loaded,
-from the components it exports as `riglineElements`, at a registry order after every plugin's (D97).
-They go through the same `element` service as a plugin's, reporting to the shell's error path. A
-click with Ctrl or Cmd held does the other one's action, and Reload starts off (D124). While a newer
-layout is saved behind unsaved changes, each one's R is the theme's warning colour and its tooltip
-says so (D126, D141).
+Rigline's own elements, `rigline/edit`, `rigline/reload` and `rigline/editor`, are bound once
+`shell.js` has loaded, from the components it exports as `riglineElements`, at a registry order
+after every plugin's (D97). They go through the same `element` service as a plugin's, reporting to
+the shell's error path. A click on Edit or Reload with Ctrl or Cmd held does the other one's action,
+and Reload starts off (D124). While a newer layout is saved behind unsaved changes, each one's R is
+the theme's warning colour and its tooltip says so (D126, D141). `rigline/editor` is the
+editor-context chip, before the footer spacer by default: it draws the attach service's state, and
+its checkbox calls the service's `toggle` with the event, which acts only on one a person caused
+(D150). It draws nothing while nothing is available, or the hold is off or refused.
 
 Edit in place, a checkbox at the top of the submenu, sets the editor's `editing` store (D95). While
 it is set, the kernel holds every row in place, empty or not, and the next row as the target that
@@ -261,7 +274,8 @@ re-reads and drops every draft.
 
 Every read of `registry.js`, whoever asked for it — either editor's confirmation, Reload, the menu
 opening, look-on-focus — feeds the settings editor, which publishes only what changed: a plugin's
-section to its `ctx.onSettings`, and Rigline's model settings to the models service and the gate.
+section to its `ctx.onSettings`, Rigline's model settings to the models service and the gate, and
+its editor settings to the attach service.
 A `SaveSettings` click confirms through the same poll. Both editors share `saving.ts`, the save
 state and the poll that ends in `unconfirmed`; the layout editor adds only the closing of edit mode.
 
@@ -495,11 +509,13 @@ export const presets = [{ name, origin, description, problem, layout }];
 export const presetsOmitted = 0;
 export const settings = { "<plugin>": { ... } };
 export const model = { requireChoice: "off" | "unlessDefault" | "always", default: null | { model, effort? } };
+export const editor = { attach: "ask" | "always" };
 ```
 
 `model` is Rigline's own, `config.yaml`'s `model` block as `readConfig` read it: the gate's mode and
 the person's default (D139). The kernel reads it with the same `readModelSettings`, and a value it
-cannot read leaves the gate off.
+cannot read leaves the gate off. `editor` is the same for the `editor` block (D150): read with
+`readEditorSettings`, and absent, from an older payload, as `ask`.
 
 `presets` is every preset `listPresets` found, shipped and a person's own, each name once and each
 carrying why it could not be read where it could not (D133). `presetsOmitted` counts those a bound

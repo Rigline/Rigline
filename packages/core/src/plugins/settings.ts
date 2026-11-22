@@ -3,8 +3,11 @@
  * is `readConfig`'s and the bake is `bakedSettings`'; this is the write.
  */
 import {
+  DEFAULT_EDITOR_SETTINGS,
   decodeSettingsPayload,
+  type EditorSettings,
   type ModelSettings,
+  readEditorSettings,
   readModelSettings,
   type RiglineSettings,
   sameValue,
@@ -52,8 +55,28 @@ export function writeSettings(
     const node = doc.get("settings", true);
     if (isMap(node) && node.items.length === 0) doc.delete("settings");
     if (own.model !== undefined) changed = setModel(doc, own.model) || changed;
+    if (own.editor !== undefined) changed = setEditor(doc, own.editor) || changed;
     return changed;
   });
+}
+
+/**
+ * The `editor` block made to read as `wanted`: `ask`, the default, is deleted rather than written.
+ * A key a later Rigline wrote stays (D110), as does a value this one reads as `always` while
+ * `always` is what is wanted.
+ */
+function setEditor(doc: Document, wanted: EditorSettings): boolean {
+  const read = readEditorSettings((doc.toJS() as Record<string, unknown> | null)?.editor);
+  if ("problem" in read) throw new UserError(read.problem);
+  if (read.settings.attach === wanted.attach) return false;
+  if (wanted.attach === DEFAULT_EDITOR_SETTINGS.attach) doc.deleteIn(["editor", "attach"]);
+  else {
+    if (!isMap(doc.get("editor", true))) doc.set("editor", doc.createNode({}));
+    doc.setIn(["editor", "attach"], wanted.attach);
+  }
+  const node = doc.get("editor", true);
+  if (isMap(node) && node.items.length === 0) doc.delete("editor");
+  return true;
 }
 
 /**
@@ -156,7 +179,7 @@ export function saveSettingsFromPanel(
   const wanted = Object.fromEntries(known.map(([name, section]) => [name, section.to]));
   const ownTo = payload.rigline?.to ?? {};
   const ownFrom = payload.rigline?.from ?? {};
-  const held: RiglineSettings = { model: config.model };
+  const held: RiglineSettings = { model: config.model, editor: config.editor };
   const own = (Object.keys(ownTo) as (keyof RiglineSettings)[]).filter((block) =>
     Object.hasOwn(held, block),
   );

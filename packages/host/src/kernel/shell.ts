@@ -46,6 +46,7 @@ import type {
   SettingsTab,
   StartShell,
 } from "../shell/types.ts";
+import type { AttachView } from "./attach.ts";
 import type { Diagnostics } from "./bridge.ts";
 import type { CheckGroup, CheckService } from "./checks.ts";
 import type { LayoutEditor } from "./layout.ts";
@@ -147,6 +148,8 @@ export interface ShellServiceOptions {
   readonly settings: SettingsEditor;
   /** What Rigline's own settings tab reads, kept from boot. */
   readonly models: Store<ModelState>;
+  /** What Rigline's editor-context chip reads and ticks. */
+  readonly attach: AttachView;
   readonly mounts: MountService;
   readonly checks: CheckService;
   readonly diagnostics: Diagnostics;
@@ -155,8 +158,19 @@ export interface ShellServiceOptions {
 }
 
 export function createShellService(options: ShellServiceOptions): ShellService {
-  const { tables, surface, editor, settings, models, mounts, checks, diagnostics, saver, fail } =
-    options;
+  const {
+    tables,
+    surface,
+    editor,
+    settings,
+    models,
+    attach,
+    mounts,
+    checks,
+    diagnostics,
+    saver,
+    fail,
+  } = options;
   const pill = document.createElement("span");
   pill.className = "rigline-slot";
   const state = { started: false, error: null as string | null, pill };
@@ -564,7 +578,7 @@ export function createShellService(options: ShellServiceOptions): ShellService {
         // First in the rail, through the path a plugin's tab takes.
         const ownTab = shell.riglineTab?.(models);
         if (ownTab) tab(RIGLINE, -1, "Rigline", ownTab, fail);
-        const own = shell.riglineElements?.(editor) ?? {};
+        const own = shell.riglineElements?.(editor, attach) ?? {};
         Object.entries(RIGLINE_ELEMENTS).forEach(([id, spec], index) => {
           const component = own[id];
           if (component) bind(RIGLINE, order, index, id, spec, component, fail);

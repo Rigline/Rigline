@@ -7,9 +7,11 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import {
+  type EditorSettings,
   type Layout,
   type ModelSettings,
   parsePlace,
+  readEditorSettings,
   readModelSettings,
   SHIPPED_LAYOUT,
 } from "@rigline/plugin-api/internal";
@@ -62,6 +64,8 @@ export interface PluginsConfig {
   readonly settings: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   /** Rigline's own model settings: the gate's mode and the person's default. */
   readonly model: ModelSettings;
+  /** Rigline's own editor settings: whether the editor context waits for a tick. */
+  readonly editor: EditorSettings;
   /**
    * Keys this engine does not read, dotted, and values it does not know as `key: value`: a typo, or
    * a setting from a later Rigline (D110).
@@ -70,7 +74,7 @@ export interface PluginsConfig {
 }
 
 /** The settings this engine reads at the top level. */
-const SETTINGS = ["disabled", "layout", "settings", "model"];
+const SETTINGS = ["disabled", "layout", "settings", "model", "editor"];
 
 const HEADER =
   " Rigline's settings. Edit freely: rigline's commands keep your comments.\n" +
@@ -195,9 +199,12 @@ function configOf(path: string, doc: Document): PluginsConfig {
   }
   const model = readModelSettings(value.model);
   if ("problem" in model) throw new UserError(`${path}: ${model.problem}`);
+  const editor = readEditorSettings(value.editor);
+  if ("problem" in editor) throw new UserError(`${path}: ${editor.problem}`);
   const unknownKeys = [
     ...Object.keys(value).filter((key) => !SETTINGS.includes(key)),
     ...model.unknown,
+    ...editor.unknown,
   ];
   return {
     path,
@@ -205,6 +212,7 @@ function configOf(path: string, doc: Document): PluginsConfig {
     layout: parseLayoutValue(path, value.layout),
     settings: settingsOf(path, value.settings),
     model: model.settings,
+    editor: editor.settings,
     unknownKeys,
   };
 }

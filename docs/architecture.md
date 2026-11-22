@@ -278,8 +278,9 @@ So `pre.js` is the file that may never throw: every statement is inside one `try
 outside it is reachable. Plugins load in `post.js`, dynamically, each in its own try/catch. That
 split is the whole of D2, and it is why a plugin can be arbitrarily broken without blanking a panel.
 
-`post.js` imports `generated.js` and `registry.js`, builds the kernel services, and walks the
-registry in order: patch verdict, declaration check, surface check, dynamic import, `ctx` from the
+`post.js` imports `generated.js` and `registry.js`, builds the kernel services — among them the two
+behaviours that are Rigline's own rather than a plugin's, the model gate (D139) and the
+editor-context hold (D150) — and walks the registry in order: patch verdict, declaration check, surface check, dynamic import, `ctx` from the
 capability modules, `setup()`. Then it seals the replay buffer in a `finally`, and starts the shell:
 Rigline's one React root, which draws the RIG pill, the menu with Rigline's own *Diagnostics*,
 Layout and *Settings…* after every plugin's entries, every element where it is placed, while the
@@ -298,6 +299,9 @@ promise:
 - A plugin's **component** — a menu entry, an element or a settings tab — that throws while
   rendering is caught by a boundary of its own, which disables that plugin and leaves the shell to
   everyone else.
+- Rigline's **editor-context hold** is refused by name where an identifier it rests on is gone, and
+  stops and gives the panel back when Claude Code's own chip outlasts it, so its failures are Claude
+  Code's own behaviour rather than an attachment nobody can see (D150).
 - The **post hook** as a whole is behind the injected `.catch()`, so the app boots without plugins.
 - The **pre hook** cannot fail, by construction.
 - The **injection** is reversible from the backups, without VS Code.

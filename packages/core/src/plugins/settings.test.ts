@@ -146,6 +146,34 @@ describe("writeSettings, for Rigline's own model block", () => {
   });
 });
 
+describe("writeSettings, for Rigline's own editor block", () => {
+  it("writes always, and takes the block out again for ask, keeping what it did not change", () => {
+    const path = join(tempDir(), "config.yaml");
+    writeFileSync(path, "# mine\neditor:\n  # by hand\n  later: true\n");
+
+    expect(writeSettings(path, {}, { editor: { attach: "always" } })).toBe(true);
+    expect(readConfig(path).editor).toEqual({ attach: "always" });
+    expect(writeSettings(path, {}, { editor: { attach: "always" } })).toBe(false);
+
+    expect(writeSettings(path, {}, { editor: { attach: "ask" } })).toBe(true);
+    const text = readFileSync(path, "utf8");
+    expect(text).not.toContain("attach");
+    expect(text).toContain("later: true");
+    expect(text).toContain("# mine");
+
+    writeFileSync(path, "editor:\n  attach: always\n");
+    writeSettings(path, {}, { editor: { attach: "ask" } });
+    expect(readFileSync(path, "utf8")).not.toContain("editor");
+  });
+
+  it("leaves a value it reads as always alone while always is wanted (D110)", () => {
+    const path = join(tempDir(), "config.yaml");
+    writeFileSync(path, "editor:\n  attach: sometimes\n");
+    expect(writeSettings(path, {}, { editor: { attach: "always" } })).toBe(false);
+    expect(readFileSync(path, "utf8")).toContain("sometimes");
+  });
+});
+
 describe("saveSettingsFromPanel", () => {
   function home(): { configPath: string; tokenPath: string; token: string } {
     const dir = tempDir();
@@ -305,6 +333,25 @@ describe("saveSettingsFromPanel", () => {
       ownOverChange: ["model"],
     });
     expect(readConfig(configPath).model.requireChoice).toBe("always");
+  });
+
+  it("writes the editor block that the panel's draft carries beside the model's", () => {
+    const { configPath, tokenPath, token } = home();
+    const model = { requireChoice: "off", default: null } as const;
+    const rigline: RiglineSave = {
+      from: { model, editor: { attach: "ask" } },
+      to: { model, editor: { attach: "always" } },
+    };
+    const saved = saveSettingsFromPanel(
+      configPath,
+      tokenPath,
+      encodeSettingsPayload({ v: SETTINGS_PAYLOAD_VERSION, token, sections: {}, rigline }),
+      new Set(),
+    );
+    expect(saved.own).toEqual(["model", "editor"]);
+    expect(saved.ownOverChange).toEqual([]);
+    expect(readConfig(configPath).editor).toEqual({ attach: "always" });
+    expect(readFileSync(configPath, "utf8")).not.toMatch(/^model:/m);
   });
 
   it("refuses another machine's token, and a payload that is not one", () => {

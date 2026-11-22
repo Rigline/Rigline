@@ -138,6 +138,24 @@ export const ANCHORS = {
     surfaces: ["editor", "sidebar"],
     slots: ["before", "after"],
   },
+  selectionChip: {
+    module: "gGYT1w",
+    local: "selectionChip",
+    kind: "singleton",
+    description:
+      "Claude Code's chip in the composer footer naming the editor context the next message carries, the selected lines or the open file, with an X that drops it. Rigline hides it while editor.attach is ask and draws its own in its place.",
+    surfaces: ["editor", "sidebar"],
+    when: "The panel's session holds a selection or an open file, from 2.1.269.",
+  },
+  selectionDivider: {
+    module: "gGYT1w",
+    local: "divider",
+    kind: "singleton",
+    description:
+      "The divider the composer footer draws immediately before the selection chip, and only with it.",
+    surfaces: ["editor", "sidebar"],
+    when: "Whenever selectionChip renders.",
+  },
   composer: {
     module: "07S1Yg",
     local: "inputContainer",

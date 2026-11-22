@@ -27,6 +27,7 @@ import type { Kernel } from "./types.ts";
 import {
   acquireVerdict,
   bufferSealedVerdict,
+  attachVerdict,
   busTrafficVerdict,
   type ElementLike,
   elementsVerdict,
@@ -205,6 +206,7 @@ export function kernelChecks(kernel: Kernel): readonly Check[] {
     { name: "React renderer injected", run: () => reactVerdict(d.react) },
     { name: "elements are placed", run: () => elementsVerdict(d.bufferSealed, elements(kernel)) },
     { name: "model gate", run: () => gateVerdict(kernel.gate) },
+    { name: "editor context", run: () => attachVerdict(kernel.attach) },
   ];
 }
 

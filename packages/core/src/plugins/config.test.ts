@@ -36,6 +36,7 @@ describe("readConfig", () => {
       layout: SHIPPED_LAYOUT,
       settings: {},
       model: { requireChoice: "off", default: null },
+      editor: { attach: "ask" },
       unknownKeys: [],
     });
     expect(existsSync(path)).toBe(false);
@@ -70,6 +71,20 @@ describe("readConfig", () => {
     const later = readConfig(path);
     expect(later.model).toEqual({ requireChoice: "off", default: null });
     expect(later.unknownKeys).toEqual(["model.later", "model.requireChoice: smart"]);
+  });
+
+  it("reads Rigline's editor block, an unknown value as always, and names what it does not know", () => {
+    const path = join(tempDir(), "config.yaml");
+    writeFileSync(path, "editor:\n  attach: always\n");
+    expect(readConfig(path).editor).toEqual({ attach: "always" });
+    writeFileSync(path, "editor:\n  attach: sometimes\n  later: 1\n");
+    const later = readConfig(path);
+    expect(later.editor).toEqual({ attach: "always" });
+    expect(later.unknownKeys).toEqual(["editor.later", "editor.attach: sometimes"]);
+    writeFileSync(path, "editor:\n");
+    expect(readConfig(path).editor).toEqual({ attach: "ask" });
+    writeFileSync(path, "editor:\n  attach: [ask]\n");
+    expect(() => readConfig(path)).toThrow(`${path}: "editor.attach" must be one of ask, always`);
   });
 
   it("refuses a model block of the wrong shape, naming the file", () => {

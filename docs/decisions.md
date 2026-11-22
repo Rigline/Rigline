@@ -4333,3 +4333,59 @@ Replaces a gate that refused only a known failure and carried on otherwise, so a
 contributor without the GitHub CLI. That contributor does not exist: `gh` is already a release
 requirement, and publishing takes the maintainer's npm second factor. The advisory gate passed over
 exactly the case it exists for, a commit the matrix has never seen.
+
+**D150. The editor context goes with a message only when ticked, by default (2026-11-23, Leo).**
+Claude Code's panel adds the editor's state to every prompt, the selected lines as
+`<ide_selection>` or the open file's path as `<ide_opened_file>`, and in the panel that block is the
+only route to the model. Its chip offers an X, noticed after the turn has gone. Rigline inverts it:
+its chip, `rigline/editor`, stands where Claude Code's was and names what is available beside an
+empty checkbox, a tick sends it with the next message, and after that message the box is empty
+again. `config.yaml`'s `editor.attach` is `ask`, the default, or `always`, which installs nothing
+and leaves Claude Code's chip as it is. A value it does not know reads as `always`.
+
+**Rigline's own, like D139's gate.** Rigline draws the control and owns the behaviour, and no plugin
+gets a lever on what reaches the model, so there is no capability and nothing in `ctx`.
+
+**On by default, where the gate and D120's writes wait for a person, because this only withholds.**
+The hold is the panel's own X, `dismissSelection()`, and a tick is the panel's own update with the
+dismissal cleared, so the panel composes every message itself and Rigline neither adds to one nor
+reaches into one. The worst a wrong default can do is leave out a path or some lines the person did
+not tick, and the chip shows what is left out, a click from sent. The
+gate's default would hold a send nobody asked to have held; this one keeps back context nobody
+chose to send. anthropic-compliance.md says so beside the gate's paragraph (D77), and stability.md
+keeps the key, its values and the element's name.
+
+**The hold is on the session, so every path to `send` agrees.** A subscriber on the session's
+`selection` signal dismisses whatever the person has not ticked, synchronously, inside the panel's
+setter and guarded so nothing it throws reaches Claude Code's code. The service holds every session
+it finds above the footer spacer, on either half of React's pair, since a selection pushed to a
+session off screen is still attached when it comes back. A tick also clears `lastSentSelection`,
+without which two ticked messages on unchanged lines attach only the first. The reset follows the
+send by reading the session: only `send` sets `lastSentSelection`, so a ticked session that has one
+again has had its selection sent, and is held again on the next commit. A tick goes when the
+selection empties, rather than waiting to attach whatever comes next.
+
+**A stylesheet hides Claude Code's chip and the divider before it, and only while it agrees with
+Rigline's.** A new session paints the chip for at least a frame before anything can find it, since
+the panel seeds its selection as it makes it, and `display: none` adds no width to the footer's fit
+ladder and mutates nothing inside it (D54). But a stylesheet hiding the panel's own disclosure is the
+one way this could make things worse than doing nothing, so it goes in only once a session is held,
+and if Claude Code's chip stays past half a second with nothing ticked on screen, the service stops,
+takes the stylesheet out, puts back what it held, and says why in *Diagnostics*. Switching to
+`always` live puts back what was held too, so Claude Code's chip shows the selection at once.
+
+**Gaps are scoped by feature.** The panel-session layer's gaps carry `refuses`, so the four members
+the hold needs refuse only the editor context, and the footer's `session` prop and `subscribe` refuse
+both it and the model capabilities. The hold also rests on the anchors `selectionChip` and
+`selectionDivider`; any of these missing leaves Claude Code's chip in place and fails the check by
+name.
+
+Rejected:
+
+- Stripping the block from the outgoing `io_message`. The transcript row would show an attachment
+  the model never got; `lastSentSelection` would record it as sent, so a later tick on the same lines
+  would attach nothing; and the bus never unwraps `io_message`.
+- Dismissing at submit, as the gate holds a send. It covers only the sends it intercepts, where
+  holding the state covers every path to `send`.
+- Tapping `io_message` for the reset. It would clone every streamed record for one bit the session
+  already holds, and need a channel-to-session map the session makes unnecessary.

@@ -38,7 +38,7 @@ const EFFORT_KEY = "effortLevel";
 const SESSION_DEPTH = 4;
 
 /** A signal as the panel's library makes one. */
-interface Signal {
+export interface Signal {
   readonly value: unknown;
   subscribe(fn: (value: unknown) => void): () => void;
 }
@@ -57,7 +57,7 @@ export interface PanelSession {
   readonly setUltracode?: unknown;
 }
 
-function isSignal(value: unknown): value is Signal {
+export function isSignal(value: unknown): value is Signal {
   return (
     typeof value === "object" &&
     value !== null &&
@@ -81,10 +81,14 @@ export function sessionOfProps(props: unknown): PanelSession | null {
   return shaped ? (session as unknown as PanelSession) : null;
 }
 
-function sessionAbove(fiber: FiberLike | null): PanelSession | null {
+/** The first session above one fiber, within the footer's reach, that `read` recognises. */
+export function sessionAbove<T>(
+  fiber: FiberLike | null,
+  read: (props: unknown) => T | null,
+): T | null {
   let node = fiber;
   for (let step = 0; node !== null && step <= SESSION_DEPTH; step++) {
-    const found = sessionOfProps(node.memoizedProps);
+    const found = read(node.memoizedProps);
     if (found !== null) return found;
     node = node.return ?? null;
   }
@@ -95,15 +99,23 @@ function sessionAbove(fiber: FiberLike | null): PanelSession | null {
  * The session above a fiber of React's pair: the one both halves name, the one only one names, or
  * where they name two, the one on screen (D103).
  */
-export function sessionOf(fiber: FiberLike | null): PanelSession | null {
-  const own = sessionAbove(fiber);
+export function findSession<T>(
+  fiber: FiberLike | null,
+  read: (props: unknown) => T | null,
+): T | null {
+  const own = sessionAbove(fiber, read);
   const alternate = fiber?.alternate ?? null;
   if (alternate === null) return own;
-  const other = sessionAbove(alternate);
+  const other = sessionAbove(alternate, read);
   if (own === other || other === null) return own;
   if (own === null) return other;
   if (onScreen(fiber) !== onScreen(alternate)) return onScreen(fiber) ? own : other;
   return null;
+}
+
+/** The model capabilities' session above a fiber of React's pair. */
+export function sessionOf(fiber: FiberLike | null): PanelSession | null {
+  return findSession(fiber, sessionOfProps);
 }
 
 function configOf(session: PanelSession): ClaudeConfig | undefined {

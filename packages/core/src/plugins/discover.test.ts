@@ -2,7 +2,12 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { EMPTY_USES, type IdentifierTables, NO_MODEL_SETTINGS } from "@rigline/plugin-api/internal";
+import {
+  DEFAULT_EDITOR_SETTINGS,
+  EMPTY_USES,
+  type IdentifierTables,
+  NO_MODEL_SETTINGS,
+} from "@rigline/plugin-api/internal";
 import { afterEach, describe, expect, it } from "vitest";
 import { corpusBundles, missing } from "../../test/corpus.ts";
 import { generate } from "../codegen/generate.ts";
@@ -248,6 +253,7 @@ describe("bakedSettings", () => {
     layout: {},
     settings,
     model: NO_MODEL_SETTINGS,
+    editor: DEFAULT_EDITOR_SETTINGS,
     unknownKeys: [],
   });
 
@@ -294,6 +300,7 @@ describe("enabledPlugins", () => {
       layout: {},
       settings: {},
       model: NO_MODEL_SETTINGS,
+      editor: DEFAULT_EDITOR_SETTINGS,
       unknownKeys: [],
     });
     expect(enabled.map((p) => p.name)).toEqual(["alpha", "gamma"]);
@@ -314,6 +321,7 @@ describe("enabledPlugins", () => {
         layout: {},
         settings: {},
         model: NO_MODEL_SETTINGS,
+        editor: DEFAULT_EDITOR_SETTINGS,
         unknownKeys: [],
       },
       (line) => lines.push(line),
@@ -411,20 +419,23 @@ describe("bakeRegistry", () => {
     expect(mod.presetsOmitted).toBe(0);
   });
 
-  it("carries Rigline's model settings, and the gate switched off when there are none", async () => {
+  it("carries Rigline's own settings, at their defaults when there are none", async () => {
     const model = {
       requireChoice: "always",
       default: { model: "opus", effort: "high" },
     } as const;
+    const editor = { attach: "always" } as const;
     const path = join(tempDir(), "registry.mjs");
-    writeFileSync(path, bakeRegistry([], [], {}, null, undefined, {}, model));
-    const mod = (await import(pathToFileURL(path).href)) as { model: object };
+    writeFileSync(path, bakeRegistry([], [], {}, null, undefined, {}, { model, editor }));
+    const mod = (await import(pathToFileURL(path).href)) as { model: object; editor: object };
     expect(mod.model).toEqual(model);
+    expect(mod.editor).toEqual(editor);
 
     const bare = join(tempDir(), "registry.mjs");
     writeFileSync(bare, bakeRegistry([], []));
-    const off = (await import(pathToFileURL(bare).href)) as { model: object };
+    const off = (await import(pathToFileURL(bare).href)) as { model: object; editor: object };
     expect(off.model).toEqual({ requireChoice: "off", default: null });
+    expect(off.editor).toEqual({ attach: "ask" });
   });
 
   it("carries the layout in the order the file wrote its places (D92)", async () => {
@@ -458,6 +469,7 @@ describe("bakeRegistry", () => {
       layout: {},
       settings: {},
       model: NO_MODEL_SETTINGS,
+      editor: DEFAULT_EDITOR_SETTINGS,
       unknownKeys: [],
     });
 

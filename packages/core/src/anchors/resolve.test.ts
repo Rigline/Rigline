@@ -178,7 +178,8 @@ describe("corpus", () => {
     describe(`${version}`, () => {
       it.skipIf(missing(version))("resolves every curated anchor, with none ambiguous", () => {
         const resolved = resolveAnchors(harvestClasses(corpusBundles(version).webview));
-        expect(resolved.missing).toEqual([]);
+        // The selection chip arrived in 2.1.269.
+        expect(resolved.missing).toEqual(version === "2.1.268" ? ["selectionChip"] : []);
         expect(resolved.ambiguous).toEqual([]);
         expect(resolved.unverified).toEqual([]);
       });
@@ -188,6 +189,7 @@ describe("corpus", () => {
         for (const name of ANCHOR_NAMES) {
           const spec: AnchorSpec = ANCHORS[name];
           const selector = resolved.selectors[name];
+          if (resolved.missing.includes(name)) continue;
           if (spec.kind === "style") {
             expect(selector, name).toBeNull();
             continue;

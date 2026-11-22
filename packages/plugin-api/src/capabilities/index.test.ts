@@ -150,7 +150,25 @@ describe("capabilityViolation", () => {
     const noSetter: IdentifierTables = {
       ...withModels,
       panelSession: {
-        missing: [{ needs: '"async setEffortLevel("', breaks: "no effort could be applied" }],
+        missing: [
+          {
+            needs: '"async setEffortLevel("',
+            breaks: "no effort could be applied",
+            refuses: ["models"],
+          },
+        ],
+      },
+    };
+    const noDismissal: IdentifierTables = {
+      ...withModels,
+      panelSession: {
+        missing: [
+          {
+            needs: '"dismissSelection(){"',
+            breaks: "the editor context could not be held back",
+            refuses: ["editorContext"],
+          },
+        ],
       },
     };
     expect(capabilityViolation(uses({ models: true, modelChoice: true }), withModels)).toBeNull();
@@ -161,6 +179,7 @@ describe("capabilityViolation", () => {
       /^"models" needs the panel/,
     );
     expect(capabilityViolation(uses({ transcript: true }), noSetter)).toBeNull();
+    expect(capabilityViolation(uses({ models: true, modelChoice: true }), noDismissal)).toBeNull();
   });
 });
 

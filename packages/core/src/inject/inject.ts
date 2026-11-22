@@ -608,7 +608,7 @@ export function install(ext: string, options: InstallOptions): InstallReport {
         save,
         options.presets,
         settings.settings,
-        config.model,
+        { model: config.model, editor: config.editor },
         save?.token ? broadcastName(save.token) : null,
       ),
     );

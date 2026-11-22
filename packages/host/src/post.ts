@@ -13,6 +13,8 @@ import {
   type BakedPreset,
   type CheckVerdict,
   capabilityViolation,
+  DEFAULT_EDITOR_SETTINGS,
+  type EditorSettings,
   type ElementComponent,
   elementGaps,
   type IdentifierTables,
@@ -25,8 +27,10 @@ import {
   optionalGaps,
   type PluginContext,
   RIGLINE,
+  readEditorSettings,
   readModelSettings,
   type RiglinePlugin,
+  type RiglineSettings,
   type SaveRecord,
   sameValue,
   store,
@@ -38,6 +42,7 @@ import { type Bridge, bridge as findBridge, type PluginStatus } from "./kernel/b
 import { createBroadcast } from "./kernel/broadcast.ts";
 import { createCheckService, HOST, kernelChecks } from "./kernel/checks.ts";
 import { createContextService } from "./kernel/context.ts";
+import { installAttach } from "./kernel/attach.ts";
 import { createCostService } from "./kernel/cost.ts";
 import { installGate } from "./kernel/gate.ts";
 import { createLayoutEditor } from "./kernel/layout.ts";
@@ -179,6 +184,8 @@ interface RegistryModule {
   readonly settings?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   /** Rigline's own model settings (D139). Absent in a payload older than them. */
   readonly model?: unknown;
+  /** Rigline's own editor settings (D150). Absent in a payload older than them. */
+  readonly editor?: unknown;
   /** The channel the panels tell each other about a save on (D141). Absent in a payload older. */
   readonly broadcast?: unknown;
 }
@@ -187,6 +194,17 @@ interface RegistryModule {
 function modelSettingsOf(value: unknown): ModelSettings {
   const read = readModelSettings(value);
   return "problem" in read ? NO_MODEL_SETTINGS : read.settings;
+}
+
+/** The baked editor settings, read as the engine read them, and Claude Code's own where they cannot be. */
+function editorSettingsOf(value: unknown): EditorSettings {
+  const read = readEditorSettings(value);
+  return "problem" in read ? { attach: "always" } : read.settings;
+}
+
+/** Rigline's own settings out of a `registry.js`. */
+function riglineSettingsOf(registry: RegistryModule): RiglineSettings {
+  return { model: modelSettingsOf(registry.model), editor: editorSettingsOf(registry.editor) };
 }
 
 /**
@@ -234,7 +252,7 @@ async function readSavedState(): Promise<SavedState | null> {
       presets: registry.presets ?? [],
       omitted: registry.presetsOmitted ?? 0,
       settings: registry.settings ?? {},
-      rigline: { model: modelSettingsOf(registry.model) },
+      rigline: riglineSettingsOf(registry),
     };
   } catch {
     return null;
@@ -446,7 +464,7 @@ async function main(): Promise<void> {
   let presets: readonly BakedPreset[] = [];
   let omitted = 0;
   let settings: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {};
-  let modelSettings: ModelSettings = NO_MODEL_SETTINGS;
+  let own: RiglineSettings = { model: NO_MODEL_SETTINGS, editor: DEFAULT_EDITOR_SETTINGS };
   let channel: string | null = null;
   try {
     const registry = (await import(
@@ -458,7 +476,7 @@ async function main(): Promise<void> {
     presets = registry.presets ?? [];
     omitted = registry.presetsOmitted ?? 0;
     settings = registry.settings ?? {};
-    modelSettings = modelSettingsOf(registry.model);
+    own = riglineSettingsOf(registry);
     channel = typeof registry.broadcast === "string" ? registry.broadcast : null;
     diagnostics.hostPatches = [...(registry.patches ?? [])];
     // Carried onto diagnostics rather than left in the module, so a plugin reads it the way it
@@ -490,7 +508,7 @@ async function main(): Promise<void> {
   const settingsEditor: SettingsEditor = createSettingsEditor({
     save,
     sections: settings,
-    rigline: { model: modelSettings },
+    rigline: own,
     readSaved,
     announce: broadcast,
   });
@@ -524,7 +542,7 @@ async function main(): Promise<void> {
     bus,
     react,
     spacer: () => (spacer === null ? null : document.querySelector(spacer)),
-    settings: modelSettings,
+    settings: own.model,
     fail: (reason) => {
       diagnostics.errors.push(`models: ${reason}`);
       console.error(`[rigline] models: ${reason}`);
@@ -535,7 +553,7 @@ async function main(): Promise<void> {
   models.subscribe((state) => modelState.set(state));
   // Before any plugin loads, so its taps are in before the replay buffer seals.
   const gate = installGate({
-    settings: modelSettings,
+    settings: own.model,
     models,
     bus,
     mounts,
@@ -546,14 +564,26 @@ async function main(): Promise<void> {
       console.error(`[rigline] gate: ${reason}`);
     },
   });
-  // Only when the model block moved, so a plugin's section saving republishes no ModelState.
-  let configured = modelSettings;
+  const attach = installAttach({
+    settings: own.editor,
+    bus,
+    react,
+    tables,
+    fail: (reason) => {
+      diagnostics.errors.push(`editor context: ${reason}`);
+      console.error(`[rigline] editor context: ${reason}`);
+    },
+  });
+  // Only when a block moved, so a plugin's section saving republishes no ModelState.
+  let configured = own;
   settingsEditor.saved.subscribe(() => {
-    const next = settingsEditor.saved.get().rigline.model;
-    if (sameValue(next, configured)) return;
+    const next = settingsEditor.saved.get().rigline;
+    if (!sameValue(next.model, configured.model)) {
+      models.configure(next.model);
+      gate.configure(next.model);
+    }
+    if (!sameValue(next.editor, configured.editor)) attach.configure(next.editor);
     configured = next;
-    models.configure(next);
-    gate.configure(next);
   });
   const kernel: Kernel = {
     tables,
@@ -569,6 +599,7 @@ async function main(): Promise<void> {
     limits: createLimitsService(bus, peers),
     models,
     gate,
+    attach,
     transcript: createTranscriptService(
       bus,
       react,
@@ -585,6 +616,7 @@ async function main(): Promise<void> {
       editor,
       settings: settingsEditor,
       models: modelState,
+      attach,
       mounts,
       checks,
       diagnostics,

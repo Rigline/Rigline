@@ -16,6 +16,7 @@ import {
 import {
   type AnchorName,
   type BakedPreset,
+  type EditorSettings,
   type Elements,
   EMPTY_USES,
   type Layout,
@@ -71,6 +72,8 @@ export interface PreparePayloadOptions {
   readonly settings?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   /** Rigline's own model settings, as `install` would bake them (D139). */
   readonly model?: ModelSettings;
+  /** Rigline's own editor settings, as `install` would bake them (D150). */
+  readonly editor?: EditorSettings;
   /** The channel the panels tell each other about a save on, as `install` would bake it (D141). */
   readonly broadcast?: string | null;
   /** Selectors written over the resolved ones, as a refinement in `anchors.json` would be. */
@@ -120,6 +123,7 @@ export const presets = ${JSON.stringify(options.presets ?? [])};
 export const presetsOmitted = ${JSON.stringify(options.presetsOmitted ?? 0)};
 export const settings = ${JSON.stringify(options.settings ?? {})};
 export const model = ${JSON.stringify(options.model ?? null)};
+export const editor = ${JSON.stringify(options.editor ?? null)};
 export const broadcast = ${JSON.stringify(options.broadcast ?? null)};
 `;
   writeFileSync(join(dir, "registry.js"), registrySource, "utf8");

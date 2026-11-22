@@ -12,6 +12,16 @@ it needs, its entry says so.
 
 ## Unreleased
 
+### Added
+
+- The open file or the lines you have selected now go with a message only when you ask. Claude
+  Code's chip under the composer is replaced by Rigline's, which names what is there beside a
+  checkbox: tick it and your next message carries it, and the box is empty again after. Set
+  `editor.attach: always` in `config.yaml`, or choose *Always* on the Rigline tab of the settings
+  screen, to have Claude Code's own chip and behaviour back. Rigline's chip is
+  `rigline/editor` in your layout. Claude Code 2.1.268 keeps its own chip, and *Diagnostics* says
+  why.
+
 ## 2.2.1 — 2026-11-11
 
 ### Fixed

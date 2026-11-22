@@ -166,16 +166,20 @@ edits, as if they were the extension's (D103).
 The model capabilities read and drive the session object the composer footer is handed as its
 `session` prop: its `modelSelection`, `effortLevel` and `claudeConfig` signals, the signal
 library's `subscribe`, and the `setModel`, `setEffortLevel` and `setThinkingLevel` its own picker
-calls (D120 as amended). Unmangled names, so P1 lets the host anchor on them only because this layer
-asserts each against the bundle, as the React layer does react-dom's. The `session` prop is matched
-beside `availablePermissionModes`, a prop only the footer takes, so another component's `session`
-cannot stand in for it.
+calls (D120 as amended). The editor context holds the same session's selection through the
+dismissal behind Claude Code's own chip: `dismissSelection`, which keeps what it took in
+`dismissedSelection`, `applySelectionUpdate` and `lastSentSelection` (D150). Unmangled names, so P1
+lets the host anchor on them only because this layer asserts each against the bundle, as the React
+layer does react-dom's. The `session` prop is matched beside `availablePermissionModes`, a prop only
+the footer takes, so another component's `session` cannot stand in for it.
 
-It never throws, and what is missing goes into the tables as `panelSession.missing`, which the
-`models` and `modelChoice` contracts turn into refusals and nothing else does. `drawnClaudeConfig`
-and `setUltracode` are read where present and not asserted: the first falls back to
-`claudeConfig`, and a choice naming ultracode is refused where the second is absent. It has no
-views, since the names are constant.
+It never throws, and what is missing goes into the tables as `panelSession.missing`, each gap tagged
+with the features it refuses in `refuses`: `models`, which the `models` and `modelChoice` contracts
+turn into refusals, and `editorContext`, which leaves Claude Code's own chip in place. The `session`
+prop and `subscribe` refuse both; every other member refuses one, so a version lacking the
+dismissal still runs the model capabilities. `drawnClaudeConfig` and `setUltracode` are read where
+present and not asserted: the first falls back to `claudeConfig`, and a choice naming ultracode is
+refused where the second is absent. It has no views, since the names are constant.
 
 ## The anchor table, on top
 

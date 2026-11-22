@@ -90,9 +90,9 @@ describe("the anchor table", () => {
 
   // Asserted so that adding or retiring an anchor is a deliberate act with a test to update, not so
   // that it stays at any particular value: a shipped name is kept for the major (stability.md).
-  it("holds the fourteen element anchors, so a change cannot arrive unnoticed", () => {
+  it("holds the sixteen element anchors, so a change cannot arrive unnoticed", () => {
     const elements = entries.filter(([, spec]) => spec.kind !== "style");
-    expect(elements).toHaveLength(14);
+    expect(elements).toHaveLength(16);
     expect(
       elements.every(([, spec]) => spec.kind === "singleton" || spec.kind === "collection"),
     ).toBe(true);

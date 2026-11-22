@@ -3,8 +3,12 @@
  * the wait for the look-on-focus read and is never relied on in its place.
  */
 import {
+  type EditorSettings,
   type Layout,
+  type ModelSettings,
+  RIGLINE_BLOCKS,
   type RiglineSettings,
+  readEditorSettings,
   readLayout,
   readModelSettings,
   sameValue,
@@ -57,8 +61,9 @@ function placesOf(changed: Changed): [Place, unknown][] {
   for (const [name, section] of Object.entries(changed.settings ?? {})) {
     places.push([["settings", name], section]);
   }
-  if (changed.rigline?.model !== undefined) {
-    places.push([["rigline", "model"], changed.rigline.model]);
+  for (const block of RIGLINE_BLOCKS) {
+    const value = changed.rigline?.[block];
+    if (value !== undefined) places.push([["rigline", block], value]);
   }
   return places;
 }
@@ -85,7 +90,7 @@ function readChanged(body: unknown): Changed | string {
   const changed: {
     layout?: Layout;
     settings?: Record<string, Section>;
-    rigline?: RiglineSettings;
+    rigline?: { model?: ModelSettings; editor?: EditorSettings };
   } = {};
   if (body.layout !== undefined) {
     const layout = readLayout(body.layout, "layout");
@@ -102,11 +107,18 @@ function readChanged(body: unknown): Changed | string {
   }
   if (body.rigline !== undefined) {
     if (!isRecord(body.rigline)) return "Rigline's settings that do not hold";
+    const rigline: { model?: ModelSettings; editor?: EditorSettings } = {};
     if (body.rigline.model !== undefined) {
       const model = readModelSettings(body.rigline.model);
       if ("problem" in model) return "Rigline's model settings that do not hold";
-      changed.rigline = { model: model.settings };
+      rigline.model = model.settings;
     }
+    if (body.rigline.editor !== undefined) {
+      const editor = readEditorSettings(body.rigline.editor);
+      if ("problem" in editor) return "Rigline's editor settings that do not hold";
+      rigline.editor = editor.settings;
+    }
+    if (Object.keys(rigline).length > 0) changed.rigline = rigline;
   }
   return changed;
 }

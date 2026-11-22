@@ -4,6 +4,7 @@
  * so the twenty seconds a confirmation may take cost nothing here.
  */
 import {
+  DEFAULT_EDITOR_SETTINGS,
   type BakedPreset,
   type Layout,
   type LayoutPlugin,
@@ -57,7 +58,7 @@ function editor(
             presets: savedPresets(),
             omitted: 0,
             settings: {},
-            rigline: { model: NO_MODEL_SETTINGS },
+            rigline: { model: NO_MODEL_SETTINGS, editor: DEFAULT_EDITOR_SETTINGS },
           };
     },
     wait,
@@ -390,7 +391,7 @@ describe("telling the other panels (D141)", () => {
         presets: [],
         omitted: 0,
         settings: {},
-        rigline: { model: NO_MODEL_SETTINGS },
+        rigline: { model: NO_MODEL_SETTINGS, editor: DEFAULT_EDITOR_SETTINGS },
       }),
       announce: {
         saving: (changed) => said.push(["saving", changed]),

@@ -1,8 +1,9 @@
 /**
  * Rigline's own elements (D97): Edit in place and Reload saved layout as buttons a person places like
- * any plugin's element, each a small R and an icon, with the action's name as its tooltip.
+ * any plugin's element, each a small R and an icon, with the action's name as its tooltip; and the
+ * editor-context chip, which a person ticks to send the editor's state with one message (D150).
  */
-import { sameLayout } from "@rigline/plugin-api/internal";
+import { type Attachable, fileName, sameLayout } from "@rigline/plugin-api/internal";
 import { Pill, useStore } from "@rigline/plugin-api/ui";
 import type { MouseEvent, ReactNode } from "react";
 import type { RiglineElements } from "./types.ts";
@@ -29,6 +30,41 @@ export const OWN_CSS = `
 .rigline-own-newer .rigline-own-mark {
   background: var(--vscode-editorWarning-foreground, #cca700);
   color: #000;
+}
+.rigline-attach {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  height: 26px;
+  color: var(--app-secondary-foreground, var(--vscode-descriptionForeground));
+  font-size: 0.85em;
+  cursor: pointer;
+}
+.rigline-attach::before {
+  content: "";
+  flex-shrink: 0;
+  width: 1px;
+  height: 16px;
+  margin: 0 4px;
+  background: var(--app-input-border, var(--vscode-widget-border, #7f7f7f33));
+}
+.rigline-attach input {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  accent-color: var(--vscode-checkbox-selectBackground, var(--vscode-focusBorder));
+  cursor: pointer;
+}
+.rigline-attach-name {
+  overflow: hidden;
+  max-width: 200px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rigline-attach-ticked .rigline-attach-name {
+  color: var(--vscode-foreground);
 }
 `;
 
@@ -63,8 +99,34 @@ function modifier(): string {
   return navigator.platform.startsWith("Mac") ? "Cmd" : "Ctrl";
 }
 
+/** The chip's text: the file, and the lines where some are selected. */
+function attachLabel(available: Attachable): string {
+  const { lines } = available;
+  const name = fileName(available.path);
+  if (lines === null) return name;
+  return lines.start === lines.end
+    ? `${name}:${lines.start}`
+    : `${name}:${lines.start}-${lines.end}`;
+}
+
+function attachTitle(available: Attachable, ticked: boolean): string {
+  const { lines, path } = available;
+  const what =
+    lines === null
+      ? `${path}, open in the editor`
+      : lines.start === lines.end
+        ? `Line ${lines.start} of ${path}`
+        : `Lines ${lines.start} to ${lines.end} of ${path}`;
+  const hint = ticked
+    ? "Goes with your next message"
+    : lines === null
+      ? "Tick to send its path with your next message"
+      : "Tick to send them with your next message";
+  return `${what}\n${hint}`;
+}
+
 /** Each pill's plain click is its own action and a modified one the other's (D124). */
-export const riglineElements: RiglineElements = (editor) => {
+export const riglineElements: RiglineElements = (editor, attach) => {
   function useActions() {
     const editing = useStore(editor.editing);
     const newer = useStore(editor.newer);
@@ -103,6 +165,27 @@ export const riglineElements: RiglineElements = (editor) => {
         >
           <Mark icon={RELOAD} newer={actions.newer} />
         </Pill>
+      );
+    },
+    // In Claude Code's chip's place, which the kernel hides while this is drawn (D150).
+    editor: function RiglineEditorContext() {
+      const { available, ticked } = useStore(attach.state);
+      if (available === null) return null;
+      return (
+        <label
+          className={ticked ? "rigline-attach rigline-attach-ticked" : "rigline-attach"}
+          title={attachTitle(available, ticked)}
+          // The composer keeps the focus, so ticking does not interrupt the prompt being typed.
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          <input
+            type="checkbox"
+            checked={ticked}
+            onChange={(e) => attach.toggle(e.nativeEvent)}
+            data-rigline-attach=""
+          />
+          <span className="rigline-attach-name">{attachLabel(available)}</span>
+        </label>
       );
     },
   };

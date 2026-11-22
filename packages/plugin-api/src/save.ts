@@ -3,6 +3,7 @@
  * it, both through these functions, so the one format the save defines has one definition.
  */
 import { type Layout, MAX_LAYOUT_ENTRIES, plainText } from "./layout.ts";
+import { type EditorSettings, readEditorSettings } from "./editor.ts";
 import { type ModelSettings, readModelSettings } from "./models.ts";
 
 /** What `install` bakes for the panel's Save. */
@@ -56,10 +57,20 @@ export interface SettingsSave {
 /** Rigline's own settings as the settings screen edits them: `config.yaml`'s blocks it owns. */
 export interface RiglineSettings {
   readonly model: ModelSettings;
+  readonly editor: EditorSettings;
 }
 
 /** The blocks of Rigline's own settings, by the key each has in `config.yaml`. */
-export const RIGLINE_BLOCKS: readonly (keyof RiglineSettings)[] = ["model"];
+export const RIGLINE_BLOCKS: readonly (keyof RiglineSettings)[] = ["model", "editor"];
+
+/** Each block of Rigline's own, read by `readConfig`'s rules for it. */
+const BLOCK_READERS: {
+  readonly [K in keyof RiglineSettings]: (
+    value: unknown,
+  ) =>
+    | { readonly settings: RiglineSettings[K]; readonly unknown: readonly string[] }
+    | { readonly problem: string };
+} = { model: readModelSettings, editor: readEditorSettings };
 
 /** Rigline's own blocks in a save, each side naming only the blocks being written. */
 export interface RiglineSave {
@@ -146,16 +157,17 @@ function readRiglineSave(value: unknown): RiglineSave | string {
   for (const side of ["from", "to"] as const) {
     const blocks = value[side];
     if (!isRecord(blocks)) return `"rigline.${side}" is not an object`;
-    const read: { model?: ModelSettings } = {};
+    const read: Record<string, unknown> = {};
     for (const [block, settings] of Object.entries(blocks)) {
-      if (block !== "model")
+      if (!(RIGLINE_BLOCKS as readonly string[]).includes(block)) {
         return `"rigline.${side}" has "${block}", which this engine does not know`;
-      const model = readModelSettings(settings);
-      if ("problem" in model) return `"rigline.${side}": ${model.problem}`;
-      if (model.unknown.length > 0) {
-        return `"rigline.${side}" has ${model.unknown.join(", ")}, which this engine does not know`;
       }
-      read.model = model.settings;
+      const got = BLOCK_READERS[block as keyof RiglineSettings](settings);
+      if ("problem" in got) return `"rigline.${side}": ${got.problem}`;
+      if (got.unknown.length > 0) {
+        return `"rigline.${side}" has ${got.unknown.join(", ")}, which this engine does not know`;
+      }
+      read[block] = got.settings;
     }
     sides.push(read);
   }

@@ -99,6 +99,23 @@ you choose for `requireChoice`. It names a model as Claude Code does — `opus` 
 where a pinned version stays put — and it takes `effort` for a model with effort levels or
 `thinkingLevel` for one without, never both.
 
+## Sending the open file or a selection
+
+Claude Code sends the editor's state with every prompt: the lines you have selected, or the path of
+the file you have open. Rigline makes that something you ask for. Its chip sits under the composer
+where Claude Code's was, naming what is there beside a checkbox; tick it and the next message
+carries it, and after that message the box is empty again. Unticked, nothing from the editor is
+sent. `@`-mentioning a file still adds it to a message as it always has.
+
+    editor:
+      attach: always
+
+`attach` is `ask`, the default, or `always`, which is Claude Code's own behaviour: its chip is back,
+and Rigline does nothing. It is on the Rigline tab of the settings screen.
+
+Moving the chip with the layout is fine. Switching it off with the layout leaves nothing to tick, so
+nothing from the editor is ever sent; `always` is the way back to Claude Code's chip.
+
 ## Where things go in the panel
 
 `layout` says where each pill and meter goes, when you want it somewhere other than where its plugin
@@ -119,11 +136,14 @@ its own is a preset, which [presets.md](presets.md) covers.
 
 A file that is not valid YAML stops every command that reads it, naming the file and the line, and
 changes nothing. So does a `disabled` that is not a list of names, a `layout` that is not places
-with lists under them, or a `model` block whose `default` names no model. A key with nothing
+with lists under them, a `model` block whose `default` names no model, or an `editor.attach` that
+is not a word. A key with nothing
 after it, like `disabled:`, is an empty list, not a mistake.
 
 A key Rigline does not know does nothing, and `rigline install` and `rigline check` name it under
-what needs you. So does a `requireChoice` it does not know, which reads as `off`. It is a typo, like `disable:`, or a setting from a later Rigline than the one you
+what needs you. So does a `requireChoice` it does not know, which reads as `off`, and an `attach`
+it does not know, which reads as `always`: either way Rigline does nothing it was not sure you
+asked for. It is a typo, like `disable:`, or a setting from a later Rigline than the one you
 are running, which `rigline update` fixes. A later Rigline only adds settings as new keys, never by
 changing what an existing one takes, so an older one reads the rest of the file as you meant it.
 
