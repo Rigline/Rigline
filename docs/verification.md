@@ -273,11 +273,17 @@ after it was posted. Something that reacts to a `launch_claude` by sending — a
 opposite order live, where a session opened later launches with the plugins already listening. That
 ordering is pinned in `pre.test.ts`; the harness cannot show it (D121).
 
+**A second session in the panel needs `openNewInTab` off first.** `init` sets it true, so a pushed
+`create_new_conversation` asks the host for a new editor tab, and the panel keeps the session it
+had. Push `update_state` with `openNewInTab: false`, keeping `authStatus`, and the same push then
+creates and activates a new session.
+
 **A question about a transient polls every animation frame.** The panel reads its checks once a
 second, which lands in the frame between React moving a node and the pass moving it back only
 sometimes — live, a blip on the RIG pill. A harness case asking whether that ever happens reads the
 checks in a `requestAnimationFrame` loop, and asserts the trigger was seen as well as the failure
-not.
+not. Counting frames beats a `MutationObserver` on an element found at boot, too: a new session
+brings a new composer footer, so an observer on the old one sees nothing of what the new one draws.
 
 **An exploratory read lives in `.local/reads/`**, which is gitignored: a measurement taken to inform
 a plan rather than a property to keep. It gets a `vitest.config.ts` of its own that spreads the
@@ -291,7 +297,10 @@ calls `page.screenshot()` shows the real composer with Rigline's layer over it �
 theme, whose colours only tier 3 shows.
 
 A file skips, with a reason, when the corpus lacks its version or Chromium will not launch — and the
-reason says which.
+reason says which. After a Playwright bump, the browser it needs is usually what's missing, and
+then every harness file skips. Install it with `pnpm --filter @rigline/harness exec playwright
+install chromium`. The command the reason suggests, `pnpm exec playwright install`, finds no
+`playwright` at the root.
 
 ## Tier 3: the panel, in the real extension
 
