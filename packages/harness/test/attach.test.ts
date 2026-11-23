@@ -245,6 +245,22 @@ describe.skipIf(skipReason !== null)(
       }
     }, 30000);
 
+    it("holds and ticks the same way in the sidebar", async () => {
+      const booted = await boot({ surface: "sidebar" });
+      try {
+        await countShown(booted);
+        await select(booted, LINES);
+        await booted.page.waitForSelector(OURS);
+        expect(await send(booted, "sidebar held")).not.toContain("ide_selection");
+        await booted.page.click(BOX);
+        expect(await send(booted, "sidebar ticked")).toContain("<ide_selection>");
+        expect(await booted.page.isChecked(BOX)).toBe(false);
+        expect(await shown(booted)).toBe(0);
+      } finally {
+        await booted.close();
+      }
+    }, 30000);
+
     it("leaves Claude Code's chip and its attachment alone when set to always", async () => {
       const booted = await boot({ editor: { attach: "always" } });
       try {
