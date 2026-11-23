@@ -12,6 +12,8 @@ it needs, its entry says so.
 
 ## Unreleased
 
+## 2.3.0 — 2026-11-23
+
 ### Added
 
 - The open file or the lines you have selected now go with a message only when you ask. Claude
