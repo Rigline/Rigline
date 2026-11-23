@@ -312,7 +312,10 @@ of it is documented.
   host's `selection_changed` last gave the session on screen: `{ filePath, sourceUri, startLine,
   endLine, startColumn?, endColumn?, selectedText? }`. With `selectedText` the send adds
   `<ide_selection>` carrying the text; without it, `<ide_opened_file>` carrying only the path. Lines
-  are the block's own numbers, from `startLine` to `endLine`.
+  are the block's own numbers, from `startLine` to `endLine`. The host leaves `selectedText` out for
+  a file it excludes, by its own patterns or by a `.gitignore` while `claudeCode.respectGitIgnore`
+  is on, so a selection there reads and sends as the file alone, in Claude Code's chip and in
+  Rigline's (read in 2.1.330's `extension.js`).
 - **Claude Code's chip renders while `selection.value` is set**, with a divider before it, and its X
   is `dismissSelection()`: the value moves to `dismissedSelection` and the signal empties.
   `applySelectionUpdate(sel)`, what `selection_changed` calls, keeps a dismissal while the new
