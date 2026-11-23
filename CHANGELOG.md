@@ -22,6 +22,12 @@ it needs, its entry says so.
   `rigline/editor` in your layout. Claude Code 2.1.268 keeps its own chip, and *Diagnostics* says
   why.
 
+### Changed
+
+- **For plugin authors:** the workflows `create-rigline-plugin` scaffolds use
+  `pnpm/action-setup@v6`, where they pinned `v6.1.0`, so they follow its fixes. A workspace you
+  already have keeps its pin, and can change it the same way.
+
 ## 2.2.1 — 2026-11-11
 
 ### Fixed

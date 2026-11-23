@@ -1965,12 +1965,19 @@ proves the pure functions, the transforms and the synthetic fixtures on every ro
 it cannot prove that a harvest regex still reads real minified output. That is what a maintainer's
 local run is for, and why [releasing.md](releasing.md) says to do one before a release.
 
-**Actions are pinned to a major, except where the major points backwards.** `pnpm/action-setup` is
-pinned to `v6.1.0`: its `v6` tag still resolves to the last release before pnpm v12 support, and the
+**Actions are pinned to a major, except where the major points backwards.** The exception was
+`pnpm/action-setup`, pinned to `v6.1.0` while its `v6` tag resolved to the last release before pnpm
+v12 support; upstream moved the tag on 2026-11-03 and the pin is `v6` (amended 2026-11-23, Leo). The
 `v4` this repository started on runs on the node20 runner GitHub has deprecated — a warning now and
 a failure on somebody else's schedule. Both halves of that are worth the habit: read what a floating
 major actually points at before trusting it to be the newest thing under that number, and treat a
 runtime deprecation warning in a green run as work already scheduled for you.
+
+The pnpm a job runs is the `packageManager` pin, whichever release the action bootstraps with. Where
+the two differ, setup switches with `pnpm self-update`, which logs a legacy-layout warning on
+Windows. [action-setup#291](https://github.com/pnpm/action-setup/issues/291) reports a switch from
+pnpm 11 to 12 leaving a shim there that PowerShell cannot run; that is not reproduced here, and CI's
+steps run under bash.
 
 **And a bot watches those pins, because a person did not** (2026-09-20). `.github/dependabot.yml`
 opens one grouped pull request a week when an action has moved, and CI checks it like any other.
@@ -1983,10 +1990,10 @@ D48's day, so that much of the posture survives the question either way.
 
 Two things it does not reach, both worth knowing rather than discovering. The scaffolder's
 template carries its own workflows under `packages/create-plugin/template/.github/workflows/`, and
-the `github-actions` ecosystem reads only `.github/workflows` at the repository root — so those
-pins stay a person's job, which is the same staleness in the one place nothing watches. And the
-file is half a switch: version updates are also enabled from the repository's settings, which is
-not something the tree can carry.
+the `github-actions` ecosystem reads only `.github/workflows` at the repository root — so moving
+those to a new major stays a person's job, which is the same staleness in the one place nothing
+watches. And the file is half a switch: version updates are also enabled from the repository's
+settings, which is not something the tree can carry.
 
 **D82. A reload is offered only after a `start`, and only for bytes that moved (2026-09-22).** The
 companion patches on disk; whether that leaves the window in front of the user stale is a different

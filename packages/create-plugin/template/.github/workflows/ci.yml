@@ -39,9 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Pinned exactly rather than to the major: this action's `v6` tag still resolves to the last
-      # release before pnpm v12 support, and `v4` runs on a runner runtime GitHub has deprecated.
-      - uses: pnpm/action-setup@v6.1.0
+      - uses: pnpm/action-setup@v6
 
       # After pnpm, never before: `cache: pnpm` asks pnpm where its store is.
       - uses: actions/setup-node@v7
