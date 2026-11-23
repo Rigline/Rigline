@@ -109,20 +109,15 @@ function attachLabel(available: Attachable): string {
     : `${name}:${lines.start}-${lines.end}`;
 }
 
-function attachTitle(available: Attachable, ticked: boolean): string {
-  const { lines, path } = available;
+/** Claude Code's own chip's tooltip, word for word: the checkbox says whether it goes. */
+function attachTitle(available: Attachable): string {
+  const { lines } = available;
+  const count = lines === null ? 0 : lines.end - lines.start + 1;
   const what =
     lines === null
-      ? `${path}, open in the editor`
-      : lines.start === lines.end
-        ? `Line ${lines.start} of ${path}`
-        : `Lines ${lines.start} to ${lines.end} of ${path}`;
-  const hint = ticked
-    ? "Goes with your next message"
-    : lines === null
-      ? "Tick to send its path with your next message"
-      : "Tick to send them with your next message";
-  return `${what}\n${hint}`;
+      ? fileName(available.path)
+      : `${count} ${count === 1 ? "line" : "lines"} selected`;
+  return `Showing Claude your current file selection (${what})`;
 }
 
 /** Each pill's plain click is its own action and a modified one the other's (D124). */
@@ -174,7 +169,7 @@ export const riglineElements: RiglineElements = (editor, attach) => {
       return (
         <label
           className={ticked ? "rigline-attach rigline-attach-ticked" : "rigline-attach"}
-          title={attachTitle(available, ticked)}
+          title={attachTitle(available)}
           // The composer keeps the focus, so ticking does not interrupt the prompt being typed.
           onMouseDown={(e) => e.preventDefault()}
         >

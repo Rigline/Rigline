@@ -149,7 +149,7 @@ describe.skipIf(skipReason !== null)(
           }, OURS),
         ).toEqual([true, true, true]);
         expect(await booted.page.getAttribute(OURS, "title")).toBe(
-          "Lines 10 to 12 of c:\\work\\notes.md\nTick to send them with your next message",
+          "Showing Claude your current file selection (3 lines selected)",
         );
         expect(await send(booted, "held prompt")).not.toContain("ide_selection");
 
@@ -213,6 +213,33 @@ describe.skipIf(skipReason !== null)(
         expect(await send(booted, "file ticked")).toContain("<ide_opened_file>");
         expect(await shown(booted)).toBe(0);
         expect(await line(booted)).toMatch(/^pass: ask: 2 session\(s\) held, 1 ticked, 1 sent$/);
+      } finally {
+        await booted.close();
+      }
+    }, 30000);
+
+    it("follows a held file to lines selected in it, and shows an excluded file's selection as the file", async () => {
+      const booted = await boot();
+      try {
+        // The cursor in notes.md, held; then text selected in the same file.
+        await select(booted, { ...FILE, filePath: LINES.filePath, sourceUri: LINES.sourceUri });
+        await booted.page.waitForSelector(OURS);
+        expect(await booted.page.textContent(OURS)).toBe("notes.md");
+        expect(await booted.page.getAttribute(OURS, "title")).toBe(
+          "Showing Claude your current file selection (notes.md)",
+        );
+        await select(booted, LINES);
+        expect(await booted.page.textContent(OURS)).toBe("notes.md:10-12");
+
+        // A file Claude Code excludes, by its patterns or a .gitignore, arrives with lines but no
+        // text, and Claude Code's own chip and block treat it as the file alone.
+        const { selectedText: _, ...excluded } = { ...LINES, startLine: 20, endLine: 21 };
+        await select(booted, excluded);
+        expect(await booted.page.textContent(OURS)).toBe("notes.md");
+        await booted.page.click(BOX);
+        const sent = await send(booted, "excluded ticked");
+        expect(sent).toContain("<ide_opened_file>");
+        expect(sent).not.toContain("ide_selection");
       } finally {
         await booted.close();
       }
