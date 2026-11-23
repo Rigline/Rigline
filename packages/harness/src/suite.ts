@@ -29,7 +29,7 @@ import {
   chromium,
   type Page,
 } from "playwright";
-import { afterAll, beforeAll } from "vitest";
+import { afterAll, beforeAll, onTestFailed } from "vitest";
 import { CORPUS_VERSIONS, missing, versionDir } from "../../core/test/corpus.ts";
 import { type FixturePlugin, preparePayload, type RemovedIdentifiers } from "./payload.ts";
 import type { AppModels } from "./page.ts";
@@ -216,11 +216,36 @@ export async function harnessSkipReason(version: string): Promise<string | null>
   return await chromiumLaunchFailure();
 }
 
-/** Opens the fixture page at `url` in `context` and waits until the kernel has loaded every plugin. */
+/** Longer than the 30s after which Playwright kills a browser that has not exited. */
+const CLOSE_MS = 45_000;
+
+/** What a panel holds that says why a wait on it failed. */
+async function describePanel(panel: Panel): Promise<string> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const silent = new Promise<string>((resolve) => {
+    timer = setTimeout(() => resolve("the page did not answer within 2s"), 2000);
+  });
+  const lines = (value: object): string =>
+    Object.entries(value)
+      .map(([key, held]) => `\n  ${key}: ${JSON.stringify(held)}`)
+      .join("");
+  const state = await Promise.race([
+    panel.diagnostics().then((d) => lines(d ?? { kernel: "none" }), String),
+    silent,
+  ]);
+  clearTimeout(timer);
+  return `[harness] ${panel.page.url()}\nconsole errors: ${lines(panel.consoleErrors)}\ndiagnostics: ${state}`;
+}
+
+/**
+ * Opens the fixture page at `url` in `context` and waits until the kernel has loaded every plugin.
+ * The panel is handed to `opened` first, so one that never gets there can still be described.
+ */
 async function openPanel(
   context: BrowserContext,
   url: string,
   options: BootOptions,
+  opened: (panel: Panel) => void,
 ): Promise<{ readonly panel: Panel; readonly bootMs: number; readonly kernelMs: number }> {
   const page = await context.newPage();
   // Inside every test's own timeout, so a wait that hangs fails naming what it waited for.
@@ -230,6 +255,17 @@ async function openPanel(
     if (msg.type() === "error") consoleErrors.push(msg.text());
   });
   page.on("pageerror", (err) => consoleErrors.push(`pageerror: ${err.message}`));
+
+  const panel: Panel = {
+    page,
+    consoleErrors,
+    diagnostics: () =>
+      page.evaluate(
+        () => (window as unknown as HarnessWindow).__rigline?.diagnostics as HarnessDiagnostics,
+      ),
+    sent: () => page.evaluate(() => (window as unknown as HarnessWindow).__harness?.sent ?? []),
+  };
+  opened(panel);
 
   if (options.clock) await page.clock.install({ time: options.clock });
   const started = performance.now();
@@ -257,19 +293,7 @@ async function openPanel(
   );
   const kernelMs = performance.now() - started - bootMs;
 
-  return {
-    panel: {
-      page,
-      consoleErrors,
-      diagnostics: () =>
-        page.evaluate(
-          () => (window as unknown as HarnessWindow).__rigline?.diagnostics as HarnessDiagnostics,
-        ),
-      sent: () => page.evaluate(() => (window as unknown as HarnessWindow).__harness?.sent ?? []),
-    },
-    bootMs,
-    kernelMs,
-  };
+  return { panel, bootMs, kernelMs };
 }
 
 /** One browser for the file, and a `boot` that gives each test its own payload, server and page. */
@@ -282,7 +306,7 @@ export function register(version: string): (options?: BootOptions) => Promise<Bo
 
   afterAll(async () => {
     await browser?.close();
-  });
+  }, CLOSE_MS);
 
   return async function boot(options: BootOptions = {}): Promise<Booted> {
     const dir = mkdtempSync(join(tmpdir(), "rigline-harness-"));
@@ -309,19 +333,34 @@ export function register(version: string): (options?: BootOptions) => Promise<Bo
       appModels: options.appModels,
     });
     const context = await browser.newContext();
-    const { panel, bootMs, kernelMs } = await openPanel(context, harness.url, options);
 
-    return {
-      ...panel,
-      payloadDir: dir,
-      bootMs,
-      kernelMs,
-      another: async () => (await openPanel(context, harness.url, options)).panel,
-      async close() {
-        await context.close();
-        await harness.close();
-        rmSync(dir, { recursive: true, force: true });
-      },
+    const panels: Panel[] = [];
+    const opened = (panel: Panel): void => void panels.push(panel);
+    const describeAll = async (): Promise<string> =>
+      (await Promise.all(panels.map(describePanel))).join("\n");
+    // Read before the page goes, and printed only once the test is known to have failed.
+    let report: string | null = null;
+    onTestFailed(async () => console.error(report ?? (await describeAll())));
+    const close = async (): Promise<void> => {
+      report = await describeAll();
+      await context.close();
+      await harness.close();
+      rmSync(dir, { recursive: true, force: true });
     };
+
+    try {
+      const { panel, bootMs, kernelMs } = await openPanel(context, harness.url, options, opened);
+      return {
+        ...panel,
+        payloadDir: dir,
+        bootMs,
+        kernelMs,
+        another: async () => (await openPanel(context, harness.url, options, opened)).panel,
+        close,
+      };
+    } catch (e) {
+      await close();
+      throw e;
+    }
   };
 }

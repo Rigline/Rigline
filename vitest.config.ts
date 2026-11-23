@@ -1,3 +1,4 @@
+import { availableParallelism } from "node:os";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
@@ -11,6 +12,9 @@ export default defineConfig({
       "scripts/**/*.test.mjs",
     ],
     environment: "node",
+    // A harness worker is five-odd processes, and Chromium cannot exit while every core is busy:
+    // docs/verification.md, *The suite leaves the machine room*.
+    maxWorkers: Math.max(1, Math.min(6, availableParallelism() - 1)),
   },
   resolve: {
     // Tests read the workspace packages from source, so a test never runs against a stale dist/.

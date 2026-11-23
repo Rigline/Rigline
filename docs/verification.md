@@ -217,6 +217,17 @@ listening, does not — and it fails only when the machine is loaded enough to w
 is the whole suite and never the test alone. `bufferSealed` is set in the `finally` of the
 plugin-loading loop, so it means *every plugin has had its chance*, refusals included.
 
+**A failed test prints what each of its panels held**: the page's console errors and the kernel's
+diagnostics, read before the page closes. Read them before the assertion. `boot()` accepts a plugin
+that did not load, because a refusal is something tests are about, so a wait for what that plugin
+draws times out with the app itself healthy; the plugin's own reason is in the report.
+
+**A module the page could not fetch is the machine's, not the code's.** `Failed to fetch dynamically
+imported module` beside `net::ERR_NO_BUFFER_SPACE` is Windows refusing the socket: with WSL2 or
+Hyper-V installed and the default dynamic port range, about one connection in 16,384 fails, however
+few ports are in use, and one shared chunk failing takes every plugin importing it. The cause and the
+one-off command that ends it are in `c:\dev\knowledge\workstation.md`.
+
 **`bufferSealed` does not mean the shell has loaded.** The shell — the RIG pill, its own
 `style[data-rigline-style="rigline"]`, Rigline's own elements — starts after the seal and imports
 `runtime/shell.js`, so a count of Rigline-owned nodes taken straight after `boot()` races it and
@@ -295,6 +306,34 @@ into the plan; the file does not ship.
 read, and a marker drawn over a label passes every one of them. A read that boots the harness and
 calls `page.screenshot()` shows the real composer with Rigline's layer over it — without VS Code's
 theme, whose colours only tier 3 shows.
+
+### The suite leaves the machine room
+
+`vitest.config.ts` caps the workers at six. Vitest's default is the cores less one, and a harness worker
+is node and a browser of several processes, so the default saturates the machine by itself. Chromium
+cannot exit while every core is busy: its shutdown waits on threads it runs below normal priority,
+which Windows starves, so a close that takes 80ms takes 2 to 30 seconds and the file fails on a hook
+after all its tests passed. Measured on 24 cores, 2026-11-23, as the suite's wall time and its slowest
+browser exit:
+
+| other load | default, 23 workers | 12 | 8 | 6 |
+| --- | --- | --- | --- | --- |
+| none | 51s, 2.2s | 47s, 0.2s | 46s, 0.2s | 46s, 0.2s |
+| 3 cores busy | 51s, 2.0s | 48s, 0.3s | 47s, 0.2s | 48s, 0.2s |
+| 10 cores busy | 60s, 8.3s | | 50s, 0.2s | 50s, 0.2s |
+| a second suite | 64s, 10.2s | 55s, 3.3s | 54s, 0.5s | 52s, 0.2s |
+
+More workers buy nothing because `kernel.test.ts` is one sequential file that takes about as long as
+the whole run. A limit on the harness alone costs more than it saves: Vitest runs projects with
+different limits one after another. The browser's close is given longer than the 30 seconds after which
+Playwright kills it, so a slow exit is never a failure of its own.
+
+That the starved threads are the cause is measured, not read: 28 browsers launched at once exit in 0.2
+to 0.9 seconds when the cores are held by idle-priority work, and 2.6 to 24.6 when it is normal-priority.
+Chromium's [shutdown.md](https://chromium.googlesource.com/chromium/src/+/main/docs/shutdown.md) (Step 3)
+says the main thread blocks on thread-pool tasks already running, and
+[platform_thread_win.cc](https://chromium.googlesource.com/chromium/src/+/main/base/threading/platform_thread_win.cc)
+that background threads run at the lowest priority; no source found joins the two.
 
 A file skips, with a reason, when the corpus lacks its version or Chromium will not launch — and the
 reason says which. After a Playwright bump, the browser it needs is usually what's missing, and
